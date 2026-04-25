@@ -1,0 +1,289 @@
+# 02 — Retrieval Map (Use this to pick the right source file fast)
+
+**Authority Scope:** Navigation + retrieval guidance only. This file does not introduce new platform or template rules.
+
+_Last updated: 2026-03-30_
+
+---
+
+## Quick decision tree
+
+### "Who is the user / login / guest / anonymous / merge?"
+→ **11_USER_IDENTITY_MODEL.md**
+
+### "What owns what (cart, orderlines, projects, galleries)?"
+→ **12_OBJECTS_AND_OWNERSHIP.md**
+
+### "Is this v1 or v2 / which Shopper version does this apply to / version scope convention?"
+→ **03_VERSION_SCOPE.md**
+
+### "Is this platform vs Shopper vs custom — where should we implement?"
+→ **13_TEMPLATE_BOUNDARIES.md**
+
+### "Cart behavior (editability, option visibility, photo prints quantity, cart UX rules)?"
+→ **20_SHOPPER_CART_RULES.md**
+
+### "Checkout behavior (kiosk mode, shipping/pickup unavailable, film, digital-only checkout)?"
+→ **21_SHOPPER_CHECKOUT_POLICY.md**
+
+### "How options/variants render (type/selector/multi-upload/triggers)?"
+→ **22_OPTION_VARIANT_RENDERING.md**
+
+### "Pricing formulas / price variables / tiering / cut_print_quantity rule?"
+→ **30_PRICING_ENGINE.md**
+
+### "Fulfillment templates / job tickets / generated_files / filename templates?"
+→ **31_FULFILLMENT_ENGINE.md**
+
+### "High-level mental model of the whole system?"
+→ **10_CORE_MENTAL_MODEL.md**
+
+### "Four platform layers / deployment models / Shopify vs Full Pixfizz vs API vs Marketplace?"
+→ **15_PLATFORM_ARCHITECTURE.md**
+
+### "Product Attributes / Templates / Designs / Collections / product hierarchy / design vs static product?"
+→ **16_PRODUCT_HIERARCHY.md**
+
+### "Design tool features / feature toggles / design tool configuration / branding / Custom JS/CSS?"
+→ **17_DESIGN_TOOL.md**
+
+### "Blend modes / Multiply / Screen / Overlay / element blend mode / group blending context?"
+→ **17_DESIGN_TOOL.md** § Blend Modes
+
+### "Admin sections / admin sidebar / where is X in admin / settings / super admin?"
+→ **18_ADMIN_NAVIGATION.md**
+
+### "XML template syntax / page parameters / bleed / safe area / margin / snap points / hinge / gutter / growing spine / layflat spread / output-name?"
+→ **19_XML_TEMPLATE_REFERENCE.md**
+
+### "Calendar XML / planner XML / date sequences / foreachdate / dategen / dateshift / defdate?"
+→ **23_XML_CALENDAR_REFERENCE.md**
+
+### "Order lifecycle / order statuses / production pipeline / OrderHub / OHD / fulfillment destinations?"
+→ **32_ORDER_LIFECYCLE.md**
+
+### "Onboarding phases / setup process / email notification templates?"
+→ **80_ONBOARDING.md**
+
+### "Customer FAQ / store owner question / how do I do X on my Pixfizz site / common operator questions?"
+→ **90_FAQ.md**
+
+### "Definitions of terms?"
+→ **14_GLOSSARY.md**
+
+### "Troubleshooting mindset + common pitfalls?"
+→ **40_PLAYBOOK.md**
+
+### "Code formatting / boundaries / full-block replacement / conventions?"
+→ **01_CODE_GOVERNANCE.md**
+
+### "Liquid object properties / filters / tags (what properties exist on cart, orderline, product, user, etc.)?"
+→ **50_LIQUID_REFERENCE.md**
+
+### "What custom fields exist on product / collection / design / post / option / cart / user / order (or any other CMS object)?"
+→ **51_CUSTOM_FIELDS_REFERENCE.md**
+
+### "What does product.custom.X / collection.custom.X / design.custom.X do?"
+→ **51_CUSTOM_FIELDS_REFERENCE.md**
+
+### "Which files use a specific custom field?"
+→ **51_CUSTOM_FIELDS_REFERENCE.md**
+
+### "Navigation styles / megamenu structure / nav checklist key?"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md**
+
+### "Checklist key name / what value does it take?"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md**
+
+### "Style snippet token names / CSS delivery / theming system?"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md**
+
+### "Layout structure / page inventory / snippet namespaces?"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md**
+
+### "How do I create a new page on a child site of Shopper?"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 14 (Custom Type wildcard pattern)
+
+---
+
+## Pixfizz API
+
+Use **61_PIXFIZZ_API.md** for all questions about the Pixfizz REST API, JS API, and custom eCommerce integration.
+
+### "What REST endpoints exist / what objects can the API manage?"
+→ **61_PIXFIZZ_API.md** § 1 (Overview)
+
+### "How do I authenticate with the API?"
+→ **61_PIXFIZZ_API.md** § 2 (Authentication: basic auth, cookie, OAuth)
+
+### "How do I create a project / book via the API?"
+→ **61_PIXFIZZ_API.md** § 4 (Projects)
+
+### "How do I trigger PDF generation for a project?"
+→ **61_PIXFIZZ_API.md** § 5 (Book Files)
+
+### "How do I push an external order into Pixfizz to trigger fulfillment?"
+→ **61_PIXFIZZ_API.md** § 8 (Order Fulfillment)
+
+### "How do I integrate Pixfizz into a non-Shopify external storefront?"
+→ **61_PIXFIZZ_API.md** § 7 (Custom eCommerce Integration)
+
+### "How do I pass a user from my site into Pixfizz (user handoff)?"
+→ **61_PIXFIZZ_API.md** § 7 (User Handoff)
+
+### "How do I show a preview of a design without creating a project?"
+→ **61_PIXFIZZ_API.md** § 9 (Dynamic Design Previews)
+
+### "What JS API functions are available / how do I use Pixfizz.setup / createProject / openProject?"
+→ **61_PIXFIZZ_API.md** § 10 (JS API)
+
+### "What does the Shopify JS API (Pixfizz.Shopify.*) do?"
+→ **60_SHOPIFY_INTEGRATION.md** (not the general JS API)
+
+### "How does Pixfizz receive status callbacks from a fulfillment partner (Advertek, Navitor, etc.)?"
+→ **61_PIXFIZZ_API.md** § 13 (Fulfillment Partner Callbacks)
+
+---
+
+## Shopify Integration
+
+Use **60_SHOPIFY_INTEGRATION.md** for all questions relating to the Shopify + Pixfizz deployment path.
+
+### "What Shopify metafields do I need to set up?"
+→ **60_SHOPIFY_INTEGRATION.md** § 2
+
+### "Which integration type should I use for this product?"
+→ **60_SHOPIFY_INTEGRATION.md** § 3
+
+### "What do _pixfizz_project_id / _pixfizz_addon / _pixfizz_unit_quantity do?"
+→ **60_SHOPIFY_INTEGRATION.md** § 4
+
+### "What does each Pixfizz Shopify snippet do / how do I use it?"
+→ **60_SHOPIFY_INTEGRATION.md** § 5
+
+### "How do I set up the Shopify cart page for Pixfizz?"
+→ **60_SHOPIFY_INTEGRATION.md** § 7
+
+### "How do addon products / extra pages work in Shopify?"
+→ **60_SHOPIFY_INTEGRATION.md** § 8
+
+### "How do I set up the order sync webhook?"
+→ **60_SHOPIFY_INTEGRATION.md** § 9
+
+### "How do I link a product in Shopify to Pixfizz?"
+→ **60_SHOPIFY_INTEGRATION.md** § 10
+
+### "Why isn't the preview showing / addon not updating / quantity not locking / order not confirming?"
+→ **60_SHOPIFY_INTEGRATION.md** § 11
+
+### "What is Buy Now, Personalize Later / how does the draft order flow work?"
+→ **62_SHOPIFY_BUY_NOW_PERSONALIZE_LATER.md**
+
+### "How does the draft button work / what does draft: true do in the launch handler?"
+→ **62_SHOPIFY_BUY_NOW_PERSONALIZE_LATER.md** § 2–3
+
+### "How does the customer approve their draft order / what is orderline_commit?"
+→ **62_SHOPIFY_BUY_NOW_PERSONALIZE_LATER.md** § 7
+
+### "How does the magic link email work for draft orders / what is signin_token?"
+→ **62_SHOPIFY_BUY_NOW_PERSONALIZE_LATER.md** § 6
+
+### "When does fulfillment trigger for a draft order / what is order status W?"
+→ **62_SHOPIFY_BUY_NOW_PERSONALIZE_LATER.md** § 5 + 7
+
+### "Which integration types support Buy Now, Personalize Later?"
+→ **62_SHOPIFY_BUY_NOW_PERSONALIZE_LATER.md** § 1
+
+### "What CMS pages make up the Shopify CMS site (the non-Shopper Pixfizz CMS backing the Shopify integration)?"
+→ **62_SHOPIFY_BUY_NOW_PERSONALIZE_LATER.md** § 9
+
+### "How do I add a Saved Projects or My Galleries page to a Shopify store?"
+→ **60_SHOPIFY_INTEGRATION.md** § 13
+
+### "How does the Pixfizz session work on a Shopify page / can I call the Pixfizz API from Shopify JS?"
+→ **60_SHOPIFY_INTEGRATION.md** § 13
+
+### "What methods does Pixfizz.Shopify expose / what is Pixfizz.Shopify._user / pixfizz_origin?"
+→ **60_SHOPIFY_INTEGRATION.md** § 13
+
+### "How do I get a gallery thumbnail at a higher resolution / thumbnail URL size parameter?"
+→ **60_SHOPIFY_INTEGRATION.md** § 13
+
+### "How do I configure local pickup so Shopify orders route to the right address in Pixfizz?"
+→ **60_SHOPIFY_INTEGRATION.md** § 12
+
+### "Shopify pickup order has no address in Pixfizz / webhook has no shipping address?"
+→ **60_SHOPIFY_INTEGRATION.md** § 12
+
+---
+
+## Scope warning addition
+
+Under "If a site is using the Shopify deployment path" add:
+
+- 62_SHOPIFY_BUY_NOW_PERSONALIZE_LATER.md (draft order / Buy Now, Personalize Later flow)
+
+---
+
+## MyPixfizz (my.pixfizz.com)
+
+MyPixfizz is a separate product from the Pixfizz CMS platform — it is the internal ERP/CRM and customer self-service portal for Pixfizz. Use the 70-series files for all MyPixfizz questions.
+
+### "What is MyPixfizz / what does it do / who uses it?"
+→ **70_MYPIXFIZZ_OVERVIEW.md**
+
+### "What routes/pages exist / what does a specific feature do?"
+→ **71_MYPIXFIZZ_FEATURES_ROUTES.md**
+
+### "What database tables exist / what columns does a table have / how are tables related?"
+→ **72_MYPIXFIZZ_DATA_MODEL.md**
+
+### "Help me write a Lovable prompt for MyPixfizz"
+→ **71_MYPIXFIZZ_FEATURES_ROUTES.md** § Prompt-Writing Notes, then **72_MYPIXFIZZ_DATA_MODEL.md** for table/column accuracy
+
+> **Scope note:** MyPixfizz files (70–72) are entirely separate from Pixfizz CMS files (10–61). Do not apply Shopper, Liquid, or pricing rules to MyPixfizz questions.
+
+---
+
+## Retrieval preference rules (for best answers)
+
+- Prefer **the narrowest file** that matches the question (prevents concept bleed).
+- If a question spans layers (e.g., cart + pricing), answer in this order:
+	1) Template behavior (Shopper) or integration layer (Shopify / custom)
+	2) Platform truth
+	3) Pricing/Fulfillment (commercial engine)
+- When uncertain whether a behavior is template-level or platform-level:
+	→ consult **13_TEMPLATE_BOUNDARIES.md** first.
+
+---
+
+## Scope warning
+
+If a site is not using the Shopper template, treat Shopper files as **non-authoritative** and fall back to:
+- 10_CORE_MENTAL_MODEL.md
+- 11_USER_IDENTITY_MODEL.md
+- 12_OBJECTS_AND_OWNERSHIP.md
+- 30_PRICING_ENGINE.md
+- 31_FULFILLMENT_ENGINE.md
+- 50_SHOPPER_TEMPLATE_REFERENCE.md (Shopper structural anatomy — layouts, nav, theming, checklist keys)
+
+If a site is using the **Shopify deployment path**, Shopper files are non-authoritative for cart/checkout. Use:
+- 60_SHOPIFY_INTEGRATION.md (Shopify-specific cart, snippets, metafields, order sync)
+- 10/11/12/30/31 (platform truth — still applies)
+
+If a site is using a **custom eCommerce integration** (external storefront, not Shopify):
+- 61_PIXFIZZ_API.md § 7 (user handoff, project workflow, fulfillment)
+- 10/11/12/30/31 (platform truth — still applies)
+- Shopper and Shopify files are non-authoritative
+
+## Changelog
+- 2026-03-13: Added Shopify Integration section and Shopify scope warning.
+- 2026-03-26: Added MyPixfizz section pointing to 70/71/72 files.
+- 2026-03-30: Added Pixfizz API section pointing to new 61_PIXFIZZ_API.md. Added custom eCommerce scope warning.
+- 2026-04-03: Added 19_XML_TEMPLATE_REFERENCE.md entry for XML template page parameters.
+- 2026-04-05: Added 51_CUSTOM_FIELDS_REFERENCE.md — master custom field audit across all v2 object types.
+- 2026-04-06: Added 90_FAQ.md — customer-facing Q&A for store owners/operators.
+- 2026-04-07: Added 03_VERSION_SCOPE.md — v1/v2 versioning convention and audit status.
+- 2026-04-09: Added 62_SHOPIFY_BUY_NOW_PERSONALIZE_LATER.md — full Buy Now, Personalize Later / draft order flow documentation.
+- 2026-04-12: Added retrieval entries for §12 (local pickup) and §13 (variable pages / gallery API) in 60_SHOPIFY_INTEGRATION.md.
+- 2026-04-18: Added retrieval entry for Design Tool Blend Modes (17_DESIGN_TOOL.md § Blend Modes).
