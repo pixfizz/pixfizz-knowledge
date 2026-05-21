@@ -336,6 +336,35 @@ If a site is using the **Shopify deployment path**, Shopper files are non-author
 - 60_SHOPIFY_INTEGRATION.md (Shopify-specific cart, snippets, metafields, order sync)
 - 10/11/12/30/31 (platform truth — still applies)
 
+### "Automatic discounts / cart-level discounts without promo code / auto discount formula?"
+→ **30_PRICING_ENGINE.md** § Automatic Discounts
+
+### "Static product importer / CSV product import / bulk product upload?"
+→ **18_ADMIN_NAVIGATION.md** § Products (Static Product Importer)
+
+### "Inventory tracking / stock levels / out of stock / product availability?"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § Inventory Tracking
+→ **18_ADMIN_NAVIGATION.md** § Inventory Management
+
+### "Login modal / sign in from editor / design tool login?"
+→ **17_DESIGN_TOOL.md** § Login Modal
+
+### "myPixfizz / customer portal / hub / Meltingspot replacement?"
+→ **15_PLATFORM_ARCHITECTURE.md** § myPixfizz Hub
+
+### "Gift vouchers / voucher code tracking / gift card?"
+→ **18_ADMIN_NAVIGATION.md** § Marketing (Gift Vouchers)
+
+### "Infrastructure / Rails version / Ruby version / Prawn / PDF library?"
+→ **15_PLATFORM_ARCHITECTURE.md** § Infrastructure Versions
+
+### "Customer training / AI setup / webinar schedule / support channels?"
+→ **80_ONBOARDING.md** § Customer Training and Support Resources
+
+### "Communication preferences / email opt-in / SMS opt-in / marketing consent?"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § Account Page Redesign (Communication Preferences)
+→ **51_CUSTOM_FIELDS_REFERENCE.md** § User fields
+
 If a site is using a **custom eCommerce integration** (external storefront, not Shopify):
 - 61_PIXFIZZ_API.md § 7 (user handoff, project workflow, fulfillment)
 - 10/11/12/30/31 (platform truth — still applies)
@@ -354,3 +383,4 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 - 2026-04-18: Added retrieval entry for Design Tool Blend Modes (17_DESIGN_TOOL.md § Blend Modes).
 - 2026-04-29: Added retrieval entries for Mapped Preview behavior (17_DESIGN_TOOL.md § Mapped Preview Behavior), Page Masks (17_DESIGN_TOOL.md § Page Masks), Design Option same-code conflict (16_PRODUCT_HIERARCHY.md § Variants vs Options), Caption translation limitations (19_XML_TEMPLATE_REFERENCE.md § Caption Translation Limitations), production file regeneration and font preprocessing (40_PLAYBOOK.md).
 - 2026-05-21: Added 45_ORDERHUB.md — comprehensive OrderHub reference (Jobs, Production Board, Processes, Locations, PDF Layout Studio, PrintNode, Film Scans, OHD, EasyPost, POS, category assignment, Email/SMS/RCS notifications). Added retrieval entries for all OrderHub topics. Source: OrderHub help modal articles.
+- 2026-05-21: Added routing entries for automatic discounts, static product importer, inventory tracking, login modal, myPixfizz hub, gift vouchers, infrastructure versions, customer training, communication preferences. Source: Q1 2026 webinar KB sync.
