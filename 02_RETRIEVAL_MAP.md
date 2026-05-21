@@ -2,7 +2,7 @@
 
 **Authority Scope:** Navigation + retrieval guidance only. This file does not introduce new platform or template rules.
 
-_Last updated: 2026-03-30_
+_Last updated: 2026-05-21_
 
 ---
 
@@ -44,11 +44,20 @@ _Last updated: 2026-03-30_
 ### "Product Attributes / Templates / Designs / Collections / product hierarchy / design vs static product?"
 → **16_PRODUCT_HIERARCHY.md**
 
+### "Can I have the same option code on design and template? / Design option template option conflict / option same-code error?"
+→ **16_PRODUCT_HIERARCHY.md** § Variants vs Options
+
 ### "Design tool features / feature toggles / design tool configuration / branding / Custom JS/CSS?"
 → **17_DESIGN_TOOL.md**
 
 ### "Blend modes / Multiply / Screen / Overlay / element blend mode / group blending context?"
 → **17_DESIGN_TOOL.md** § Blend Modes
+
+### "How do mapped previews work? / Can I get a mapped preview via API? / Mapped preview coordinates / mapped preview page indexing?"
+→ **17_DESIGN_TOOL.md** § Mapped Preview Behavior
+
+### "Are page masks included in production output? / Page mask fulfillment / mask presentation only?"
+→ **17_DESIGN_TOOL.md** § Page Masks
 
 ### "Admin sections / admin sidebar / where is X in admin / settings / super admin?"
 → **18_ADMIN_NAVIGATION.md**
@@ -56,11 +65,53 @@ _Last updated: 2026-03-30_
 ### "XML template syntax / page parameters / bleed / safe area / margin / snap points / hinge / gutter / growing spine / layflat spread / output-name?"
 → **19_XML_TEMPLATE_REFERENCE.md**
 
+### "Can I translate captions? / Caption lang attribute / Multilingual captions / Layout tag translation / Background tag translation?"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Caption Translation Limitations
+
 ### "Calendar XML / planner XML / date sequences / foreachdate / dategen / dateshift / defdate?"
 → **23_XML_CALENDAR_REFERENCE.md**
 
 ### "Order lifecycle / order statuses / production pipeline / OrderHub / OHD / fulfillment destinations?"
 → **32_ORDER_LIFECYCLE.md**
+
+### "OrderHub Jobs / job statuses / custom job statuses / job cascade to order status?"
+→ **45_ORDERHUB.md** § Jobs
+
+### "Production Board / Kanban / Timeline view / Status view / drag-and-drop jobs?"
+→ **45_ORDERHUB.md** § Production Board
+
+### "Processes / production workflow config / process colour / process categories / lead time?"
+→ **45_ORDERHUB.md** § Processes
+
+### "Locations / payment terminals / Stripe Helcim Gravity in OrderHub / printer mappings per location?"
+→ **45_ORDERHUB.md** § Locations
+
+### "PDF Layout Studio / PDF ticket designer / production tickets / packing slips / shipping labels / QC checklists / AI layout editor?"
+→ **45_ORDERHUB.md** § PDF Layout Studio
+
+### "PrintNode / auto-print / Named Printers / PrintNode setup / printing PDF tickets automatically?"
+→ **45_ORDERHUB.md** § PrintNode Integration
+
+### "Film Scans / film scan workflow / scan status / Twin Check Number / S3 auto-sync / gallery pending?"
+→ **45_ORDERHUB.md** § Film Scans Module
+
+### "OHD details / OrderHub Downloader / DPOF / AI upscaling / first-come-first-served job polling / OHD multi-instance?"
+→ **45_ORDERHUB.md** § OrderHub Downloader
+
+### "EasyPost / shipping labels / OrderHub shipping integration?"
+→ **45_ORDERHUB.md** § EasyPost Shipping Integration
+
+### "POS category filter / Lightspeed Square category import / which categories get imported from POS?"
+→ **45_ORDERHUB.md** § POS Integration
+
+### "Unassigned categories alert / assigning Pixfizz categories to processes / amber banner on Orders page?"
+→ **45_ORDERHUB.md** § Assigning Pixfizz Categories to Production Processes
+
+### "OrderHub email notifications / SMS notifications / RCS / Twilio / customer notify on ship or complete / notification suppression / sendNotifications false / two-way SMS / keyword auto-reply?"
+→ **45_ORDERHUB.md** § Email & SMS/RCS Notifications
+
+### "Job thumbnails / thumbnail in Jobs interface / photo print thumbnail / static product no thumbnail?"
+→ **45_ORDERHUB.md** § Jobs § Job Thumbnails
 
 ### "Onboarding phases / setup process / email notification templates?"
 → **80_ONBOARDING.md**
@@ -73,6 +124,12 @@ _Last updated: 2026-03-30_
 
 ### "Troubleshooting mindset + common pitfalls?"
 → **40_PLAYBOOK.md**
+
+### "How do I regenerate a production file? / Delete before regeneration / production file already exists?"
+→ **40_PLAYBOOK.md** § Production File Regeneration
+
+### "Font rendering issues / Tofu rectangles in editor / embedded font error in PDF / Transfonter?"
+→ **40_PLAYBOOK.md** § Font Stability
 
 ### "Code formatting / boundaries / full-block replacement / conventions?"
 → **01_CODE_GOVERNANCE.md**
@@ -103,6 +160,14 @@ _Last updated: 2026-03-30_
 
 ### "How do I create a new page on a child site of Shopper?"
 → **50_SHOPPER_TEMPLATE_REFERENCE.md** § 14 (Custom Type wildcard pattern)
+
+---
+
+### "Mobile UX principles / mobile conversion gap / mobile homepage patterns / mobile checkout patterns?"
+→ **82_MOBILE_UX_REFERENCE.md**
+
+### "Mobile UX audit / site review checklist / mobile conversion audit / walkthrough checklist?"
+→ **83_MOBILE_UX_AUDIT.md**
 
 ---
 
@@ -287,3 +352,5 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 - 2026-04-09: Added 62_SHOPIFY_BUY_NOW_PERSONALIZE_LATER.md — full Buy Now, Personalize Later / draft order flow documentation.
 - 2026-04-12: Added retrieval entries for §12 (local pickup) and §13 (variable pages / gallery API) in 60_SHOPIFY_INTEGRATION.md.
 - 2026-04-18: Added retrieval entry for Design Tool Blend Modes (17_DESIGN_TOOL.md § Blend Modes).
+- 2026-04-29: Added retrieval entries for Mapped Preview behavior (17_DESIGN_TOOL.md § Mapped Preview Behavior), Page Masks (17_DESIGN_TOOL.md § Page Masks), Design Option same-code conflict (16_PRODUCT_HIERARCHY.md § Variants vs Options), Caption translation limitations (19_XML_TEMPLATE_REFERENCE.md § Caption Translation Limitations), production file regeneration and font preprocessing (40_PLAYBOOK.md).
+- 2026-05-21: Added 45_ORDERHUB.md — comprehensive OrderHub reference (Jobs, Production Board, Processes, Locations, PDF Layout Studio, PrintNode, Film Scans, OHD, EasyPost, POS, category assignment, Email/SMS/RCS notifications). Added retrieval entries for all OrderHub topics. Source: OrderHub help modal articles.

@@ -187,24 +187,49 @@ Each order has one or more orderlines (individual products). Each shows:
 
 ## OrderHub Desktop (OHD)
 
-Desktop application for production teams to download, view, and manage production jobs.
+Desktop application for photo lab operators. Runs locally, polls OrderHub for new jobs, downloads print files, and feeds them to local print controllers.
 
-### Key Features
-- Download production jobs with all associated assets
-- View job details including production instructions
-- Track job status locally
-- Manage production queue
-- Barcode-based job lookup
+### Key Capabilities
+- Continuous polling for new jobs flagged for local production
+- Downloads job details and print files from OrderHub via API
+- Organises files into structured folders with human-readable naming
+- Generates **DPOF files** for compatible print controllers (Epson, Noritsu, etc.)
+- **AI-powered upscaling** for low-resolution images
+- Channel and product routing to match jobs to the correct print workflow
+- Job review tools: colour correction, quantity management
+- Updates job status back in OrderHub once processed
 
 ### OHD Workflow
 1. OrderHub creates a production job (on order confirmation + artwork generation)
 2. Assets delivered to fulfillment destination (FTP/HTTP)
 3. Job appears in OHD queue
-4. Team downloads job and production assets
-5. After production, team updates status (Downloaded → Manufactured)
+4. OHD polls, downloads job and production assets to local machine
+5. Team processes job; OHD updates status (Downloaded → Manufactured)
 6. Status change flows back to OrderHub, triggers next lifecycle step
 
-> OHD is a companion tool to OrderHub — not standalone. Requires active OrderHub connection.
+### Multi-instance Behaviour
+If multiple OHD instances run across workstations, job delivery is **first-come-first-served** — a job goes to only one instance. Instances can be filtered by location.
+
+### API Status Update Endpoint
+```
+POST /functions/v1/update-job-status
+Headers: X-API-Key: <api_key>
+```
+
+> OHD is a companion tool to OrderHub — not standalone. Requires active OrderHub connection. For full operational detail see `45_ORDERHUB.md`.
+
+---
+
+## Automatic Discounts
+
+Pixfizz supports **automatic discounts** applied as negative line values on orders. Key behavior:
+
+- Discounts appear as **negative values on order lines** (not as a separate discount field)
+- Automatic discounts **stack with promo codes** — both can be applied to the same order
+- Applied at the checkout page
+- Configured in admin — no customer action required to apply them
+
+This differs from promocode-based discounts, which require the customer to enter a code. Automatic discounts trigger without any input.
 
 ---
 
@@ -226,3 +251,5 @@ The `manual_payment` field is a custom field set at order creation. It returns `
 - 2026-03-30: Created from master platform documentation export.
 - 2026-04-23: Added pending order email scoping rule for manual_payment field.
 - 2026-05-19: Added Custom Order & Orderline Fields via Liquid Scripts section (from Notion KB). Added Order Cancellation and Transaction Fees process (from Notion KB).
+- 2026-05-21: Added Automatic Discounts (negative order line values, stack with promo codes, applied at checkout). Source: Fireflies.
+- 2026-05-21: Expanded OrderHub Desktop (OHD) section with DPOF generation, AI upscaling, multi-instance behaviour, and API endpoint. Added cross-reference to 45_ORDERHUB.md. Source: OrderHub help modal.
