@@ -2,7 +2,7 @@
 
 **Authority Scope:** Structural anatomy of the Shopper parent template — layouts, navigation, snippets, theming, CSS delivery, and admin checklist system. Derived from a full CMS backup scan (2026-03-12).
 
-_Last updated: 2026-04-10_
+_Last updated: 2026-05-19_
 
 ---
 
@@ -29,6 +29,7 @@ Five layouts exist. The `index` layout is the default for all storefront pages.
 |---|---|
 | `index` | Default storefront layout (all public-facing pages) |
 | `admin` | Custom admin pages (`/site/admin/*`) — admin-only, has side nav |
+| `shopper-admin` | Shopper v2 custom admin (`/site/manage/*`) — admin-only, sidebar nav, requires `cms.js` + `cms.css` for form submission |
 | `order-management` | Custom admin without side nav (standalone admin views) |
 | `quickstart` | Pixfizz setup/onboarding wizard — admin-only, has full side nav |
 | `iframe` | Modal/iframe content only |
@@ -680,7 +681,98 @@ Constraints:
 - The path is a single segment only (level 1) — use level 2/3 catch-all
   pages for nested paths if needed
 
-## 15. Known Gotchas
+## 15. Custom Admin — Shopper v2 (`/site/manage/`)
+
+The Shopper v2 custom admin is a replacement for the legacy `setup/` wizard pages. It uses the `shopper-admin` layout and provides a sidebar navigation to all configuration pages.
+
+### Access control
+
+The `shopper-admin` layout includes a `{% if user.is_admin %}` gate. Only admin users can access `/site/manage/*` pages. Non-admin users see nothing.
+
+### Critical dependency
+
+The `shopper-admin` layout must include `cms.js` and `cms.css` (loaded via `pixfizz_asset_url`). Without `cms.js`, all `{% form %}` tags with `async: true` / `autosubmit: true` render as static HTML — checkboxes and snippet-saving forms will not submit.
+
+### Page inventory
+
+| Path | Content |
+|---|---|
+| `manage/dashboard` | Overview / home page |
+| `manage/branding` | Colors, fonts, logo, brand identity |
+| `manage/store` | Storefront settings, collection layout, product page options |
+| `manage/homepage` | Homepage content configuration |
+| `manage/navigation` | Nav links, megamenu, footer links |
+| `manage/collections` | Collection display options |
+| `manage/products` | Product page configuration |
+| `manage/gallery` | Gallery feature settings |
+| `manage/cart` | Cart page options |
+| `manage/checkout` | Checkout flow, rush fees, shipping display |
+| `manage/payments` | Payment gateway settings |
+| `manage/account` | Customer account area configuration |
+| `manage/seo` | SEO settings, meta defaults, llms.txt management |
+| `manage/emails` | Email template configuration |
+| `manage/integrations` | Third-party integrations (GTM, Klaviyo, etc.) |
+| `manage/advanced` | Advanced settings |
+
+### Tools pages
+
+| Path | Content |
+|---|---|
+| `manage/tools/product-importer` | CSV-based static product importer |
+| `manage/tools/download-images` | Live preview image downloader (per-collection ZIP download) |
+
+### Sidebar navigation
+
+The sidebar is defined in a shared snippet. When adding new pages, update the sidebar snippet with the new nav item. The sidebar uses the `shopper-admin` design system CSS classes (`s-card`, `s-field`, `s-field-label`, etc.).
+
+---
+
+## 16. Kiosk Touchscreen Mode
+
+**Status:** Partially implemented. Login gate, idle screen, and cart/checkout overlays not yet built. Parked as of May 2026.
+
+Kiosk mode is a checklist-gated feature designed for in-store photo lab kiosks. When enabled, it transforms the Shopper storefront into a touch-friendly, simplified UI for two primary use cases: ordering photo prints and submitting film processing orders.
+
+### Architecture
+
+- **Gate:** The `admin/checklist/kiosk-touchscreen-mode` snippet controls activation. When set to `TRUE`, the `index` layout adds the class `kiosk-touchscreen` to the `<body>` tag.
+- **9 checklist snippets** created on the parent template:
+  - `admin/checklist/kiosk-touchscreen-mode` — master toggle
+  - `admin/checklist/kiosk-prints-collection` — collection path for the prints workflow
+  - `admin/checklist/kiosk-film-collection` — collection path for film processing
+  - `admin/checklist/kiosk-other-collection` — collection path for secondary products
+  - `admin/checklist/kiosk-prints-image` — hero tile image for prints
+  - `admin/checklist/kiosk-film-image` — hero tile image for film
+  - `admin/checklist/kiosk-other-image` — hero tile image for other products
+  - `admin/checklist/kiosk-prints-label` — tile label for prints
+  - `admin/checklist/kiosk-film-label` — tile label for film
+
+- **Content snippets:** `kiosk/top-rail` (simplified header bar with logo + Start Over button) and `kiosk/home` (tile-based landing page).
+
+### CSS scoping
+
+All kiosk CSS is scoped under `.kiosk-touchscreen` so it has zero impact when the mode is off. CSS lives in the child site's `style/custom.css`.
+
+### UX constraints
+
+- No navigation bar (hidden via CSS)
+- Large buttons, large tiles — designed for touch
+- Minimal scrolling
+- Login gate required (not yet implemented)
+- Idle timeout with attractor screen (not yet implemented)
+
+### Remaining work
+
+1. Login gate + login page styling
+2. Idle screen / attractor
+3. Cart/checkout CSS overlays
+4. PDP CSS overlay
+5. Start Over + idle timer JS
+6. Custom admin section for kiosk settings
+
+---
+
+## 17. Known Gotchas
 
 These are recurring issues worth warning yourself about. Not fix recipes — the fix
 is in the code or the commit history. These are "things to watch for when you are
@@ -707,7 +799,7 @@ browsers in customer-facing support docs so they know to update their browser.
 ### Worker JS impacting site speed / SEO (2026-03-31)
 **Status:** Under investigation as of 2026-03-31. No fix documented yet.
 **Symptom:** Worker JS loading is impacting Core Web Vitals and Lighthouse SEO
-scores on at least one site (TK's).
+scores on at least one site.
 **Action:** Track separately — do not assume a fix is available when scoping SEO
 work on a site that depends on Worker JS. Confirm current status before
 committing to a performance target.
@@ -725,3 +817,4 @@ the platform fix.
 - 2026-04-08: Updated how to create pages with Custom Types to Section 14.
 - 2026-04-10: Added Section 15 — Known Gotchas (image slider refresh, date input browser bug, Worker JS SEO, CSV export anonymous projects).
 - 2026-04-20: Section 13 — clarified nav link editing must target the active nav style snippet based on header-logo-position checklist value.
+- 2026-05-19: Added `shopper-admin` layout to layouts table. Added Section 15 — Custom Admin manage/ page inventory including tools pages. Added Section 16 — Kiosk Touchscreen Mode architecture and status. Renumbered Known Gotchas to Section 17. Source: Claude chats (admin v2 work, kiosk mode design).

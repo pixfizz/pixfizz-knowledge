@@ -2,7 +2,7 @@
 
 **Authority Scope:** Shopify + Pixfizz integration architecture, snippets, metafields, cart page, and order sync.
 
-_Last updated: 2026-04-10_
+_Last updated: 2026-05-19_
 
 ---
 
@@ -34,6 +34,7 @@ In the Shopify deployment path:
 | Pixfizz Adjust Cart QTY | `pixfizz.adjust_cart_qty` | True or False | Set to `false` to prevent customers changing cart quantity. Used for photo prints. |
 | Pixfizz Photo Prints Collection Path | `pixfizz.photo_prints_collection_path` | Single line text | Collection path used when launching the photo prints flow. |
 | SEO Hidden | `seo.hidden` | Integer | Set to `1` to hide addon products from search/Google. |
+| Pixfizz Static Product Code | `pixfizz.static_product_code` | Single line text | Maps a non-personalized Shopify product to a Pixfizz static product by its `code`. Used for ingesting non-Pixfizz line items into Pixfizz orders via the webhook. |
 
 ### Variant Metafields (`pixfizz.*` namespace)
 
@@ -43,6 +44,7 @@ In the Shopify deployment path:
 | Pixfizz Extra Page Addon | `pixfizz.page_addon_product` | Product Variant | Variant-level override for the extra page addon. |
 | Pixfizz Option Value Code | `pixfizz.option_value_code` | Single line text | Links this Shopify variant to a specific Pixfizz option value code. |
 | Pixfizz Option Addons | `pixfizz.option_addon_products` | Product | Variant-level option addon override. |
+| Pixfizz Static Product Code | `pixfizz.static_product_code` | Single line text | Variant-level override. Takes precedence over product-level value, same pattern as `product_sku`. |
 
 ### SKU Precedence Rule
 
@@ -52,7 +54,7 @@ For products WITH Shopify variations: the SKU **must** be set on the variant met
 
 ## 3. Integration Types
 
-Set via `pixfizz.integration_type` product metafield.
+Set via `pixfizz.integration_type` product metafield. 
 
 | Value | Behaviour |
 |---|---|
@@ -318,6 +320,43 @@ After creating the webhook in Shopify (Settings → Notifications), copy the sig
 
 ---
 
+## 9a. Static Product Ingestion (Non-Personalized Shopify Products)
+
+Shopify stores that sell a mix of personalized and non-personalized products (frames, film, accessories, etc.) can route **all** line items into the Pixfizz order — not just those with a `_pixfizz_project_id`.
+
+### How it works
+
+1. **Define the metafield** — create a `pixfizz.static_product_code` text metafield on Products in Shopify (Settings → Custom Data → Products → Metafields). Optionally define the same metafield on Product Variants if different Shopify variants should map to different Pixfizz products.
+
+2. **Create matching static products in Pixfizz** — the product `code` in Pixfizz must match the value set in the Shopify metafield.
+
+3. **Inject the line item property** — modify the Shopify theme's product form so that products with the metafield get a hidden `_pixfizz_static_product` property added to the cart line item. The variant-level metafield takes precedence over product-level (same pattern as `product_sku`).
+
+4. **Webhook processing** — when the order payment webhook fires, Pixfizz reads `_pixfizz_static_product` on each line item and maps it to the corresponding Pixfizz static product, creating an orderline for it on the Pixfizz order alongside any personalized orderlines.
+
+### Theme implementation (Dawn v14 example)
+
+In `snippets/buy-buttons.liquid`, add inside the product form:
+
+```liquid
+{%- assign pixfizz_static_product = product.selected_or_first_available_variant.metafields.pixfizz.static_product_code %}
+{%- if pixfizz_static_product == blank %}
+  {%- assign pixfizz_static_product = product.metafields.pixfizz.static_product_code %}
+{%- endif %}
+{%- if pixfizz_static_product != blank %}
+  <input type="hidden" name="properties[_pixfizz_static_product]" value="{{ pixfizz_static_product | escape }}" />
+{%- endif %}
+```
+
+### Key points
+
+- The variant-level metafield is checked first; falls back to product-level. This is consistent with how `pixfizz.product_sku` works.
+- The property is underscore-prefixed (`_pixfizz_static_product`), so it is hidden from the customer in the Shopify cart and checkout.
+- The exact placement of the hidden input depends on the Shopify theme — `buy-buttons.liquid` is correct for Dawn but other themes may differ.
+- Static products in Pixfizz must exist and have a `code` matching the metafield value, otherwise the line item will not be mapped.
+
+---
+
 ## 10. Product Linking Rules
 
 ### Products WITHOUT Shopify variations
@@ -413,20 +452,19 @@ When a Shopify order is placed using a local pickup option, Shopify sends no shi
 
 ### Notes
 
-- The match is case-sensitive — `CameraMall` and `cameramall` are treated as different values
+- The match is case-sensitive — `MyStore` and `mystore` are treated as different values
 - If you have multiple pickup locations, create a separate public address in Pixfizz for each one
 - Cart-page snippets are unaffected — this is purely webhook ingestion behaviour
 
 ---
 
-## 14. Multi-Site Product Inheritance (CameraMall Pattern)
+## 14. Multi-Site Product Inheritance
 
-**Pattern, 2026-03-05 (CameraMall Review).**
+**Pattern, 2026-03-05.**
 
-CameraMall operates multiple brand storefronts (CameraMall / Woodward / Arts
-Cameras) that share a **single underlying product database** across all brands,
-while each brand has its own Shopify storefront + Pixfizz personalization
-configuration.
+This pattern applies when a customer operates multiple brand storefronts that
+share a **single underlying product database** across all brands, while each
+brand has its own Shopify storefront + Pixfizz personalization configuration.
 
 ### How it works
 
@@ -494,7 +532,27 @@ getSavedProjects
 ### Key values for variable pages
 
 - `Pixfizz.Shopify.pixfizz_origin` — use this as the base URL for all API calls. Never hardcode the subdomain.
-- `Pixfizz.Shopify._user.uid` — the Pixfizz user ID for the logged-in customer. Required for user-scoped POST endpoints (e.g. create gallery).
+- `Pixfizz.Shopify._user.uid` — the **Shopify customer ID** for the logged-in customer (not the Pixfizz user ID). Sufficient for read-only API calls (GET endpoints).
+
+### Pixfizz User ID vs Shopify Customer ID
+
+**Critical distinction for user-scoped POST endpoints** (e.g. creating galleries, projects):
+
+- `Pixfizz.Shopify._user.uid` returns the **Shopify customer ID** — this works for Shopify-side operations and for constructing GET API calls.
+- The **Pixfizz user ID** (needed for POST endpoints like `POST /v1/users/{uid}/galleries.json`) must be extracted from the `_mine.json` redirect response.
+
+To get the Pixfizz user ID:
+
+```javascript
+// Fetch _mine.json — the response URL contains the Pixfizz user ID
+var resp = await fetch(Pixfizz.Shopify.pixfizz_origin + '/v1/galleries/_mine.json', {
+    credentials: 'include'
+});
+// Parse the user ID from the response URL (redirected to /v1/users/{pixfizzUserId}/galleries.json)
+var pixfizzUserId = resp.url.match(/users\/(\d+)/)[1];
+```
+
+**If you use the Shopify customer ID in a Pixfizz POST endpoint, the call will fail or create resources under the wrong user.** This applies to any variable page that creates user-scoped resources (galleries, projects), not just reads them.
 
 ### Gallery API endpoints (authenticated via session cookie)
 
@@ -527,9 +585,58 @@ Variable pages are created as Shopify page templates (`page.{name}.liquid`) — 
 
 ---
 
+## 16. Non-Pixfizz Product Passthrough (Static Products via Webhook)
+
+Shopify stores selling a mix of personalized and non-personalized products (frames, film, accessories) can ingest non-Pixfizz line items into Pixfizz orders via the existing order webhook.
+
+### How it works
+
+1. Set the `pixfizz.static_product_code` metafield on the Shopify product (or variant) — this maps it to a Pixfizz static product by its `code`.
+2. Add a hidden input to the product form in the Shopify theme so the code is passed as a line item property:
+
+```liquid
+{%- assign pixfizz_static_product = product.metafields.pixfizz.static_product_code -%}
+{%- if pixfizz_static_product == blank -%}
+  {%- assign pixfizz_static_product = product.metafields.pixfizz.static_product_code -%}
+{%- endif -%}
+{%- if pixfizz_static_product != blank -%}
+  <input type="hidden" name="properties[_pixfizz_static_product]" value="{{ pixfizz_static_product | escape }}" />
+{%- endif -%}
+```
+
+3. When the order webhook fires, Pixfizz reads the `_pixfizz_static_product` property on each line item. If it finds a match to a static product by code, it creates an orderline in Pixfizz for that item.
+
+### Key points
+
+- The `_pixfizz_static_product` property is underscore-prefixed, so it is hidden from the customer in Shopify cart and checkout.
+- Static product orderlines in Pixfizz have no project, template, or production files — they are informational records for order tracking and fulfillment communication.
+- If the static product code doesn't match any product in Pixfizz, the line item is silently skipped.
+- Variant-level `pixfizz.static_product_code` takes precedence over product-level, same as `product_sku`.
+- This is the mechanism for getting a single unified order view in Pixfizz admin for mixed orders.
+
+---
+
+## 17. Classic vs New Customer Accounts
+
+Shopify has two customer account systems. The integration approach differs:
+
+| Account System | Auth Method | `/account` Customizable? | Integration Approach |
+|---|---|---|---|
+| **Classic Customer Accounts** | Email + password | Yes (theme Liquid) | Embed Pixfizz snippets directly in `main-account.liquid` or create sections |
+| **New Customer Accounts** | Passwordless (one-time code) | No (hosted by Shopify) | Use standalone Shopify pages (`/pages/my-projects`, `/pages/my-galleries`) |
+
+### Implications for variable pages
+
+- **Saved Projects / My Galleries / My Projects** built as standalone Shopify page templates (`page.*.liquid`) work with **both** account systems because they don't depend on the `/account` template.
+- The legacy table-based saved projects approach (embedded in `main-account.liquid`) only works with **Classic Customer Accounts**.
+- When documenting for customers, always specify which account system the setup targets.
+
+---
+
 ## Changelog
 - 2026-03-13: Initial version. Compiled from public docs + working cart page (Dawn, inline_asset_content variant).
 - 2026-03-21: Added Dawn button innerHTML overwrite troubleshooting entry (§11).
 - 2026-04-10: Added pickup order webhook address handling (§13) and multi-site product inheritance pattern (§14).
 - 2026-04-12: Updated §13 with specific pickup matching logic (Shopify location Name → Pixfizz address Company field). Added §15 Variable Pages — confirmed Pixfizz.Shopify method list, gallery API endpoints, thumbnail URL path pattern, page template conventions.
+- 2026-05-19: CORRECTED §15 — `_user.uid` is Shopify customer ID, not Pixfizz user ID; added Pixfizz user ID extraction pattern via `_mine.json` redirect. Added §16 Non-Pixfizz Product Passthrough (static products via webhook). Added §17 Classic vs New Customer Accounts terminology and integration implications. Source: Claude chats (gallery create fix, static product linking, Shopify projects page).
 

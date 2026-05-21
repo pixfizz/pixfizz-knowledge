@@ -2,7 +2,7 @@
 
 **Authority Scope:** Ruby pricing formulas and price variables only.
 
-_Last updated: 2026-04-10_
+_Last updated: 2026-05-19_
 
 ---
 
@@ -12,6 +12,12 @@ _Last updated: 2026-04-10_
 - Ruby expressions evaluated in context.
 - Must return a numeric price.
 - Used for product pricing and option/variant pricing.
+
+## Where to paste a pricing formula
+Pricing formulas are set on the **Product Attribute** in the admin:
+- Go to **Products** → open the product → open the **Product Attribute** (the specific size/variant, e.g. "4x6 Glossy")
+- Paste the formula into the **Pricing Formula** field on that attribute
+- If the same formula applies to multiple sizes, paste it on each Product Attribute individually (prices per size typically differ, but the formula structure may be shared)
 
 ## Price Variables
 - Admin-defined numeric constants available by name in formulas.
@@ -29,9 +35,20 @@ Use established patterns; avoid “optimized” Ruby.
 `{1..10=>0.59, 11..49=>0.49, 50..249=>0.44, 250..499=>0.39, 500..2000=>0.35}.find { |range,unit_price| range.include?(cut_print_quantity) }.last * cut_print_quantity`
 
 ### Base + incremental pages
-`19.99 + (pages-16)/2 * 0.50`
+`19.99 + ((pages - uncounted_pages) - 16) / 2.0 * 0.50`
 or
-`19.99 + extra_pages/2 * 0.50`
+`19.99 + extra_pages / 2.0 * 0.50`
+
+**Critical:** The `pages` variable counts ALL pages in the project, including pages
+in XML sets with `count="false"` (covers, preview pages, etc.). For book pricing
+that charges per interior page, always use `(pages - uncounted_pages)` to exclude
+uncounted pages from the calculation. Using raw `pages` will overcharge customers.
+
+Use `2.0` (not `2`) to force float division and avoid Ruby integer rounding.
+
+RATIONALE: `pages` includes uncounted XML pages (covers, previews). Without subtracting `uncounted_pages`, book pricing formulas overcharge. Confirmed in client support case, May 2026.
+SOURCE: "Pixfizz customer support agent" chat, May 3 2026
+SOURCE TYPE: claude-chat
 
 ### Volume discount lookup (unit price)
 `{1..1=>8.00, 2..5=>6.50, 6..10=>6.00, 11..20=>5.75, 21..30=>5.60, 31..50=>4.80, 51..1000=>4.15}.find { |range,unit_price| range.include?(units)}.last`
@@ -68,6 +85,35 @@ The `/ quantity` is required because Pixfizz multiplies the returned value by qu
 the formula must return a **per-unit price**, not a total.
 Use `15.0` (not `15`) to force float division and avoid Ruby integer rounding errors.
 
+---
+
+## `pages` Includes Uncounted Pages — Use `(pages - uncounted_pages)` for Books
+
+The `pages` variable in pricing formulas counts **every** page in the project,
+including pages in XML template sets marked with `count="false"` (typically covers,
+preview thumbnails, and other non-interior pages).
+
+For any book or multi-page product where pricing is based on interior page count,
+always use `(pages - uncounted_pages)` instead of raw `pages`.
+
+```ruby
+# WRONG — includes covers/preview pages in the count
+74.90 + (pages - 42) / 2.0 * 1.90
+
+# CORRECT — excludes uncounted pages
+74.90 + ((pages - uncounted_pages) - 42) / 2.0 * 1.90
+```
+
+Using raw `pages` causes the formula to calculate more "extra" pages than the
+customer actually added, resulting in overcharging.
+
+This applies to all page-based pricing patterns: base + incremental, threshold +
+blocks, sheet-based, and volume discount + per-page.
+
+RATIONALE: High-impact pricing gotcha. Raw `pages` silently includes uncounted XML pages, causing overcharging on book products. Not previously documented.
+SOURCE: "Pixfizz customer support agent" chat, May 3 2026
+SOURCE TYPE: claude-chat
+
 #### Variable choice: `quantity` vs `units`
 - `quantity` — quantity within a single orderline only. Use when pricing is per-orderline.
 - `units` — total units across all orderlines in the cart for this product. Use when
@@ -80,9 +126,9 @@ apply the $15 additional rate to the second. Choose based on the intended pricin
 
 ---
 
-## Worked Example — Unified Base + Variant Adjustment + Quantity Breaks (Hite Photo)
+## Worked Example — Unified Base + Variant Adjustment + Quantity Breaks
 
-Source: Hite Photo, 2026-04-10. First documented Pixfizz pattern that combines variant
+Source: client implementation, 2026-04-10. First documented Pixfizz pattern that combines variant
 price adjustments **and** quantity breaks under a single base price.
 
 ### Model
@@ -120,12 +166,12 @@ The variant formula editor does **not** accept a leading minus sign (`-`). Enter
 (base_price * tier_1) * -1
 ```
 
-Confirmed on Hite Photo cut print pricing, April 2026. The `* -1` pattern is logically equivalent and the editor accepts it.
+Confirmed on client cut print pricing, April 2026. The `* -1` pattern is logically equivalent and the editor accepts it.
 
 RATIONALE: Platform editor limitation with a non-obvious workaround. Affects any negative variant adjustment using cut print formulas.
 SOURCE: "Claude pricing formula generation" chat, April 23
 
-### Canonical workaround (Hite Photo pattern, 2026-04-08)
+### Canonical workaround (2026-04-08)
 1. **Lower the base price** of the product to the discounted value.
 2. **Add a positive surcharge** to the "standard" variant so the net price of the
    standard path matches the original intended base.
@@ -174,6 +220,74 @@ catalogue price. Update any reconciliation logic that assumed the old cap.
 
 ---
 
+## Automatic Discounts (Liquid-Based Cart Discounts)
+
+**Feature type:** Platform-level. Configured in Main Admin.
+
+Automatic Discounts apply cart-level discounts without requiring a promo code. The discount is calculated using a **Liquid formula** that has access to the full cart and user context, and the result appears automatically at checkout.
+
+Reference: [https://help.pixfizz.com/triage/automatic-discounts](https://help.pixfizz.com/triage/automatic-discounts)
+
+### How it works
+
+- The formula is a Liquid template that must return a **numeric discount amount** (not a percentage — the output is the actual value to subtract).
+- The formula has access to `cart`, `user`, `orderlines_total`, and other standard Liquid objects.
+- The discount appears automatically in the cart/checkout — no customer action required.
+- Multiple automatic discounts can be active simultaneously.
+
+### Available context variables
+
+- `cart.orderlines_total` — subtotal before discounts
+- `cart.promocode_code` — the applied promo code (blank if none)
+- `cart.orderlines` — the orderlines collection
+- `user.category` — user category label (e.g. "VIP", "Wholesale")
+- `user.orders_count` — number of completed orders (if available on the user object — confirm with Matjaz)
+- Standard Liquid filters: `date`, math operators, etc.
+
+### Canonical patterns
+
+**Tiered cart discount (spend more, save more):**
+
+```liquid
+{%- if cart.orderlines_total >= 250 %}
+    orderlines_total * 0.20
+{%- elsif cart.orderlines_total >= 150 %}
+    orderlines_total * 0.15
+{%- elsif cart.orderlines_total >= 75 %}
+    orderlines_total * 0.10
+{%- endif %}
+```
+
+**User category conditional discount with promo code guard:**
+
+```liquid
+{% if user.category == 'VIP' and cart.promocode_code == blank %}
+    orderlines_total * 0.10
+{% endif %}
+```
+
+The promo code guard (`cart.promocode_code == blank`) prevents stacking a category discount with a manual promo code. Whether to include this guard depends on the business intent.
+
+**Seasonal / time-based discount:**
+
+```liquid
+{%- assign current_month = 'now' | date: '%m' | plus: 0 -%}
+{%- if current_month == 1 or current_month == 2 -%}
+    orderlines_total * 0.15
+{%- endif -%}
+```
+
+Runs automatically during slow months, turns itself off when the month changes.
+
+### Key rules
+
+- The formula must return a numeric value. If the formula returns nothing (no branch matches), no discount is applied.
+- The discount is an **amount**, not a percentage — the formula does the percentage math itself.
+- Automatic discounts are separate from promo codes and extra fees. They are a distinct discount mechanism.
+- Admin location: confirm exact admin path with Matjaz (likely under Discounts or Pricing in Main Admin).
+
+---
+
 ## Roadmap — Price Variable Bulk Export / Import
 
 **Status: planned, not yet shipped (2026-03-24 / 2026-04-10).**
@@ -185,3 +299,8 @@ them one at a time in the admin.
 Do not design around its absence — if a site needs bulk price variable edits today,
 the current workflow is still manual. But flag this as a coming capability when
 scoping any onboarding that involves hundreds of price variables.
+
+---
+
+## Changelog
+- 2026-05-19: Added Automatic Discounts section — Liquid-based cart discounts with tiered, user category, and seasonal patterns. Source: Claude chat (webinar prep).

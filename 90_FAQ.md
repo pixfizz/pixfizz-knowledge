@@ -2,7 +2,7 @@
 
 **Authority Scope:** Customer-facing Q&A grounded in platform truth (files 10–32, 60). Covers Full Pixfizz / Shopper and Shopify + Pixfizz deployments. Not a developer reference — answers are written for store owners and operators.
 
-_Last updated: 2026-04-06_
+_Last updated: 2026-05-19_
 
 ---
 
@@ -12,6 +12,7 @@ _Last updated: 2026-04-06_
 - **Full Pixfizz** — applies to sites using the Pixfizz storefront and checkout
 - **Shopper** — applies specifically to Shopper-template sites (subset of Full Pixfizz)
 - **Shopify** — applies to Shopify + Pixfizz deployments only
+- **Film Labs** — applies to film processing / photo lab businesses specifically
 
 ---
 
@@ -88,6 +89,13 @@ _Applies to: All_
 
 ---
 
+**Q: Can I track inventory on my products?**
+_Applies to: All_
+
+Yes. Inventory tracking can be enabled per product at the product attribute level. Once enabled, set the current stock count in admin. Pixfizz automatically reduces stock the first time an order reaches Confirmed or Draft status. Stock is only deducted once per order. Note that out-of-stock does not automatically block purchases — the count can go negative. You can add storefront logic to show "Out of stock" messaging or hide the Add to Cart button using the `product.tracks_inventory` and `product.current_inventory` Liquid properties. See `18_ADMIN_NAVIGATION.md` for the full setup guide.
+
+---
+
 ## Section 3 — The Design Tool & Personalisation
 
 **Q: How do customers start personalizing a product?**
@@ -138,6 +146,13 @@ Price Variables are named numeric values you define once in admin and reference 
 _Applies to: Full Pixfizz_
 
 Start with the pricing formula on the Product Attribute. Check that it uses the correct variable for the product type — `cut_print_quantity` is only valid for photo prints; all other products should use `units` or `quantity`. Check that any Price Variables referenced actually exist in admin with the right values. If tiered pricing is set up, make sure all quantity ranges are correctly defined and cover the full expected range.
+
+---
+
+**Q: Can I edit product prices without opening each product individually?**
+_Applies to: Full Pixfizz_
+
+Yes. Prices are editable inline directly from the product attributes list page. Click on any price field to switch to edit mode, type the new price or formula, and press Enter for simple prices or click OK for multi-line formulas. Press Esc to cancel without saving.
 
 ---
 
@@ -266,6 +281,13 @@ Check that email notifications are configured and active for the relevant status
 
 ---
 
+**Q: How do I cancel an order and avoid being charged transaction fees?**
+_Applies to: All_
+
+Marking an order as "Canceled" in the admin is **not sufficient** on its own to prevent Pixfizz transaction fees. You must also email the order codes to **finance@pixfizz.com** so the finance team can process the cancellation correctly. After sending, follow up to confirm the cancellations have been processed and no charges will apply. Also check that cancelled orders are not duplicated (e.g. from a customer re-ordering after a failed attempt) — duplicate charges can occur if both remain active.
+
+---
+
 ## Section 8 — Storefront & Site Management (Full Pixfizz / Shopper)
 
 **Q: Where do I make changes to my homepage?**
@@ -293,6 +315,13 @@ Logo, fonts, and most branding settings are controlled through the admin checkli
 _Applies to: Shopper_
 
 Enable the `top-promotion-bar` checklist key in Storefront Settings. Once enabled, you can configure the bar content in the associated snippet or setting.
+
+---
+
+**Q: Can I run my store in multiple languages?**
+_Applies to: All_
+
+Yes. Pixfizz has built-in translation support for core objects including products, designs, collections, templates, variant types/values, and template option types/values. Enable multi-language support in the Super Admin, select your languages, and then use the "Translate" link that appears on supported objects in admin. Translations are applied automatically across the storefront and design tool — Liquid properties like `{{ design.name }}` resolve to the correct language automatically. Bulk translation management is also available via export/import. See `18_ADMIN_NAVIGATION.md` for the full setup guide.
 
 ---
 
@@ -326,5 +355,29 @@ Common causes include: the product isn't correctly published to a Collection (Fu
 
 ---
 
+## Section 10 — Film Lab Workflows
+
+**Q: How does the Batch Film Uploader work?**
+_Applies to: Film Labs_
+
+The Batch Film Uploader automates the process of uploading scanned film to customer galleries via FTP. The full workflow is:
+
+1. **Upload scans to FTP** — copy your daily scanned film folders to the designated Pixfizz FTP folder (typically `Pixfizz/Film Scans`). Pixfizz sets this up for you.
+2. **Automatic sync** — Syncovery automatically moves the scanned folders every 5 minutes. When the source folder is empty, your scans have uploaded successfully.
+3. **Link folders to orders** — open the order in admin (scan the QR code from the 6x4 label or the barcode on the order sheet). Find the `film_scans` custom field at the bottom of the order page. Enter the film scan folder IDs (must match FTP folder names exactly) and click Add, then Save.
+4. **Mark order as Shipped** — after uploading all folders to FTP and linking them, mark the order as Shipped (or Ready for Collection). You can complete this step and step 3 at the same time.
+5. **Automatic gallery creation** — after step 4, the system matches the film scan folder IDs with the FTP folders and creates Image Galleries in the customer's account. Each roll of film creates a separate gallery, named "Order code - Folder ID". There is a default 1-hour processing delay to ensure all scans finish uploading before matching begins.
+6. **Customer notification** — the customer receives an email notification when their scans are available in their gallery.
+
+Configurable options include:
+- Custom notification email content (can include product recommendations)
+- BCC email address for record-keeping
+- Folder numbering prefix accommodation (e.g. auto-adding "0000" prefix)
+- Reply-to address separate from the sending address
+- Processing delay adjustment (default 1 hour)
+
+---
+
 ## Changelog
 - 2026-04-06: Initial version. 35 Q&As covering Getting Started, Products, Design Tool, Pricing, Cart/Checkout, Shopify, Orders, Storefront, and Troubleshooting.
+- 2026-05-19: Added inventory tracking Q&A (Section 2), inline price editing Q&A (Section 4), order cancellation and transaction fees Q&A (Section 7), multi-language support Q&A (Section 8), and Batch Film Uploader workflow (new Section 10 — Film Lab Workflows). Source: Notion KB articles.

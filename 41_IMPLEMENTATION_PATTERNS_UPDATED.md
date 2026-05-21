@@ -359,17 +359,50 @@ The `sort` and `reverse` on `all_items` execute in the database. The push loop i
 
 **Reference implementations:** blog listing page (`blog_post` Custom Type), promotions modal (`promotions` Custom Type).
 
+# Collection Filters: Conditional Default Values
+
+The `collection_filters` custom field on a Collection supports Liquid conditionals. This allows a filter's default value (or even its entire rendering) to change based on another filter's current selection via `request.params`.
+
+## Pipe-Delimited Syntax
+
+Each filter is one line in the `collection_filters` field:
+Label | param_name | attribute | default_value | key: value options
+
+| Field | Description |
+|---|---|
+| Label | Display label shown to the shopper |
+| param_name | URL query parameter name (e.g. `orientation`, `size`, `group`) |
+| attribute | Product attribute to filter on (e.g. `product.custom.size`) |
+| default_value | Pre-selected value on page load |
+| options | Key-value pairs: `control_type: radio`, `control_type: dropdown`, `asset_images: true` |
+
+## Conditional Default Pattern
+
+Wrap a filter line in Liquid `{% if %}` / `{% elsif %}` blocks, reading the parent filter's current selection from `request.params['param_name'][0]`.
+
+**Example — Size default changes based on Orientation selection:**
+
+```liquid
+Orientation | orientation | product.custom.orientation_img | portrait.jpg | control_type: radio | asset_images: true
+{%- if request.params['orientation'][0] == 'landscape.jpg' or request.params['orientation'][0] == 'portrait.jpg' or request.params['orientation'][0] == blank %}
+Size | size | product.custom.size | 16x20 | control_type: dropdown |
+{%- elsif request.params['orientation'][0] == 'square.jpg' %}
+Size | size | product.custom.size | 12x12 | control_type: dropdown |
+{%- endif %}
+```
+
+**Key rules:**
+- `request.params['param_name'][0]` — bracket notation with `[0]` to get the first (or only) selected value
+- Include `or request.params['param_name'][0] == blank` in the default branch to cover initial page load (no selection yet)
+- The param values compared must exactly match the values stored in the product's custom field
+- Use `{%- -%}` whitespace-stripping tags to avoid blank lines in the rendered output
+- The same filter line (e.g. Size) appears in each conditional branch — only the default_value differs
+- This pattern also works for rendering entirely different filters based on selection (not just changing defaults)
+
+RATIONALE: The collection_filters conditional default pattern is a reusable Shopper technique for dependent filter defaults. Not documented anywhere in the KB despite being in active use.
+SOURCE: Current conversation — collection_filters conditional default for orientation/size
+SOURCE TYPE: claude-chat
 ------------------------------------------------------------------------
-
-## Changelog
-
-- 2026-03-12: Added `style onload` Re-injection Pattern section. Updated Dynamic UI Trigger Pattern to distinguish marker vs style onload use cases.
-- 2026-03-21: Added `sessionStorage` variant for once-per-load guard. Added `px-project-preview` shadow DOM styling pattern. Added hero background overlay preferred pattern.
-- 2026-03-23: Added Skip Cart Redirect Pattern (`product.custom.skip_cart_redirect`).
-- 2026-03-26: Added Custom Type Collection: Sort + Filter Pattern
-
-
----
 
 # Fulfillment Transformation: Bulk Copy Across Templates
 
@@ -386,3 +419,4 @@ This preserves consistent pricing and design logic across a product range withou
 - 2026-03-23: Added Skip Cart Redirect Pattern.
 - 2026-03-26: Added Custom Type Collection: Sort + Filter Pattern.
 - 2026-04-23: Added Fulfillment Transformation bulk copy pattern.
+- 2026-05-13: Added Collection Filters: Conditional Default Values pattern.

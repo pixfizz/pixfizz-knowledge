@@ -775,9 +775,9 @@ These are custom field patterns seen on individual client sites. They are **not
 platform-level** and should not be added to the master Shopper v2 baseline — but
 they are worth documenting as real-world examples for similar use cases.
 
-### Printmaster — wholesale / retail / margin (TK, 2026-02-10)
+### Wholesale / Retail / Margin Pattern (2026-02-10)
 
-TK's Printmaster site uses Product-level custom fields to store pricing inputs that
+A wholesale/retail client site uses Product-level custom fields to store pricing inputs that
 feed into the pricing formulas:
 
 | Field | Type | Purpose |

@@ -1233,7 +1233,7 @@ for a product) now supports:
 - **Dynamic dash insertion** — insert separators between variable pieces without
   hard-coding them in the template literal.
 
-Used on TK / Printmaster sites for file naming that needs to match a specific
+Used on client sites for file naming that needs to match a specific
 fulfillment partner's naming convention. Exact syntax to be captured from the TK
 site and added here once confirmed.
 
@@ -1312,7 +1312,7 @@ under Settings > Webhooks.
 
 Custom blog / listing pages built on top of a CMS collection **do not sort
 chronologically by default**. This has been hit on multiple sites (most recently
-Harold's, 2026-03-12) and is an easy thing to miss because the admin list in
+a client site, 2026-03-12) and is an easy thing to miss because the admin list in
 the CMS *is* sorted by date, so the issue only surfaces on the public page.
 
 **Fix options:**
@@ -1332,7 +1332,7 @@ Always verify the public page order after building a blog — do not trust that
 For products with a small number of customisable options (e.g. name-only cards,
 single-photo prints), the "Save & Exit" action from the design tool can be wired
 directly into the add-to-cart flow so the customer does not have to re-enter the
-design tool to proceed. Used on Harold's, 2026-03-12.
+design tool to proceed. Used on a client site, 2026-03-12.
 
 This is a Shopper UX pattern, not a platform capability — implemented at the
 snippet level on the product page.

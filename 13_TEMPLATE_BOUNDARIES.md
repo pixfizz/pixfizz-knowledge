@@ -45,7 +45,7 @@ Each site manages its own custom fields independently. If a new layout feature d
 
 This applies to all custom field object types: product, collection, design, user, order, and orderline.
 
-RATIONALE: Confirmed during Wolf Camera hide_gallery implementation — field created on parent was not present on child.
+RATIONALE: Confirmed during a client hide_gallery implementation — field created on parent was not present on child.
 SOURCE: "Custom field to hide product gallery" chat, April 24
 
 ## Changelog
