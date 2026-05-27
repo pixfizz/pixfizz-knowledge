@@ -2,7 +2,7 @@
 
 **Authority Scope:** XML template page parameters, filters, and production output behaviour. Platform-level — not Shopper-specific.
 
-_Last updated: 2026-04-03_
+_Last updated: 2026-05-27_
 
 ---
 
@@ -379,8 +379,44 @@ Common product types with annotated XML definitions.
 
 ---
 
+## FTP Fulfillment Behavior
+
+### FTP Path Prefix: `originals/` vs `/originals/`
+
+The leading slash makes a significant difference in where files land on the FTP server.
+
+| Path value | Result |
+|---|---|
+| `originals/` (no leading slash) | Files placed in a subfolder named `originals` **inside** the per-order folder (e.g. `order-1234/originals/`) |
+| `/originals/` (leading slash) | Files placed in a top-level `originals` folder at the **FTP root**, independent of the order folder |
+
+Use the relative form (`originals/`) for the standard pattern of keeping original files alongside production files in the per-order folder. Use the absolute form (`/originals/`) only when the lab's FTP structure requires files at a fixed root-level path.
+
+### Sending Original Customer Files to FTP (`_additional_files.json`)
+
+Original customer-uploaded files are **not** copied to FTP by default — only the generated production PDFs/JPEGs are sent. To include the original uploads in the fulfillment output, a fulfillment template named `_additional_files.json` is required.
+
+This template must be named exactly `_additional_files.json` (including the leading underscore). It is configured in the same fulfillment template area as the main job ticket template. Contact Pixfizz support for the template body format, as the exact payload schema is environment-specific.
+
+### JSON Job Tickets: `escape_json` Filter
+
+When outputting custom order or orderline fields into a JSON fulfillment template, always pass the value through the `escape_json` Liquid filter. Without it, any custom field value containing double quotes, backslashes, or newlines will produce invalid JSON and cause job ticket generation to fail silently or error.
+
+```liquid
+"customer_notes": "{{ order.custom.notes | escape_json }}"
+```
+
+**Rule:** Every custom field value inserted into a JSON string in a fulfillment template must use `| escape_json`. Do not assume the value is safe — customers enter unpredictable content.
+
+### FTP Folder Naming for Job Ticket Routing
+
+When using multiple fulfillment templates that route to FTP, the folder name in the job ticket template must be exactly `Job Tickets` (that exact capitalisation) for the FTP routing logic to work correctly. Non-standard folder names cause routing failures.
+
+---
+
 ## Changelog
 - 2026-04-03: Created from platform documentation provided by AdeB. Covers page parameters, safe area, growing spine, and layflat spread.
 - 2026-04-03: Added PDF Layers section — layer attributes, separate-file, separate-page, per-page layer control, filename placeholders.
 - 2026-04-03: Added Set Parameters section — count, grow, fulfillment, editor, preview.
 - 2026-04-03: Added definition attributes, captions, sequential page types, and four annotated product examples (photo prints, canvas, photobook, greeting card).
+- 2026-05-27: Added FTP Fulfillment Behavior section — FTP path prefix behavior (originals/ vs /originals/), _additional_files.json for sending original uploads to FTP, escape_json filter requirement for JSON job tickets, Job Tickets folder naming rule. Source: Fireflies calls, Slack #dev.

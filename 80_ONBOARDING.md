@@ -2,7 +2,7 @@
 
 **Authority Scope:** Onboarding process, deployment path phase sequences, pre-onboarding preparation, launch readiness, and email notification templates.
 
-_Last updated: 2026-05-21_
+_Last updated: 2026-05-27_
 
 ---
 
@@ -144,6 +144,7 @@ _Longest phase. Can run in parallel with Phase 1 if assets are ready._
 - Set up product variants (size, finish, quantity tiers, etc.)
 - Configure pricing rules per product (Ruby pricing formulas)
 - Upload product imagery and preview designs
+- For stores with large static product catalogs (standard print sizes, fixed products without personalization), use the bulk static product CSV importer at **Custom Admin → manage/tools/product-importer**. Download the CSV template directly from that page.
 
 **Blockers:** Complete product catalog, pricing structure, and product images from customer. Pricing must be fully confirmed before launch — changes after go-live cause friction.
 
@@ -154,6 +155,8 @@ _Longest phase. Can run in parallel with Phase 1 if assets are ready._
 - Set up tax handling (VAT, sales tax)
 - Configure order confirmation and notification emails (14 templates available — see Email Notifications section below)
 - Set minimum order amounts if required
+
+**Email delivery:** Shopper email notifications are sent via SendGrid. Deliverability problems are almost always caused by missing or misconfigured SPF/DKIM DNS records on the customer's sending domain. Verify email authentication DNS records during this phase and send test notifications before launch.
 
 **Blockers:** Payment gateway credentials, shipping rate structure, tax registration info.
 
@@ -269,6 +272,8 @@ This path requires developer resources on the customer's side. Pixfizz provides 
 - Call user handoff on every page load where the user is logged in, and before any Pixfizz API interaction
 - Test: verify Pixfizz user is created and logged in when handoff is called
 
+**Important:** Users created via the `_uid` handoff endpoint are classified as **external users** — they log in via the customer's platform, not directly into Pixfizz. Do not use the `_uid` endpoint to create users who need direct Pixfizz login access (e.g. admin users or OrderHub operators). Those users must be created via the standard `/v1/users` endpoint.
+
 **Blocker:** This must work before any other integration step. If user handoff fails, nothing else will work.
 
 ### Phase 3: Product & Template Setup
@@ -365,10 +370,11 @@ These are the most common reasons a phase stalls. Flagging them early saves week
 
 ### Photo Labs
 
-- Confirm early whether kiosk mode is required — it affects storefront structure significantly
+- **Kiosk mode:** If the lab needs an in-store kiosk experience, plan for this in Phase 1 — it affects storefront structure. Basic kiosk mode uses a dedicated alternate domain (separate CNAME pointing to `hosting.pixfizz.com` with SSL). The kiosk domain is registered under **Settings → General → Domain Hosting** in admin. Checklist keys to set: `kiosk-mode-enabled: TRUE`, `kiosk-mode-domain: <kiosk-domain>`, `kiosk-pay-in-store-only: TRUE` (restricts pay-in-store to kiosk sessions only). Pay-in-store auto-confirmation is configured separately in admin. If the kiosk offers products at different pricing than the web store, unpublish those collections from the public storefront or access-gate them.
 - Establish whether the lab offers in-store collection (affects checkout/shipping config)
-- Film processing services (if offered) need separate product template setup
-- Same-day or next-day collection messaging is a strong commercial differentiator — plan for it in Phase 1
+- **Film processing:** If offered, needs separate product template setup. 120 and 220 film formats have different frame counts and scan rates — set them up as separate products, not as variants of the same product.
+- **Same-day collection:** Same-day or next-day collection messaging is a strong commercial differentiator — plan for it in Phase 1. A JavaScript-based time cutoff (typically after 1pm Mon–Fri) can be configured in Shopper to switch checkout messaging once the same-day window has passed. This is implemented at the snippet level.
+- **OrderHub Desktop (OHD):** OHD is a single-location install only. Installing it at multiple workstations in the same location without proper single-instance setup causes order conflicts. Verify Mac compatibility against the current OHD release before recommending it.
 - Photo labs often have existing customers who expect a specific workflow — discuss migration messaging
 
 ### School / Sports Photography
@@ -427,6 +433,7 @@ Use this checklist before declaring a site ready for launch.
 - [ ] Payment capture confirmed (real test transaction, not test mode only)
 - [ ] Production files generated and approved for each product type
 - [ ] All email notification templates reviewed — active ones customized for customer brand
+- [ ] Email delivery verified — SPF/DKIM DNS records confirmed for SendGrid deliverability
 - [ ] Custom domain live with SSL confirmed
 - [ ] Navigation and homepage signed off by customer
 - [ ] Pricing confirmed and validated against customer's agreed rate card
@@ -471,3 +478,4 @@ Review and customize all active templates before launch — default content refe
 - 2026-04-23: Added content completeness (descriptions) pre-launch checklist item.
 - 2026-04-27: Added SEO migration workflow (sitemap + 301 redirects for domain moves).
 - 2026-05-21: Major rewrite. Added all deployment paths (Custom API, Marketplace/Etsy). Added "Preparing for Onboarding" customer preparation section. Added Full Pixfizz Custom path. Expanded phase sequences with blockers. Merged content from onboarding skill. Added pre-launch handoff checklist. Added vertical-specific notes.
+- 2026-05-27: Photo Labs vertical notes: added kiosk mode setup procedure (CNAME, checklist keys, pay-in-store config), OHD single-location install rule, film 120/220 as separate products, same-day JS cutoff pattern. Phase 2: added static product CSV importer note (manage/tools/product-importer). Phase 3: added SendGrid deliverability and DNS authentication note. Pre-launch checklist: added email delivery DNS check. Custom API Phase 2: added external user warning (_uid creates non-login users; OrderHub operators must use /v1/users). Source: Fireflies calls, Slack #dev, support tickets.

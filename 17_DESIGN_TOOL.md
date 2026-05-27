@@ -2,7 +2,7 @@
 
 **Authority Scope:** Design Tool Configurations, feature toggles, and customer-facing editor behavior.
 
-_Last updated: 2026-04-23_
+_Last updated: 2026-05-27_
 
 ---
 
@@ -51,6 +51,8 @@ Configured in admin under: **Settings > Design Tool**.
 - CMYK Color Picker — professional color selection
 - Border Radius — rounded corner controls
 - Shape Button — add shapes to designs
+  - Shapes support color palettes (selectable from the configured color palette)
+  - Shapes work with fulfillment transformations and calendar transformations
 - QR Code Button — generate QR codes in designs
 
 #### UX Features
@@ -88,8 +90,33 @@ Configured in admin under: **Settings > Design Tool**.
 
 ---
 
-## Changelog
-- 2026-03-30: Created from master platform documentation export.
+## Login Modal in the Design Tool
+
+The design tool can be configured to show a login modal when an anonymous user attempts to save a project or access the galleries tab.
+
+### Default behavior
+
+- **Existing configurations:** The login modal is **not enabled by default** on existing design tool configurations. It requires additional configuration when used from an external site (such as Shopify).
+- **New configurations:** Enabled by default on any new design tool configuration created in admin.
+
+### Trigger
+
+The login modal fires when the user clicks **"Save & Continue"**. It does **not** fire on "Save & Exit" — the Save & Exit flow relies on the target page (typically the account page) to detect whether the user is logged in and prompt login if not.
+
+### Optional links
+
+To show "Forgot password?" and/or "Register here" links next to the email/password fields in the modal, configure the corresponding URLs in the design tool configuration settings.
+
+### Shopify and other external site behavior
+
+When the design tool is embedded in an external site (such as Shopify), the login flow does **not** use the in-tool modal. Instead it opens a new browser window/tab pointing to the URL configured under **"External Login URL"** in the design tool configuration.
+
+**Setup for Shopify:**
+1. Set the **External Login URL** in the design tool configuration to a Shopify page that handles login.
+2. After successful login, the user is redirected to a page that must include the Pixfizz setup code. The default Shopify integration includes the setup code on all pages — verify this for any custom theme integrations.
+3. Recommended: create a custom Shopify confirmation page that says "You are now logged in. You may close this window and continue in the design tool."
+
+The redirect-back-to-design-tool flow depends on the Pixfizz setup code running on the post-login landing page. If using a custom Shopify theme, confirm the setup snippet is present on every page before enabling the login modal.
 
 ---
 
@@ -108,6 +135,9 @@ When advising clients on font sourcing for the editor:
 
 Note: this is separate from fonts used on the storefront (navigation, product names, body text) — those only require a web font license.
 
+---
+
 ## Changelog
 - 2026-03-30: Created from master platform documentation export.
 - 2026-04-23: Added font licensing rule for editor embedding (digital/print embedding license required, not web font license).
+- 2026-05-27: Added shape color palette support and fulfillment/calendar transformation support under Shape Button toggle. Added Login Modal section — default behavior, trigger (Save & Continue only), optional links, and Shopify External Login URL setup. Also consolidated duplicate Changelog sections into one. Source: Notion Dashboard (May 2026 updates).
