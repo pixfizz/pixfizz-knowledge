@@ -1,0 +1,47 @@
+name: Build combined knowledge file
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '*.md'
+
+permissions:
+  contents: write
+
+jobs:
+  combine:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Build _combined.md
+        run: |
+          OUT="_combined.md"
+          rm -f "$OUT"
+          echo "# Pixfizz Knowledge Base — Combined" > "$OUT"
+          echo "" >> "$OUT"
+          echo "_Auto-generated. Do not edit directly. Edit the source MD files._" >> "$OUT"
+          echo "" >> "$OUT"
+          for f in $(ls *.md | grep -v '^_combined.md$' | grep -v '^README.md$' | sort); do
+            echo "" >> "$OUT"
+            echo "=================================================================" >> "$OUT"
+            echo "FILE: $f" >> "$OUT"
+            echo "=================================================================" >> "$OUT"
+            echo "" >> "$OUT"
+            cat "$f" >> "$OUT"
+            echo "" >> "$OUT"
+          done
+
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add _combined.md
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Auto-rebuild _combined.md"
+            git push
+          fi
