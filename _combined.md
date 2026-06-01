@@ -1472,7 +1472,7 @@ FILE: 17_DESIGN_TOOL.md
 
 **Authority Scope:** Design Tool Configurations, feature toggles, and customer-facing editor behavior.
 
-_Last updated: 2026-05-27_
+_Last updated: 2026-06-01_
 
 ---
 
@@ -1551,12 +1551,19 @@ Configured in admin under: **Settings > Design Tool**.
 
 ### Integrations
 - Google Tag Manager ID
-- Image Sources (external image providers)
+- Image Sources (external image providers). Accepts combinable tokens, e.g. `galleries`, `device`, `pdf_import`. To expose a PDF import toolbar button you must do two things: enable the PDF Imports feature toggle (under Image Features) AND add `pdf_import` to this Image Sources field.
 - Help URL
 - Custom JS — inject custom JavaScript
 - Custom CSS — inject custom styles
 
 > Some Design Tool Configuration settings are only visible to Pixfizz staff. These control platform-level behaviors and are managed during onboarding or through support requests.
+
+## Admin Mode Editor
+
+The "Open in Editor" action on an order, which re-opens a customer's project in
+the design tool from the admin, is only visible when the Admin Mode Editor toggle
+is ON. This toggle lives in the Design Tool Configuration under Editor & Templates
+and is Super Admin only. It does not appear in the standard admin panel.
 
 ---
 
@@ -1590,6 +1597,54 @@ The redirect-back-to-design-tool flow depends on the Pixfizz setup code running 
 
 ---
 
+## Editor CSS Customization
+
+The editor can be re-themed with CSS. Where the CSS lives depends on deployment:
+- Full Pixfizz / Shopper: the `editor.css` page.
+- Shopify integration: the `shopify/custom-styles` snippet (loaded into the editor
+  from the Pixfizz side, not the Shopify theme).
+- Either path: the Custom CSS field in the Design Tool Configuration.
+
+Storefront `style/custom.css` does NOT reach inside the editor iframe. Use one of
+the locations above instead.
+
+Reusable techniques confirmed in production:
+
+- Variable aliasing. The editor exposes internal CSS custom properties (for
+  example `--bright-sky-blue`, `--seaweed`). Repointing them to the brand palette
+  re-themes the whole editor without targeting individual elements.
+- Asset URL syntax. Inside editor CSS, wrap an uploaded asset filename in @ signs
+  (for example `@Beatrice-Regular.woff2@`). The platform replaces it with the full
+  asset path at render time. This is the editor equivalent of the storefront
+  asset_url convention.
+- Button classes. Editor buttons carry both legacy classes (`px-blue`, `px-green`)
+  and newer classes (`px-primary-color`, `px-secondary-color`). Target both to
+  reskin all buttons reliably.
+- Tab show/hide. Tabs can be hidden via their `data-id` attribute plus `display:none`.
+- Option reordering. Options can be reordered with `data-option-code` plus the CSS
+  `order` property on a flex container.
+- Gallery captions. Gallery folders use `px-gallery-item px-gallery`; individual
+  images use `px-gallery-item px-image`. To hide image filenames while keeping
+  folder names visible:
+
+```css
+.px-gallery-item.px-image .px-caption {
+	display: none;
+}
+```
+
+- Action button overlay gotcha. A `.btn::after` pseudo-element set to
+  `position: absolute` creates an invisible overlay that swallows clicks and
+  blocks hover states. Action buttons can sit in different containers
+  (`px-action-buttons-container`, `px-edit-buttons-container`,
+  `px-reset-button-container`, `px-controls-container`), so widen selectors across
+  all relevant containers when styling them.
+- Default tab on load (JS). `editor.store.ui.expandTab` sets which tab is open when
+  the editor loads.
+- Save and Continue callback (JS). The Save and Continue button can be
+  monkey-patched to chain an action after the original behavior, using an
+  `exit_target` URL parameter to control where the user lands.
+
 ## Font Licensing: Editor Fonts Require Embedding License
 
 Fonts used inside the Pixfizz editor are **embedded into personalised product renders** (print-ready files, previews). This requires a **digital embedding** or **print embedding** license — not a standard web font license.
@@ -1611,6 +1666,7 @@ Note: this is separate from fonts used on the storefront (navigation, product na
 - 2026-03-30: Created from master platform documentation export.
 - 2026-04-23: Added font licensing rule for editor embedding (digital/print embedding license required, not web font license).
 - 2026-05-27: Added shape color palette support and fulfillment/calendar transformation support under Shape Button toggle. Added Login Modal section — default behavior, trigger (Save & Continue only), optional links, and Shopify External Login URL setup. Also consolidated duplicate Changelog sections into one. Source: Notion Dashboard (May 2026 updates).
+- 2026-06-01: Added Editor CSS Customization section, Admin Mode Editor note, and pdf_import Image Sources requirement. Source: claude-chat/slack.
 
 
 =================================================================
@@ -1621,7 +1677,7 @@ FILE: 18_ADMIN_NAVIGATION.md
 
 **Authority Scope:** Pixfizz Core admin interface sections and settings only.
 
-_Last updated: 2026-05-19_
+_Last updated: 2026-06-01_
 
 ---
 
@@ -1635,6 +1691,8 @@ The Pixfizz Core admin is the central interface for managing your store, product
 
 ### Dashboard
 Key business metrics: Gross Revenue, Orders Fulfilled, Average Order Value, Sessions, Conversion Rate. Quick links to OrderHub, community, help center.
+
+The dashboard also surfaces active (in-progress) carts, giving visibility into carts in flight for account management and follow-up. Exact location and any configuration to be confirmed.
 
 ### Orders
 - **Orders** — view/manage with status filters, CSV export, barcode search
@@ -1828,6 +1886,7 @@ Per-website configuration includes:
 - 2026-04-10: Added Published Products rename, Text Upgrade bulk action, inventory tracking with dynamic stock messaging, translation export/import upgrade, font palette tooltip gotcha, server-side GA4 via webhook pattern.
 - 2026-04-22: Expanded Crawler entry with admin path, 404 reporting behaviour, and sitemap URL gotcha.
 - 2026-05-19: Expanded Inventory Management into dedicated section with enable flow, stock reduction rules, negative stock behavior, Liquid properties (product.tracks_inventory, product.current_inventory), and out-of-stock CMS pattern. Expanded Translation Support into dedicated section with Super Admin enable flow, translatable objects list, Liquid auto-resolution, translate link location, and bulk export/import. Added inline price editing to Product Attributes. Source: Notion KB articles.
+- 2026-06-01: Added active carts on the dashboard. Source: fireflies-call.
 
 
 =================================================================
@@ -2295,7 +2354,7 @@ FILE: 21_SHOPPER_CHECKOUT_POLICY.md
 
 **Authority Scope:** Checkout engine logic only.
 
-_Last updated: 2026-04-23_
+_Last updated: 2026-06-01_
 
 ---
 
@@ -2340,6 +2399,22 @@ Current workarounds:
 - **VAT exemption** (e.g. cross-border orders to Switzerland): apply an automatic discount as a negative fee to remove the VAT that was added at checkout. The storefront price remains unchanged.
 - **Postal code-based tax rules** are managed via a CSV file that maps postal code ranges or prefixes to tax rates. Complex postal code formats (multi-region countries like France) require range or prefix matching logic in the CSV.
 
+### Tax CSV format
+
+The tax CSV has a single header row, then one row per rule. Header:
+
+	country,region/state,zipcode,city,tax%
+
+Rules are matched against the shopper's shipping address. Specificity stacks:
+- Country + state: applies anywhere in that state.
+- Country + state + zip: applies when state and zip both match.
+- Country + state + zip + city: applies when state, zip, and city all match.
+
+This only applies when product prices are NOT tax-inclusive. If prices already
+include tax, no rules are needed and the price shown is the price paid. When
+prices exclude tax, the matched rate is added on top of the orderlines at cart and
+checkout. A customer-facing help article exists ("Setting Up Taxes").
+
 Flag this to clients during onboarding if they are European and expect tax-inclusive display prices.
 
 ## Guest checkout: configurable fields
@@ -2354,6 +2429,7 @@ These are checkout configuration options, not hardcoded behaviour.
 ## Changelog
 - 2026-02-26: Initial checkout policy content.
 - 2026-04-23: Added tax model note (US-style vs European VAT, postal code CSV, automatic discount workaround). Added guest checkout configurable fields note.
+- 2026-06-01: Added tax CSV format and matching specificity. Source: claude-chat/help-article.
 
 
 =================================================================
@@ -3416,7 +3492,7 @@ FILE: 31_FULFILLMENT_ENGINE.md
 
 **Authority Scope:** Job ticket schema and generated file logic only.
 
-_Last updated: 2026-05-21_
+_Last updated: 2026-06-01_
 
 ---
 
@@ -3735,6 +3811,24 @@ numbers, vendor routing codes, delivery confirmation codes, etc.
 
 Use a tagged element in the design tool + a fulfillment transformation. Do not
 embed the dynamic value in the design tool itself.
+
+### Which accessor: chosen_variants, not chosen_template_options
+
+Shopify identifiers (`shopify_product_id`, `shopify_variant_id`, `shopify_line_id`)
+are stored on the orderline as **chosen_variants**, not `chosen_template_options`.
+A fulfillment transformation or job ticket that reads them must use:
+
+```liquid
+{{ orderline.chosen_variants['shopify_line_id'].value }}
+```
+
+Reading them from `chosen_template_options` resolves to nothing, so the QR code
+(or barcode, or any injected value) comes out blank with no error.
+
+Diagnostic note: the admin orderline view lists every option under a single
+generic "Options" label and does not distinguish variants from template options.
+Confirm which bucket a value lives in by inspecting the product attribute
+(Variants tab vs template Options tab) or by looping both collections in Liquid.
 
 The `barcode_datauri` Liquid filter is a related but distinct capability — that
 filter generates a barcode inline in Liquid-rendered templates (job tickets,
@@ -4075,6 +4169,7 @@ Establish a naming convention at the start of each FTP integration and apply it 
 ## Changelog
 - 2026-04-10: Initial content from platform documentation export.
 - 2026-05-21: Restructured _additional_files.json section — documented three source formats (simple URL, HTTP request object, literal content), added full CraftMyPDF PDF job ticket worked example with capture block and implementation notes, separated file_upload delivery as distinct Pattern 2 with standalone and combined versions, added double-encoding and orderlines scope rules. Source: claude-chat.
+- 2026-06-01: Added chosen_variants accessor note to the QR Code worked example. Source: claude-chat.
 
 
 =================================================================
@@ -4510,18 +4605,18 @@ Fix: replace inline address forms with redirect links to standalone address page
 
 ## Editor Iframe — CSS Isolation
 
-The Pixfizz editor runs inside an iframe. Styles delivered via
-`style/custom.css` (the storefront CSS page) do not reach inside the
-iframe.
+The editor runs inside an iframe. Storefront CSS delivered via the
+`style/custom.css` page does NOT reach inside it, so targeting `.px-header`,
+`.px-cart-button`, or other `px-*` classes from storefront CSS has no effect.
 
-Symptoms:
-- CSS rules targeting `.px-header`, `.px-cart-button`, or other
-  `px-*` classes have no effect
-- JS-driven label/content changes inside the editor cannot be
-  overridden with CSS
+Editor styling IS possible, just not from storefront CSS. Use one of:
+- the Custom CSS field in the Design Tool Configuration, or
+- the `editor.css` page (Full Pixfizz / Shopper), or
+- the `shopify/custom-styles` snippet (Shopify integration).
 
-If a client reports a styling issue inside the editor, CSS is not the
-solution. Raise with Pixfizz platform team.
+See `17_DESIGN_TOOL.md` "Editor CSS Customization" for techniques. Note that
+JS-driven label/content changes inside the editor still cannot be overridden with
+CSS alone.
 
 ------------------------------------------------------------------------
 
@@ -4665,12 +4760,27 @@ This applies to **all** Bootstrap 4.6 utility classes. When debugging a CSS over
 
 ---
 
+## iOS Older iPad: HEIC Upload Appears Frozen
+
+**Symptom:** On older iPads, uploading a HEIC image makes the upload appear frozen.
+The customer sees no spinner or progress, may assume it failed, and retries or
+abandons.
+
+**Cause:** A HEIC to JPEG conversion runs on upload with no visual feedback on
+these devices. The upload is working; only the feedback is missing.
+
+**Status:** A progress indicator / spinner is a pending UX improvement, not yet
+shipped. Until then, flag this to clients whose customers use older iPads.
+
+---
+
 ## Changelog
 - 2026-03-21: Initial content from platform documentation export.
 - 2026-04-23: Added CSS snippet logs diagnostic note, password reset Liquid deprecation pattern, fulfillment template DPI failure, URL reserved parameter 404 gotcha, Stripe pending-without-payment issue, FTP original files intermittent failure.
 - 2026-04-27: Added Stripe payment form locking after failed transaction.
 - 2026-04-29: Added production file regeneration constraint (delete existing file before requesting new one). Added font stability / Transfonter preprocessing workaround.
 - 2026-05-19: Added gallery ZIP download silent failure on large galleries (memory limit + batched fetch fix). Added Bootstrap 4.6 utility class `!important` override requirement. Source: Claude chats (gallery download fix, gallery v2 button layout).
+- 2026-06-01: Corrected Editor Iframe CSS Isolation note; added iOS HEIC upload feedback gotcha. Source: claude-chat/fireflies-call.
 
 
 =================================================================
@@ -5091,6 +5201,26 @@ Use this when deploying the same transformation rules to a set of related templa
 
 This preserves consistent pricing and design logic across a product range without having to re-enter settings for each template individually.
 
+# data-method="post" and Rails UJS Event Bubbling
+
+Links using `data-method="post"` (for example the copy/duplicate-project link
+`/v1/books/{{ project.id }}/copy`) rely on a delegated Rails UJS handler attached
+at the document level. The click must bubble up to `document` for the POST to
+fire.
+
+`onclick="event.stopPropagation()"` kills the event before it reaches that
+handler, so the POST never fires and the browser falls back to a plain GET. The
+action silently does the wrong thing (no error).
+
+Fixes:
+- Remove the `stopPropagation`. If a parent card click handler must be prevented,
+  handle that in the parent (bail out when the click target is inside an `<a>`).
+- Or drop `data-method` and submit a small inline `<form method="post">` with a
+  submit button. A native form POST does not depend on UJS, so `stopPropagation`
+  on the form is safe.
+
+------------------------------------------------------------------------
+
 ## Changelog
 
 - 2026-03-12: Added `style onload` Re-injection Pattern section. Updated Dynamic UI Trigger Pattern.
@@ -5099,6 +5229,7 @@ This preserves consistent pricing and design logic across a product range withou
 - 2026-03-26: Added Custom Type Collection: Sort + Filter Pattern.
 - 2026-04-23: Added Fulfillment Transformation bulk copy pattern.
 - 2026-05-13: Added Collection Filters: Conditional Default Values pattern.
+- 2026-06-01: Added data-method/Rails UJS stopPropagation pattern. Source: claude-chat.
 
 
 =================================================================
@@ -5638,6 +5769,10 @@ Proxy that allows access to `ChosenOption` objects on an `Orderline`. Returned b
 	{{ option.template_option.name }}: {{ option.value }}
 {% endfor %}
 ```
+
+**Shopify IDs live in `chosen_variants`.** `shopify_product_id`, `shopify_variant_id`,
+and `shopify_line_id` are accessed via `orderline.chosen_variants['<key>'].value`,
+not `chosen_template_options`. See `31_FULFILLMENT_ENGINE.md` for the worked example.
 
 | Property | Description |
 |---|---|
@@ -6842,6 +6977,9 @@ This is the recommended way to deduplicate repeated block regions in checkout
 templates. See `50_SHOPPER_TEMPLATE_REFERENCE.md` for the detailed pattern and
 example markup.
 
+## Changelog
+- 2026-06-01: Noted Shopify IDs live in chosen_variants. Source: claude-chat.
+
 
 =================================================================
 FILE: 50_SHOPPER_TEMPLATE_REFERENCE.md
@@ -6851,7 +6989,7 @@ FILE: 50_SHOPPER_TEMPLATE_REFERENCE.md
 
 **Authority Scope:** Structural anatomy of the Shopper parent template — layouts, navigation, snippets, theming, CSS delivery, and admin checklist system. Derived from a full CMS backup scan (2026-03-12).
 
-_Last updated: 2026-05-19_
+_Last updated: 2026-06-01_
 
 ---
 
@@ -7486,6 +7624,14 @@ Two parallel systems exist. The current system is `email-shopper/`.
 
 Dynamic sections re-inject into the DOM on AJAX updates. Use the `style onload` pattern for any JS that must survive re-injection (see `01_CODE_GOVERNANCE.md`).
 
+### Shop All page
+
+A Shopper page that displays an image for every top-level collection, giving
+shoppers a single visual entry point to all categories. Addresses the visual
+navigation gap when a store has many top-level collections. Live as of mid 2026.
+The exact page or snippet name should be confirmed against the live deployment or
+with Matjaz.
+
 ---
 
 ## 13. Practical Notes for Development
@@ -7667,6 +7813,7 @@ the platform fix.
 - 2026-04-10: Added Section 15 — Known Gotchas (image slider refresh, date input browser bug, Worker JS SEO, CSV export anonymous projects).
 - 2026-04-20: Section 13 — clarified nav link editing must target the active nav style snippet based on header-logo-position checklist value.
 - 2026-05-19: Added `shopper-admin` layout to layouts table. Added Section 15 — Custom Admin manage/ page inventory including tools pages. Added Section 16 — Kiosk Touchscreen Mode architecture and status. Renumbered Known Gotchas to Section 17. Source: Claude chats (admin v2 work, kiosk mode design).
+- 2026-06-01: Added Shop All page feature note. Source: fireflies-call.
 
 
 =================================================================
@@ -7675,7 +7822,7 @@ FILE: 51_CUSTOM_FIELDS_REFERENCE.md
 
 # Pixfizz Shopper v2 Custom Fields Master Reference
 
-**Last Updated:** 2026-04-10
+**Last Updated:** 2026-06-01
 
 ---
 
@@ -7935,6 +8082,7 @@ Reserved for platform-level features, production routing, and future functionali
 | sticker_1 | asset | Badge/sticker image 1 |
 | sticker_2 | asset | Badge/sticker image 2 |
 | sub_collections | boolean | Enable subcollections with detail view |
+| sub_collections_position | text | Subcollection render order relative to products on a collection page: ABOVE = before products, blank or BELOW = after products (default). Only applies when show_sub_collections is also enabled. Created on the parent, overridden per child site/collection. |
 | subtitle | string | Subtitle displayed under collection heading |
 | title_format | string | Title display format: 'design', 'both', 'collection', or blank |
 | url_path_parameter | string | URL parameter added to product links |
@@ -8469,6 +8617,9 @@ This is a useful reference pattern for any wholesale/retail dual-pricing scenari
 where the same product is sold under both models — the pricing variable lives on
 the product as a custom field rather than as a global Price Variable, keeping
 per-SKU variation local to the product.
+
+## Changelog
+- 2026-06-01: Added Collection field sub_collections_position (subcollection render order). Source: chat/slack/call.
 
 
 =================================================================
@@ -9145,7 +9296,7 @@ FILE: 60_SHOPIFY_INTEGRATION.md
 
 **Authority Scope:** Shopify + Pixfizz integration architecture, snippets, metafields, cart page, and order sync.
 
-_Last updated: 2026-05-19_
+_Last updated: 2026-06-01_
 
 ---
 
@@ -9421,6 +9572,32 @@ After the closing `</tr>` of the main item, a second loop renders addon items as
 {%- endif -%}
 ```
 Addon rows: no media cell, no quantity controls, no remove button — display only.
+
+---
+
+## 7a. Cart Page — Focal / Maestrooo Theme Differences
+
+Section 7 is written against Dawn. The Focal theme family (Maestrooo) structures
+cart markup differently. The Pixfizz hooks are the same in intent but differ in
+four ways:
+
+1. Edit-design handler. On Focal, re-entering an existing project opens the
+   project-edit modal via `openModal` with a `?project_id=` query parameter.
+   Calling `launchProduct` on this theme starts a NEW project instead of editing
+   the existing one. (Observed on a live Focal site. Confirm with Matjaz whether
+   this should also replace `launchProduct` in the standard edit-orderline
+   snippet, or stays Focal-only.)
+2. Preview image CSS. Focal's `.aspect-ratio img` rule uses absolute positioning,
+   which hides the swapped-in preview. Scope an override under the line item image
+   wrapper (`.line-item__image-wrapper`) to restore it.
+3. Preview rendering. In the Shopify cart the preview is always a plain `<img>`
+   src swap. It is never the `px-project-preview` web component (that component is
+   CMS / Shopper only).
+4. Variant source. The Focal cart has no add-to-cart form, so the variant must be
+   read from `item.variant.id`, not from a form lookup.
+
+The third-party SpurIt Product Options 2 include lines, where present, are app
+glue and must not be removed.
 
 ---
 
@@ -9782,6 +9959,7 @@ Shopify has two customer account systems. The integration approach differs:
 - 2026-04-10: Added pickup order webhook address handling (§13) and multi-site product inheritance pattern (§14).
 - 2026-04-12: Updated §13 with specific pickup matching logic (Shopify location Name → Pixfizz address Company field). Added §15 Variable Pages — confirmed Pixfizz.Shopify method list, gallery API endpoints, thumbnail URL path pattern, page template conventions.
 - 2026-05-19: CORRECTED §15 — `_user.uid` is Shopify customer ID, not Pixfizz user ID; added Pixfizz user ID extraction pattern via `_mine.json` redirect. Added §16 Non-Pixfizz Product Passthrough (static products via webhook). Added §17 Classic vs New Customer Accounts terminology and integration implications. Source: Claude chats (gallery create fix, static product linking, Shopify projects page).
+- 2026-06-01: Added Section 7a, Focal/Maestrooo cart differences. Source: claude-chat.
 
 
 
