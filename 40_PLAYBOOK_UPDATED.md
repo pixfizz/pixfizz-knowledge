@@ -166,18 +166,18 @@ Fix: replace inline address forms with redirect links to standalone address page
 
 ## Editor Iframe — CSS Isolation
 
-The Pixfizz editor runs inside an iframe. Styles delivered via
-`style/custom.css` (the storefront CSS page) do not reach inside the
-iframe.
+The editor runs inside an iframe. Storefront CSS delivered via the
+`style/custom.css` page does NOT reach inside it, so targeting `.px-header`,
+`.px-cart-button`, or other `px-*` classes from storefront CSS has no effect.
 
-Symptoms:
-- CSS rules targeting `.px-header`, `.px-cart-button`, or other
-  `px-*` classes have no effect
-- JS-driven label/content changes inside the editor cannot be
-  overridden with CSS
+Editor styling IS possible, just not from storefront CSS. Use one of:
+- the Custom CSS field in the Design Tool Configuration, or
+- the `editor.css` page (Full Pixfizz / Shopper), or
+- the `shopify/custom-styles` snippet (Shopify integration).
 
-If a client reports a styling issue inside the editor, CSS is not the
-solution. Raise with Pixfizz platform team.
+See `17_DESIGN_TOOL.md` "Editor CSS Customization" for techniques. Note that
+JS-driven label/content changes inside the editor still cannot be overridden with
+CSS alone.
 
 ------------------------------------------------------------------------
 
@@ -321,9 +321,24 @@ This applies to **all** Bootstrap 4.6 utility classes. When debugging a CSS over
 
 ---
 
+## iOS Older iPad: HEIC Upload Appears Frozen
+
+**Symptom:** On older iPads, uploading a HEIC image makes the upload appear frozen.
+The customer sees no spinner or progress, may assume it failed, and retries or
+abandons.
+
+**Cause:** A HEIC to JPEG conversion runs on upload with no visual feedback on
+these devices. The upload is working; only the feedback is missing.
+
+**Status:** A progress indicator / spinner is a pending UX improvement, not yet
+shipped. Until then, flag this to clients whose customers use older iPads.
+
+---
+
 ## Changelog
 - 2026-03-21: Initial content from platform documentation export.
 - 2026-04-23: Added CSS snippet logs diagnostic note, password reset Liquid deprecation pattern, fulfillment template DPI failure, URL reserved parameter 404 gotcha, Stripe pending-without-payment issue, FTP original files intermittent failure.
 - 2026-04-27: Added Stripe payment form locking after failed transaction.
 - 2026-04-29: Added production file regeneration constraint (delete existing file before requesting new one). Added font stability / Transfonter preprocessing workaround.
 - 2026-05-19: Added gallery ZIP download silent failure on large galleries (memory limit + batched fetch fix). Added Bootstrap 4.6 utility class `!important` override requirement. Source: Claude chats (gallery download fix, gallery v2 button layout).
+- 2026-06-01: Corrected Editor Iframe CSS Isolation note; added iOS HEIC upload feedback gotcha. Source: claude-chat/fireflies-call.

@@ -2,7 +2,7 @@
 
 **Authority Scope:** Shopify + Pixfizz integration architecture, snippets, metafields, cart page, and order sync.
 
-_Last updated: 2026-05-19_
+_Last updated: 2026-06-01_
 
 ---
 
@@ -278,6 +278,32 @@ After the closing `</tr>` of the main item, a second loop renders addon items as
 {%- endif -%}
 ```
 Addon rows: no media cell, no quantity controls, no remove button — display only.
+
+---
+
+## 7a. Cart Page — Focal / Maestrooo Theme Differences
+
+Section 7 is written against Dawn. The Focal theme family (Maestrooo) structures
+cart markup differently. The Pixfizz hooks are the same in intent but differ in
+four ways:
+
+1. Edit-design handler. On Focal, re-entering an existing project opens the
+   project-edit modal via `openModal` with a `?project_id=` query parameter.
+   Calling `launchProduct` on this theme starts a NEW project instead of editing
+   the existing one. (Observed on a live Focal site. Confirm with Matjaz whether
+   this should also replace `launchProduct` in the standard edit-orderline
+   snippet, or stays Focal-only.)
+2. Preview image CSS. Focal's `.aspect-ratio img` rule uses absolute positioning,
+   which hides the swapped-in preview. Scope an override under the line item image
+   wrapper (`.line-item__image-wrapper`) to restore it.
+3. Preview rendering. In the Shopify cart the preview is always a plain `<img>`
+   src swap. It is never the `px-project-preview` web component (that component is
+   CMS / Shopper only).
+4. Variant source. The Focal cart has no add-to-cart form, so the variant must be
+   read from `item.variant.id`, not from a form lookup.
+
+The third-party SpurIt Product Options 2 include lines, where present, are app
+glue and must not be removed.
 
 ---
 
@@ -639,4 +665,5 @@ Shopify has two customer account systems. The integration approach differs:
 - 2026-04-10: Added pickup order webhook address handling (§13) and multi-site product inheritance pattern (§14).
 - 2026-04-12: Updated §13 with specific pickup matching logic (Shopify location Name → Pixfizz address Company field). Added §15 Variable Pages — confirmed Pixfizz.Shopify method list, gallery API endpoints, thumbnail URL path pattern, page template conventions.
 - 2026-05-19: CORRECTED §15 — `_user.uid` is Shopify customer ID, not Pixfizz user ID; added Pixfizz user ID extraction pattern via `_mine.json` redirect. Added §16 Non-Pixfizz Product Passthrough (static products via webhook). Added §17 Classic vs New Customer Accounts terminology and integration implications. Source: Claude chats (gallery create fix, static product linking, Shopify projects page).
+- 2026-06-01: Added Section 7a, Focal/Maestrooo cart differences. Source: claude-chat.
 

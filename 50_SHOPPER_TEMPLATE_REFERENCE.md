@@ -2,7 +2,7 @@
 
 **Authority Scope:** Structural anatomy of the Shopper parent template — layouts, navigation, snippets, theming, CSS delivery, and admin checklist system. Derived from a full CMS backup scan (2026-03-12).
 
-_Last updated: 2026-05-19_
+_Last updated: 2026-06-01_
 
 ---
 
@@ -637,6 +637,14 @@ Two parallel systems exist. The current system is `email-shopper/`.
 
 Dynamic sections re-inject into the DOM on AJAX updates. Use the `style onload` pattern for any JS that must survive re-injection (see `01_CODE_GOVERNANCE.md`).
 
+### Shop All page
+
+A Shopper page that displays an image for every top-level collection, giving
+shoppers a single visual entry point to all categories. Addresses the visual
+navigation gap when a store has many top-level collections. Live as of mid 2026.
+The exact page or snippet name should be confirmed against the live deployment or
+with Matjaz.
+
 ---
 
 ## 13. Practical Notes for Development
@@ -818,3 +826,4 @@ the platform fix.
 - 2026-04-10: Added Section 15 — Known Gotchas (image slider refresh, date input browser bug, Worker JS SEO, CSV export anonymous projects).
 - 2026-04-20: Section 13 — clarified nav link editing must target the active nav style snippet based on header-logo-position checklist value.
 - 2026-05-19: Added `shopper-admin` layout to layouts table. Added Section 15 — Custom Admin manage/ page inventory including tools pages. Added Section 16 — Kiosk Touchscreen Mode architecture and status. Renumbered Known Gotchas to Section 17. Source: Claude chats (admin v2 work, kiosk mode design).
+- 2026-06-01: Added Shop All page feature note. Source: fireflies-call.

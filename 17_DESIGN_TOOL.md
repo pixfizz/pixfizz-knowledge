@@ -2,7 +2,7 @@
 
 **Authority Scope:** Design Tool Configurations, feature toggles, and customer-facing editor behavior.
 
-_Last updated: 2026-05-27_
+_Last updated: 2026-06-01_
 
 ---
 
@@ -81,12 +81,19 @@ Configured in admin under: **Settings > Design Tool**.
 
 ### Integrations
 - Google Tag Manager ID
-- Image Sources (external image providers)
+- Image Sources (external image providers). Accepts combinable tokens, e.g. `galleries`, `device`, `pdf_import`. To expose a PDF import toolbar button you must do two things: enable the PDF Imports feature toggle (under Image Features) AND add `pdf_import` to this Image Sources field.
 - Help URL
 - Custom JS — inject custom JavaScript
 - Custom CSS — inject custom styles
 
 > Some Design Tool Configuration settings are only visible to Pixfizz staff. These control platform-level behaviors and are managed during onboarding or through support requests.
+
+## Admin Mode Editor
+
+The "Open in Editor" action on an order, which re-opens a customer's project in
+the design tool from the admin, is only visible when the Admin Mode Editor toggle
+is ON. This toggle lives in the Design Tool Configuration under Editor & Templates
+and is Super Admin only. It does not appear in the standard admin panel.
 
 ---
 
@@ -120,6 +127,54 @@ The redirect-back-to-design-tool flow depends on the Pixfizz setup code running 
 
 ---
 
+## Editor CSS Customization
+
+The editor can be re-themed with CSS. Where the CSS lives depends on deployment:
+- Full Pixfizz / Shopper: the `editor.css` page.
+- Shopify integration: the `shopify/custom-styles` snippet (loaded into the editor
+  from the Pixfizz side, not the Shopify theme).
+- Either path: the Custom CSS field in the Design Tool Configuration.
+
+Storefront `style/custom.css` does NOT reach inside the editor iframe. Use one of
+the locations above instead.
+
+Reusable techniques confirmed in production:
+
+- Variable aliasing. The editor exposes internal CSS custom properties (for
+  example `--bright-sky-blue`, `--seaweed`). Repointing them to the brand palette
+  re-themes the whole editor without targeting individual elements.
+- Asset URL syntax. Inside editor CSS, wrap an uploaded asset filename in @ signs
+  (for example `@Beatrice-Regular.woff2@`). The platform replaces it with the full
+  asset path at render time. This is the editor equivalent of the storefront
+  asset_url convention.
+- Button classes. Editor buttons carry both legacy classes (`px-blue`, `px-green`)
+  and newer classes (`px-primary-color`, `px-secondary-color`). Target both to
+  reskin all buttons reliably.
+- Tab show/hide. Tabs can be hidden via their `data-id` attribute plus `display:none`.
+- Option reordering. Options can be reordered with `data-option-code` plus the CSS
+  `order` property on a flex container.
+- Gallery captions. Gallery folders use `px-gallery-item px-gallery`; individual
+  images use `px-gallery-item px-image`. To hide image filenames while keeping
+  folder names visible:
+
+```css
+.px-gallery-item.px-image .px-caption {
+	display: none;
+}
+```
+
+- Action button overlay gotcha. A `.btn::after` pseudo-element set to
+  `position: absolute` creates an invisible overlay that swallows clicks and
+  blocks hover states. Action buttons can sit in different containers
+  (`px-action-buttons-container`, `px-edit-buttons-container`,
+  `px-reset-button-container`, `px-controls-container`), so widen selectors across
+  all relevant containers when styling them.
+- Default tab on load (JS). `editor.store.ui.expandTab` sets which tab is open when
+  the editor loads.
+- Save and Continue callback (JS). The Save and Continue button can be
+  monkey-patched to chain an action after the original behavior, using an
+  `exit_target` URL parameter to control where the user lands.
+
 ## Font Licensing: Editor Fonts Require Embedding License
 
 Fonts used inside the Pixfizz editor are **embedded into personalised product renders** (print-ready files, previews). This requires a **digital embedding** or **print embedding** license — not a standard web font license.
@@ -141,3 +196,4 @@ Note: this is separate from fonts used on the storefront (navigation, product na
 - 2026-03-30: Created from master platform documentation export.
 - 2026-04-23: Added font licensing rule for editor embedding (digital/print embedding license required, not web font license).
 - 2026-05-27: Added shape color palette support and fulfillment/calendar transformation support under Shape Button toggle. Added Login Modal section — default behavior, trigger (Save & Continue only), optional links, and Shopify External Login URL setup. Also consolidated duplicate Changelog sections into one. Source: Notion Dashboard (May 2026 updates).
+- 2026-06-01: Added Editor CSS Customization section, Admin Mode Editor note, and pdf_import Image Sources requirement. Source: claude-chat/slack.

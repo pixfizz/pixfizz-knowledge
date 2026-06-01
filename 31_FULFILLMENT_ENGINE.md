@@ -2,7 +2,7 @@
 
 **Authority Scope:** Job ticket schema and generated file logic only.
 
-_Last updated: 2026-05-21_
+_Last updated: 2026-06-01_
 
 ---
 
@@ -321,6 +321,24 @@ numbers, vendor routing codes, delivery confirmation codes, etc.
 
 Use a tagged element in the design tool + a fulfillment transformation. Do not
 embed the dynamic value in the design tool itself.
+
+### Which accessor: chosen_variants, not chosen_template_options
+
+Shopify identifiers (`shopify_product_id`, `shopify_variant_id`, `shopify_line_id`)
+are stored on the orderline as **chosen_variants**, not `chosen_template_options`.
+A fulfillment transformation or job ticket that reads them must use:
+
+```liquid
+{{ orderline.chosen_variants['shopify_line_id'].value }}
+```
+
+Reading them from `chosen_template_options` resolves to nothing, so the QR code
+(or barcode, or any injected value) comes out blank with no error.
+
+Diagnostic note: the admin orderline view lists every option under a single
+generic "Options" label and does not distinguish variants from template options.
+Confirm which bucket a value lives in by inspecting the product attribute
+(Variants tab vs template Options tab) or by looping both collections in Liquid.
 
 The `barcode_datauri` Liquid filter is a related but distinct capability — that
 filter generates a barcode inline in Liquid-rendered templates (job tickets,
@@ -661,3 +679,4 @@ Establish a naming convention at the start of each FTP integration and apply it 
 ## Changelog
 - 2026-04-10: Initial content from platform documentation export.
 - 2026-05-21: Restructured _additional_files.json section — documented three source formats (simple URL, HTTP request object, literal content), added full CraftMyPDF PDF job ticket worked example with capture block and implementation notes, separated file_upload delivery as distinct Pattern 2 with standalone and combined versions, added double-encoding and orderlines scope rules. Source: claude-chat.
+- 2026-06-01: Added chosen_variants accessor note to the QR Code worked example. Source: claude-chat.

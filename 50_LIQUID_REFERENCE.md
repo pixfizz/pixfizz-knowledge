@@ -148,6 +148,10 @@ Proxy that allows access to `ChosenOption` objects on an `Orderline`. Returned b
 {% endfor %}
 ```
 
+**Shopify IDs live in `chosen_variants`.** `shopify_product_id`, `shopify_variant_id`,
+and `shopify_line_id` are accessed via `orderline.chosen_variants['<key>'].value`,
+not `chosen_template_options`. See `31_FULFILLMENT_ENGINE.md` for the worked example.
+
 | Property | Description |
 |---|---|
 | `chosen_options.size` | Number of chosen options |
@@ -1350,3 +1354,6 @@ and rendering the captured content in both places.
 This is the recommended way to deduplicate repeated block regions in checkout
 templates. See `50_SHOPPER_TEMPLATE_REFERENCE.md` for the detailed pattern and
 example markup.
+
+## Changelog
+- 2026-06-01: Noted Shopify IDs live in chosen_variants. Source: claude-chat.

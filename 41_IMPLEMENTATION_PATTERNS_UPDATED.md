@@ -412,6 +412,26 @@ Use this when deploying the same transformation rules to a set of related templa
 
 This preserves consistent pricing and design logic across a product range without having to re-enter settings for each template individually.
 
+# data-method="post" and Rails UJS Event Bubbling
+
+Links using `data-method="post"` (for example the copy/duplicate-project link
+`/v1/books/{{ project.id }}/copy`) rely on a delegated Rails UJS handler attached
+at the document level. The click must bubble up to `document` for the POST to
+fire.
+
+`onclick="event.stopPropagation()"` kills the event before it reaches that
+handler, so the POST never fires and the browser falls back to a plain GET. The
+action silently does the wrong thing (no error).
+
+Fixes:
+- Remove the `stopPropagation`. If a parent card click handler must be prevented,
+  handle that in the parent (bail out when the click target is inside an `<a>`).
+- Or drop `data-method` and submit a small inline `<form method="post">` with a
+  submit button. A native form POST does not depend on UJS, so `stopPropagation`
+  on the form is safe.
+
+------------------------------------------------------------------------
+
 ## Changelog
 
 - 2026-03-12: Added `style onload` Re-injection Pattern section. Updated Dynamic UI Trigger Pattern.
@@ -420,3 +440,4 @@ This preserves consistent pricing and design logic across a product range withou
 - 2026-03-26: Added Custom Type Collection: Sort + Filter Pattern.
 - 2026-04-23: Added Fulfillment Transformation bulk copy pattern.
 - 2026-05-13: Added Collection Filters: Conditional Default Values pattern.
+- 2026-06-01: Added data-method/Rails UJS stopPropagation pattern. Source: claude-chat.

@@ -1,6 +1,6 @@
 # Pixfizz Shopper v2 Custom Fields Master Reference
 
-**Last Updated:** 2026-04-10
+**Last Updated:** 2026-06-01
 
 ---
 
@@ -260,6 +260,7 @@ Reserved for platform-level features, production routing, and future functionali
 | sticker_1 | asset | Badge/sticker image 1 |
 | sticker_2 | asset | Badge/sticker image 2 |
 | sub_collections | boolean | Enable subcollections with detail view |
+| sub_collections_position | text | Subcollection render order relative to products on a collection page: ABOVE = before products, blank or BELOW = after products (default). Only applies when show_sub_collections is also enabled. Created on the parent, overridden per child site/collection. |
 | subtitle | string | Subtitle displayed under collection heading |
 | title_format | string | Title display format: 'design', 'both', 'collection', or blank |
 | url_path_parameter | string | URL parameter added to product links |
@@ -794,3 +795,6 @@ This is a useful reference pattern for any wholesale/retail dual-pricing scenari
 where the same product is sold under both models — the pricing variable lives on
 the product as a custom field rather than as a global Price Variable, keeping
 per-SKU variation local to the product.
+
+## Changelog
+- 2026-06-01: Added Collection field sub_collections_position (subcollection render order). Source: chat/slack/call.

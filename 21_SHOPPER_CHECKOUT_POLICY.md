@@ -2,7 +2,7 @@
 
 **Authority Scope:** Checkout engine logic only.
 
-_Last updated: 2026-04-23_
+_Last updated: 2026-06-01_
 
 ---
 
@@ -47,6 +47,22 @@ Current workarounds:
 - **VAT exemption** (e.g. cross-border orders to Switzerland): apply an automatic discount as a negative fee to remove the VAT that was added at checkout. The storefront price remains unchanged.
 - **Postal code-based tax rules** are managed via a CSV file that maps postal code ranges or prefixes to tax rates. Complex postal code formats (multi-region countries like France) require range or prefix matching logic in the CSV.
 
+### Tax CSV format
+
+The tax CSV has a single header row, then one row per rule. Header:
+
+	country,region/state,zipcode,city,tax%
+
+Rules are matched against the shopper's shipping address. Specificity stacks:
+- Country + state: applies anywhere in that state.
+- Country + state + zip: applies when state and zip both match.
+- Country + state + zip + city: applies when state, zip, and city all match.
+
+This only applies when product prices are NOT tax-inclusive. If prices already
+include tax, no rules are needed and the price shown is the price paid. When
+prices exclude tax, the matched rate is added on top of the orderlines at cart and
+checkout. A customer-facing help article exists ("Setting Up Taxes").
+
 Flag this to clients during onboarding if they are European and expect tax-inclusive display prices.
 
 ## Guest checkout: configurable fields
@@ -61,3 +77,4 @@ These are checkout configuration options, not hardcoded behaviour.
 ## Changelog
 - 2026-02-26: Initial checkout policy content.
 - 2026-04-23: Added tax model note (US-style vs European VAT, postal code CSV, automatic discount workaround). Added guest checkout configurable fields note.
+- 2026-06-01: Added tax CSV format and matching specificity. Source: claude-chat/help-article.

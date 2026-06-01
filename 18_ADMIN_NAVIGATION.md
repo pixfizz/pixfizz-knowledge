@@ -2,7 +2,7 @@
 
 **Authority Scope:** Pixfizz Core admin interface sections and settings only.
 
-_Last updated: 2026-05-19_
+_Last updated: 2026-06-01_
 
 ---
 
@@ -16,6 +16,8 @@ The Pixfizz Core admin is the central interface for managing your store, product
 
 ### Dashboard
 Key business metrics: Gross Revenue, Orders Fulfilled, Average Order Value, Sessions, Conversion Rate. Quick links to OrderHub, community, help center.
+
+The dashboard also surfaces active (in-progress) carts, giving visibility into carts in flight for account management and follow-up. Exact location and any configuration to be confirmed.
 
 ### Orders
 - **Orders** — view/manage with status filters, CSV export, barcode search
@@ -209,3 +211,4 @@ Per-website configuration includes:
 - 2026-04-10: Added Published Products rename, Text Upgrade bulk action, inventory tracking with dynamic stock messaging, translation export/import upgrade, font palette tooltip gotcha, server-side GA4 via webhook pattern.
 - 2026-04-22: Expanded Crawler entry with admin path, 404 reporting behaviour, and sitemap URL gotcha.
 - 2026-05-19: Expanded Inventory Management into dedicated section with enable flow, stock reduction rules, negative stock behavior, Liquid properties (product.tracks_inventory, product.current_inventory), and out-of-stock CMS pattern. Expanded Translation Support into dedicated section with Super Admin enable flow, translatable objects list, Liquid auto-resolution, translate link location, and bulk export/import. Added inline price editing to Product Attributes. Source: Notion KB articles.
+- 2026-06-01: Added active carts on the dashboard. Source: fireflies-call.
