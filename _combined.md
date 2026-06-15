@@ -6636,6 +6636,7 @@ Supports custom field filtering: `'custom.express_service', 'true'`
 | `sha256` | SHA256 hash |
 | `number` | Formats a number with precision/separator/delimiter params |
 | `pixfizz_asset_url` | Pixfizz internal asset URL variant |
+| `json_parse` | Parses a JSON-formatted string into a Liquid object |
 
 ---
 
@@ -6714,7 +6715,7 @@ Any other parameter is rendered as an HTML attribute on the generated `<form>` e
 
 | Form Type | Required Params | Description |
 |---|---|---|
-| `address_create` | — | Creates an address |
+| `address_create` | *`assign_to_user:`, *`assign_to_cart:` | Creates an address. By default the new address is set on the current cart **and** saved to the user's saved addresses. Pass `assign_to_user: false` and/or `assign_to_cart: false` to suppress either behaviour. |
 | `address_update` | `address:` | Updates the given Address |
 | `address_delete` | `address:` | Deletes the given Address |
 
@@ -6979,6 +6980,7 @@ example markup.
 
 ## Changelog
 - 2026-06-01: Noted Shopify IDs live in chosen_variants. Source: claude-chat.
+- 2026-06-15: Added json_parse filter to Pixfizz-extended filters. Added assign_to_user / assign_to_cart optional params to the address_create form. Source: notion-dashboard.
 
 
 =================================================================
@@ -7526,6 +7528,7 @@ These snippets store site-specific content that varies per client:
 - `website/google-review-link`
 - `website/gtag` — Google Analytics 4 tag ID
 - `website/meta-pixel` — Facebook Pixel ID
+- **Google Ads conversion tracking:** there is no dedicated built-in preset or snippet for a Google Ads conversion tag in Shopper (only GTM, GA4, and Meta Pixel exist). Deploy the Google Ads site tag (`AW-...`) and the purchase conversion event through GTM using the existing `setup-google-tag-manager` key (conversion linker + conversion action tag + thank-you-page event). A hardcoded gtag conversion snippet, if used instead, is site-specific code with no checklist key reserved for it.
 - `website/px-subdomain` — Pixfizz subdomain
 - `website/film-delivery-address` — for film mail-in orders
 - `website/trust-badges` — trust badge images
@@ -7716,6 +7719,38 @@ The `shopper-admin` layout must include `cms.js` and `cms.css` (loaded via `pixf
 | `manage/tools/product-importer` | CSV-based static product importer |
 | `manage/tools/download-images` | Live preview image downloader (per-collection ZIP download) |
 
+#### Static Product Importer — CSV format
+
+The Static Product Importer (`manage/tools/product-importer`) is a Shopper template-level
+tool, not a Pixfizz Core feature. It is gated by the `shopper-admin` layout's admin check,
+so only admin users can reach it. On upload, it creates products via the Pixfizz API and
+assigns them to a selected collection. A blank CSV template can be downloaded from the tool
+page itself. Recommended for stores with large static catalogues (standard print sizes,
+fixed products without personalization).
+
+CSV column order (the tool reads columns positionally):
+
+`name, code, price, description, category, asset_image_name, fulfillment_code, track_inventory, current_inventory, tax_exempt, min_quantity, max_quantity`
+
+| Column | Type | Notes |
+|---|---|---|
+| `name` | string | **Required** |
+| `code` | string | **Required** — the product code/SKU |
+| `price` | number/formula | **Required** |
+| `description` | string | Optional |
+| `category` | string | Optional |
+| `asset_image_name` | string | Optional — filename of an asset already uploaded under Website > Assets |
+| `fulfillment_code` | string | Optional |
+| `track_inventory` | boolean | `"true"` / `"false"` |
+| `current_inventory` | integer | Whole number |
+| `tax_exempt` | boolean | `"true"` / `"false"` |
+| `min_quantity` | integer | Whole number |
+| `max_quantity` | integer | Whole number |
+
+- A header row is optional and is skipped if present.
+- This tool drives the same product-creation path as the Pixfizz API; it does not create
+  personalization templates or designs, only static products.
+
 ### Sidebar navigation
 
 The sidebar is defined in a shared snippet. When adding new pages, update the sidebar snippet with the new nav item. The sidebar uses the `shopper-admin` design system CSS classes (`s-card`, `s-field`, `s-field-label`, etc.).
@@ -7806,6 +7841,22 @@ projects on the Rapid site.
 **Workaround:** Export without filters and filter in a spreadsheet, or wait for
 the platform fix.
 
+### Logged-out app error on custom-admin pages (2026-06-08)
+**Status:** Platform rendering-order behaviour. Confirmed, with a working fix.
+**Symptom:** Visiting a `shopper-admin` custom-admin page (e.g. `manage/dashboard`) while
+logged out throws an app error.
+**Cause:** The page body document renders **before** the `shopper-admin` layout's
+`{% if user.is_admin %}` gate is evaluated. Admin-only snippet calls placed in the page
+body (for example `{% snippet 'admin/forms/checkbox' %}`) therefore execute for
+unauthenticated visitors and throw, because the layout gate has not run yet.
+**Fix:** Wrap the entire page-body content in its own `{% if user.is_admin %} ... {% endif %}`
+guard rather than relying on the layout gate. Alternatively, pass `fallback_content` to any
+admin-only snippet call so a missing/blocked snippet degrades gracefully instead of erroring.
+**Related:** Bootstrap modal CSS/JS is **not** active on the `shopper-admin` instance, so a
+Bootstrap `.modal` renders as unstyled inline content. For modals inside custom admin, use a
+pure-CSS `:target` toggle (or another no-JS pattern) scoped under a `pf-` prefix to avoid
+clashing with the `s-` design-system classes.
+
 ## Changelog
 - 2026-03-14: Added website/homepage snippet pattern and Custom Admin checkbox requirement to Section 13.
 - 2026-03-19: Added how to create pages with Custom Types to Section 14.
@@ -7814,6 +7865,7 @@ the platform fix.
 - 2026-04-20: Section 13 — clarified nav link editing must target the active nav style snippet based on header-logo-position checklist value.
 - 2026-05-19: Added `shopper-admin` layout to layouts table. Added Section 15 — Custom Admin manage/ page inventory including tools pages. Added Section 16 — Kiosk Touchscreen Mode architecture and status. Renumbered Known Gotchas to Section 17. Source: Claude chats (admin v2 work, kiosk mode design).
 - 2026-06-01: Added Shop All page feature note. Source: fireflies-call.
+- 2026-06-15: Added Static Product Importer CSV column spec under Tools pages. Added Google Ads conversion-tracking note (no built-in preset; deploy via GTM). Added Known Gotcha: logged-out app error on custom-admin pages (page body renders before the layout user.is_admin gate; Bootstrap modal CSS inactive in custom admin). Source: claude-chat.
 
 
 =================================================================
