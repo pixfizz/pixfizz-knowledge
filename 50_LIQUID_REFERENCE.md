@@ -1014,6 +1014,7 @@ Supports custom field filtering: `'custom.express_service', 'true'`
 | `sha256` | SHA256 hash |
 | `number` | Formats a number with precision/separator/delimiter params |
 | `pixfizz_asset_url` | Pixfizz internal asset URL variant |
+| `json_parse` | Parses a JSON-formatted string into a Liquid object |
 
 ---
 
@@ -1092,7 +1093,7 @@ Any other parameter is rendered as an HTML attribute on the generated `<form>` e
 
 | Form Type | Required Params | Description |
 |---|---|---|
-| `address_create` | — | Creates an address |
+| `address_create` | *`assign_to_user:`, *`assign_to_cart:` | Creates an address. By default the new address is set on the current cart **and** saved to the user's saved addresses. Pass `assign_to_user: false` and/or `assign_to_cart: false` to suppress either behaviour. |
 | `address_update` | `address:` | Updates the given Address |
 | `address_delete` | `address:` | Deletes the given Address |
 
@@ -1357,3 +1358,4 @@ example markup.
 
 ## Changelog
 - 2026-06-01: Noted Shopify IDs live in chosen_variants. Source: claude-chat.
+- 2026-06-15: Added json_parse filter to Pixfizz-extended filters. Added assign_to_user / assign_to_cart optional params to the address_create form. Source: notion-dashboard.
