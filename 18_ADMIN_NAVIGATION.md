@@ -21,6 +21,7 @@ The dashboard also surfaces active (in-progress) carts, giving visibility into c
 
 ### Orders
 - **Orders** — view/manage with status filters, CSV export, barcode search
+    - **Design custom fields in the orderline CSV:** to output a design-level custom field as a column in the orderline CSV export, reference it with the nested path `custom:print_book:print_theme:<field-name>` (for example `custom:print_book:print_theme:primary_collection_path`). The standard orderline CSV cannot filter on these fields, but it can output them using this path.
 - **Abandoned Carts** — incomplete checkouts
 - **Production Files** — production book files with project, page count, status
 - **Projects** — end users' saved personalization projects
@@ -56,6 +57,7 @@ Customer accounts and access management.
 Manages storefront content. What's visible depends on Shopper vs standalone CMS:
 
 - **Pages** — CMS pages forming storefront URL structure (standalone CMS only — Shopper manages these automatically)
+    - **Admin-only visibility:** individual pages and blog posts can be set to admin-only, so they are visible to logged-in admins but hidden from the public. Use this to stage and review content before its public release, then switch it on to publish. This is a publish gate, distinct from `d-none`, which only hides an element visually while leaving its links crawlable.
 - **Layouts** — wrapper templates that pages render inside (standalone CMS only)
 - **Snippets** — HTML/Liquid template fragments (building blocks of pages)
 - **Custom Types** — dynamic content types for flexible page content
@@ -212,3 +214,4 @@ Per-website configuration includes:
 - 2026-04-22: Expanded Crawler entry with admin path, 404 reporting behaviour, and sitemap URL gotcha.
 - 2026-05-19: Expanded Inventory Management into dedicated section with enable flow, stock reduction rules, negative stock behavior, Liquid properties (product.tracks_inventory, product.current_inventory), and out-of-stock CMS pattern. Expanded Translation Support into dedicated section with Super Admin enable flow, translatable objects list, Liquid auto-resolution, translate link location, and bulk export/import. Added inline price editing to Product Attributes. Source: Notion KB articles.
 - 2026-06-01: Added active carts on the dashboard. Source: fireflies-call.
+- 2026-06-15: Documented admin-only visibility for Pages/blog (pre-publish staging gate) and the design custom-field column path for the orderline CSV export (custom:print_book:print_theme:<field>). Source: slack-kb-sync (Matjaz, #development; design-field reporting work).

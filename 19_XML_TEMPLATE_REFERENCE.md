@@ -379,6 +379,13 @@ Common product types with annotated XML definitions.
 
 ---
 
+## Multi-Page Product Page-Count Rules
+
+- **Booklets (stapled / coil-bound) must have a page count divisible by 4.** The design tool auto-detects page count on upload and warns on bleed or divisibility errors. Pricing for these products is driven by page count alongside size, colour, paper type, and binding.
+- **Old softcover templates can carry a page-count “ghost” bug.** Page-count metadata in older softcover templates can become corrupted, letting customers delete or add pages beyond the defined limits. There is no server-side fix yet. Mitigation: copy the affected customer project onto a fresh template and reshare it. Build new softcover products on current templates going forward.
+
+---
+
 ## FTP Fulfillment Behavior
 
 ### FTP Path Prefix: `originals/` vs `/originals/`
@@ -420,3 +427,4 @@ When using multiple fulfillment templates that route to FTP, the folder name in 
 - 2026-04-03: Added Set Parameters section — count, grow, fulfillment, editor, preview.
 - 2026-04-03: Added definition attributes, captions, sequential page types, and four annotated product examples (photo prints, canvas, photobook, greeting card).
 - 2026-05-27: Added FTP Fulfillment Behavior section — FTP path prefix behavior (originals/ vs /originals/), _additional_files.json for sending original uploads to FTP, escape_json filter requirement for JSON job tickets, Job Tickets folder naming rule. Source: Fireflies calls, Slack #dev.
+- 2026-06-15: Added Multi-Page Product Page-Count Rules — booklet page count must be divisible by 4; old softcover templates can carry a page-count ghost bug (mitigation: rebuild on a fresh template). Source: slack-kb-sync (Amanda booklet rules; Rapid Studio softcover bug).

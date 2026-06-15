@@ -133,6 +133,8 @@ Five snippets must be created in the Shopify theme. All are referenced by `{% re
 
 **How it works:** Uses `<style onload>` so the preview replacement fires every time the element is injected into the DOM (including after AJAX cart updates). Only acts if `item.properties._pixfizz_project_id` is present — safe to include unconditionally for all items.
 
+**Resolution:** the underlying preview renders small by default, so omitting a size produces a blurry, upscaled thumbnail. This is the common cause of low-res cart and project previews. Pass a `width` of roughly **2x the rendered display size**, about **600** for a typical cart thumbnail. Apply the same fix to any Shopify saved-projects or my-projects page that calls the preview handler.
+
 ---
 
 ### `pixfizz-edit-orderline-handler.liquid`
@@ -344,6 +346,8 @@ glue and must not be removed.
 ### Webhook signing secret
 After creating the webhook in Shopify (Settings → Notifications), copy the signing secret shown under the callback URL and paste it into the Pixfizz superadmin panel under Website → API Settings → Shopify Signing Secret.
 
+**Updating Pixfizz order status from Shopify Flow.** When using Shopify Flow (or any external automation) to push an order status change into Pixfizz, for example moving an order from "ready for pickup" to a Pixfizz shipped status, use an HTTP **PUT** request, not POST.
+
 ---
 
 ## 9a. Static Product Ingestion (Non-Personalized Shopify Products)
@@ -440,6 +444,9 @@ Required metafields:
 ### `Pixfizz is not defined` JS error
 - `pixfizz-setup` snippet must be rendered in `theme.liquid` before `</head>`
 - The Pixfizz host in `pixfizz-setup.liquid` must use the custom subdomain, not `*.pixfizz.com`
+
+### Customer receives duplicate order emails
+When a store runs Shopify alongside Pixfizz, both systems can send order notifications, so the customer receives two of each. Disable or blank out the redundant Pixfizz email templates for the lifecycle events Shopify already covers, so only one system notifies the customer.
 
 ---
 
@@ -667,3 +674,4 @@ Shopify has two customer account systems. The integration approach differs:
 - 2026-05-19: CORRECTED §15 — `_user.uid` is Shopify customer ID, not Pixfizz user ID; added Pixfizz user ID extraction pattern via `_mine.json` redirect. Added §16 Non-Pixfizz Product Passthrough (static products via webhook). Added §17 Classic vs New Customer Accounts terminology and integration implications. Source: Claude chats (gallery create fix, static product linking, Shopify projects page).
 - 2026-06-01: Added Section 7a, Focal/Maestrooo cart differences. Source: claude-chat.
 
+- 2026-06-15: Added preview-resolution guidance to the orderline preview handler (pass ~600px; small default causes low-res thumbnails). Added §9 note: update Pixfizz order status from Shopify Flow with PUT, not POST. Added §11 troubleshooting entry for duplicate order emails when running Shopify alongside Pixfizz. Source: slack-kb-sync (LisPhoto calls).

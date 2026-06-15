@@ -271,6 +271,14 @@ Endpoint: `POST /v1/users/_uid/<external-source>/<external-user-id>.json`
 
 This endpoint creates the Pixfizz user if they don't exist, updates their data if it has changed, and logs them in. It is idempotent.
 
+> **Login-capable vs external users.** Any user created with `user[external_id]` or
+> `user[external_source]` in the POST body becomes an **external user**: they cannot log in
+> with email/password and can only be reached from the integrated external site. This applies
+> even when posting to `/v1/users` (not only to the `_uid` handoff endpoint). For regular
+> login-capable accounts (OrderHub operators, normal storefront customers), **omit those
+> fields entirely**. To repair an account created external by mistake, create a fresh user and
+> merge the old one into it: `POST /v1/users/<id>#merge`.
+
 POST body:
 ```
 user[email]=...
@@ -411,6 +419,16 @@ https://<subdomain>.pixfizz.com/v1/books/<project-id>/preview.webp?width=800
 ```
 Requires admin access.
 
+### Preview resolution and production-quality output
+
+- The theme and project preview endpoints above are optimised for on-page previews, not
+  print. Output is **capped at `width=1200`** and rendered at a lower JPEG quality.
+- For higher-quality, production-resolution output, render the page directly:
+  `/v1/pages/<page-id>.jpg?width=X&fulfillment=true`. This uses the production render
+  settings rather than the preview pipeline.
+- The `fulfillment=true` page endpoint is currently **superadmin (omnipotent) only**;
+  opening it to all admins is under consideration. Confirm current access before relying on it.
+
 ---
 
 ## 10. JS API
@@ -547,3 +565,4 @@ Callback payloads carry shipment status, tracking name, tracking code, tracking 
 
 ## Changelog
 - 2026-03-30: Initial version. Compiled from Pixfizz Notion wiki: Pixfizz API Documentation, Create Order API Endpoint, Callbacks from Fulfillment Partners, Creating a Project, Dynamic Design Previews, Custom eCommerce CMS Integration Notes.
+- 2026-06-15: Documented login-capable vs external user creation (external_id / external_source param makes a user external; omit for login-capable accounts; merge to repair). Documented preview resolution cap (width 1200, lower quality) and the production-quality /v1/pages/<id>.jpg?fulfillment=true endpoint (superadmin-only). Source: slack-kb-sync (Matjaz, #development).

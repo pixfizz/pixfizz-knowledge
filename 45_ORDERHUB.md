@@ -110,6 +110,8 @@ Each Location has:
 - **Payment terminals** — one or more terminals per location, supporting Stripe, Helcim, and Gravity
 - **Printer mappings** — logical Named Printer roles mapped to physical PrintNode-connected printers
 - **Website link** — associates the location with a Pixfizz website (used for branding in notifications)
+- **Opening hours** — shown to customers when they choose a pickup location at checkout
+- **Google Maps link** — a map / directions link surfaced alongside the pickup address at checkout
 
 Locations are managed in **Settings → Locations** within OrderHub.
 
@@ -376,3 +378,4 @@ Both the Email and SMS tabs include a **Send Test** button. Enter any email or p
 
 ## Changelog
 - 2026-05-21: Created. Content sourced from OrderHub help modal articles (orderhub.pixfizz.com). Covers: Jobs, custom statuses, Production Board, Processes, Locations, PDF Layout Studio, PrintNode, Film Scans, OHD, EasyPost, POS category filter, Pixfizz category assignment, Email/SMS/RCS notifications.
+- 2026-06-15: Added pickup-location opening hours and Google Maps link fields (surfaced in the store pickup UI at checkout). Source: slack-kb-sync (Wolf Camera call).
