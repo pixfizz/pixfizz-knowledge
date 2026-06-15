@@ -1696,6 +1696,7 @@ The dashboard also surfaces active (in-progress) carts, giving visibility into c
 
 ### Orders
 - **Orders** — view/manage with status filters, CSV export, barcode search
+    - **Design custom fields in the orderline CSV:** to output a design-level custom field as a column in the orderline CSV export, reference it with the nested path `custom:print_book:print_theme:<field-name>` (for example `custom:print_book:print_theme:primary_collection_path`). The standard orderline CSV cannot filter on these fields, but it can output them using this path.
 - **Abandoned Carts** — incomplete checkouts
 - **Production Files** — production book files with project, page count, status
 - **Projects** — end users' saved personalization projects
@@ -1731,6 +1732,7 @@ Customer accounts and access management.
 Manages storefront content. What's visible depends on Shopper vs standalone CMS:
 
 - **Pages** — CMS pages forming storefront URL structure (standalone CMS only — Shopper manages these automatically)
+    - **Admin-only visibility:** individual pages and blog posts can be set to admin-only, so they are visible to logged-in admins but hidden from the public. Use this to stage and review content before its public release, then switch it on to publish. This is a publish gate, distinct from `d-none`, which only hides an element visually while leaving its links crawlable.
 - **Layouts** — wrapper templates that pages render inside (standalone CMS only)
 - **Snippets** — HTML/Liquid template fragments (building blocks of pages)
 - **Custom Types** — dynamic content types for flexible page content
@@ -1887,6 +1889,7 @@ Per-website configuration includes:
 - 2026-04-22: Expanded Crawler entry with admin path, 404 reporting behaviour, and sitemap URL gotcha.
 - 2026-05-19: Expanded Inventory Management into dedicated section with enable flow, stock reduction rules, negative stock behavior, Liquid properties (product.tracks_inventory, product.current_inventory), and out-of-stock CMS pattern. Expanded Translation Support into dedicated section with Super Admin enable flow, translatable objects list, Liquid auto-resolution, translate link location, and bulk export/import. Added inline price editing to Product Attributes. Source: Notion KB articles.
 - 2026-06-01: Added active carts on the dashboard. Source: fireflies-call.
+- 2026-06-15: Documented admin-only visibility for Pages/blog (pre-publish staging gate) and the design custom-field column path for the orderline CSV export (custom:print_book:print_theme:<field>). Source: slack-kb-sync (Matjaz, #development; design-field reporting work).
 
 
 =================================================================
@@ -2274,6 +2277,13 @@ Common product types with annotated XML definitions.
 
 ---
 
+## Multi-Page Product Page-Count Rules
+
+- **Booklets (stapled / coil-bound) must have a page count divisible by 4.** The design tool auto-detects page count on upload and warns on bleed or divisibility errors. Pricing for these products is driven by page count alongside size, colour, paper type, and binding.
+- **Old softcover templates can carry a page-count “ghost” bug.** Page-count metadata in older softcover templates can become corrupted, letting customers delete or add pages beyond the defined limits. There is no server-side fix yet. Mitigation: copy the affected customer project onto a fresh template and reshare it. Build new softcover products on current templates going forward.
+
+---
+
 ## FTP Fulfillment Behavior
 
 ### FTP Path Prefix: `originals/` vs `/originals/`
@@ -2315,6 +2325,7 @@ When using multiple fulfillment templates that route to FTP, the folder name in 
 - 2026-04-03: Added Set Parameters section — count, grow, fulfillment, editor, preview.
 - 2026-04-03: Added definition attributes, captions, sequential page types, and four annotated product examples (photo prints, canvas, photobook, greeting card).
 - 2026-05-27: Added FTP Fulfillment Behavior section — FTP path prefix behavior (originals/ vs /originals/), _additional_files.json for sending original uploads to FTP, escape_json filter requirement for JSON job tickets, Job Tickets folder naming rule. Source: Fireflies calls, Slack #dev.
+- 2026-06-15: Added Multi-Page Product Page-Count Rules — booklet page count must be divisible by 4; old softcover templates can carry a page-count ghost bug (mitigation: rebuild on a fresh template). Source: slack-kb-sync (Amanda booklet rules; Rapid Studio softcover bug).
 
 
 =================================================================
@@ -5348,6 +5359,8 @@ Each Location has:
 - **Payment terminals** — one or more terminals per location, supporting Stripe, Helcim, and Gravity
 - **Printer mappings** — logical Named Printer roles mapped to physical PrintNode-connected printers
 - **Website link** — associates the location with a Pixfizz website (used for branding in notifications)
+- **Opening hours** — shown to customers when they choose a pickup location at checkout
+- **Google Maps link** — a map / directions link surfaced alongside the pickup address at checkout
 
 Locations are managed in **Settings → Locations** within OrderHub.
 
@@ -5614,6 +5627,7 @@ Both the Email and SMS tabs include a **Send Test** button. Enter any email or p
 
 ## Changelog
 - 2026-05-21: Created. Content sourced from OrderHub help modal articles (orderhub.pixfizz.com). Covers: Jobs, custom statuses, Production Board, Processes, Locations, PDF Layout Studio, PrintNode, Film Scans, OHD, EasyPost, POS category filter, Pixfizz category assignment, Email/SMS/RCS notifications.
+- 2026-06-15: Added pickup-location opening hours and Google Maps link fields (surfaced in the store pickup UI at checkout). Source: slack-kb-sync (Wolf Camera call).
 
 
 =================================================================
@@ -9479,6 +9493,8 @@ Five snippets must be created in the Shopify theme. All are referenced by `{% re
 
 **How it works:** Uses `<style onload>` so the preview replacement fires every time the element is injected into the DOM (including after AJAX cart updates). Only acts if `item.properties._pixfizz_project_id` is present — safe to include unconditionally for all items.
 
+**Resolution:** the underlying preview renders small by default, so omitting a size produces a blurry, upscaled thumbnail. This is the common cause of low-res cart and project previews. Pass a `width` of roughly **2x the rendered display size**, about **600** for a typical cart thumbnail. Apply the same fix to any Shopify saved-projects or my-projects page that calls the preview handler.
+
 ---
 
 ### `pixfizz-edit-orderline-handler.liquid`
@@ -9690,6 +9706,8 @@ glue and must not be removed.
 ### Webhook signing secret
 After creating the webhook in Shopify (Settings → Notifications), copy the signing secret shown under the callback URL and paste it into the Pixfizz superadmin panel under Website → API Settings → Shopify Signing Secret.
 
+**Updating Pixfizz order status from Shopify Flow.** When using Shopify Flow (or any external automation) to push an order status change into Pixfizz, for example moving an order from "ready for pickup" to a Pixfizz shipped status, use an HTTP **PUT** request, not POST.
+
 ---
 
 ## 9a. Static Product Ingestion (Non-Personalized Shopify Products)
@@ -9786,6 +9804,9 @@ Required metafields:
 ### `Pixfizz is not defined` JS error
 - `pixfizz-setup` snippet must be rendered in `theme.liquid` before `</head>`
 - The Pixfizz host in `pixfizz-setup.liquid` must use the custom subdomain, not `*.pixfizz.com`
+
+### Customer receives duplicate order emails
+When a store runs Shopify alongside Pixfizz, both systems can send order notifications, so the customer receives two of each. Disable or blank out the redundant Pixfizz email templates for the lifecycle events Shopify already covers, so only one system notifies the customer.
 
 ---
 
@@ -10013,6 +10034,7 @@ Shopify has two customer account systems. The integration approach differs:
 - 2026-05-19: CORRECTED §15 — `_user.uid` is Shopify customer ID, not Pixfizz user ID; added Pixfizz user ID extraction pattern via `_mine.json` redirect. Added §16 Non-Pixfizz Product Passthrough (static products via webhook). Added §17 Classic vs New Customer Accounts terminology and integration implications. Source: Claude chats (gallery create fix, static product linking, Shopify projects page).
 - 2026-06-01: Added Section 7a, Focal/Maestrooo cart differences. Source: claude-chat.
 
+- 2026-06-15: Added preview-resolution guidance to the orderline preview handler (pass ~600px; small default causes low-res thumbnails). Added §9 note: update Pixfizz order status from Shopify Flow with PUT, not POST. Added §11 troubleshooting entry for duplicate order emails when running Shopify alongside Pixfizz. Source: slack-kb-sync (LisPhoto calls).
 
 
 =================================================================
@@ -10292,6 +10314,14 @@ Endpoint: `POST /v1/users/_uid/<external-source>/<external-user-id>.json`
 
 This endpoint creates the Pixfizz user if they don't exist, updates their data if it has changed, and logs them in. It is idempotent.
 
+> **Login-capable vs external users.** Any user created with `user[external_id]` or
+> `user[external_source]` in the POST body becomes an **external user**: they cannot log in
+> with email/password and can only be reached from the integrated external site. This applies
+> even when posting to `/v1/users` (not only to the `_uid` handoff endpoint). For regular
+> login-capable accounts (OrderHub operators, normal storefront customers), **omit those
+> fields entirely**. To repair an account created external by mistake, create a fresh user and
+> merge the old one into it: `POST /v1/users/<id>#merge`.
+
 POST body:
 ```
 user[email]=...
@@ -10432,6 +10462,16 @@ https://<subdomain>.pixfizz.com/v1/books/<project-id>/preview.webp?width=800
 ```
 Requires admin access.
 
+### Preview resolution and production-quality output
+
+- The theme and project preview endpoints above are optimised for on-page previews, not
+  print. Output is **capped at `width=1200`** and rendered at a lower JPEG quality.
+- For higher-quality, production-resolution output, render the page directly:
+  `/v1/pages/<page-id>.jpg?width=X&fulfillment=true`. This uses the production render
+  settings rather than the preview pipeline.
+- The `fulfillment=true` page endpoint is currently **superadmin (omnipotent) only**;
+  opening it to all admins is under consideration. Confirm current access before relying on it.
+
 ---
 
 ## 10. JS API
@@ -10568,6 +10608,7 @@ Callback payloads carry shipment status, tracking name, tracking code, tracking 
 
 ## Changelog
 - 2026-03-30: Initial version. Compiled from Pixfizz Notion wiki: Pixfizz API Documentation, Create Order API Endpoint, Callbacks from Fulfillment Partners, Creating a Project, Dynamic Design Previews, Custom eCommerce CMS Integration Notes.
+- 2026-06-15: Documented login-capable vs external user creation (external_id / external_source param makes a user external; omit for login-capable accounts; merge to repair). Documented preview resolution cap (width 1200, lower quality) and the production-quality /v1/pages/<id>.jpg?fulfillment=true endpoint (superadmin-only). Source: slack-kb-sync (Matjaz, #development).
 
 
 =================================================================
