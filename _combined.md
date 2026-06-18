@@ -632,8 +632,17 @@ _Last updated: 2026-05-21_
 
 ### "How do I create a new page on a child site of Shopper?"
 → **50_SHOPPER_TEMPLATE_REFERENCE.md** § 14 (Custom Type wildcard pattern)
-
 ---
+### "AI search / GEO / answer engine optimization / how to get cited by AI / AI Overviews / how AI search works?"
+→ **81_SEO_AND_GEO_REFERENCE.md**
+
+### "Pixfizz structured data / product schema / LocalBusiness schema / review schema / sitemap / product feed for AI visibility?"
+→ **81_SEO_AND_GEO_REFERENCE.md** § Part D, then **50_SHOPPER_TEMPLATE_REFERENCE.md** § SEO & Metadata
+
+RATIONALE: The retrieval map routes mobile UX (82/83) but never had an SEO/GEO entry, so the file the map already names (81) was undiscoverable.
+SOURCE: this conversation (webinar prep)
+SOURCE TYPE: claude-chat
+
 ### "AI search / GEO / answer engine optimization / how to get cited by AI / AI Overviews / how AI search works?"
 → **81_SEO_AND_GEO_REFERENCE.md**
 
