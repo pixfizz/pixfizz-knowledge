@@ -13563,6 +13563,7 @@ This is the platform-truth section. Map each signal to what the platform and tem
 - `[GAP]` **Review / AggregateRating schema: not currently emitted.** There is on-page review display (Google rating/review fields, `Google_Summary` custom field with `rating` and `review_count`) but no review structured-data output. This is a build opportunity (see Pending Confirmation).
 - `[CONFIRM]` **FAQPage, HowTo, Article JSON-LD**: output status unconfirmed. Do not tell customers Pixfizz emits these until confirmed.
 - `[SHOPPER]` Per-object SEO meta fields exist: `meta_title` and `meta_description` on products, collections, subcollections, custom pages, blog posts, and services (see `51_CUSTOM_FIELDS_REFERENCE.md`). Site-level title/description via `update-website-title`, `update-website-description`, and the `seo-tdks` checklist key.
+- `[SHOPPER]`/`[GENERAL]` **High-fidelity product attributes**: the current Product schema is a sound baseline but emits only a fraction of what Google now recommends. See **Part F** for the current baseline, Google's required-vs-recommended set, and prioritized Shopper upgrades. A standalone **Schema Builder** tool (`pixfizz-schema-builder.html`) generates paste-ready JSON-LD for a site-wide Organization/policies block and for a full single Product block.
 
 ### Quotable content
 - `[SHOPPER]` Content surfaces available: blog (`blog`, `custom-blog-page`, `custom-blog-post` keys), custom pages, and a custom FAQ page (`custom-faq-page` key). These are where answer-first and FAQ-style content lives.
@@ -13582,6 +13583,9 @@ This is the platform-truth section. Map each signal to what the platform and tem
 | Per-object SEO meta fields | Provided `[SHOPPER]` |
 | LocalBusiness schema | Placeholders exist, not assumed active `[SHOPPER]` `[CONFIRM]` |
 | Review / AggregateRating schema | Not emitted `[GAP]` |
+| Return policy / shipping schema | Not emitted; best authored at Organization level, see Part F `[GAP]` |
+| Organization / Brand / `sameAs` schema | Status unconfirmed; Schema Builder can author it `[CONFIRM]` |
+| Product attribute fidelity (material, specs, variants) | Baseline only; upgrade tiers in Part F `[SHOPPER]` |
 | FAQPage / HowTo / Article schema | Unconfirmed `[CONFIRM]` |
 | Blog / FAQ / custom page surfaces | Provided `[SHOPPER]` |
 | 301 redirects, Search Console submission | Provided, see `80_ONBOARDING.md` |
@@ -13604,16 +13608,80 @@ This is the platform-truth section. Map each signal to what the platform and tem
 
 ---
 
+## Part F — Product Schema: High-Fidelity Attributes (Reference)
+
+"High-fidelity" schema means the richest, most complete, and verifiably accurate Product markup the catalogue can support, rather than the minimum that triggers a rich result. It matters more now because AI shopping surfaces extract specific attributes (materials, dimensions, ratings, return and shipping terms) to answer specific buyer questions, and because richer Product, Brand, and Organization markup raises entity-confidence signals over time, not just snippet appearance. The catch: markup emits whatever the catalogue contains, including invalid identifiers and stale prices. Fidelity means complete **and** correct. Emitting a malformed attribute is worse than omitting it. Source: Google Search Central, Product / merchant-listing / product-snippet structured-data docs (2026); supporting industry analysis (2026), all directional.
+
+### What Shopper emits today (baseline) `[SHOPPER]`
+
+The auto-generated product JSON-LD already covers the Google-required trio and a good recommended set:
+
+- `@type` Product with `name`, `description`, `sku`, `mpn` (falls back to `sku`), and a conditional `gtin` (emitted only when present).
+- `image` array: live-preview WebP plus a fallback image.
+- `brand` (Brand), `category` (from `google_category`), and `product_type` (from a custom field).
+- `offers` (Offer) with `price` (or `from_pricing`), `priceCurrency`, `url`, `itemCondition` (`NewCondition`), `priceValidUntil`, and an `availability` mapping (`InStock` / `OutOfStock` / `InStoreOnly` when shipping is unavailable / `OnlineOnly` when pickup is unavailable).
+
+This meets Google's required fields for a merchant listing (`name`, `image`, and an `offer` with `price` + `priceCurrency`). The opportunity is in the recommended layer below.
+
+### Google's required vs recommended set `[GENERAL]`
+
+- **Required (merchant listing):** `name`, `image`, and `offers` with `price` and `priceCurrency`. Merchant listings require an `Offer` (not `AggregateOffer`).
+- **Recommended on Product:** `aggregateRating`, `review`, `brand.name`, `description`, the most specific `gtin8|gtin12|gtin13|gtin14` plus `mpn`/`sku`, `color`, `material`, `pattern`, `size` (or `SizeSpecification`), `audience` (`PeopleAudience`: suggested gender/age), `hasCertification` (energy labels etc., mainly EU), `isVariantOf` / `inProductGroupWithID` (variants), and `subjectOf` (a `3DModel`).
+- **Recommended on Offer:** `availability`, `itemCondition`, `url`, `hasMerchantReturnPolicy`, `shippingDetails` (`OfferShippingDetails`), and `priceValidUntil`. Complex pricing uses `priceSpecification` with `UnitPriceSpecification` — `referenceQuantity` for per-unit pricing, `priceType: StrikethroughPrice` for sale prices, and `validForMemberTier` for loyalty/member prices.
+- **Hard rules:** structured data must be present in the server HTML (not added by JavaScript after load), must match what the shopper sees, and identifiers must be valid. Each offer on a page needs a `sku` or `gtin` that matches the corresponding `product-feed.json` entry.
+
+### Upgrade priorities for Shopper
+
+**Tier 1 — high value, broadly applicable**
+- `[GAP]` **`aggregateRating` + `review`.** Not emitted today, though `Google_Summary` already holds `rating` and `review_count`. This is the single biggest visible win (star ratings) and the "be trusted" GEO signal in concrete form. Only publish ratings that are visible on the page.
+- `[GAP]` **`hasMerchantReturnPolicy` + `shippingDetails`.** Google expanded merchant-listing eligibility specifically around these. Best authored once at the Organization level, with per-offer overrides only where a product differs. Required return fields: `applicableCountry` and `returnPolicyCategory` (and `merchantReturnDays` when the window is finite).
+- `[SHOPPER]` **`material`, `color`, `pattern`, `size`.** Cheap, factual attributes that AI extracts to match queries; relevant to apparel, gifting, and print verticals.
+
+**Tier 2 — fit for the Pixfizz product model**
+- `[GENERAL]`/`[SHOPPER]` **Product variants** (`ProductGroup` / `isVariantOf` / `inProductGroupWithID`) map onto Pixfizz option types, but this is a real design decision given personalization (see cautions).
+- `[GENERAL]`/`[SHOPPER]` **`UnitPriceSpecification` + `referenceQuantity`** is the correct home for per-unit / tiered print pricing, rather than a single flat `price`.
+- `[SHOPPER]` **`additionalProperty` (`PropertyValue`)** is the catch-all for specs with no dedicated field (paper stock, GSM, finish, page count, turnaround). This is where AI answers find the specifics.
+
+**Tier 3 — entity grounding and GEO**
+- `[CONFIRM]` **Organization + Brand + `sameAs`** ground the brand as a known entity; pairs with the LocalBusiness work already flagged.
+- `[GAP]` **FAQPage** on product and Q&A pages: the "be quotable" signal in schema form.
+
+### Pixfizz-specific cautions
+
+- `[CONFIRM]` **Server-side rendering is mandatory for merchant listings.** Confirm the Shopper schema snippet renders in the initial server HTML, not via JavaScript after load. The same constraint forbids per-customer page changes (e.g. IP-based pricing).
+- `[PLATFORM]` **Match visible content and the feed.** Schema values must match what the shopper sees, and each offer's `sku`/`gtin` must match `product-feed.json`.
+- `[SHOPPER]` **GTIN validity.** Keep the conditional emission; an invalid GTIN actively hurts, and personalized/bespoke items legitimately have none. Decide how `identifier_exists`-style logic should behave for items with no GTIN.
+- `[SHOPPER]` **`from_pricing` under-represents ranges.** A single `price` from a "from" value reads as a fixed price. For option-driven price ranges, decide deliberately between variant markup, `UnitPriceSpecification`, or an explicit starting-price framing. Note `AggregateOffer` is not for variants.
+- `[GENERAL]` **Loyalty alignment.** The Offer pricing model now supports member pricing (`validForMemberTier`) and loyalty-program markup. Given the loyalty program on the roadmap, design the pricing schema so it does not need reworking later.
+
+### Two correctness flags in the current snippet `[SHOPPER]`
+
+- **`priceValidUntil` is computed inside a `{% dynamic %}` block.** Given the known platform behaviour where dynamic blocks can fail and render nothing, a failure here would emit `"priceValidUntil":` with no value and break the JSON for the entire product. Harden it or move the calculation out of the dynamic block.
+- **`@context` uses `http://schema.org`.** Google accepts it, but `https://` is the current convention and matches Google's own examples.
+
+### The Schema Builder tool
+
+- A standalone HTML generator (`pixfizz-schema-builder.html`) produces paste-ready JSON-LD for (a) a site-wide **Organization + Brand + `sameAs` + return policy** block and (b) a full single **Product** block with the high-fidelity attributes above. It includes live validation hints and a copy button.
+- Intended uses: author the Organization/policies block once per site (this is static data Shopper does not auto-build); test the target Product shape in the Rich Results Test; and hand-build product schema for the Shopify path or static products.
+- It is an authoring aid, not a platform feature. The in-platform auto-generation of these formats (below) remains the larger opportunity.
+
+---
+
 ## Pending Confirmation (for Matjaz / team)
 
 - Shopper LocalBusiness JSON-LD: are the placeholders populated and emitted by default, and do they include geo-coordinates and `sameAs`? What configuration is required?
 - FAQPage / HowTo / Article JSON-LD: does the platform or Shopper emit any of these today?
 - Review / AggregateRating schema: confirmed not emitted; candidate build (auto-generate from existing review/`Google_Summary` data).
 - llms.txt: low priority (Google states no direct AI-search visibility impact); decide whether to support at platform level as an agent-navigation aid only.
+- Product schema rendering: does the Shopper product schema snippet render server-side (in the initial HTML), or could any of it depend on JavaScript? Merchant listings require server-side markup.
+- `priceValidUntil` is built inside a `{% dynamic %}` block — confirm it is hardened so a silent dynamic-block failure cannot emit broken Product JSON.
+- Return-policy and shipping values: where do they live (existing custom fields or new), and should they be Organization-level defaults or per-product overrides?
+- Organization / Brand / `sameAs` schema: is any of this emitted today, or only the LocalBusiness placeholders?
 
 ## Knowledge Gaps / Build Opportunities (not yet built — do not present as live)
 
-- Auto-generation of ideal structured-data formats (Product, LocalBusiness, Review/AggregateRating, FAQPage) from existing Shopper data, as a Shopper feature to improve AI visibility. Under discussion; document only once live.
+- Auto-generation of ideal structured-data formats (Product, LocalBusiness, Review/AggregateRating, FAQPage) from existing Shopper data, as a Shopper feature to improve AI visibility. Should extend to the high-fidelity Product layer in Part F (ratings, return/shipping policy, `additionalProperty`, variants, unit pricing). Under discussion; document only once live.
+- Schema Builder tool (`pixfizz-schema-builder.html`): a built, standalone authoring aid that generates the Organization/policies block and a full Product block for paste and testing. Not a platform feature and not wired into Shopper; treat as an internal/merchant utility, distinct from the in-platform auto-generation opportunity above.
 - WebMCP in Shopper: exposing storefront actions (search, configure product, add to cart) to browser AI agents via the Web Model Context Protocol. Emerging standard, Chrome origin trial only as of mid-2026. On the radar for Shopper; document only once built.
 
 ---
@@ -13622,6 +13690,7 @@ This is the platform-truth section. Map each signal to what the platform and tem
 
 - 2026-06-15: Initial version. Created from webinar prep research (how AI search works, GEO playbook, glossary) and platform facts confirmed in-session: Shopper has LocalBusiness JSON-LD placeholders, review schema is not currently emitted, product schema via `schema_loop_all_products`. Cross-references 80 (SEO migration), 50 (checklist keys), 51 (custom fields). Source: claude-chat.
 - 2026-06-18: Added verified 2026 stats (68% zero-click early 2026 per Adsroid; Cloudflare 57.5% bot-majority traffic, June 3 2026), with sourcing and caveats. Added glossary entries for WebMCP (real, emerging, Chrome origin trial) and OKF (real but internal-knowledge format, explicitly not an AI-visibility tactic — corrects an earlier framing). Added platform measurement tools: GSC Search Generative AI performance reports and AI controls toggle (June 2026), and Bing Webmaster Tools AI Performance/citation report (Feb 2026). Added WebMCP-in-Shopper to build opportunities. Source: claude-chat (web-verified).
+- 2026-06-18: Added Part F (Product Schema: High-Fidelity Attributes), researched against Google Search Central's product / merchant-listing / product-snippet structured-data docs. Documents the current Shopper baseline, Google's required-vs-recommended set, prioritized Shopper upgrade tiers (Tier 1 ratings + return/shipping + attributes; Tier 2 variants, unit pricing, `additionalProperty`; Tier 3 Organization/Brand/`sameAs`, FAQPage), Pixfizz cautions (server-side rendering, match-visible-content, GTIN validity, `from_pricing`, loyalty/`validForMemberTier`), and two correctness flags on the current snippet (`priceValidUntil` inside a `{% dynamic %}` block; `http` vs `https` context). Added the standalone Schema Builder authoring tool. Updated the Quick capability summary, Pending Confirmation, and Build Opportunities to match. Source: claude-chat (web-verified against developers.google.com).
 
 
 =================================================================
