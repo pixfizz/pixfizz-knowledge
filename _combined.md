@@ -13408,7 +13408,7 @@ FILE: 81_SEO_AND_GEO_REFERENCE.md
 
 **Authority Scope:** How AI-powered search works, Generative Engine Optimization (GEO) practice, and what the Pixfizz platform and Shopper template currently do for AI search visibility. Industry concepts are general knowledge. Platform and template capabilities are tagged explicitly.
 
-_Last updated: 2026-06-15_
+_Last updated: 2026-06-18_
 
 ---
 
@@ -13456,8 +13456,9 @@ The old goal was to rank in the list of links. The new goal is to be cited or re
 
 - AI Overviews now appear on roughly a quarter of US searches, up from roughly half that a year earlier (Conductor, 2026).
 - With an AI Overview present, click-through to the top result drops sharply (roughly 8% vs 15% without, Pew Research, 2025).
-- A majority of US searches now end without a click; higher on mobile (SparkToro).
-- AI-referred visitors tend to convert better than standard organic visitors because they arrive pre-qualified by the AI's recommendation. Reported multipliers vary too widely across sources to state a single figure; use the qualitative point, not a number.
+- Zero-click: more than 68% of US Google searches ended without a click in early 2026 (Jan–April), up from about 60% in 2024 (Adsroid, June 2026, citing market-intelligence panel data). Note this counts clicks to Google's own properties (Maps, YouTube) as non-clicks. The older "58.5%" SparkToro figure is 2024 and now outdated; use the 68% early-2026 figure, framed as "reported."
+- Bots now generate the majority of web traffic: 57.5% of HTTP requests versus 42.5% human, the first machine majority, driven mainly by agentic AI (Cloudflare Radar, Matthew Prince, June 3, 2026). The through-line is "crawl without credit" — bots crawl heavily but send little referral traffic. Strong wake-up statistic. Caveat: do not pair it with the "ChatGPT-User/ClaudeBot crawl 3.6x more than Googlebot" claim — Cloudflare's own data still has Googlebot as the largest crawler by reach.
+- AI-referred visitors tend to convert better than standard organic visitors because they arrive pre-qualified by the AI's recommendation. Reported multipliers vary too widely across sources to state a single figure; if a number is used, attribute it (e.g. Seer/Semrush) and frame as "reported," and do not show multiple conflicting figures together.
 
 ---
 
@@ -13490,6 +13491,9 @@ A markdown file in the site root that describes site structure to AI agents. `[G
 ### LLMO (Large Language Model Optimization)
 Synonym for GEO. Managing content so LLMs understand and reference your brand.
 
+### OKF (Open Knowledge Format)
+`[GENERAL]` An open spec from Google Cloud (v0.1, published June 12, 2026) for representing organizational knowledge as a directory of markdown files with YAML frontmatter, one concept per file, linked as a graph. **Important: OKF is NOT a web-visibility or SEO tactic.** It is an internal knowledge bundle that your own AI agents read, not a public page format you publish for the web to crawl, and Google has stated plainly it is not a ranking or visibility mechanism. Do not present OKF to customers as a way to get cited by AI search. It is, however, relevant to Pixfizz internally — our own knowledge repo is essentially this pattern.
+
 ### Query fan-out
 An engine breaking one prompt into multiple simultaneous sub-queries, then synthesizing the retrieved passages into one answer.
 
@@ -13498,6 +13502,9 @@ Traditional practice of optimizing to rank higher in standard results via on-pag
 
 ### Structured data / schema
 Machine-readable markup (e.g. JSON-LD) that tells engines your entities explicitly (product name, price, availability, brand, business identity). Not strictly required to appear in AI search, but it helps AI extract facts accurately and keeps you eligible for rich results.
+
+### WebMCP (Web Model Context Protocol)
+`[GENERAL]` An emerging browser standard co-developed by Google and Microsoft via the W3C, first announced February 10, 2026, and in a public origin trial in Chrome as of June 2026. It lets a website expose its features to AI agents as structured, callable tools (a "Tool Contract") rather than agents guessing via screenshots. Two paths: a Declarative API (HTML attributes on forms) and an Imperative API (JavaScript). Model-agnostic. The "action layer" of AI readiness: schema gets a product understood, GEO gets a brand cited, WebMCP gets a product acted on and purchased by an agent. Status: early and Chrome-only; treat as "watch and early-adopt," not a do-it-now requirement.
 
 ### Zero-click search
 When a user gets a complete answer on the results page without clicking through. Dominant in AI search, which is why citations and brand mentions matter more than raw click traffic.
@@ -13589,6 +13596,12 @@ This is the platform-truth section. Map each signal to what the platform and tem
 - **What AI already knows about you:** prompt an engine directly with "Tell me what you know about [business name]" to see its current understanding of your services, area, and reputation.
 - Filter analytics referral traffic by AI sources (chatgpt.com, perplexity.ai, etc.) for the click-through slice, but expect most AI value to be zero-click.
 
+### Platform measurement tools (current state, 2026)
+
+- **Google Search Console — Search Generative AI performance reports** (launched June 3, 2026): a dedicated view showing how often your URLs appear in AI Overviews and AI Mode (and generative Discover), broken down by page, country, device, and date. Limitations: impressions only, no click or query data, not in the API yet (UI/CSV export only), and rolling out to a subset of properties first (initially UK). Use it to measure AI visibility, not traffic. This is the first time AI-surface visibility is separable from standard organic.
+- **Google Search Console — AI controls toggle** (effective from June 17, 2026): lets a site opt its content out of AI Overviews, AI Mode, and generative Discover. Opting out forfeits impressions and any clicks from those features. Google states it is not a ranking signal for normal organic results. Almost no one should use this; relevant only as a thing that exists.
+- **Bing Webmaster Tools — AI Performance report** (launched February 2026): tracks citations, the number of times your content is used to build a Copilot or Bing AI answer. Arguably more useful than GSC's impressions-only view because it counts actual citations. Worth pairing, since serious GEO measurement is cross-engine, not Google-only.
+
 ---
 
 ## Pending Confirmation (for Matjaz / team)
@@ -13601,12 +13614,14 @@ This is the platform-truth section. Map each signal to what the platform and tem
 ## Knowledge Gaps / Build Opportunities (not yet built — do not present as live)
 
 - Auto-generation of ideal structured-data formats (Product, LocalBusiness, Review/AggregateRating, FAQPage) from existing Shopper data, as a Shopper feature to improve AI visibility. Under discussion; document only once live.
+- WebMCP in Shopper: exposing storefront actions (search, configure product, add to cart) to browser AI agents via the Web Model Context Protocol. Emerging standard, Chrome origin trial only as of mid-2026. On the radar for Shopper; document only once built.
 
 ---
 
 ## Changelog
 
 - 2026-06-15: Initial version. Created from webinar prep research (how AI search works, GEO playbook, glossary) and platform facts confirmed in-session: Shopper has LocalBusiness JSON-LD placeholders, review schema is not currently emitted, product schema via `schema_loop_all_products`. Cross-references 80 (SEO migration), 50 (checklist keys), 51 (custom fields). Source: claude-chat.
+- 2026-06-18: Added verified 2026 stats (68% zero-click early 2026 per Adsroid; Cloudflare 57.5% bot-majority traffic, June 3 2026), with sourcing and caveats. Added glossary entries for WebMCP (real, emerging, Chrome origin trial) and OKF (real but internal-knowledge format, explicitly not an AI-visibility tactic — corrects an earlier framing). Added platform measurement tools: GSC Search Generative AI performance reports and AI controls toggle (June 2026), and Bing Webmaster Tools AI Performance/citation report (Feb 2026). Added WebMCP-in-Shopper to build opportunities. Source: claude-chat (web-verified).
 
 
 =================================================================
