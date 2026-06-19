@@ -2,7 +2,7 @@
 
 **Authority Scope:** Variant rendering behavior only.
 
-_Last updated: 2026-04-19_
+_Last updated: 2026-06-19_
 
 ---
 
@@ -136,6 +136,32 @@ These are configured in the admin under the option type's settings (Max Length f
 
 **Rendering note:** Whether `min_length`, `max_length`, and `pattern` are passed through as attributes on the rendered `<input>` in cart context (`product/px-option-cart`) has not been confirmed — verify against the live snippet if this matters for a specific implementation.
 
+### 4.8 `toggle` (2-value Multiple choice rendered as an animated switch)
+
+- Applies when `option.custom.selector == 'toggle'` **and** `option.values.size == 2`.
+- Renders two visually-hidden radio inputs (first value = off side, second value = on side) plus a CSS-only switch control. No JavaScript is used, so it survives AJAX re-injection without a `style onload` re-init.
+- Radios always submit a value, so the off side is never an empty submission (a lone checkbox would submit nothing in its off state).
+- The active state is driven entirely by `:checked ~` sibling rules in CSS:
+	- knob slides via `transform: translateX(...)`
+	- track border and knob recolour to the site primary
+	- the active flanking label is emphasised
+- ON-state colour comes from `{% snippet 'style/color-primary' %}` referenced inside `style/custom.css` (custom.css is Liquid-processed, so the snippet resolves there). Note the snippet is `style/color-primary`, not `style/primary-color`.
+- Click-to-flip is achieved with two overlapping empty `<label>` click targets that swap `pointer-events` by state — no script needed.
+- Each radio carries an `aria-label` from its value name, so accessibility is preserved even when visible labels are hidden.
+
+**Fallback / guard:**
+- If values != 2, the branch is skipped and the option falls through to the default radio rendering. It cannot break the form.
+- Mark one of the two values as **default** in admin so the initial state is predictable.
+
+**Optional bare switch (no flanking labels):**
+- Boolean custom field `option.custom.toggle_hide_labels`: when set, adds the `px-toggle-no-labels` class to the wrapper, which hides the value names (`.px-toggle-name`) and shows just the switch.
+- Test as a real boolean (`{% if option.custom.toggle_hide_labels %}`), not a string comparison.
+- Custom fields are site-specific and do not inherit parent → child, so set this on the site where the option lives.
+
+**Pricing display note:** unlike `dropdown`, this selector does not show price deltas next to the values by default. If a toggle value carries a price, append it to the value name in the branch (or use `dropdown`).
+
+**Where it lives:** `toggle` is a branch added to the Shopper snippet `product/px-options` (template layer). Add it on the parent (`shopper24`) to make it available everywhere, or override `product/px-options` on a single site to scope it. The CSS belongs in that site's `style/custom.css`.
+
 ---
 
 ## 5) Upload-specific behaviors
@@ -194,6 +220,8 @@ In cart context, the rendering is simplified:
 - Still supports nested options (children) via recursion:
 	- `option.children` + `trigger` relationship
 
+> Note: the `toggle` selector is implemented in `product/px-options` (product-page context). It is not wired into `product/px-option-cart`, where a 2-value option falls back to the default `<select>`. Add it there separately if a toggle is needed in cart.
+
 ---
 
 ## 8) Practical “recognize and document” list (what matters when reading a site)
@@ -201,7 +229,8 @@ In cart context, the rendering is simplified:
 When you see a variant/option behaving “special” in Shopper, check these first:
 
 - `option.type` (text/number/color/font/image_upload/file_upload vs multiple choice default)
-- `option.custom.selector` (textarea, color swatch, checkbox, dropdown, slider, quick-quantity)
+- `option.custom.selector` (textarea, color swatch, checkbox, dropdown, slider, quick-quantity, toggle)
+- `option.custom.toggle_hide_labels` (bare switch with no flanking labels, toggle selector only)
 - `option.custom.multi_upload_group` (multi-image wrapper)
 - `option.custom.kiosk_mode_only` (kiosk-only display)
 - `option.custom.hidden` (completely hidden)
@@ -211,3 +240,8 @@ When you see a variant/option behaving “special” in Shopper, check these fir
 - `option.custom.custom_script` (inline scripts—dangerous but real)
 
 That’s the set that needs to be “muscle memory” when debugging option rendering in Shopper.
+
+---
+
+## Changelog
+- 2026-06-19: Added section 4.8 `toggle` selector (2-value animated CSS-only switch on `product/px-options`), including the `toggle_hide_labels` bare-switch option, guard/fallback behavior, and primary-colour sourcing. Added cart-context note (7) that toggle is product-page only. Added `toggle` and `toggle_hide_labels` to the recognize-and-document list (8).
