@@ -2,7 +2,7 @@
 
 **Authority Scope:** Checkout engine logic only.
 
-_Last updated: 2026-06-01_
+_Last updated: 2026-06-26_
 
 ---
 
@@ -74,7 +74,20 @@ Guest checkout supports the following configuration:
 
 These are checkout configuration options, not hardcoded behaviour.
 
+## Payment method selection and labels
+
+**Which method is selected by default.** The default selected payment method is resolved in two layers:
+- A URL parameter takes priority: `request.params['payment-method']`. If present and valid, it persists the customer's selection across page reloads.
+- If no valid method is set via URL, the system falls back to the **first entry** in the `checkout/available-payment-methods` snippet.
+
+So the effective default is determined by the **ordering** in `checkout/available-payment-methods`. To change the default, reorder that snippet - do not modify the `site/checkout` file.
+
+The payment-method radio selector only renders when **more than one** method is enabled. With a single enabled method it is auto-selected and the selector is hidden.
+
+**Renaming a payment method label.** Payment method display labels (e.g. "Cash on Delivery") are set via the admin **Translations** system, not a dedicated config field. To rename a method - for example "Cash on Delivery" to "In House Billing" - edit the translation string for that label. See `18_ADMIN_NAVIGATION.md` section Built-in Translation Support.
+
 ## Changelog
 - 2026-02-26: Initial checkout policy content.
 - 2026-04-23: Added tax model note (US-style vs European VAT, postal code CSV, automatic discount workaround). Added guest checkout configurable fields note.
 - 2026-06-01: Added tax CSV format and matching specificity. Source: claude-chat/help-article.
+- 2026-06-26: Added payment method selection (URL param priority, then first entry in checkout/available-payment-methods; radio only renders for 2+ methods) and label renaming via Translations. Source: claude-chat/fireflies-call.

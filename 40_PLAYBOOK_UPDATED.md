@@ -335,6 +335,16 @@ shipped. Until then, flag this to clients whose customers use older iPads.
 
 ---
 
+## Kiosk iPad: Browser Autofill Causes Login Confusion
+
+**Symptom:** On a shared kiosk iPad, customers get confused at the sign-in step. The browser autofills a previous customer's saved email/password, so people either sign into the wrong account or cannot tell whose details are showing.
+
+**Context:** Kiosk mode supports a skip-sign-in flow for faster gallery access and checkout. Browser-level credential autofill works against this on a shared device.
+
+**Fix:** Turn off browser autofill / saved passwords on the kiosk iPad's browser. This is a device setting, not a Pixfizz setting. Recommend it as part of kiosk device setup.
+
+---
+
 ## Changelog
 - 2026-03-21: Initial content from platform documentation export.
 - 2026-04-23: Added CSS snippet logs diagnostic note, password reset Liquid deprecation pattern, fulfillment template DPI failure, URL reserved parameter 404 gotcha, Stripe pending-without-payment issue, FTP original files intermittent failure.
@@ -342,3 +352,4 @@ shipped. Until then, flag this to clients whose customers use older iPads.
 - 2026-04-29: Added production file regeneration constraint (delete existing file before requesting new one). Added font stability / Transfonter preprocessing workaround.
 - 2026-05-19: Added gallery ZIP download silent failure on large galleries (memory limit + batched fetch fix). Added Bootstrap 4.6 utility class `!important` override requirement. Source: Claude chats (gallery download fix, gallery v2 button layout).
 - 2026-06-01: Corrected Editor Iframe CSS Isolation note; added iOS HEIC upload feedback gotcha. Source: claude-chat/fireflies-call.
+- 2026-06-26: Added kiosk iPad browser-autofill login-confusion gotcha (disable autofill on shared kiosk devices). Source: fireflies-call.

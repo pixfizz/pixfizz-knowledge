@@ -28,6 +28,16 @@ Every order moves through defined statuses:
 
 Exception statuses: **Payment Failed**, **Error**, **Canceled**, **Refunded**.
 
+### Status codes in Liquid
+
+In Liquid templates, `order.status` returns a **single-letter code**, not the display label. Confirmed codes:
+- `P` = Pending
+- `F` = Payment Failed
+
+Write conditionals against the letter, e.g. `{% if order.status == 'P' %}`, and fetch the newest pending order with `user.orders | where: 'status', 'P' | sort: 'created_at' | reverse | first`.
+
+**Pay Now / payment retry.** Orders in Pending (`P`) or Payment Failed (`F`) can be re-paid using the `order_payment` form: `{% form 'order_payment', order: order %}`. This is used to surface a "Pay Now" action on the account orders page and on the empty-cart page for back-from-gateway recovery. (Form tag confirmed in use on a live site; verify the tag name against the current template before reusing.)
+
 Each status transition can trigger an email notification (configured in admin: Settings > Email Notifications).
 
 ---
@@ -253,3 +263,4 @@ The `manual_payment` field is a custom field set at order creation. It returns `
 - 2026-05-19: Added Custom Order & Orderline Fields via Liquid Scripts section (from Notion KB). Added Order Cancellation and Transaction Fees process (from Notion KB).
 - 2026-05-21: Added Automatic Discounts (negative order line values, stack with promo codes, applied at checkout). Source: Fireflies.
 - 2026-05-21: Expanded OrderHub Desktop (OHD) section with DPOF generation, AI upscaling, multi-instance behaviour, and API endpoint. Added cross-reference to 45_ORDERHUB.md. Source: OrderHub help modal.
+- 2026-06-26: Documented order.status single-letter Liquid codes (P=Pending, F=Payment Failed) and the order_payment form for Pay Now / payment retry. Source: claude-chat.

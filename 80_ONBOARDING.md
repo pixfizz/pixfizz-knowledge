@@ -406,8 +406,9 @@ Missing descriptions cause:
 - **Sitemap quality degradation** — blank description entries reduce the usefulness of the XML sitemap submitted to search engines
 - **Product feed issues** — Google Shopping and Meta catalogue feeds require descriptions; missing ones cause feed errors or rejected products
 - **Google Search Console warnings** — structured data validation flags missing or empty description fields
+- **Crawler / feed generation errors** - when the built-in crawler runs (Admin > Website Crawls), products or pages with missing descriptions can throw JSON or crawl errors that interrupt `sitemap.xml` / `product-feed.json` generation. The fix is to populate the missing descriptions in admin. Seen across multiple client sites.
 
-Add a description check to the final pre-launch validation step for all deployment paths.
+Add a description check to the final pre-launch validation step for all deployment paths. Setting the crawler to run automatically on a daily schedule catches newly added products with blank descriptions before they cause feed errors.
 
 ---
 
@@ -416,7 +417,7 @@ Add a description check to the final pre-launch validation step for all deployme
 When migrating a customer from an existing website to Pixfizz, SEO continuity requires three things:
 
 1. **URL mapping** — the customer provides a spreadsheet of their current live URLs, categorized by content type (products, pages, blog posts). Map each to the corresponding new Pixfizz URL structure.
-2. **301 redirects** — configure redirects in Pixfizz using the JSON array format: `["^/old-path/?$", "/new-path"]`. This preserves Google rankings and prevents 404s for bookmarked or indexed URLs.
+2. **301 redirects** — configure redirects in Pixfizz using the JSON config format. The config is an **array of pairs** (array of arrays), even for a single redirect: `[["^/old-path/?$", "/new-path"]]`. Each inner pair is `[regex_pattern, destination]`. A bare single pair (`["^/old-path/?$", "/new-path"]`) **silently fails** with no error and no redirect, so always wrap pairs in the outer array. On sites that use the `/site/` prefix it is included in the pattern. This preserves Google rankings and prevents 404s for bookmarked or indexed URLs.
 3. **Sitemap submission** — once the new site is live, submit the new sitemap to Google Search Console. Monitor indexing for the first 2–4 weeks to catch any missed redirects.
 
 System paths (cart, checkout, account, order-confirmation) do not need redirects — they are handled by the platform.
@@ -477,5 +478,6 @@ Review and customize all active templates before launch — default content refe
 - 2026-03-30: Created from master platform documentation export.
 - 2026-04-23: Added content completeness (descriptions) pre-launch checklist item.
 - 2026-04-27: Added SEO migration workflow (sitemap + 301 redirects for domain moves).
+- 2026-06-26: Corrected 301 redirect config to outer-array format (bare single pair fails silently). Added crawler/feed JSON-error failure mode for missing product descriptions and daily auto-crawl note. Source: claude-chat/fireflies-call.
 - 2026-05-21: Major rewrite. Added all deployment paths (Custom API, Marketplace/Etsy). Added "Preparing for Onboarding" customer preparation section. Added Full Pixfizz Custom path. Expanded phase sequences with blockers. Merged content from onboarding skill. Added pre-launch handoff checklist. Added vertical-specific notes.
 - 2026-05-27: Photo Labs vertical notes: added kiosk mode setup procedure (CNAME, checklist keys, pay-in-store config), OHD single-location install rule, film 120/220 as separate products, same-day JS cutoff pattern. Phase 2: added static product CSV importer note (manage/tools/product-importer). Phase 3: added SendGrid deliverability and DNS authentication note. Pre-launch checklist: added email delivery DNS check. Custom API Phase 2: added external user warning (_uid creates non-login users; OrderHub operators must use /v1/users). Source: Fireflies calls, Slack #dev, support tickets.
