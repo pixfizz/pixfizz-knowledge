@@ -2383,7 +2383,7 @@ FILE: 21_SHOPPER_CHECKOUT_POLICY.md
 
 **Authority Scope:** Checkout engine logic only.
 
-_Last updated: 2026-06-01_
+_Last updated: 2026-06-26_
 
 ---
 
@@ -2455,10 +2455,23 @@ Guest checkout supports the following configuration:
 
 These are checkout configuration options, not hardcoded behaviour.
 
+## Payment method selection and labels
+
+**Which method is selected by default.** The default selected payment method is resolved in two layers:
+- A URL parameter takes priority: `request.params['payment-method']`. If present and valid, it persists the customer's selection across page reloads.
+- If no valid method is set via URL, the system falls back to the **first entry** in the `checkout/available-payment-methods` snippet.
+
+So the effective default is determined by the **ordering** in `checkout/available-payment-methods`. To change the default, reorder that snippet - do not modify the `site/checkout` file.
+
+The payment-method radio selector only renders when **more than one** method is enabled. With a single enabled method it is auto-selected and the selector is hidden.
+
+**Renaming a payment method label.** Payment method display labels (e.g. "Cash on Delivery") are set via the admin **Translations** system, not a dedicated config field. To rename a method - for example "Cash on Delivery" to "In House Billing" - edit the translation string for that label. See `18_ADMIN_NAVIGATION.md` section Built-in Translation Support.
+
 ## Changelog
 - 2026-02-26: Initial checkout policy content.
 - 2026-04-23: Added tax model note (US-style vs European VAT, postal code CSV, automatic discount workaround). Added guest checkout configurable fields note.
 - 2026-06-01: Added tax CSV format and matching specificity. Source: claude-chat/help-article.
+- 2026-06-26: Added payment method selection (URL param priority, then first entry in checkout/available-payment-methods; radio only renders for 2+ methods) and label renaming via Translations. Source: claude-chat/fireflies-call.
 
 
 =================================================================
@@ -4269,6 +4282,16 @@ Every order moves through defined statuses:
 
 Exception statuses: **Payment Failed**, **Error**, **Canceled**, **Refunded**.
 
+### Status codes in Liquid
+
+In Liquid templates, `order.status` returns a **single-letter code**, not the display label. Confirmed codes:
+- `P` = Pending
+- `F` = Payment Failed
+
+Write conditionals against the letter, e.g. `{% if order.status == 'P' %}`, and fetch the newest pending order with `user.orders | where: 'status', 'P' | sort: 'created_at' | reverse | first`.
+
+**Pay Now / payment retry.** Orders in Pending (`P`) or Payment Failed (`F`) can be re-paid using the `order_payment` form: `{% form 'order_payment', order: order %}`. This is used to surface a "Pay Now" action on the account orders page and on the empty-cart page for back-from-gateway recovery. (Form tag confirmed in use on a live site; verify the tag name against the current template before reusing.)
+
 Each status transition can trigger an email notification (configured in admin: Settings > Email Notifications).
 
 ---
@@ -4494,6 +4517,7 @@ The `manual_payment` field is a custom field set at order creation. It returns `
 - 2026-05-19: Added Custom Order & Orderline Fields via Liquid Scripts section (from Notion KB). Added Order Cancellation and Transaction Fees process (from Notion KB).
 - 2026-05-21: Added Automatic Discounts (negative order line values, stack with promo codes, applied at checkout). Source: Fireflies.
 - 2026-05-21: Expanded OrderHub Desktop (OHD) section with DPOF generation, AI upscaling, multi-instance behaviour, and API endpoint. Added cross-reference to 45_ORDERHUB.md. Source: OrderHub help modal.
+- 2026-06-26: Documented order.status single-letter Liquid codes (P=Pending, F=Payment Failed) and the order_payment form for Pay Now / payment retry. Source: claude-chat.
 
 
 =================================================================
@@ -4837,6 +4861,16 @@ shipped. Until then, flag this to clients whose customers use older iPads.
 
 ---
 
+## Kiosk iPad: Browser Autofill Causes Login Confusion
+
+**Symptom:** On a shared kiosk iPad, customers get confused at the sign-in step. The browser autofills a previous customer's saved email/password, so people either sign into the wrong account or cannot tell whose details are showing.
+
+**Context:** Kiosk mode supports a skip-sign-in flow for faster gallery access and checkout. Browser-level credential autofill works against this on a shared device.
+
+**Fix:** Turn off browser autofill / saved passwords on the kiosk iPad's browser. This is a device setting, not a Pixfizz setting. Recommend it as part of kiosk device setup.
+
+---
+
 ## Changelog
 - 2026-03-21: Initial content from platform documentation export.
 - 2026-04-23: Added CSS snippet logs diagnostic note, password reset Liquid deprecation pattern, fulfillment template DPI failure, URL reserved parameter 404 gotcha, Stripe pending-without-payment issue, FTP original files intermittent failure.
@@ -4844,6 +4878,7 @@ shipped. Until then, flag this to clients whose customers use older iPads.
 - 2026-04-29: Added production file regeneration constraint (delete existing file before requesting new one). Added font stability / Transfonter preprocessing workaround.
 - 2026-05-19: Added gallery ZIP download silent failure on large galleries (memory limit + batched fetch fix). Added Bootstrap 4.6 utility class `!important` override requirement. Source: Claude chats (gallery download fix, gallery v2 button layout).
 - 2026-06-01: Corrected Editor Iframe CSS Isolation note; added iOS HEIC upload feedback gotcha. Source: claude-chat/fireflies-call.
+- 2026-06-26: Added kiosk iPad browser-autofill login-confusion gotcha (disable autofill on shared kiosk devices). Source: fireflies-call.
 
 
 =================================================================
@@ -13359,8 +13394,9 @@ Missing descriptions cause:
 - **Sitemap quality degradation** — blank description entries reduce the usefulness of the XML sitemap submitted to search engines
 - **Product feed issues** — Google Shopping and Meta catalogue feeds require descriptions; missing ones cause feed errors or rejected products
 - **Google Search Console warnings** — structured data validation flags missing or empty description fields
+- **Crawler / feed generation errors** - when the built-in crawler runs (Admin > Website Crawls), products or pages with missing descriptions can throw JSON or crawl errors that interrupt `sitemap.xml` / `product-feed.json` generation. The fix is to populate the missing descriptions in admin. Seen across multiple client sites.
 
-Add a description check to the final pre-launch validation step for all deployment paths.
+Add a description check to the final pre-launch validation step for all deployment paths. Setting the crawler to run automatically on a daily schedule catches newly added products with blank descriptions before they cause feed errors.
 
 ---
 
@@ -13369,7 +13405,7 @@ Add a description check to the final pre-launch validation step for all deployme
 When migrating a customer from an existing website to Pixfizz, SEO continuity requires three things:
 
 1. **URL mapping** — the customer provides a spreadsheet of their current live URLs, categorized by content type (products, pages, blog posts). Map each to the corresponding new Pixfizz URL structure.
-2. **301 redirects** — configure redirects in Pixfizz using the JSON array format: `["^/old-path/?$", "/new-path"]`. This preserves Google rankings and prevents 404s for bookmarked or indexed URLs.
+2. **301 redirects** — configure redirects in Pixfizz using the JSON config format. The config is an **array of pairs** (array of arrays), even for a single redirect: `[["^/old-path/?$", "/new-path"]]`. Each inner pair is `[regex_pattern, destination]`. A bare single pair (`["^/old-path/?$", "/new-path"]`) **silently fails** with no error and no redirect, so always wrap pairs in the outer array. On sites that use the `/site/` prefix it is included in the pattern. This preserves Google rankings and prevents 404s for bookmarked or indexed URLs.
 3. **Sitemap submission** — once the new site is live, submit the new sitemap to Google Search Console. Monitor indexing for the first 2–4 weeks to catch any missed redirects.
 
 System paths (cart, checkout, account, order-confirmation) do not need redirects — they are handled by the platform.
@@ -13430,6 +13466,7 @@ Review and customize all active templates before launch — default content refe
 - 2026-03-30: Created from master platform documentation export.
 - 2026-04-23: Added content completeness (descriptions) pre-launch checklist item.
 - 2026-04-27: Added SEO migration workflow (sitemap + 301 redirects for domain moves).
+- 2026-06-26: Corrected 301 redirect config to outer-array format (bare single pair fails silently). Added crawler/feed JSON-error failure mode for missing product descriptions and daily auto-crawl note. Source: claude-chat/fireflies-call.
 - 2026-05-21: Major rewrite. Added all deployment paths (Custom API, Marketplace/Etsy). Added "Preparing for Onboarding" customer preparation section. Added Full Pixfizz Custom path. Expanded phase sequences with blockers. Merged content from onboarding skill. Added pre-launch handoff checklist. Added vertical-specific notes.
 - 2026-05-27: Photo Labs vertical notes: added kiosk mode setup procedure (CNAME, checklist keys, pay-in-store config), OHD single-location install rule, film 120/220 as separate products, same-day JS cutoff pattern. Phase 2: added static product CSV importer note (manage/tools/product-importer). Phase 3: added SendGrid deliverability and DNS authentication note. Pre-launch checklist: added email delivery DNS check. Custom API Phase 2: added external user warning (_uid creates non-login users; OrderHub operators must use /v1/users). Source: Fireflies calls, Slack #dev, support tickets.
 
