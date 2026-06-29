@@ -10058,6 +10058,24 @@ url.replace(/thumbnail\/\d+/, 'thumbnail/1600')  // lightbox
 
 Variable pages are created as Shopify page templates (`page.{name}.liquid`) — not snippets, and not sections. The `{% schema %}` tag is not valid in page templates. Padding must be handled with plain CSS, not `section.settings`.
 
+This describes **Dawn-era themes**, where the page template is a single `.liquid` file that holds all markup, CSS, and JS. It does **not** hold on newer block-based themes (Horizon and similar) — see "Theme architecture" immediately below.
+
+### Theme architecture: Liquid template vs JSON template (Dawn vs Horizon)
+
+On Horizon (Shopify's newer theme architecture, and others like it), page templates are **JSON** files (`page.{name}.json`) that reference sections and blocks, not standalone `.liquid` files. If both `page.{name}.liquid` and `page.{name}.json` exist with the same name, the **JSON template wins** and the `.liquid` file silently renders nothing. Edits to the `.liquid` file then have no visible effect on the page.
+
+**Symptom:** the page shows only the theme's default page section (page title as a heading plus an empty rich-text block) and nothing else. The custom markup (e.g. the gallery wrapper) is absent from the rendered page source.
+
+**How to confirm:** view the live page source.
+- `<main>` carries `data-template="page.{name}"`, so the template IS assigned and the session IS established (`Pixfizz.Shopify.setup(...)` runs in the theme `<head>` on every page). Those are not the problem.
+- The `<main>` body contains only the default heading + empty rich-text block. The custom markup is nowhere in the source. That confirms the `.liquid` file is dead code being overridden by the JSON template.
+
+**Reliable delivery on Horizon:** open the theme Customizer on the page's template, add a **Custom Liquid block** (or a proper section), and paste the entire variable-page file into it — the `{{ ... }}` line, the `<style>` block, the HTML, and the `<script>`. Because `pixfizz-setup` already runs in the theme `<head>`, the pasted script initialises on direct load. Delete the default heading block so the page does not show two titles.
+
+**Notes:**
+- Remove any `{{ 'customer.css' | asset_url | stylesheet_tag }}` line unless the theme actually ships that asset. Horizon does not, and it 404s in the console. Keep all CSS inline in the block.
+- Horizon uses view transitions and section hydration for in-site navigation. Inline scripts run on direct load and refresh, but may not re-execute when the page is reached via an internal link. If that surfaces, it is the standard AJAX re-injection issue and needs a JS re-init pattern (escalate to the platform devs).
+
 ### Implementation reference
 
 - Saved projects page: `pixfizz-saved-projects.liquid` snippet, also requires the `page.pixfizz-product-api.liquid` template and a corresponding Shopify page
@@ -10122,6 +10140,7 @@ Shopify has two customer account systems. The integration approach differs:
 - 2026-06-01: Added Section 7a, Focal/Maestrooo cart differences. Source: claude-chat.
 
 - 2026-06-15: Added preview-resolution guidance to the orderline preview handler (pass ~600px; small default causes low-res thumbnails). Added §9 note: update Pixfizz order status from Shopify Flow with PUT, not POST. Added §11 troubleshooting entry for duplicate order emails when running Shopify alongside Pixfizz. Source: slack-kb-sync (LisPhoto calls).
+- 2026-06-29: Added §15 "Theme architecture" subsection — on Horizon and other block-based themes a same-named `page.{name}.json` template takes precedence over `page.{name}.liquid`, which then renders nothing; deliver variable pages via a Custom Liquid block on the template instead. Qualified the existing "Page template pattern" note as Dawn-era. Source: claude-chat (Shopify photo-lab galleries debug).
 
 
 =================================================================
