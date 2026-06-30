@@ -2,7 +2,7 @@
 
 **Authority Scope:** Design Tool Configurations, feature toggles, and customer-facing editor behavior.
 
-_Last updated: 2026-06-01_
+_Last updated: 2026-06-30_
 
 ---
 
@@ -192,8 +192,27 @@ Note: this is separate from fonts used on the storefront (navigation, product na
 
 ---
 
+## Element Substitution Types
+
+Element substitutions re-style a design's elements per template/option without editing the design itself. Alongside the existing types (element color, blend mode), the following were added in June 2026:
+
+### Shape border substitutions
+
+Three substitution types target shape element borders:
+
+- **Shape border width**
+- **Shape border color**
+- **Shape border radius**
+
+### Image effects substitution
+
+A substitution type named **Image effects** applies a filter to image elements. Supported filters are **grayscale** and **sepia**.
+
+- Configuration gotcha: set the substitution's **Name** field to `placeholder`. An earlier build where this was misconfigured threw an application error in the design tool (Canvas and More views) that broke the whole design. The `placeholder` Name value is the correct, confirmed configuration.
+
 ## Changelog
 - 2026-03-30: Created from master platform documentation export.
 - 2026-04-23: Added font licensing rule for editor embedding (digital/print embedding license required, not web font license).
 - 2026-05-27: Added shape color palette support and fulfillment/calendar transformation support under Shape Button toggle. Added Login Modal section — default behavior, trigger (Save & Continue only), optional links, and Shopify External Login URL setup. Also consolidated duplicate Changelog sections into one. Source: Notion Dashboard (May 2026 updates).
 - 2026-06-01: Added Editor CSS Customization section, Admin Mode Editor note, and pdf_import Image Sources requirement. Source: claude-chat/slack.
+- 2026-06-30: Documented element substitution types added June 2026 — shape border width/color/radius and the Image effects (grayscale/sepia) substitution, including the required `placeholder` Name-field value. Source: notion-dashboard (2026-06-22), slack-message (#development).

@@ -3,7 +3,7 @@
 **Authority Scope:** Reusable architectural patterns for Pixfizz
 storefronts.
 
-*Last updated: 2026-03-21*
+*Last updated: 2026-06-30*
 
 ------------------------------------------------------------------------
 
@@ -432,6 +432,26 @@ Fixes:
 
 ------------------------------------------------------------------------
 
+# Conditional-Skip Comma Handling in JSON Loops
+
+When building a JSON array in Liquid by looping a collection, do not use `forloop.last` to decide where commas go if any item can be skipped mid-loop (for example an `{% if %}` guard that omits some rows). When the final iterated item is the one skipped, the comma logic produces invalid JSON (a trailing or missing comma).
+
+Use a `first_row` flag instead, and prepend a comma before every emitted row except the first:
+
+```liquid
+{%- assign first_row = true -%}
+[
+{%- for item in collection -%}
+	{%- if item.custom.hide_from_search -%}{%- continue -%}{%- endif -%}
+	{%- unless first_row %},{% endunless -%}
+	{ "code": "{{ item.code }}" }
+	{%- assign first_row = false -%}
+{%- endfor -%}
+]
+```
+
+This is robust regardless of which items are skipped. It applies to any Liquid JSON emitter — search index pages, fulfillment payloads, product feeds.
+
 ## Changelog
 
 - 2026-03-12: Added `style onload` Re-injection Pattern section. Updated Dynamic UI Trigger Pattern.
@@ -441,3 +461,4 @@ Fixes:
 - 2026-04-23: Added Fulfillment Transformation bulk copy pattern.
 - 2026-05-13: Added Collection Filters: Conditional Default Values pattern.
 - 2026-06-01: Added data-method/Rails UJS stopPropagation pattern. Source: claude-chat.
+- 2026-06-30: Added conditional-skip comma handling pattern for JSON loops (first_row flag) — forloop.last breaks when items are skipped mid-loop. Source: claude-chat (search index work).

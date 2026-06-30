@@ -2,7 +2,7 @@
 
 **Authority Scope:** Job ticket schema and generated file logic only.
 
-_Last updated: 2026-06-01_
+_Last updated: 2026-06-30_
 
 ---
 
@@ -54,6 +54,16 @@ Best practice is:
 - Build vendor adapters that map canonical → vendor payload.
 
 ---
+
+## Fulfillment Code Resolution and Precedence
+
+A fulfillment code routes an orderline to the correct fulfillment destination. The code can be set at more than one level, and the platform resolves them by priority:
+
+- **Template-level fulfillment code (highest priority).** A fulfillment code set on an individual template overrides everything else, including location-based fulfillment codes. (Added June 2026.)
+- **Location-based fulfillment code.** Applied when no template-level code is set.
+- **Product-level fulfillment code.** The base `fulfillment_code` product attribute (see `50_SHOPPER_TEMPLATE_REFERENCE.md`) used where not overridden above.
+
+Practical effect: if a template carries its own fulfillment code, that code wins regardless of location or product configuration. Set a template-level code only when you intend to override location/product routing.
 
 ## Pixfizz Default Fulfillment JSON (vendor-neutral)
 
@@ -680,3 +690,4 @@ Establish a naming convention at the start of each FTP integration and apply it 
 - 2026-04-10: Initial content from platform documentation export.
 - 2026-05-21: Restructured _additional_files.json section — documented three source formats (simple URL, HTTP request object, literal content), added full CraftMyPDF PDF job ticket worked example with capture block and implementation notes, separated file_upload delivery as distinct Pattern 2 with standalone and combined versions, added double-encoding and orderlines scope rules. Source: claude-chat.
 - 2026-06-01: Added chosen_variants accessor note to the QR Code worked example. Source: claude-chat.
+- 2026-06-30: Documented fulfillment code resolution/precedence — template-level codes (added June 2026) have highest priority and override location-based codes. Source: notion-dashboard (2026-06-22).

@@ -2,7 +2,7 @@
 
 **Authority Scope:** XML definition structure for calendar and planner products — date sequence vocabulary, set parameters, and annotated real-world examples. Platform-level — not Shopper-specific.
 
-_Last updated: 2026-04-03_
+_Last updated: 2026-06-30_
 
 ---
 
@@ -511,5 +511,15 @@ The following attributes appear in older template definitions and should be igno
 
 ---
 
+## Calendar Transformation Triggers
+
+Calendar transformations (the admin configuration that maps calendar dates to outputs/designs) can be triggered on:
+
+- a specific date or date range, and
+- **a specific week number in the year** (added June 2026).
+
+Week-number triggering fires a transformation on a given week (for example week 1 or week 52) rather than a fixed calendar date.
+
 ## Changelog
 - 2026-04-03: Created from platform documentation and annotated real-world examples provided by AdeB. Covers definition attributes, set parameters, full dates vocabulary, foreachdate, named sequence patterns, and three annotated examples.
+- 2026-06-30: Documented week-number triggering for calendar transformations. Source: notion-dashboard (2026-06-22).

@@ -2,7 +2,7 @@
 
 **Authority Scope:** OrderHub operational configuration, Jobs, Production Board, Processes, Locations, integrations, and notifications. For the core Pixfizz order lifecycle see `32_ORDER_LIFECYCLE.md`.
 
-_Last updated: 2026-05-21_
+_Last updated: 2026-06-30_
 
 ---
 
@@ -98,6 +98,13 @@ Each category (product type) is linked to a Process. The link includes:
 Processes are configured in **Settings** within the OrderHub app.
 
 ---
+
+### Variant Value Routing (OrderHub Desktop)
+
+OrderHub Desktop maps an orderline to the correct output by reading the **variant/finish value** (for example `lustre`, `glossy`) together with the size — not a lab- or printer-specific numeric finish code.
+
+- Numeric finish codes (e.g. `222`, `202`) are specific to a given lab and printer. The same finish on a different printer or site can carry a different number, so numeric codes do not map cleanly in Desktop and make routing harder to maintain.
+- For products fulfilled via OrderHub Desktop, prefer human-readable finish/variant codes (`lustre`, `glossy`, etc.) used consistently across all sizes. Desktop's own routing setup then translates those readable values to the correct printer/queue.
 
 ## Locations
 
@@ -379,3 +386,4 @@ Both the Email and SMS tabs include a **Send Test** button. Enter any email or p
 ## Changelog
 - 2026-05-21: Created. Content sourced from OrderHub help modal articles (orderhub.pixfizz.com). Covers: Jobs, custom statuses, Production Board, Processes, Locations, PDF Layout Studio, PrintNode, Film Scans, OHD, EasyPost, POS category filter, Pixfizz category assignment, Email/SMS/RCS notifications.
 - 2026-06-15: Added pickup-location opening hours and Google Maps link fields (surfaced in the store pickup UI at checkout). Source: slack-kb-sync (Wolf Camera call).
+- 2026-06-30: Documented OrderHub Desktop variant-value routing — Desktop maps on readable finish/variant value + size, not lab/printer-specific numeric codes; prefer readable finish codes. Source: slack-message (#development).

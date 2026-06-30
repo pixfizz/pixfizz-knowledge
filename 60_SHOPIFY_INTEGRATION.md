@@ -2,7 +2,7 @@
 
 **Authority Scope:** Shopify + Pixfizz integration architecture, snippets, metafields, cart page, and order sync.
 
-_Last updated: 2026-06-01_
+_Last updated: 2026-06-30_
 
 ---
 
@@ -385,6 +385,15 @@ In `snippets/buy-buttons.liquid`, add inside the product form:
 - The exact placement of the hidden input depends on the Shopify theme — `buy-buttons.liquid` is correct for Dawn but other themes may differ.
 - Static products in Pixfizz must exist and have a `code` matching the metafield value, otherwise the line item will not be mapped.
 
+#### Known limitation: options/bundle apps and static product ingestion
+
+If a Shopify store runs a product-options or bundle app on a product that also carries `_pixfizz_static_product`, the app can expand a single cart line into a **bundle parent line plus component lines** at checkout, all stamped with the same `_pixfizz_static_product` property. The Pixfizz order webhook does **not** create an order from this grouped/bundled shape, so the static orderline silently fails to ingest.
+
+- A plain single-variant product (no options/bundle app involvement) ingests correctly.
+- If static products are not landing in the Pixfizz admin despite the property being present on the line item, check whether an options/bundle app is restructuring the line at checkout.
+
+**JS gotcha in the injection snippet:** if the snippet builds its cart-property payload by looping qualifying lines in Liquid and declares `const line` once per line in the same script scope, two or more static-product lines in one cart produce a duplicate-declaration syntax error. Inline `line.key` / `line.quantity` into the pushed object (or use a block-scoped variable per iteration) so only one declaration exists.
+
 ---
 
 ## 10. Product Linking Rules
@@ -694,3 +703,4 @@ Shopify has two customer account systems. The integration approach differs:
 
 - 2026-06-15: Added preview-resolution guidance to the orderline preview handler (pass ~600px; small default causes low-res thumbnails). Added §9 note: update Pixfizz order status from Shopify Flow with PUT, not POST. Added §11 troubleshooting entry for duplicate order emails when running Shopify alongside Pixfizz. Source: slack-kb-sync (LisPhoto calls).
 - 2026-06-29: Added §15 "Theme architecture" subsection — on Horizon and other block-based themes a same-named `page.{name}.json` template takes precedence over `page.{name}.liquid`, which then renders nothing; deliver variable pages via a Custom Liquid block on the template instead. Qualified the existing "Page template pattern" note as Dawn-era. Source: claude-chat (Shopify photo-lab galleries debug).
+- 2026-06-30: Documented static-product ingestion limitation with options/bundle apps (bundle expansion stamps duplicate _pixfizz_static_product; webhook skips grouped shape) and the const-redeclaration JS gotcha in the injection snippet. Source: claude-chat (Shopify static product debugging).

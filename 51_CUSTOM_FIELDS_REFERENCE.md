@@ -1,6 +1,6 @@
 # Pixfizz Shopper v2 Custom Fields Master Reference
 
-**Last Updated:** 2026-06-01
+**Last Updated:** 2026-06-30
 
 ---
 
@@ -111,15 +111,16 @@ This reference documents **30 object access patterns** mapping to approximately 
 
 ## Object Type Reference
 
-### Product (79 total)
+### Product (80 total)
 
-**65 fields in code + 14 export-only fields**
+**66 fields in code + 14 export-only fields**
 
-#### Template-Referenced Product Fields (65)
+#### Template-Referenced Product Fields (66)
 
 | Field | Type | Description |
 |-------|------|-------------|
 | add_to_cart | boolean | Legacy flag for add-to-cart flow in saved projects |
+| hide_from_search | boolean | Exclude this product from the storefront search flyout. Per-design hiding is also supported via design.custom.hide_from_search |
 | additional | snippet | 'Additional Info' tab content. Falls back to collection if not set |
 | btn_add_to_cart | boolean | Show 'Add to Cart' button, skip Design Tool |
 | btn_buy_now_design_later | boolean | Show 'Buy Now, Design Later' button |
@@ -269,13 +270,14 @@ Reserved for platform-level features, production routing, and future functionali
 
 ---
 
-### Design (25 fields)
+### Design (26 fields)
 
 | Field | Type | Description |
 |-------|------|-------------|
 | badge | string | Badge text on product cards (e.g., 'Limited Edition') |
 | cart_edit_url | string | Cart edit link target: 'editor' or 'project-edit' |
 | disable_live_preview_on_shop | boolean | Disable preview on collection listing page |
+| hide_from_search | boolean | Exclude this specific design from the storefront search flyout (per-design override) |
 | disable_required_form | boolean | Bypass form field validation |
 | display_name | string | Custom name overriding design code name |
 | envelope_imprinting | string | Envelope design code reference for cart display |
@@ -798,3 +800,4 @@ per-SKU variation local to the product.
 
 ## Changelog
 - 2026-06-01: Added Collection field sub_collections_position (subcollection render order). Source: chat/slack/call.
+- 2026-06-30: Added hide_from_search boolean (Product + Design) — excludes a product/design from the storefront search flyout. Deployed platform-wide on Shopper. Source: claude-chat, slack-message (#development).
