@@ -1490,7 +1490,7 @@ FILE: 17_DESIGN_TOOL.md
 
 **Authority Scope:** Design Tool Configurations, feature toggles, and customer-facing editor behavior.
 
-_Last updated: 2026-06-01_
+_Last updated: 2026-06-30_
 
 ---
 
@@ -1680,11 +1680,30 @@ Note: this is separate from fonts used on the storefront (navigation, product na
 
 ---
 
+## Element Substitution Types
+
+Element substitutions re-style a design's elements per template/option without editing the design itself. Alongside the existing types (element color, blend mode), the following were added in June 2026:
+
+### Shape border substitutions
+
+Three substitution types target shape element borders:
+
+- **Shape border width**
+- **Shape border color**
+- **Shape border radius**
+
+### Image effects substitution
+
+A substitution type named **Image effects** applies a filter to image elements. Supported filters are **grayscale** and **sepia**.
+
+- Configuration gotcha: set the substitution's **Name** field to `placeholder`. An earlier build where this was misconfigured threw an application error in the design tool (Canvas and More views) that broke the whole design. The `placeholder` Name value is the correct, confirmed configuration.
+
 ## Changelog
 - 2026-03-30: Created from master platform documentation export.
 - 2026-04-23: Added font licensing rule for editor embedding (digital/print embedding license required, not web font license).
 - 2026-05-27: Added shape color palette support and fulfillment/calendar transformation support under Shape Button toggle. Added Login Modal section — default behavior, trigger (Save & Continue only), optional links, and Shopify External Login URL setup. Also consolidated duplicate Changelog sections into one. Source: Notion Dashboard (May 2026 updates).
 - 2026-06-01: Added Editor CSS Customization section, Admin Mode Editor note, and pdf_import Image Sources requirement. Source: claude-chat/slack.
+- 2026-06-30: Documented element substitution types added June 2026 — shape border width/color/radius and the Image effects (grayscale/sepia) substitution, including the required `placeholder` Name-field value. Source: notion-dashboard (2026-06-22), slack-message (#development).
 
 
 =================================================================
@@ -2735,7 +2754,7 @@ FILE: 23_XML_CALENDAR_REFERENCE.md
 
 **Authority Scope:** XML definition structure for calendar and planner products — date sequence vocabulary, set parameters, and annotated real-world examples. Platform-level — not Shopper-specific.
 
-_Last updated: 2026-04-03_
+_Last updated: 2026-06-30_
 
 ---
 
@@ -3244,8 +3263,18 @@ The following attributes appear in older template definitions and should be igno
 
 ---
 
+## Calendar Transformation Triggers
+
+Calendar transformations (the admin configuration that maps calendar dates to outputs/designs) can be triggered on:
+
+- a specific date or date range, and
+- **a specific week number in the year** (added June 2026).
+
+Week-number triggering fires a transformation on a given week (for example week 1 or week 52) rather than a fixed calendar date.
+
 ## Changelog
 - 2026-04-03: Created from platform documentation and annotated real-world examples provided by AdeB. Covers definition attributes, set parameters, full dates vocabulary, foreachdate, named sequence patterns, and three annotated examples.
+- 2026-06-30: Documented week-number triggering for calendar transformations. Source: notion-dashboard (2026-06-22).
 
 
 =================================================================
@@ -3568,7 +3597,7 @@ FILE: 31_FULFILLMENT_ENGINE.md
 
 **Authority Scope:** Job ticket schema and generated file logic only.
 
-_Last updated: 2026-06-01_
+_Last updated: 2026-06-30_
 
 ---
 
@@ -3620,6 +3649,16 @@ Best practice is:
 - Build vendor adapters that map canonical → vendor payload.
 
 ---
+
+## Fulfillment Code Resolution and Precedence
+
+A fulfillment code routes an orderline to the correct fulfillment destination. The code can be set at more than one level, and the platform resolves them by priority:
+
+- **Template-level fulfillment code (highest priority).** A fulfillment code set on an individual template overrides everything else, including location-based fulfillment codes. (Added June 2026.)
+- **Location-based fulfillment code.** Applied when no template-level code is set.
+- **Product-level fulfillment code.** The base `fulfillment_code` product attribute (see `50_SHOPPER_TEMPLATE_REFERENCE.md`) used where not overridden above.
+
+Practical effect: if a template carries its own fulfillment code, that code wins regardless of location or product configuration. Set a template-level code only when you intend to override location/product routing.
 
 ## Pixfizz Default Fulfillment JSON (vendor-neutral)
 
@@ -4246,6 +4285,7 @@ Establish a naming convention at the start of each FTP integration and apply it 
 - 2026-04-10: Initial content from platform documentation export.
 - 2026-05-21: Restructured _additional_files.json section — documented three source formats (simple URL, HTTP request object, literal content), added full CraftMyPDF PDF job ticket worked example with capture block and implementation notes, separated file_upload delivery as distinct Pattern 2 with standalone and combined versions, added double-encoding and orderlines scope rules. Source: claude-chat.
 - 2026-06-01: Added chosen_variants accessor note to the QR Code worked example. Source: claude-chat.
+- 2026-06-30: Documented fulfillment code resolution/precedence — template-level codes (added June 2026) have highest priority and override location-based codes. Source: notion-dashboard (2026-06-22).
 
 
 =================================================================
@@ -4890,7 +4930,7 @@ FILE: 41_IMPLEMENTATION_PATTERNS_UPDATED.md
 **Authority Scope:** Reusable architectural patterns for Pixfizz
 storefronts.
 
-*Last updated: 2026-03-21*
+*Last updated: 2026-06-30*
 
 ------------------------------------------------------------------------
 
@@ -5319,6 +5359,26 @@ Fixes:
 
 ------------------------------------------------------------------------
 
+# Conditional-Skip Comma Handling in JSON Loops
+
+When building a JSON array in Liquid by looping a collection, do not use `forloop.last` to decide where commas go if any item can be skipped mid-loop (for example an `{% if %}` guard that omits some rows). When the final iterated item is the one skipped, the comma logic produces invalid JSON (a trailing or missing comma).
+
+Use a `first_row` flag instead, and prepend a comma before every emitted row except the first:
+
+```liquid
+{%- assign first_row = true -%}
+[
+{%- for item in collection -%}
+	{%- if item.custom.hide_from_search -%}{%- continue -%}{%- endif -%}
+	{%- unless first_row %},{% endunless -%}
+	{ "code": "{{ item.code }}" }
+	{%- assign first_row = false -%}
+{%- endfor -%}
+]
+```
+
+This is robust regardless of which items are skipped. It applies to any Liquid JSON emitter — search index pages, fulfillment payloads, product feeds.
+
 ## Changelog
 
 - 2026-03-12: Added `style onload` Re-injection Pattern section. Updated Dynamic UI Trigger Pattern.
@@ -5328,6 +5388,7 @@ Fixes:
 - 2026-04-23: Added Fulfillment Transformation bulk copy pattern.
 - 2026-05-13: Added Collection Filters: Conditional Default Values pattern.
 - 2026-06-01: Added data-method/Rails UJS stopPropagation pattern. Source: claude-chat.
+- 2026-06-30: Added conditional-skip comma handling pattern for JSON loops (first_row flag) — forloop.last breaks when items are skipped mid-loop. Source: claude-chat (search index work).
 
 
 =================================================================
@@ -5338,7 +5399,7 @@ FILE: 45_ORDERHUB.md
 
 **Authority Scope:** OrderHub operational configuration, Jobs, Production Board, Processes, Locations, integrations, and notifications. For the core Pixfizz order lifecycle see `32_ORDER_LIFECYCLE.md`.
 
-_Last updated: 2026-05-21_
+_Last updated: 2026-06-30_
 
 ---
 
@@ -5434,6 +5495,13 @@ Each category (product type) is linked to a Process. The link includes:
 Processes are configured in **Settings** within the OrderHub app.
 
 ---
+
+### Variant Value Routing (OrderHub Desktop)
+
+OrderHub Desktop maps an orderline to the correct output by reading the **variant/finish value** (for example `lustre`, `glossy`) together with the size — not a lab- or printer-specific numeric finish code.
+
+- Numeric finish codes (e.g. `222`, `202`) are specific to a given lab and printer. The same finish on a different printer or site can carry a different number, so numeric codes do not map cleanly in Desktop and make routing harder to maintain.
+- For products fulfilled via OrderHub Desktop, prefer human-readable finish/variant codes (`lustre`, `glossy`, etc.) used consistently across all sizes. Desktop's own routing setup then translates those readable values to the correct printer/queue.
 
 ## Locations
 
@@ -5715,6 +5783,7 @@ Both the Email and SMS tabs include a **Send Test** button. Enter any email or p
 ## Changelog
 - 2026-05-21: Created. Content sourced from OrderHub help modal articles (orderhub.pixfizz.com). Covers: Jobs, custom statuses, Production Board, Processes, Locations, PDF Layout Studio, PrintNode, Film Scans, OHD, EasyPost, POS category filter, Pixfizz category assignment, Email/SMS/RCS notifications.
 - 2026-06-15: Added pickup-location opening hours and Google Maps link fields (surfaced in the store pickup UI at checkout). Source: slack-kb-sync (Wolf Camera call).
+- 2026-06-30: Documented OrderHub Desktop variant-value routing — Desktop maps on readable finish/variant value + size, not lab/printer-specific numeric codes; prefer readable finish codes. Source: slack-message (#development).
 
 
 =================================================================
@@ -7975,7 +8044,7 @@ FILE: 51_CUSTOM_FIELDS_REFERENCE.md
 
 # Pixfizz Shopper v2 Custom Fields Master Reference
 
-**Last Updated:** 2026-06-01
+**Last Updated:** 2026-06-30
 
 ---
 
@@ -8086,15 +8155,16 @@ This reference documents **30 object access patterns** mapping to approximately 
 
 ## Object Type Reference
 
-### Product (79 total)
+### Product (80 total)
 
-**65 fields in code + 14 export-only fields**
+**66 fields in code + 14 export-only fields**
 
-#### Template-Referenced Product Fields (65)
+#### Template-Referenced Product Fields (66)
 
 | Field | Type | Description |
 |-------|------|-------------|
 | add_to_cart | boolean | Legacy flag for add-to-cart flow in saved projects |
+| hide_from_search | boolean | Exclude this product from the storefront search flyout. Per-design hiding is also supported via design.custom.hide_from_search |
 | additional | snippet | 'Additional Info' tab content. Falls back to collection if not set |
 | btn_add_to_cart | boolean | Show 'Add to Cart' button, skip Design Tool |
 | btn_buy_now_design_later | boolean | Show 'Buy Now, Design Later' button |
@@ -8244,13 +8314,14 @@ Reserved for platform-level features, production routing, and future functionali
 
 ---
 
-### Design (25 fields)
+### Design (26 fields)
 
 | Field | Type | Description |
 |-------|------|-------------|
 | badge | string | Badge text on product cards (e.g., 'Limited Edition') |
 | cart_edit_url | string | Cart edit link target: 'editor' or 'project-edit' |
 | disable_live_preview_on_shop | boolean | Disable preview on collection listing page |
+| hide_from_search | boolean | Exclude this specific design from the storefront search flyout (per-design override) |
 | disable_required_form | boolean | Bypass form field validation |
 | display_name | string | Custom name overriding design code name |
 | envelope_imprinting | string | Envelope design code reference for cart display |
@@ -8773,6 +8844,7 @@ per-SKU variation local to the product.
 
 ## Changelog
 - 2026-06-01: Added Collection field sub_collections_position (subcollection render order). Source: chat/slack/call.
+- 2026-06-30: Added hide_from_search boolean (Product + Design) — excludes a product/design from the storefront search flyout. Deployed platform-wide on Shopper. Source: claude-chat, slack-message (#development).
 
 
 =================================================================
@@ -9449,7 +9521,7 @@ FILE: 60_SHOPIFY_INTEGRATION.md
 
 **Authority Scope:** Shopify + Pixfizz integration architecture, snippets, metafields, cart page, and order sync.
 
-_Last updated: 2026-06-01_
+_Last updated: 2026-06-30_
 
 ---
 
@@ -9832,6 +9904,15 @@ In `snippets/buy-buttons.liquid`, add inside the product form:
 - The exact placement of the hidden input depends on the Shopify theme — `buy-buttons.liquid` is correct for Dawn but other themes may differ.
 - Static products in Pixfizz must exist and have a `code` matching the metafield value, otherwise the line item will not be mapped.
 
+#### Known limitation: options/bundle apps and static product ingestion
+
+If a Shopify store runs a product-options or bundle app on a product that also carries `_pixfizz_static_product`, the app can expand a single cart line into a **bundle parent line plus component lines** at checkout, all stamped with the same `_pixfizz_static_product` property. The Pixfizz order webhook does **not** create an order from this grouped/bundled shape, so the static orderline silently fails to ingest.
+
+- A plain single-variant product (no options/bundle app involvement) ingests correctly.
+- If static products are not landing in the Pixfizz admin despite the property being present on the line item, check whether an options/bundle app is restructuring the line at checkout.
+
+**JS gotcha in the injection snippet:** if the snippet builds its cart-property payload by looping qualifying lines in Liquid and declares `const line` once per line in the same script scope, two or more static-product lines in one cart produce a duplicate-declaration syntax error. Inline `line.key` / `line.quantity` into the pushed object (or use a block-scoped variable per iteration) so only one declaration exists.
+
 ---
 
 ## 10. Product Linking Rules
@@ -10141,6 +10222,7 @@ Shopify has two customer account systems. The integration approach differs:
 
 - 2026-06-15: Added preview-resolution guidance to the orderline preview handler (pass ~600px; small default causes low-res thumbnails). Added §9 note: update Pixfizz order status from Shopify Flow with PUT, not POST. Added §11 troubleshooting entry for duplicate order emails when running Shopify alongside Pixfizz. Source: slack-kb-sync (LisPhoto calls).
 - 2026-06-29: Added §15 "Theme architecture" subsection — on Horizon and other block-based themes a same-named `page.{name}.json` template takes precedence over `page.{name}.liquid`, which then renders nothing; deliver variable pages via a Custom Liquid block on the template instead. Qualified the existing "Page template pattern" note as Dawn-era. Source: claude-chat (Shopify photo-lab galleries debug).
+- 2026-06-30: Documented static-product ingestion limitation with options/bundle apps (bundle expansion stamps duplicate _pixfizz_static_product; webhook skips grouped shape) and the const-redeclaration JS gotcha in the injection snippet. Source: claude-chat (Shopify static product debugging).
 
 
 =================================================================
