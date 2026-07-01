@@ -10233,7 +10233,7 @@ FILE: 61_PIXFIZZ_API.md
 
 **Authority Scope:** Pixfizz REST API (v1), JS API, user handoff, project/fulfillment endpoints, dynamic previews, and custom eCommerce integration.
 
-_Last updated: 2026-03-30. Compiled from Pixfizz Notion wiki (API section)._
+_Last updated: 2026-07-01. Compiled from Pixfizz Notion wiki (API section)._
 
 ---
 
@@ -10613,6 +10613,69 @@ Field notes:
 
 ---
 
+## 8a. Individual Orders — Read, Update, and Shipping
+
+This section covers the single-order endpoint (`/v1/orders`), distinct from the external order creation endpoint in section 8.
+
+### Listing (admin only)
+
+```
+GET /v1/admin/orders.json
+```
+
+Special admin namespace — lists orders across the whole website. Only accessible to users with admin privileges for the website. This differs from the single-order endpoint below.
+
+### Creating (from a cart)
+
+Given a Cart object with orderlines already added, create an order via:
+
+```
+POST /v1/orders
+-d "cart_id=2112"
+-d "user_id=12345"
+```
+
+The `cart_id` for a given session is obtained via the `<px:cart:id>` CMS tag.
+
+### Reading
+
+```
+GET /v1/orders/<id>.json
+```
+
+### Updating — admin user
+
+```
+PUT /v1/orders/<id>
+-d "order[status]=S"
+```
+
+Admin-editable fields: `notes`, `status`, `custom`, `paid`. Any other field sent will be ignored.
+
+### Marking an order as Shipped
+
+Set the order's status code to `S`:
+
+```
+PUT /v1/orders/<id>
+-d "order[status]=S"
+```
+
+This triggers Pixfizz's internal order-completion processes (see `32_ORDER_LIFECYCLE.md` for what fires — notification emails, etc., subject to Settings > Email Notifications and any OrderHub suppression).
+
+### Updating — regular (non-admin) user
+
+A logged-in user can update their own order's public custom fields client-side, e.g. to track page views:
+
+```
+PUT /v1/orders/<id>
+-d "order[custom][thankyou_page_viewed]=true"
+```
+
+Only `custom` can be set this way. Any non-public field a regular user attempts to set is silently ignored.
+
+---
+
 ## 9. Dynamic Design Previews
 
 Preview a design (theme) without creating a project.
@@ -10797,6 +10860,7 @@ Callback payloads carry shipment status, tracking name, tracking code, tracking 
 ## Changelog
 - 2026-03-30: Initial version. Compiled from Pixfizz Notion wiki: Pixfizz API Documentation, Create Order API Endpoint, Callbacks from Fulfillment Partners, Creating a Project, Dynamic Design Previews, Custom eCommerce CMS Integration Notes.
 - 2026-06-15: Documented login-capable vs external user creation (external_id / external_source param makes a user external; omit for login-capable accounts; merge to repair). Documented preview resolution cap (width 1200, lower quality) and the production-quality /v1/pages/<id>.jpg?fulfillment=true endpoint (superadmin-only). Source: slack-kb-sync (Matjaz, #development).
+- 2026-07-01: Added § 8a — Individual Orders (list/read/create/update via `/v1/orders` and `/v1/admin/orders`), including the PUT `order[status]=S` pattern to mark an order Shipped and the custom-field-only update path for regular users. Source: claude-chat.
 
 
 =================================================================
