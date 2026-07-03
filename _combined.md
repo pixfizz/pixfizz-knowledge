@@ -3285,7 +3285,7 @@ FILE: 30_PRICING_ENGINE.md
 
 **Authority Scope:** Ruby pricing formulas and price variables only.
 
-_Last updated: 2026-05-19_
+_Last updated: 2026-07-03_
 
 ---
 
@@ -3571,6 +3571,85 @@ Runs automatically during slow months, turns itself off when the month changes.
 
 ---
 
+## Extra Fees (Liquid-Based Cart Fees)
+
+**Feature type:** Platform-level. Configured in Main Admin under **Shipping → Extra Fees**.
+
+Extra Fees are the fee-side twin of Automatic Discounts. Each fee can be driven by a
+**Liquid formula** with full cart context, and the result is **added** to the order
+(Automatic Discounts subtract; Extra Fees add). This is the supported way to add a
+conditional surcharge — the platform does not support negative discounts or negative
+variant adjustments to achieve the same effect (see "Negative Extras / Discount
+Variants — Workaround" above).
+
+Confirmed in production use for minimum-order-value fees and extra shipping / oversize
+surcharges.
+
+### How it works
+
+- Each Extra Fee has a **Code** and **Name** (for example `rush` / "Rush Fee",
+  `oversize` / "Oversize shipping charge") plus a Liquid formula.
+- The formula returns a **numeric amount** — the actual fee value to add, in the
+  site's currency (not a percentage).
+- Same cart / user context as Automatic Discounts: `cart.orderlines`,
+  `cart.orderlines_total`, `cart.promocode_code`, `user.*`, and standard Liquid filters.
+- Multiple Extra Fees can be active at once; each is evaluated independently.
+- If the formula returns nothing (no branch matches, or empty output), no fee is added
+  — mirrors the Automatic Discounts "return nothing = nothing applied" behaviour.
+
+### Canonical use cases
+
+- **Minimum order fee:** add a flat handling fee when the cart subtotal is below a threshold.
+- **Extra shipping / oversize surcharge:** add a fixed amount when the cart contains an oversized product.
+
+### Pattern — Per-Duplicate-Orderline Surcharge (count distinct lines)
+
+Use case: charge a flat amount for each **additional** order line of the same product
+beyond the first (for example, multiple separate cut-print lines of the same size).
+Documented from a photo lab client implementation.
+
+The reusable technique is a **seen-string + `contains`** idiom to count distinct
+products across `cart.orderlines`. The first line of a given product is the original
+(no charge); every later line of the same product adds the per-duplicate amount.
+
+```liquid
+{%- assign per_duplicate = 1 -%}
+{%- assign fee = 0 -%}
+{%- assign seen = '' -%}
+{%- for orderline in cart.orderlines -%}
+	{%- if orderline.is_cut_print -%}
+		{%- assign token = '|' | append: orderline.product.id | append: '|' -%}
+		{%- if seen contains token -%}
+			{%- assign fee = fee | plus: per_duplicate -%}
+		{%- else -%}
+			{%- assign seen = seen | append: token -%}
+		{%- endif -%}
+	{%- endif -%}
+{%- endfor -%}
+{%- if fee > 0 -%}{{ fee }}{%- endif -%}
+```
+
+- Five cut-print lines of one product returns 4. Add three lines of a second product
+  and it returns 6 (each product is counted independently).
+- **Grouping key:** `orderline.product.id` groups by product. Correct only when each
+  print size is its own Product. If size is a variant on a single product, every size
+  shares one product ID — include the chosen size variant in the `token` to keep sizes
+  distinct.
+- Drop the `orderline.is_cut_print` guard to apply the same duplicate-line logic to any
+  product type, not just cut prints.
+
+### Key rules
+
+- The formula returns an **amount to add**, in the site currency, as a raw number (no
+  `currency` filter on the output — the engine formats it).
+- **Verify on first test order (pending confirmation with Matjaz):** that `cart.orderlines`
+  is the correct loop handle inside an Extra Fee formula, and that a bare `{{ number }}`
+  output is read as the fee amount. Both are inferred from Automatic Discounts behaviour;
+  confirm before relying on the orderline-iteration pattern in production.
+- Admin location: **Shipping → Extra Fees** (confirmed via admin screenshot).
+
+---
+
 ## Roadmap — Price Variable Bulk Export / Import
 
 **Status: planned, not yet shipped (2026-03-24 / 2026-04-10).**
@@ -3587,6 +3666,7 @@ scoping any onboarding that involves hundreds of price variables.
 
 ## Changelog
 - 2026-05-19: Added Automatic Discounts section — Liquid-based cart discounts with tiered, user category, and seasonal patterns. Source: Claude chat (webinar prep).
+- 2026-07-03: Added Extra Fees (Liquid-Based Cart Fees) section — fee-side twin of Automatic Discounts (adds instead of subtracts), configured under Shipping → Extra Fees. Includes per-duplicate-orderline surcharge pattern (seen-string + contains idiom); orderline-iteration specifics pending live confirmation. Source: Claude chat.
 
 
 =================================================================
