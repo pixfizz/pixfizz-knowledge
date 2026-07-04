@@ -1555,6 +1555,8 @@ Configured in admin under: **Settings > Design Tool**.
 - Large Format / Wall-Art mode
 - Cut Print Autorotate
 
+**AI image tools (URL flag):** the AI image-manipulation tools in the editor are gated behind a URL parameter. Append `&aitools=true` to the design-tool URL (`?aitools=true` if there are no other query params) to expose them. Platform-level; works wherever the editor loads. Source: #development (2026-07-01).
+
 ### Typography & Color Defaults
 - Default Font, Font Palette, Font Size
 - Text Color Palette
@@ -1704,6 +1706,7 @@ A substitution type named **Image effects** applies a filter to image elements. 
 - 2026-05-27: Added shape color palette support and fulfillment/calendar transformation support under Shape Button toggle. Added Login Modal section — default behavior, trigger (Save & Continue only), optional links, and Shopify External Login URL setup. Also consolidated duplicate Changelog sections into one. Source: Notion Dashboard (May 2026 updates).
 - 2026-06-01: Added Editor CSS Customization section, Admin Mode Editor note, and pdf_import Image Sources requirement. Source: claude-chat/slack.
 - 2026-06-30: Documented element substitution types added June 2026 — shape border width/color/radius and the Image effects (grayscale/sepia) substitution, including the required `placeholder` Name-field value. Source: notion-dashboard (2026-06-22), slack-message (#development).
+- 2026-07-04: Documented the `&aitools=true` URL flag that exposes the editor AI image tools. Source: slack-message (#development).
 
 
 =================================================================
@@ -3927,6 +3930,7 @@ Filename Templates control how output files are named (and optionally which fold
 - Ensure **uniqueness**: include `order.code` + `orderline.barcode` + `idx`.
 - Avoid unsafe filename characters: strip/replace `|`, `/`, `\`, `:` and quotes.
 - Use folder routing sparingly (e.g., by category) when a lab watches many hotfolders.
+- **Reverting to the default template flattens folders.** The output filename template controls folder structure. If a customized template that routes into product-category subfolders is reverted to the default, those category subfolders disappear and every file lands flat in the per-order folder. Re-check the template after any reset when a lab relies on category subfolders. Source: #development (2026-06-30).
 
 ### Example: adjusted filename template
 A real-world example that routes into a category subfolder and forces PDF for a specific category:
@@ -4366,6 +4370,7 @@ Establish a naming convention at the start of each FTP integration and apply it 
 - 2026-05-21: Restructured _additional_files.json section — documented three source formats (simple URL, HTTP request object, literal content), added full CraftMyPDF PDF job ticket worked example with capture block and implementation notes, separated file_upload delivery as distinct Pattern 2 with standalone and combined versions, added double-encoding and orderlines scope rules. Source: claude-chat.
 - 2026-06-01: Added chosen_variants accessor note to the QR Code worked example. Source: claude-chat.
 - 2026-06-30: Documented fulfillment code resolution/precedence — template-level codes (added June 2026) have highest priority and override location-based codes. Source: notion-dashboard (2026-06-22).
+- 2026-07-04: Noted that reverting the output filename template to default flattens product-category subfolders (files land flat in the per-order folder). Source: slack-message (#development).
 
 
 =================================================================
@@ -5212,6 +5217,13 @@ The `style onload` pattern fires on every DOM injection by design. Without a gua
 - The flag persists for the lifetime of the page session and is cleared on full page reload — which is the intended behaviour.
 - Do not use this pattern for logic that genuinely needs to re-run on re-injection (state restore, dropdown population, etc.) — use the plain `style onload` IIFE for those.
 
+### Gotchas: Bootstrap modals built inside a `style onload` IIFE
+
+Two failure modes come up when a Bootstrap 4.6 modal is created or shown from a `style onload` IIFE on a Shopper/Shopify page:
+
+- **jQuery is not available at script-load time.** The `style onload` attribute fires very early in page parsing, before the theme's jQuery has loaded. Any `jQuery(...)` / `$(...)` reference evaluated at load time fails silently. Only reference jQuery *inside* a user-interaction handler (click/change), which runs long after load — never at the top level of the IIFE.
+- **`position: fixed` breaks under a transformed ancestor.** A modal inside a container that has a CSS `transform` (common in sidebars/option panels) renders inline/contained rather than as a full-screen overlay, because a transformed ancestor becomes the containing block for `position: fixed`. Fix: on first show, move the modal element to `document.body` (e.g. `document.body.appendChild(modalEl)`) so it escapes the transformed ancestor. Also wire close buttons with explicit delegated click handlers rather than relying on Bootstrap's `data-dismiss` auto-wiring, which may be absent in a trimmed Bootstrap build. Source: claude-chat (test-print charge modal).
+
 ### Variant: `sessionStorage` for tab-session persistence
 
 `window.__flag` is cleared on full page reload. If the guard needs to persist across page loads within the same browser tab (e.g. a modal that should not re-show even if the user navigates away and returns during the same session), use `sessionStorage` instead:
@@ -5469,6 +5481,7 @@ This is robust regardless of which items are skipped. It applies to any Liquid J
 - 2026-05-13: Added Collection Filters: Conditional Default Values pattern.
 - 2026-06-01: Added data-method/Rails UJS stopPropagation pattern. Source: claude-chat.
 - 2026-06-30: Added conditional-skip comma handling pattern for JSON loops (first_row flag) — forloop.last breaks when items are skipped mid-loop. Source: claude-chat (search index work).
+- 2026-07-04: Added Bootstrap-modal gotchas for `style onload` IIFEs (jQuery not available at load time; append modal to `document.body` to escape transformed-ancestor `position: fixed` containment). Source: claude-chat.
 
 
 =================================================================
@@ -5648,6 +5661,9 @@ PrintNode is **free for Pixfizz customers** — no separate PrintNode subscripti
 
 When EasyPost is configured, purchased shipping labels can also auto-print via PrintNode. Configured per location.
 
+### Troubleshooting: invoice/document not auto-printing
+Invoice and document auto-print depends on both sides being aligned: the OrderHub Named Printer role must be mapped to a live PrintNode printer for that location, and the PDF Layout Studio auto-print rule must reference that Named Printer. If invoices are not printing, check for gaps between the OrderHub-side mapping and the PrintNode-side printer/agent configuration — a missing or mismatched mapping silently prevents printing. Source: Fireflies (2026-07-02).
+
 ---
 
 ## Film Scans Module
@@ -5690,6 +5706,7 @@ OHD runs on a lab's local machine and continuously polls OrderHub for new jobs f
 - Downloads job details and associated print files from OrderHub via API
 - Organises files into structured folders with human-readable naming
 - Applies channel and product routing logic to match jobs to the correct print workflow
+  - **Gotcha:** when updating variants, do not copy old/stale channel IDs from a previous variant into a new one. Carrying over an outdated channel ID causes jobs to route to the wrong workflow (or fail to route) in OrderHub Desktop. Set the channel explicitly per variant, and prefer readable finish/variant values over numeric codes (see the 2026-06-30 variant-value routing note below). Source: Fireflies (2026-07-03).
 - Generates **DPOF files** for compatible print controllers (Epson, Noritsu, etc.)
 - Provides job review tools: colour correction, quantity management
 - Offers **AI-powered upscaling** for low-resolution images
@@ -5771,6 +5788,12 @@ Click **View Details** to see the dialog showing each unassigned category, its s
 
 ---
 
+## Order Status Sync (OrderHub → Core)
+
+Marking an order as **shipped** in OrderHub also updates it as **shipped** in Pixfizz Core, provided the integration's API user is enabled. This keeps the Core order status in sync without a separate manual update. If a shipped status set in OrderHub is not appearing in Core, confirm the API user is active. Source: #development, Richard (2026-07-01).
+
+---
+
 ## Email & SMS/RCS Notifications
 
 OrderHub can automatically notify customers when an order is shipped or completed. Both channels are configured in the **Notify tab** of Organisation settings.
@@ -5795,6 +5818,8 @@ When OrderHub notifications are enabled, OrderHub passes `sendNotifications: fal
 | OrderHub SMS enabled + customer has phone | OrderHub sends SMS; Pixfizz doesn't send SMS |
 | OrderHub SMS enabled + no phone on order | No SMS sent |
 | Manual status change with "Notify" unchecked | Neither sends |
+
+**Use OrderHub for order-confirmation and download emails; separate emails cannot be merged.** When OrderHub notifications are enabled, route order-confirmation and file-download emails through OrderHub. Combining multiple separate emails (e.g. confirmation + download) into a single message is not technically feasible — each remains its own message. Source: Fireflies (2026-06-29, 2026-07-02).
 
 ### Email Notifications
 
@@ -5864,6 +5889,7 @@ Both the Email and SMS tabs include a **Send Test** button. Enter any email or p
 - 2026-05-21: Created. Content sourced from OrderHub help modal articles (orderhub.pixfizz.com). Covers: Jobs, custom statuses, Production Board, Processes, Locations, PDF Layout Studio, PrintNode, Film Scans, OHD, EasyPost, POS category filter, Pixfizz category assignment, Email/SMS/RCS notifications.
 - 2026-06-15: Added pickup-location opening hours and Google Maps link fields (surfaced in the store pickup UI at checkout). Source: slack-kb-sync (Wolf Camera call).
 - 2026-06-30: Documented OrderHub Desktop variant-value routing — Desktop maps on readable finish/variant value + size, not lab/printer-specific numeric codes; prefer readable finish codes. Source: slack-message (#development).
+- 2026-07-04: Added Order Status Sync (OrderHub → Core, shipped requires API user enabled); channel-ID copy gotcha in OHD variant updates; email-consolidation limitation (separate emails cannot be merged); PrintNode invoice auto-print troubleshooting. Source: Fireflies, slack-message (#development).
 
 
 =================================================================
@@ -8244,7 +8270,7 @@ This reference documents **30 object access patterns** mapping to approximately 
 | Field | Type | Description |
 |-------|------|-------------|
 | add_to_cart | boolean | Legacy flag for add-to-cart flow in saved projects |
-| hide_from_search | boolean | Exclude this product from the storefront search flyout. Per-design hiding is also supported via design.custom.hide_from_search |
+| hide_from_search | boolean | Exclude this product from the storefront search flyout. Only affects the storefront search flyout — the product stays active elsewhere, including in POS. Per-design hiding is also supported via design.custom.hide_from_search |
 | additional | snippet | 'Additional Info' tab content. Falls back to collection if not set |
 | btn_add_to_cart | boolean | Show 'Add to Cart' button, skip Design Tool |
 | btn_buy_now_design_later | boolean | Show 'Buy Now, Design Later' button |
@@ -8925,6 +8951,7 @@ per-SKU variation local to the product.
 ## Changelog
 - 2026-06-01: Added Collection field sub_collections_position (subcollection render order). Source: chat/slack/call.
 - 2026-06-30: Added hide_from_search boolean (Product + Design) — excludes a product/design from the storefront search flyout. Deployed platform-wide on Shopper. Source: claude-chat, slack-message (#development).
+- 2026-07-04: Clarified hide_from_search scope — affects the storefront search flyout only; the product remains available in POS. Source: Fireflies (2026-07-01).
 
 
 =================================================================
@@ -10014,6 +10041,12 @@ Required metafields:
 
 ---
 
+## 10a. Third-Party Variant / Option Apps (Globo)
+
+Some Shopify stores use a third-party options app such as **Globo Product Options** to add variant/option choices beyond Shopify's native limits. Globo has its own variant-count limit that can block complex setups (many options × many values). When a setup exceeds that limit, fall back to either **Shopify core variants** (within Shopify's own limits) or move option selection to the **Pixfizz Shopper frontend** instead of the Shopify product page. Source: Fireflies (2026-06-29, 2026-07-03).
+
+---
+
 ## 11. Troubleshooting Guide
 
 ### Project preview not showing in cart
@@ -10195,6 +10228,8 @@ var pixfizzUserId = resp.url.match(/users\/(\d+)/)[1];
 
 **If you use the Shopify customer ID in a Pixfizz POST endpoint, the call will fail or create resources under the wrong user.** This applies to any variable page that creates user-scoped resources (galleries, projects), not just reads them.
 
+**UX: drop the customer straight into the new gallery.** After a successful gallery-create call, immediately call the existing `openGallery(gallery)` handler inside the create success callback — place it *after* `addGalleryCard(gallery)` so the new gallery still appears on the index when the customer navigates back. This takes the customer into the upload flow instead of leaving them on the list view. Source: claude-chat, Fireflies (2026-07-01, 2026-07-03).
+
 ### Gallery API endpoints (authenticated via session cookie)
 
 ```
@@ -10303,6 +10338,7 @@ Shopify has two customer account systems. The integration approach differs:
 - 2026-06-15: Added preview-resolution guidance to the orderline preview handler (pass ~600px; small default causes low-res thumbnails). Added §9 note: update Pixfizz order status from Shopify Flow with PUT, not POST. Added §11 troubleshooting entry for duplicate order emails when running Shopify alongside Pixfizz. Source: slack-kb-sync (LisPhoto calls).
 - 2026-06-29: Added §15 "Theme architecture" subsection — on Horizon and other block-based themes a same-named `page.{name}.json` template takes precedence over `page.{name}.liquid`, which then renders nothing; deliver variable pages via a Custom Liquid block on the template instead. Qualified the existing "Page template pattern" note as Dawn-era. Source: claude-chat (Shopify photo-lab galleries debug).
 - 2026-06-30: Documented static-product ingestion limitation with options/bundle apps (bundle expansion stamps duplicate _pixfizz_static_product; webhook skips grouped shape) and the const-redeclaration JS gotcha in the injection snippet. Source: claude-chat (Shopify static product debugging).
+- 2026-07-04: Added §15 gallery auto-open (`openGallery` after `addGalleryCard` in create callback) and §10a Globo variant-limit fallback (core variants or Shopper frontend). Source: claude-chat, Fireflies.
 
 
 =================================================================
@@ -10440,6 +10476,10 @@ Do not directly edit the XML structure via API — this will cause editor issues
 POST /v1/books/<id>/copy
 ```
 Returns a 302 redirect to the new project resource. The copy is fully independent.
+
+**The copy is created unsaved.** `POST /v1/books/<id>/copy` creates the new project with `book[saved]=0`, so it will not appear in `getSavedProjects` until you explicitly set `book[saved]=1` on the new project ID (extract that ID from the copy response's redirect URL).
+
+**Cross-origin `PUT` silently fails; use `POST` with `_method=put`.** A browser cross-origin `PUT` to `/v1/` triggers a CORS preflight that the endpoint does not answer, so the request never completes and no error is surfaced. This is why a `POST` copy works from a Shopify page while a `PUT` unsave/rename appears to do nothing. Send `POST` with a `_method=put` field so Rails routes it as a `PUT` without triggering the preflight. Source: claude-chat (Shopify projects page).
 
 ### Preview a project (JPEG, free)
 ```
@@ -10941,6 +10981,7 @@ Callback payloads carry shipment status, tracking name, tracking code, tracking 
 - 2026-03-30: Initial version. Compiled from Pixfizz Notion wiki: Pixfizz API Documentation, Create Order API Endpoint, Callbacks from Fulfillment Partners, Creating a Project, Dynamic Design Previews, Custom eCommerce CMS Integration Notes.
 - 2026-06-15: Documented login-capable vs external user creation (external_id / external_source param makes a user external; omit for login-capable accounts; merge to repair). Documented preview resolution cap (width 1200, lower quality) and the production-quality /v1/pages/<id>.jpg?fulfillment=true endpoint (superadmin-only). Source: slack-kb-sync (Matjaz, #development).
 - 2026-07-01: Added § 8a — Individual Orders (list/read/create/update via `/v1/orders` and `/v1/admin/orders`), including the PUT `order[status]=S` pattern to mark an order Shipped and the custom-field-only update path for regular users. Source: claude-chat.
+- 2026-07-04: Documented that `/copy` creates an unsaved project (set `book[saved]=1` on the new ID), and the cross-origin `PUT` CORS-preflight trap (use `POST` + `_method=put`). Source: claude-chat.
 
 
 =================================================================
@@ -14139,6 +14180,8 @@ _Applies to: All_
 
 The design tool can display a resolution warning when an uploaded image is below the minimum DPI required for quality output. Whether this warning appears depends on your Design Tool Configuration. Customers can still proceed with a low-resolution image, so it's worth communicating minimum image requirements in your product descriptions or FAQs.
 
+Relatedly, uploading **CMYK JPEGs** (for example to business-card products) can cause print-quality problems, because the design tool and previews are built around RGB/sRGB. Advise customers to upload **sRGB** images and reserve any CMYK conversion for the fulfillment transformation step. Source: Fireflies (2026-07-03).
+
 ---
 
 ## Section 4 — Pricing & Options
@@ -14396,4 +14439,5 @@ Configurable options include:
 ## Changelog
 - 2026-04-06: Initial version. 35 Q&As covering Getting Started, Products, Design Tool, Pricing, Cart/Checkout, Shopify, Orders, Storefront, and Troubleshooting.
 - 2026-05-19: Added inventory tracking Q&A (Section 2), inline price editing Q&A (Section 4), order cancellation and transaction fees Q&A (Section 7), multi-language support Q&A (Section 8), and Batch Film Uploader workflow (new Section 10 — Film Lab Workflows). Source: Notion KB articles.
+- 2026-07-04: Added CMYK-JPEG upload caution to the image-upload Q&A (Section 3) — upload sRGB; reserve CMYK for fulfillment transformation. Source: Fireflies (2026-07-03).
 
