@@ -205,6 +205,13 @@ The `style onload` pattern fires on every DOM injection by design. Without a gua
 - The flag persists for the lifetime of the page session and is cleared on full page reload — which is the intended behaviour.
 - Do not use this pattern for logic that genuinely needs to re-run on re-injection (state restore, dropdown population, etc.) — use the plain `style onload` IIFE for those.
 
+### Gotchas: Bootstrap modals built inside a `style onload` IIFE
+
+Two failure modes come up when a Bootstrap 4.6 modal is created or shown from a `style onload` IIFE on a Shopper/Shopify page:
+
+- **jQuery is not available at script-load time.** The `style onload` attribute fires very early in page parsing, before the theme's jQuery has loaded. Any `jQuery(...)` / `$(...)` reference evaluated at load time fails silently. Only reference jQuery *inside* a user-interaction handler (click/change), which runs long after load — never at the top level of the IIFE.
+- **`position: fixed` breaks under a transformed ancestor.** A modal inside a container that has a CSS `transform` (common in sidebars/option panels) renders inline/contained rather than as a full-screen overlay, because a transformed ancestor becomes the containing block for `position: fixed`. Fix: on first show, move the modal element to `document.body` (e.g. `document.body.appendChild(modalEl)`) so it escapes the transformed ancestor. Also wire close buttons with explicit delegated click handlers rather than relying on Bootstrap's `data-dismiss` auto-wiring, which may be absent in a trimmed Bootstrap build. Source: claude-chat (test-print charge modal).
+
 ### Variant: `sessionStorage` for tab-session persistence
 
 `window.__flag` is cleared on full page reload. If the guard needs to persist across page loads within the same browser tab (e.g. a modal that should not re-show even if the user navigates away and returns during the same session), use `sessionStorage` instead:
@@ -462,3 +469,4 @@ This is robust regardless of which items are skipped. It applies to any Liquid J
 - 2026-05-13: Added Collection Filters: Conditional Default Values pattern.
 - 2026-06-01: Added data-method/Rails UJS stopPropagation pattern. Source: claude-chat.
 - 2026-06-30: Added conditional-skip comma handling pattern for JSON loops (first_row flag) — forloop.last breaks when items are skipped mid-loop. Source: claude-chat (search index work).
+- 2026-07-04: Added Bootstrap-modal gotchas for `style onload` IIFEs (jQuery not available at load time; append modal to `document.body` to escape transformed-ancestor `position: fixed` containment). Source: claude-chat.

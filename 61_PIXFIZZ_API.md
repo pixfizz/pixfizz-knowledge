@@ -130,6 +130,10 @@ POST /v1/books/<id>/copy
 ```
 Returns a 302 redirect to the new project resource. The copy is fully independent.
 
+**The copy is created unsaved.** `POST /v1/books/<id>/copy` creates the new project with `book[saved]=0`, so it will not appear in `getSavedProjects` until you explicitly set `book[saved]=1` on the new project ID (extract that ID from the copy response's redirect URL).
+
+**Cross-origin `PUT` silently fails; use `POST` with `_method=put`.** A browser cross-origin `PUT` to `/v1/` triggers a CORS preflight that the endpoint does not answer, so the request never completes and no error is surfaced. This is why a `POST` copy works from a Shopify page while a `PUT` unsave/rename appears to do nothing. Send `POST` with a `_method=put` field so Rails routes it as a `PUT` without triggering the preflight. Source: claude-chat (Shopify projects page).
+
 ### Preview a project (JPEG, free)
 ```
 GET /v1/books/<id>/preview
@@ -630,3 +634,4 @@ Callback payloads carry shipment status, tracking name, tracking code, tracking 
 - 2026-03-30: Initial version. Compiled from Pixfizz Notion wiki: Pixfizz API Documentation, Create Order API Endpoint, Callbacks from Fulfillment Partners, Creating a Project, Dynamic Design Previews, Custom eCommerce CMS Integration Notes.
 - 2026-06-15: Documented login-capable vs external user creation (external_id / external_source param makes a user external; omit for login-capable accounts; merge to repair). Documented preview resolution cap (width 1200, lower quality) and the production-quality /v1/pages/<id>.jpg?fulfillment=true endpoint (superadmin-only). Source: slack-kb-sync (Matjaz, #development).
 - 2026-07-01: Added § 8a — Individual Orders (list/read/create/update via `/v1/orders` and `/v1/admin/orders`), including the PUT `order[status]=S` pattern to mark an order Shipped and the custom-field-only update path for regular users. Source: claude-chat.
+- 2026-07-04: Documented that `/copy` creates an unsaved project (set `book[saved]=1` on the new ID), and the cross-origin `PUT` CORS-preflight trap (use `POST` + `_method=put`). Source: claude-chat.

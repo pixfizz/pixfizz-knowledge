@@ -67,6 +67,8 @@ Configured in admin under: **Settings > Design Tool**.
 - Large Format / Wall-Art mode
 - Cut Print Autorotate
 
+**AI image tools (URL flag):** the AI image-manipulation tools in the editor are gated behind a URL parameter. Append `&aitools=true` to the design-tool URL (`?aitools=true` if there are no other query params) to expose them. Platform-level; works wherever the editor loads. Source: #development (2026-07-01).
+
 ### Typography & Color Defaults
 - Default Font, Font Palette, Font Size
 - Text Color Palette
@@ -216,3 +218,4 @@ A substitution type named **Image effects** applies a filter to image elements. 
 - 2026-05-27: Added shape color palette support and fulfillment/calendar transformation support under Shape Button toggle. Added Login Modal section — default behavior, trigger (Save & Continue only), optional links, and Shopify External Login URL setup. Also consolidated duplicate Changelog sections into one. Source: Notion Dashboard (May 2026 updates).
 - 2026-06-01: Added Editor CSS Customization section, Admin Mode Editor note, and pdf_import Image Sources requirement. Source: claude-chat/slack.
 - 2026-06-30: Documented element substitution types added June 2026 — shape border width/color/radius and the Image effects (grayscale/sepia) substitution, including the required `placeholder` Name-field value. Source: notion-dashboard (2026-06-22), slack-message (#development).
+- 2026-07-04: Documented the `&aitools=true` URL flag that exposes the editor AI image tools. Source: slack-message (#development).

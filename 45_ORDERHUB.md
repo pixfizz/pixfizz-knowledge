@@ -171,6 +171,9 @@ PrintNode is **free for Pixfizz customers** — no separate PrintNode subscripti
 
 When EasyPost is configured, purchased shipping labels can also auto-print via PrintNode. Configured per location.
 
+### Troubleshooting: invoice/document not auto-printing
+Invoice and document auto-print depends on both sides being aligned: the OrderHub Named Printer role must be mapped to a live PrintNode printer for that location, and the PDF Layout Studio auto-print rule must reference that Named Printer. If invoices are not printing, check for gaps between the OrderHub-side mapping and the PrintNode-side printer/agent configuration — a missing or mismatched mapping silently prevents printing. Source: Fireflies (2026-07-02).
+
 ---
 
 ## Film Scans Module
@@ -213,6 +216,7 @@ OHD runs on a lab's local machine and continuously polls OrderHub for new jobs f
 - Downloads job details and associated print files from OrderHub via API
 - Organises files into structured folders with human-readable naming
 - Applies channel and product routing logic to match jobs to the correct print workflow
+  - **Gotcha:** when updating variants, do not copy old/stale channel IDs from a previous variant into a new one. Carrying over an outdated channel ID causes jobs to route to the wrong workflow (or fail to route) in OrderHub Desktop. Set the channel explicitly per variant, and prefer readable finish/variant values over numeric codes (see the 2026-06-30 variant-value routing note below). Source: Fireflies (2026-07-03).
 - Generates **DPOF files** for compatible print controllers (Epson, Noritsu, etc.)
 - Provides job review tools: colour correction, quantity management
 - Offers **AI-powered upscaling** for low-resolution images
@@ -294,6 +298,12 @@ Click **View Details** to see the dialog showing each unassigned category, its s
 
 ---
 
+## Order Status Sync (OrderHub → Core)
+
+Marking an order as **shipped** in OrderHub also updates it as **shipped** in Pixfizz Core, provided the integration's API user is enabled. This keeps the Core order status in sync without a separate manual update. If a shipped status set in OrderHub is not appearing in Core, confirm the API user is active. Source: #development, Richard (2026-07-01).
+
+---
+
 ## Email & SMS/RCS Notifications
 
 OrderHub can automatically notify customers when an order is shipped or completed. Both channels are configured in the **Notify tab** of Organisation settings.
@@ -318,6 +328,8 @@ When OrderHub notifications are enabled, OrderHub passes `sendNotifications: fal
 | OrderHub SMS enabled + customer has phone | OrderHub sends SMS; Pixfizz doesn't send SMS |
 | OrderHub SMS enabled + no phone on order | No SMS sent |
 | Manual status change with "Notify" unchecked | Neither sends |
+
+**Use OrderHub for order-confirmation and download emails; separate emails cannot be merged.** When OrderHub notifications are enabled, route order-confirmation and file-download emails through OrderHub. Combining multiple separate emails (e.g. confirmation + download) into a single message is not technically feasible — each remains its own message. Source: Fireflies (2026-06-29, 2026-07-02).
 
 ### Email Notifications
 
@@ -387,3 +399,4 @@ Both the Email and SMS tabs include a **Send Test** button. Enter any email or p
 - 2026-05-21: Created. Content sourced from OrderHub help modal articles (orderhub.pixfizz.com). Covers: Jobs, custom statuses, Production Board, Processes, Locations, PDF Layout Studio, PrintNode, Film Scans, OHD, EasyPost, POS category filter, Pixfizz category assignment, Email/SMS/RCS notifications.
 - 2026-06-15: Added pickup-location opening hours and Google Maps link fields (surfaced in the store pickup UI at checkout). Source: slack-kb-sync (Wolf Camera call).
 - 2026-06-30: Documented OrderHub Desktop variant-value routing — Desktop maps on readable finish/variant value + size, not lab/printer-specific numeric codes; prefer readable finish codes. Source: slack-message (#development).
+- 2026-07-04: Added Order Status Sync (OrderHub → Core, shipped requires API user enabled); channel-ID copy gotcha in OHD variant updates; email-consolidation limitation (separate emails cannot be merged); PrintNode invoice auto-print troubleshooting. Source: Fireflies, slack-message (#development).

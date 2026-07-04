@@ -415,6 +415,12 @@ Required metafields:
 
 ---
 
+## 10a. Third-Party Variant / Option Apps (Globo)
+
+Some Shopify stores use a third-party options app such as **Globo Product Options** to add variant/option choices beyond Shopify's native limits. Globo has its own variant-count limit that can block complex setups (many options × many values). When a setup exceeds that limit, fall back to either **Shopify core variants** (within Shopify's own limits) or move option selection to the **Pixfizz Shopper frontend** instead of the Shopify product page. Source: Fireflies (2026-06-29, 2026-07-03).
+
+---
+
 ## 11. Troubleshooting Guide
 
 ### Project preview not showing in cart
@@ -596,6 +602,8 @@ var pixfizzUserId = resp.url.match(/users\/(\d+)/)[1];
 
 **If you use the Shopify customer ID in a Pixfizz POST endpoint, the call will fail or create resources under the wrong user.** This applies to any variable page that creates user-scoped resources (galleries, projects), not just reads them.
 
+**UX: drop the customer straight into the new gallery.** After a successful gallery-create call, immediately call the existing `openGallery(gallery)` handler inside the create success callback — place it *after* `addGalleryCard(gallery)` so the new gallery still appears on the index when the customer navigates back. This takes the customer into the upload flow instead of leaving them on the list view. Source: claude-chat, Fireflies (2026-07-01, 2026-07-03).
+
 ### Gallery API endpoints (authenticated via session cookie)
 
 ```
@@ -704,3 +712,4 @@ Shopify has two customer account systems. The integration approach differs:
 - 2026-06-15: Added preview-resolution guidance to the orderline preview handler (pass ~600px; small default causes low-res thumbnails). Added §9 note: update Pixfizz order status from Shopify Flow with PUT, not POST. Added §11 troubleshooting entry for duplicate order emails when running Shopify alongside Pixfizz. Source: slack-kb-sync (LisPhoto calls).
 - 2026-06-29: Added §15 "Theme architecture" subsection — on Horizon and other block-based themes a same-named `page.{name}.json` template takes precedence over `page.{name}.liquid`, which then renders nothing; deliver variable pages via a Custom Liquid block on the template instead. Qualified the existing "Page template pattern" note as Dawn-era. Source: claude-chat (Shopify photo-lab galleries debug).
 - 2026-06-30: Documented static-product ingestion limitation with options/bundle apps (bundle expansion stamps duplicate _pixfizz_static_product; webhook skips grouped shape) and the const-redeclaration JS gotcha in the injection snippet. Source: claude-chat (Shopify static product debugging).
+- 2026-07-04: Added §15 gallery auto-open (`openGallery` after `addGalleryCard` in create callback) and §10a Globo variant-limit fallback (core variants or Shopper frontend). Source: claude-chat, Fireflies.

@@ -124,6 +124,8 @@ _Applies to: All_
 
 The design tool can display a resolution warning when an uploaded image is below the minimum DPI required for quality output. Whether this warning appears depends on your Design Tool Configuration. Customers can still proceed with a low-resolution image, so it's worth communicating minimum image requirements in your product descriptions or FAQs.
 
+Relatedly, uploading **CMYK JPEGs** (for example to business-card products) can cause print-quality problems, because the design tool and previews are built around RGB/sRGB. Advise customers to upload **sRGB** images and reserve any CMYK conversion for the fulfillment transformation step. Source: Fireflies (2026-07-03).
+
 ---
 
 ## Section 4 — Pricing & Options
@@ -381,3 +383,4 @@ Configurable options include:
 ## Changelog
 - 2026-04-06: Initial version. 35 Q&As covering Getting Started, Products, Design Tool, Pricing, Cart/Checkout, Shopify, Orders, Storefront, and Troubleshooting.
 - 2026-05-19: Added inventory tracking Q&A (Section 2), inline price editing Q&A (Section 4), order cancellation and transaction fees Q&A (Section 7), multi-language support Q&A (Section 8), and Batch Film Uploader workflow (new Section 10 — Film Lab Workflows). Source: Notion KB articles.
+- 2026-07-04: Added CMYK-JPEG upload caution to the image-upload Q&A (Section 3) — upload sRGB; reserve CMYK for fulfillment transformation. Source: Fireflies (2026-07-03).

@@ -252,6 +252,7 @@ Filename Templates control how output files are named (and optionally which fold
 - Ensure **uniqueness**: include `order.code` + `orderline.barcode` + `idx`.
 - Avoid unsafe filename characters: strip/replace `|`, `/`, `\`, `:` and quotes.
 - Use folder routing sparingly (e.g., by category) when a lab watches many hotfolders.
+- **Reverting to the default template flattens folders.** The output filename template controls folder structure. If a customized template that routes into product-category subfolders is reverted to the default, those category subfolders disappear and every file lands flat in the per-order folder. Re-check the template after any reset when a lab relies on category subfolders. Source: #development (2026-06-30).
 
 ### Example: adjusted filename template
 A real-world example that routes into a category subfolder and forces PDF for a specific category:
@@ -691,3 +692,4 @@ Establish a naming convention at the start of each FTP integration and apply it 
 - 2026-05-21: Restructured _additional_files.json section — documented three source formats (simple URL, HTTP request object, literal content), added full CraftMyPDF PDF job ticket worked example with capture block and implementation notes, separated file_upload delivery as distinct Pattern 2 with standalone and combined versions, added double-encoding and orderlines scope rules. Source: claude-chat.
 - 2026-06-01: Added chosen_variants accessor note to the QR Code worked example. Source: claude-chat.
 - 2026-06-30: Documented fulfillment code resolution/precedence — template-level codes (added June 2026) have highest priority and override location-based codes. Source: notion-dashboard (2026-06-22).
+- 2026-07-04: Noted that reverting the output filename template to default flattens product-category subfolders (files land flat in the per-order folder). Source: slack-message (#development).

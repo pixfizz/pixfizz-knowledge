@@ -120,7 +120,7 @@ This reference documents **30 object access patterns** mapping to approximately 
 | Field | Type | Description |
 |-------|------|-------------|
 | add_to_cart | boolean | Legacy flag for add-to-cart flow in saved projects |
-| hide_from_search | boolean | Exclude this product from the storefront search flyout. Per-design hiding is also supported via design.custom.hide_from_search |
+| hide_from_search | boolean | Exclude this product from the storefront search flyout. Only affects the storefront search flyout — the product stays active elsewhere, including in POS. Per-design hiding is also supported via design.custom.hide_from_search |
 | additional | snippet | 'Additional Info' tab content. Falls back to collection if not set |
 | btn_add_to_cart | boolean | Show 'Add to Cart' button, skip Design Tool |
 | btn_buy_now_design_later | boolean | Show 'Buy Now, Design Later' button |
@@ -801,3 +801,4 @@ per-SKU variation local to the product.
 ## Changelog
 - 2026-06-01: Added Collection field sub_collections_position (subcollection render order). Source: chat/slack/call.
 - 2026-06-30: Added hide_from_search boolean (Product + Design) — excludes a product/design from the storefront search flyout. Deployed platform-wide on Shopper. Source: claude-chat, slack-message (#development).
+- 2026-07-04: Clarified hide_from_search scope — affects the storefront search flyout only; the product remains available in POS. Source: Fireflies (2026-07-01).
