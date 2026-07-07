@@ -6979,6 +6979,17 @@ Any other parameter is rendered as an HTML attribute on the generated `<form>` e
 | `cart_remove_promocode` | — | Removes the current promocode from the cart |
 | `cart_update` | — | Updates the cart |
 | `cart_payment` | *`gateway:`, *`onsuccess:`, *`oncancel:` | Cart payment form. Optional params are PayPal-only. |
+| `cart_clear` | — | Removes all orderlines from the current cart. The cart stays assigned to the session; promocode, address and other cart properties are kept on the now-empty cart, and it remains in `user.carts`. |
+| `cart_unset` | — | Removes the current cart from the session. The cart and its orderlines are NOT deleted and remain accessible under `user.carts`. |
+| `cart_delete` | *`cart:` | Destroys a cart. With no `cart:` param it deletes the current session cart; pass an existing cart to delete that one instead. Deletion is asynchronous — the cart can take a moment to disappear from `user.carts`. |
+
+**Cart teardown — clear vs unset vs delete**
+
+These three forms are easy to confuse. Choose by what you want to keep:
+
+- `cart_clear` — empties the cart (removes orderlines) but keeps the cart itself, including its promocode and address. Use when the shopper wants to start over but stay in the same cart.
+- `cart_unset` — detaches the current cart from the session without deleting anything. A fresh cart is started on the next add-to-cart, and the old one is still listed in `user.carts`. Use for "save this cart for later / start a new one".
+- `cart_delete` — permanently destroys a cart. Deletion runs asynchronously, so it may still appear in `user.carts` briefly after submission. On a "My carts" page, delete a specific saved cart by passing it in: `{% form 'cart_delete', cart: cart %}`.
 
 **Projects**
 
@@ -7257,6 +7268,7 @@ example markup.
 ## Changelog
 - 2026-06-01: Noted Shopify IDs live in chosen_variants. Source: claude-chat.
 - 2026-06-15: Added json_parse filter to Pixfizz-extended filters. Added assign_to_user / assign_to_cart optional params to the address_create form. Source: notion-dashboard.
+- 2026-07-07: Documented cart_clear, cart_unset and cart_delete forms in the Cart forms table, plus a clear/unset/delete comparison note. Source: notion-page, slack-message.
 
 
 =================================================================
