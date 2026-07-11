@@ -3743,6 +3743,8 @@ A fulfillment code routes an orderline to the correct fulfillment destination. T
 
 Practical effect: if a template carries its own fulfillment code, that code wins regardless of location or product configuration. Set a template-level code only when you intend to override location/product routing.
 
+**UI lock.** Once a fulfillment code is set on a template, the product-level fulfillment code field for products using that template is locked and cannot be changed from the product screen. This is the expected consequence of the precedence order above: the template code always wins, so editing the product-level value would have no effect. To change routing for such a product, edit (or clear) the code on the template. Added June/July 2026.
+
 ## Pixfizz Default Fulfillment JSON (vendor-neutral)
 
 This is the "baseline contract" for Starter Pack v4.
@@ -3931,6 +3933,7 @@ Filename Templates control how output files are named (and optionally which fold
 - Avoid unsafe filename characters: strip/replace `|`, `/`, `\`, `:` and quotes.
 - Use folder routing sparingly (e.g., by category) when a lab watches many hotfolders.
 - **Reverting to the default template flattens folders.** The output filename template controls folder structure. If a customized template that routes into product-category subfolders is reverted to the default, those category subfolders disappear and every file lands flat in the per-order folder. Re-check the template after any reset when a lab relies on category subfolders. Source: #development (2026-06-30).
+- **Cut print filenames use an index counter, not page numbers.** For cut print output, the page number is no longer included in the generated filename; an index counter (`idx`) is used instead to keep filenames unique across the set. If a lab previously relied on page numbers appearing in cut print filenames, expect the sequential `idx` value in that position now. Source: fireflies-call (2026-07-09).
 
 ### Example: adjusted filename template
 A real-world example that routes into a category subfolder and forces PDF for a specific category:
@@ -4371,6 +4374,8 @@ Establish a naming convention at the start of each FTP integration and apply it 
 - 2026-06-01: Added chosen_variants accessor note to the QR Code worked example. Source: claude-chat.
 - 2026-06-30: Documented fulfillment code resolution/precedence — template-level codes (added June 2026) have highest priority and override location-based codes. Source: notion-dashboard (2026-06-22).
 - 2026-07-04: Noted that reverting the output filename template to default flattens product-category subfolders (files land flat in the per-order folder). Source: slack-message (#development).
+- 2026-07-11: Documented UI lock — the product-level fulfillment code field is locked when the template carries its own fulfillment code (extends the code resolution/precedence note). Source: slack-message (#development, commit 2026-07-05).
+- 2026-07-11: Noted cut print filenames now use an index counter (`idx`) instead of page numbers for uniqueness. Source: fireflies-call (2026-07-09).
 
 
 =================================================================
@@ -4996,6 +5001,18 @@ shipped. Until then, flag this to clients whose customers use older iPads.
 
 ---
 
+## CMS Tar Import — Checklist Flags Not Reliably Applied
+
+When importing a CMS backup (`.tar`), the `admin/checklist/*` flag values inside the tar are **not reliably applied** on import. A flag can be set correctly in the tar and still land as its default (or previous) value on the imported site.
+
+Observed case: a `custom-home-page` flag that was `TRUE` in the tar imported as unset, so the custom homepage snippet did not render until the flag was ticked manually in the admin.
+
+Fix / practice: after **any** CMS tar import, verify the relevant `admin/checklist/*` flags in the admin UI (Custom Admin → the relevant settings card) rather than assuming the imported values took effect. This is separate from the snippet-import behaviour (syntax-error snippets are silently skipped) — here the snippet may import fine but the flag that switches it on does not.
+
+Related: child sites can only override checklist snippets that already exist on the parent, and account-v2 style flags gate whole snippet families — so a missing flag can make a correctly-imported snippet appear to "do nothing."
+
+---
+
 ## Changelog
 - 2026-03-21: Initial content from platform documentation export.
 - 2026-04-23: Added CSS snippet logs diagnostic note, password reset Liquid deprecation pattern, fulfillment template DPI failure, URL reserved parameter 404 gotcha, Stripe pending-without-payment issue, FTP original files intermittent failure.
@@ -5004,6 +5021,7 @@ shipped. Until then, flag this to clients whose customers use older iPads.
 - 2026-05-19: Added gallery ZIP download silent failure on large galleries (memory limit + batched fetch fix). Added Bootstrap 4.6 utility class `!important` override requirement. Source: Claude chats (gallery download fix, gallery v2 button layout).
 - 2026-06-01: Corrected Editor Iframe CSS Isolation note; added iOS HEIC upload feedback gotcha. Source: claude-chat/fireflies-call.
 - 2026-06-26: Added kiosk iPad browser-autofill login-confusion gotcha (disable autofill on shared kiosk devices). Source: fireflies-call.
+- 2026-07-11: Added CMS tar import gotcha — `admin/checklist/*` flags are not reliably applied on import (observed: custom-home-page TRUE in tar but unset after import); verify checklist flags in the admin UI after any import. Source: claude-chat (Shopper CMS tar build).
 
 
 =================================================================
@@ -8616,11 +8634,12 @@ Post is a single CMS object type with context-dependent field naming. Fields are
 
 ---
 
-### Address (3 fields)
+### Address (4 fields)
 
 | Field | Type | Description |
 |-------|------|-------------|
 | apartment | text | Apartment/unit/suite number |
+| hide_address | boolean | Hide the address lines from the customer-facing UI while keeping the address data in the backend. Used for named pickup locations where the shopper should not see the physical address, but the address is still needed for order routing/fulfillment. |
 | instructions | text | Delivery instructions |
 | phone | text | Address-specific phone number |
 
@@ -8964,6 +8983,7 @@ per-SKU variation local to the product.
 - 2026-06-01: Added Collection field sub_collections_position (subcollection render order). Source: chat/slack/call.
 - 2026-06-30: Added hide_from_search boolean (Product + Design) — excludes a product/design from the storefront search flyout. Deployed platform-wide on Shopper. Source: claude-chat, slack-message (#development).
 - 2026-07-04: Clarified hide_from_search scope — affects the storefront search flyout only; the product remains available in POS. Source: Fireflies (2026-07-01).
+- 2026-07-11: Added Address field hide_address (boolean) — suppresses address display in the customer-facing UI for pickup locations while keeping the backend address for order routing (Address count 3 → 4). Source: slack-message (#development, 2026-07-10).
 
 
 =================================================================
@@ -9656,6 +9676,12 @@ In the Shopify deployment path:
 - When a Shopify order is paid, a webhook fires to Pixfizz, confirming the order. Pixfizz changes the order status to "Confirmed".
 - When an order is fulfilled in Shopify, a second webhook can fire to mark the Pixfizz order as "Shipped".
 
+### Master Shopify CMS: staging vs production
+
+Internally there are two master Shopify CMS sites: a **staging** master used to develop and test integration code, and a **production** master that live client sites inherit from. Only the actively synced pages/snippets (in practice `shopify/api.js` and `shopify/product`) are kept in step between them. Other pages and snippets on the staging master are likely outdated and should **not** be treated as canonical or copied from — always take known-good code from the production master. Workflow: build/test on staging, then copy the finished code across to production.
+
+> Internal-infrastructure note: the specific master-site hostnames are internal; keep them out of the public KB and reference them from the private repo if needed.
+
 ---
 
 ## 2. Shopify Metafields
@@ -9837,6 +9863,10 @@ For Pixfizz products, the standard Shopify buy button block is replaced with a "
 
 The button text can be changed freely. The `onclick` handler is what matters.
 
+### Editor `domready` message (integration mode)
+
+When the Pixfizz editor loads inside the Shopify integration, it posts a `domready` message once it is ready to receive instructions. Any code that posts messages **into** the editor iframe must wait for `domready` before sending — messages posted before the editor signals `domready` are lost. If a launch/config message appears to be ignored, confirm it is being sent only after `domready` is received. Added 2026-07-05.
+
 ---
 
 ## 7. Cart Page — Working Version (Dawn, inline_asset_content)
@@ -9986,6 +10016,8 @@ After creating the webhook in Shopify (Settings → Notifications), copy the sig
 
 **Updating Pixfizz order status from Shopify Flow.** When using Shopify Flow (or any external automation) to push an order status change into Pixfizz, for example moving an order from "ready for pickup" to a Pixfizz shipped status, use an HTTP **PUT** request, not POST.
 
+**Project ownership on order sync.** When a Shopify order is synced and the created Pixfizz project has no owner, Pixfizz assigns the project to the user account that placed the order. This means Shopify-originated projects are owned by the ordering customer by default rather than being left unowned. Added 2026-07-07.
+
 ---
 
 ## 9a. Static Product Ingestion (Non-Personalized Shopify Products)
@@ -10050,6 +10082,7 @@ Required metafields:
 - Shopify product must have "Track QTY" disabled
 - For photo prints: set `pixfizz.adjust_cart_qty` to `false` on the product
 - SKU format: `theme-code:product-code` (no spaces, no typos)
+- **Edit product/variant ID mapping CSVs in a plain-text editor, not Excel.** When preparing a CSV that maps Shopify product/variant IDs to Pixfizz codes, do not open or save it in Excel — Excel silently reformats long numeric IDs (scientific notation, dropped leading characters) and corrupts the mapping. Use a plain-text/code editor (e.g. VS Code) so the IDs stay intact. Source: fireflies-call (2026-07-10).
 
 ---
 
@@ -10351,6 +10384,7 @@ Shopify has two customer account systems. The integration approach differs:
 - 2026-06-29: Added §15 "Theme architecture" subsection — on Horizon and other block-based themes a same-named `page.{name}.json` template takes precedence over `page.{name}.liquid`, which then renders nothing; deliver variable pages via a Custom Liquid block on the template instead. Qualified the existing "Page template pattern" note as Dawn-era. Source: claude-chat (Shopify photo-lab galleries debug).
 - 2026-06-30: Documented static-product ingestion limitation with options/bundle apps (bundle expansion stamps duplicate _pixfizz_static_product; webhook skips grouped shape) and the const-redeclaration JS gotcha in the injection snippet. Source: claude-chat (Shopify static product debugging).
 - 2026-07-04: Added §15 gallery auto-open (`openGallery` after `addGalleryCard` in create callback) and §10a Globo variant-limit fallback (core variants or Shopper frontend). Source: claude-chat, Fireflies.
+- 2026-07-11: Added §1 master-CMS staging-vs-production workflow note (only api.js/product kept in sync; do not copy from staging); §9 project-ownership auto-assignment on order sync (unowned project → ordering user); §6 editor `domready` message (wait before posting into the editor iframe); §10 plain-text-editor gotcha for product/variant ID mapping CSVs (Excel corrupts IDs). Source: slack-message (#development, commits 2026-07-05/07), fireflies-call (2026-07-10).
 
 
 =================================================================
@@ -13922,8 +13956,9 @@ A memorable framing for advising customers: AI looks for five signals. Be crawla
 This is the platform-truth section. Map each signal to what the platform and template actually do, and flag the gaps.
 
 ### Crawlable
-- `[PLATFORM]` Built-in crawler at **Admin → Website Crawls** (`/admin/website_crawls`) generates `sitemap.xml` and `product-feed.json`. The `/site/sitemap` path does not exist; do not assume it.
+- `[PLATFORM]` Built-in crawler at **Admin → Website Crawls** (`/admin/website_crawls`) generates `sitemap.xml` and `product-feed.json`. The `/site/sitemap` path does not exist; do not assume it. The crawler can be set to run automatically every 24 hours; once existing crawl errors are cleared, leaving it on a daily schedule keeps SEO health maintained without manual re-runs.
 - `[SHOPPER]` `no-index` checklist key set to `TRUE` adds a site-wide noindex. Confirm it is OFF on a live store.
+- `[SHOPPER]` **Staging / pre-launch pages can get indexed by Google.** If a site was live on a staging URL before launch, those staging pages may already be in Google's index and compete with production. Fix by redirecting the old staging URLs to their production equivalents. The Shopper redirect config file is a JSON **array of `[regex, destination]` pairs** (each entry is a two-element array: a path-matching regex and the destination URL); anchor patterns as `^/site/<path>/?$` to tolerate a trailing slash. See `80_ONBOARDING.md` § SEO Migration for where this file lives and how it is applied.
 - For sitemap submission to Google Search Console and 301 redirect configuration during migration, see `80_ONBOARDING.md` § SEO Migration.
 
 ### Structured data
@@ -13942,6 +13977,7 @@ This is the platform-truth section. Map each signal to what the platform and tem
 ### Trust and local
 - `[SHOPPER]` Review display exists via Google rating fields. Review *generation* programs and GBP optimization are operational/marketing tasks for the client, not platform features.
 - Product feed for Google Shopping / Meta is produced by the built-in crawler (`product-feed.json`). Google Merchant Center connection is a client-side setup task.
+- `[GENERAL]` **Serve the store on the primary domain, not a `shop.` subdomain.** Where a business runs its store on `shop.domain.com` while the main site is `domain.com`, consolidating the store onto the primary domain (`domain.com`) generally improves indexing, keeps analytics attribution accurate (traffic not split across hostnames), and keeps local/`LocalBusiness` schema consistent with the brand's main entity. Treat a `shop.` subdomain as a migration candidate, handled with 301 redirects from the subdomain URLs to their primary-domain equivalents.
 
 ### Quick capability summary
 
@@ -14059,6 +14095,7 @@ This meets Google's required fields for a merchant listing (`name`, `image`, and
 
 - 2026-06-15: Initial version. Created from webinar prep research (how AI search works, GEO playbook, glossary) and platform facts confirmed in-session: Shopper has LocalBusiness JSON-LD placeholders, review schema is not currently emitted, product schema via `schema_loop_all_products`. Cross-references 80 (SEO migration), 50 (checklist keys), 51 (custom fields). Source: claude-chat.
 - 2026-06-18: Added verified 2026 stats (68% zero-click early 2026 per Adsroid; Cloudflare 57.5% bot-majority traffic, June 3 2026), with sourcing and caveats. Added glossary entries for WebMCP (real, emerging, Chrome origin trial) and OKF (real but internal-knowledge format, explicitly not an AI-visibility tactic — corrects an earlier framing). Added platform measurement tools: GSC Search Generative AI performance reports and AI controls toggle (June 2026), and Bing Webmaster Tools AI Performance/citation report (Feb 2026). Added WebMCP-in-Shopper to build opportunities. Source: claude-chat (web-verified).
+- 2026-07-11: Part D — noted the built-in crawler can run on a 24-hour schedule to maintain SEO health; added staging/pre-launch indexing gotcha with the Shopper redirect-config format (JSON array of `[regex, destination]` pairs, anchored `^/site/<path>/?$`); added the primary-domain-vs-`shop.`-subdomain consolidation recommendation under Trust and local. Source: fireflies-call (2026-07-07, 2026-07-10), claude-chat (redirect JSON build).
 - 2026-06-18: Added Part F (Product Schema: High-Fidelity Attributes), researched against Google Search Central's product / merchant-listing / product-snippet structured-data docs. Documents the current Shopper baseline, Google's required-vs-recommended set, prioritized Shopper upgrade tiers (Tier 1 ratings + return/shipping + attributes; Tier 2 variants, unit pricing, `additionalProperty`; Tier 3 Organization/Brand/`sameAs`, FAQPage), Pixfizz cautions (server-side rendering, match-visible-content, GTIN validity, `from_pricing`, loyalty/`validForMemberTier`), and two correctness flags on the current snippet (`priceValidUntil` inside a `{% dynamic %}` block; `http` vs `https` context). Added the standalone Schema Builder authoring tool. Updated the Quick capability summary, Pending Confirmation, and Build Opportunities to match. Source: claude-chat (web-verified against developers.google.com).
 
 
