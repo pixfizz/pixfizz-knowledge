@@ -65,6 +65,8 @@ A fulfillment code routes an orderline to the correct fulfillment destination. T
 
 Practical effect: if a template carries its own fulfillment code, that code wins regardless of location or product configuration. Set a template-level code only when you intend to override location/product routing.
 
+**UI lock.** Once a fulfillment code is set on a template, the product-level fulfillment code field for products using that template is locked and cannot be changed from the product screen. This is the expected consequence of the precedence order above: the template code always wins, so editing the product-level value would have no effect. To change routing for such a product, edit (or clear) the code on the template. Added June/July 2026.
+
 ## Pixfizz Default Fulfillment JSON (vendor-neutral)
 
 This is the "baseline contract" for Starter Pack v4.
@@ -253,6 +255,7 @@ Filename Templates control how output files are named (and optionally which fold
 - Avoid unsafe filename characters: strip/replace `|`, `/`, `\`, `:` and quotes.
 - Use folder routing sparingly (e.g., by category) when a lab watches many hotfolders.
 - **Reverting to the default template flattens folders.** The output filename template controls folder structure. If a customized template that routes into product-category subfolders is reverted to the default, those category subfolders disappear and every file lands flat in the per-order folder. Re-check the template after any reset when a lab relies on category subfolders. Source: #development (2026-06-30).
+- **Cut print filenames use an index counter, not page numbers.** For cut print output, the page number is no longer included in the generated filename; an index counter (`idx`) is used instead to keep filenames unique across the set. If a lab previously relied on page numbers appearing in cut print filenames, expect the sequential `idx` value in that position now. Source: fireflies-call (2026-07-09).
 
 ### Example: adjusted filename template
 A real-world example that routes into a category subfolder and forces PDF for a specific category:
@@ -693,3 +696,5 @@ Establish a naming convention at the start of each FTP integration and apply it 
 - 2026-06-01: Added chosen_variants accessor note to the QR Code worked example. Source: claude-chat.
 - 2026-06-30: Documented fulfillment code resolution/precedence — template-level codes (added June 2026) have highest priority and override location-based codes. Source: notion-dashboard (2026-06-22).
 - 2026-07-04: Noted that reverting the output filename template to default flattens product-category subfolders (files land flat in the per-order folder). Source: slack-message (#development).
+- 2026-07-11: Documented UI lock — the product-level fulfillment code field is locked when the template carries its own fulfillment code (extends the code resolution/precedence note). Source: slack-message (#development, commit 2026-07-05).
+- 2026-07-11: Noted cut print filenames now use an index counter (`idx`) instead of page numbers for uniqueness. Source: fireflies-call (2026-07-09).

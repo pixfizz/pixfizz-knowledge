@@ -454,11 +454,12 @@ Post is a single CMS object type with context-dependent field naming. Fields are
 
 ---
 
-### Address (3 fields)
+### Address (4 fields)
 
 | Field | Type | Description |
 |-------|------|-------------|
 | apartment | text | Apartment/unit/suite number |
+| hide_address | boolean | Hide the address lines from the customer-facing UI while keeping the address data in the backend. Used for named pickup locations where the shopper should not see the physical address, but the address is still needed for order routing/fulfillment. |
 | instructions | text | Delivery instructions |
 | phone | text | Address-specific phone number |
 
@@ -802,3 +803,4 @@ per-SKU variation local to the product.
 - 2026-06-01: Added Collection field sub_collections_position (subcollection render order). Source: chat/slack/call.
 - 2026-06-30: Added hide_from_search boolean (Product + Design) — excludes a product/design from the storefront search flyout. Deployed platform-wide on Shopper. Source: claude-chat, slack-message (#development).
 - 2026-07-04: Clarified hide_from_search scope — affects the storefront search flyout only; the product remains available in POS. Source: Fireflies (2026-07-01).
+- 2026-07-11: Added Address field hide_address (boolean) — suppresses address display in the customer-facing UI for pickup locations while keeping the backend address for order routing (Address count 3 → 4). Source: slack-message (#development, 2026-07-10).

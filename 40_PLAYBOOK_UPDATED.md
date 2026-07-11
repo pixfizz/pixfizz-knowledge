@@ -345,6 +345,18 @@ shipped. Until then, flag this to clients whose customers use older iPads.
 
 ---
 
+## CMS Tar Import — Checklist Flags Not Reliably Applied
+
+When importing a CMS backup (`.tar`), the `admin/checklist/*` flag values inside the tar are **not reliably applied** on import. A flag can be set correctly in the tar and still land as its default (or previous) value on the imported site.
+
+Observed case: a `custom-home-page` flag that was `TRUE` in the tar imported as unset, so the custom homepage snippet did not render until the flag was ticked manually in the admin.
+
+Fix / practice: after **any** CMS tar import, verify the relevant `admin/checklist/*` flags in the admin UI (Custom Admin → the relevant settings card) rather than assuming the imported values took effect. This is separate from the snippet-import behaviour (syntax-error snippets are silently skipped) — here the snippet may import fine but the flag that switches it on does not.
+
+Related: child sites can only override checklist snippets that already exist on the parent, and account-v2 style flags gate whole snippet families — so a missing flag can make a correctly-imported snippet appear to "do nothing."
+
+---
+
 ## Changelog
 - 2026-03-21: Initial content from platform documentation export.
 - 2026-04-23: Added CSS snippet logs diagnostic note, password reset Liquid deprecation pattern, fulfillment template DPI failure, URL reserved parameter 404 gotcha, Stripe pending-without-payment issue, FTP original files intermittent failure.
@@ -353,3 +365,4 @@ shipped. Until then, flag this to clients whose customers use older iPads.
 - 2026-05-19: Added gallery ZIP download silent failure on large galleries (memory limit + batched fetch fix). Added Bootstrap 4.6 utility class `!important` override requirement. Source: Claude chats (gallery download fix, gallery v2 button layout).
 - 2026-06-01: Corrected Editor Iframe CSS Isolation note; added iOS HEIC upload feedback gotcha. Source: claude-chat/fireflies-call.
 - 2026-06-26: Added kiosk iPad browser-autofill login-confusion gotcha (disable autofill on shared kiosk devices). Source: fireflies-call.
+- 2026-07-11: Added CMS tar import gotcha — `admin/checklist/*` flags are not reliably applied on import (observed: custom-home-page TRUE in tar but unset after import); verify checklist flags in the admin UI after any import. Source: claude-chat (Shopper CMS tar build).

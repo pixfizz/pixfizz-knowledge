@@ -18,6 +18,12 @@ In the Shopify deployment path:
 - When a Shopify order is paid, a webhook fires to Pixfizz, confirming the order. Pixfizz changes the order status to "Confirmed".
 - When an order is fulfilled in Shopify, a second webhook can fire to mark the Pixfizz order as "Shipped".
 
+### Master Shopify CMS: staging vs production
+
+Internally there are two master Shopify CMS sites: a **staging** master used to develop and test integration code, and a **production** master that live client sites inherit from. Only the actively synced pages/snippets (in practice `shopify/api.js` and `shopify/product`) are kept in step between them. Other pages and snippets on the staging master are likely outdated and should **not** be treated as canonical or copied from — always take known-good code from the production master. Workflow: build/test on staging, then copy the finished code across to production.
+
+> Internal-infrastructure note: the specific master-site hostnames are internal; keep them out of the public KB and reference them from the private repo if needed.
+
 ---
 
 ## 2. Shopify Metafields
@@ -199,6 +205,10 @@ For Pixfizz products, the standard Shopify buy button block is replaced with a "
 
 The button text can be changed freely. The `onclick` handler is what matters.
 
+### Editor `domready` message (integration mode)
+
+When the Pixfizz editor loads inside the Shopify integration, it posts a `domready` message once it is ready to receive instructions. Any code that posts messages **into** the editor iframe must wait for `domready` before sending — messages posted before the editor signals `domready` are lost. If a launch/config message appears to be ignored, confirm it is being sent only after `domready` is received. Added 2026-07-05.
+
 ---
 
 ## 7. Cart Page — Working Version (Dawn, inline_asset_content)
@@ -348,6 +358,8 @@ After creating the webhook in Shopify (Settings → Notifications), copy the sig
 
 **Updating Pixfizz order status from Shopify Flow.** When using Shopify Flow (or any external automation) to push an order status change into Pixfizz, for example moving an order from "ready for pickup" to a Pixfizz shipped status, use an HTTP **PUT** request, not POST.
 
+**Project ownership on order sync.** When a Shopify order is synced and the created Pixfizz project has no owner, Pixfizz assigns the project to the user account that placed the order. This means Shopify-originated projects are owned by the ordering customer by default rather than being left unowned. Added 2026-07-07.
+
 ---
 
 ## 9a. Static Product Ingestion (Non-Personalized Shopify Products)
@@ -412,6 +424,7 @@ Required metafields:
 - Shopify product must have "Track QTY" disabled
 - For photo prints: set `pixfizz.adjust_cart_qty` to `false` on the product
 - SKU format: `theme-code:product-code` (no spaces, no typos)
+- **Edit product/variant ID mapping CSVs in a plain-text editor, not Excel.** When preparing a CSV that maps Shopify product/variant IDs to Pixfizz codes, do not open or save it in Excel — Excel silently reformats long numeric IDs (scientific notation, dropped leading characters) and corrupts the mapping. Use a plain-text/code editor (e.g. VS Code) so the IDs stay intact. Source: fireflies-call (2026-07-10).
 
 ---
 
@@ -713,3 +726,4 @@ Shopify has two customer account systems. The integration approach differs:
 - 2026-06-29: Added §15 "Theme architecture" subsection — on Horizon and other block-based themes a same-named `page.{name}.json` template takes precedence over `page.{name}.liquid`, which then renders nothing; deliver variable pages via a Custom Liquid block on the template instead. Qualified the existing "Page template pattern" note as Dawn-era. Source: claude-chat (Shopify photo-lab galleries debug).
 - 2026-06-30: Documented static-product ingestion limitation with options/bundle apps (bundle expansion stamps duplicate _pixfizz_static_product; webhook skips grouped shape) and the const-redeclaration JS gotcha in the injection snippet. Source: claude-chat (Shopify static product debugging).
 - 2026-07-04: Added §15 gallery auto-open (`openGallery` after `addGalleryCard` in create callback) and §10a Globo variant-limit fallback (core variants or Shopper frontend). Source: claude-chat, Fireflies.
+- 2026-07-11: Added §1 master-CMS staging-vs-production workflow note (only api.js/product kept in sync; do not copy from staging); §9 project-ownership auto-assignment on order sync (unowned project → ordering user); §6 editor `domready` message (wait before posting into the editor iframe); §10 plain-text-editor gotcha for product/variant ID mapping CSVs (Excel corrupts IDs). Source: slack-message (#development, commits 2026-07-05/07), fireflies-call (2026-07-10).
