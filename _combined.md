@@ -1675,6 +1675,15 @@ Reusable techniques confirmed in production:
 - Save and Continue callback (JS). The Save and Continue button can be
   monkey-patched to chain an action after the original behavior, using an
   `exit_target` URL parameter to control where the user lands.
+- Placeholder icon position — avoid `transform` on `.px-element-icon`. Setting a
+  CSS `transform` on `.px-element-icon` breaks the position of the placeholder
+  (upload) icon inside image zones. To restyle that icon, use properties that do
+  not create an offset/stacking context (size, color, background) rather than
+  `transform`.
+- Layout category order. Layout categories in the designer sort **alphabetically
+  by default**. They can be re-ordered visually with the CSS `order` property on
+  the category container (same flex-`order` idiom as option reordering above); the
+  underlying order is not configurable in admin.
 
 ## Font Licensing: Editor Fonts Require Embedding License
 
@@ -1719,6 +1728,7 @@ A substitution type named **Image effects** applies a filter to image elements. 
 - 2026-06-30: Documented element substitution types added June 2026 — shape border width/color/radius and the Image effects (grayscale/sepia) substitution, including the required `placeholder` Name-field value. Source: notion-dashboard (2026-06-22), slack-message (#development).
 - 2026-07-04: Documented the `&aitools=true` URL flag that exposes the editor AI image tools. Source: slack-message (#development).
 - 2026-07-20: Corrected Image Sources to the full allowed value set and noted it controls icon order and defaults to device. Added Google Photos setup. Source: help-article + admin tooltip.
+- 2026-07-20: Added editor-CSS gotchas — `transform` on `.px-element-icon` breaks the placeholder icon position; layout categories sort alphabetically by default and can be reordered with CSS `order`. Source: slack-message (#development), loom-video.
 
 
 =================================================================
@@ -3566,6 +3576,8 @@ Reference: [https://help.pixfizz.com/triage/automatic-discounts](https://help.pi
 
 The promo code guard (`cart.promocode_code == blank`) prevents stacking a category discount with a manual promo code. Whether to include this guard depends on the business intent.
 
+> **Property-name trap:** the property is `cart.promocode_code`, not `cart.promocode`. `cart.promocode` (without `_code`) is not a valid Cart property and resolves to nil, which is falsy. A guard written as `{%- unless cart.promocode -%}` therefore never blocks, and the discount fires even when a promo code is applied. Always use `cart.promocode_code`.
+
 **Seasonal / time-based discount:**
 
 ```liquid
@@ -3682,6 +3694,7 @@ scoping any onboarding that involves hundreds of price variables.
 ## Changelog
 - 2026-05-19: Added Automatic Discounts section — Liquid-based cart discounts with tiered, user category, and seasonal patterns. Source: Claude chat (webinar prep).
 - 2026-07-03: Added Extra Fees (Liquid-Based Cart Fees) section — fee-side twin of Automatic Discounts (adds instead of subtracts), configured under Shipping → Extra Fees. Includes per-duplicate-orderline surcharge pattern (seen-string + contains idiom); orderline-iteration specifics pending live confirmation. Source: Claude chat.
+- 2026-07-20: Added property-name trap — `cart.promocode` (without `_code`) is nil and silently defeats promo-code guards; always use `cart.promocode_code`. Source: claude-chat.
 
 
 =================================================================
@@ -5025,6 +5038,24 @@ Related: child sites can only override checklist snippets that already exist on 
 
 ---
 
+## Shopper v2 Account — `date_format` Capture Missing `| strip`
+
+**Symptom:** In the Shopper v2 account area, dates on the Orders list and the Dashboard
+render in a different format from the Order Details page, even though all three read the
+same `date_format` value.
+
+**Cause:** `account/v2/orders` and `account/v2/dashboard` capture the `date_format`
+checklist value **without** a trailing `| strip`, while `account/v2/order-details` strips
+it. The unstripped capture carries whitespace, so the format string does not match and the
+date renders inconsistently.
+
+**Fix:** Add `| strip` to the `date_format` capture in `account/v2/orders` and
+`account/v2/dashboard` so all three v2 account snippets agree. This is the same
+capture-comparison rule that applies to all checklist snippet values: always `| strip`
+after `{% capture %}` before comparing or using the value.
+
+---
+
 ## Changelog
 - 2026-03-21: Initial content from platform documentation export.
 - 2026-04-23: Added CSS snippet logs diagnostic note, password reset Liquid deprecation pattern, fulfillment template DPI failure, URL reserved parameter 404 gotcha, Stripe pending-without-payment issue, FTP original files intermittent failure.
@@ -5034,6 +5065,7 @@ Related: child sites can only override checklist snippets that already exist on 
 - 2026-06-01: Corrected Editor Iframe CSS Isolation note; added iOS HEIC upload feedback gotcha. Source: claude-chat/fireflies-call.
 - 2026-06-26: Added kiosk iPad browser-autofill login-confusion gotcha (disable autofill on shared kiosk devices). Source: fireflies-call.
 - 2026-07-11: Added CMS tar import gotcha — `admin/checklist/*` flags are not reliably applied on import (observed: custom-home-page TRUE in tar but unset after import); verify checklist flags in the admin UI after any import. Source: claude-chat (Shopper CMS tar build).
+- 2026-07-20: Added Shopper v2 account `date_format` gotcha — `account/v2/orders` and `account/v2/dashboard` miss `| strip` on the date_format capture, causing a format mismatch with order-details. Source: claude-chat.
 
 
 =================================================================
@@ -7675,6 +7707,8 @@ Each checklist key is a snippet at `admin/checklist/<key-name>`. The snippet con
 | `kiosk-pay-in-store-only` | `TRUE` = restrict pay-in-store to kiosk only |
 | `kiosk-remove-captcha` | `TRUE` = remove CAPTCHA in kiosk mode |
 
+**Kiosk captcha is per-subdomain.** Kiosk mode usually runs on its own subdomain (`kiosk-mode-domain`). CAPTCHA configuration does not carry across from the main storefront to the kiosk subdomain — captcha must be removed/configured on the kiosk subdomain specifically (e.g. `kiosk-remove-captcha` set on the kiosk site). Symptom if missed: customers hit a CAPTCHA on the kiosk that the main storefront does not show.
+
 #### Product Display
 | Key | Values / Notes |
 |---|---|
@@ -8184,6 +8218,7 @@ clashing with the `s-` design-system classes.
 - 2026-05-19: Added `shopper-admin` layout to layouts table. Added Section 15 — Custom Admin manage/ page inventory including tools pages. Added Section 16 — Kiosk Touchscreen Mode architecture and status. Renumbered Known Gotchas to Section 17. Source: Claude chats (admin v2 work, kiosk mode design).
 - 2026-06-01: Added Shop All page feature note. Source: fireflies-call.
 - 2026-06-15: Added Static Product Importer CSV column spec under Tools pages. Added Google Ads conversion-tracking note (no built-in preset; deploy via GTM). Added Known Gotcha: logged-out app error on custom-admin pages (page body renders before the layout user.is_admin gate; Bootstrap modal CSS inactive in custom admin). Source: claude-chat.
+- 2026-07-20: Added kiosk captcha per-subdomain note — captcha config does not carry from the main storefront to the kiosk subdomain and must be set on the kiosk site. Source: support-ticket.
 
 
 =================================================================
@@ -10030,6 +10065,8 @@ After creating the webhook in Shopify (Settings → Notifications), copy the sig
 
 **Project ownership on order sync.** When a Shopify order is synced and the created Pixfizz project has no owner, Pixfizz assigns the project to the user account that placed the order. This means Shopify-originated projects are owned by the ordering customer by default rather than being left unowned. Added 2026-07-07.
 
+**All line item properties captured into orderline options.** Shopify order line item properties are now captured wholesale into the corresponding Pixfizz orderline's `options`, not only the Pixfizz-specific ones. Custom line properties set by the theme or by third-party apps flow through to the Pixfizz order and are available downstream (admin, fulfillment templates). For static-product routing to work, the line item property that carries the static-product code must **exactly match** the name the webhook expects (`_pixfizz_static_product`, see §9a) — a mismatched property name is the usual reason a static line item fails to route. Confirm the exact expected property string with the platform team if routing fails. Added 2026-07-20.
+
 ---
 
 ## 9a. Static Product Ingestion (Non-Personalized Shopify Products)
@@ -10397,6 +10434,7 @@ Shopify has two customer account systems. The integration approach differs:
 - 2026-06-30: Documented static-product ingestion limitation with options/bundle apps (bundle expansion stamps duplicate _pixfizz_static_product; webhook skips grouped shape) and the const-redeclaration JS gotcha in the injection snippet. Source: claude-chat (Shopify static product debugging).
 - 2026-07-04: Added §15 gallery auto-open (`openGallery` after `addGalleryCard` in create callback) and §10a Globo variant-limit fallback (core variants or Shopper frontend). Source: claude-chat, Fireflies.
 - 2026-07-11: Added §1 master-CMS staging-vs-production workflow note (only api.js/product kept in sync; do not copy from staging); §9 project-ownership auto-assignment on order sync (unowned project → ordering user); §6 editor `domready` message (wait before posting into the editor iframe); §10 plain-text-editor gotcha for product/variant ID mapping CSVs (Excel corrupts IDs). Source: slack-message (#development, commits 2026-07-05/07), fireflies-call (2026-07-10).
+- 2026-07-20: Noted all Shopify line item properties are now captured into Pixfizz orderline options, and that static-product routing depends on the exact expected property name. Source: #development (commit 2026-07-13), Weekly Tech call.
 
 
 =================================================================
@@ -10877,6 +10915,7 @@ SVG is recommended for performance and sharpness at small sizes, but cannot be u
 | `template_options[<option-code>]` | Set a template option value |
 | `template_name` | Name of the page to preview (default: first page) |
 | `page` | Page number (0-indexed). `page=0` = first page |
+| `fulfillment` | `false` (default) uses the preview pipeline and renders "show on preview" placeholders but caps width at 1200px; `true` renders at the full requested width but strips those placeholders. Not officially documented on this endpoint. |
 
 Multi-choice variants/options expect the option code. Text variants expect the text string.
 
@@ -10900,6 +10939,15 @@ Requires admin access.
   settings rather than the preview pipeline.
 - The `fulfillment=true` page endpoint is currently **superadmin (omnipotent) only**;
   opening it to all admins is under consideration. Confirm current access before relying on it.
+- **`fulfillment` on the theme/project preview endpoint trades placeholders against
+  resolution.** With `fulfillment=false` (preview pipeline) elements set to "show on
+  preview" ARE rendered, but output is still capped at `width=1200`. With
+  `fulfillment=true` the request renders at the full requested width but "show on
+  preview" placeholder elements are **stripped**. There is currently no way to get
+  both full resolution and "show on preview" placeholders from this endpoint — they
+  are architecturally coupled. This parameter is not officially documented on the
+  preview endpoint; confirm with the platform team before building on it, and treat a
+  raised/removed 1200px cap as a feature request.
 
 ---
 
@@ -11023,6 +11071,27 @@ Callback payloads carry shipment status, tracking name, tracking code, tracking 
 
 ---
 
+## 13a. Networking: No Fixed Outbound IP
+
+Pixfizz runs on a pool of workers and does **not** have a fixed outbound IP address —
+traffic from Pixfizz (FTP pushes, outbound API calls, fulfillment posts) originates
+from whichever worker handles the job. Do not ask a partner or customer to
+IP-whitelist Pixfizz, and do not build an integration that depends on a stable Pixfizz
+source IP. Authenticate integrations by another method (basic auth, tokens, signed
+requests) instead of IP allow-listing.
+
+---
+
+## 13b. Order IDs on Reprints (Fulfillment JSON)
+
+When an order is reprinted, the reprint can carry the **same order ID** as the original
+in the fulfillment JSON/job ticket, which some downstream systems reject as a duplicate.
+To keep the emitted order ID unique across reprints, append a letter suffix per reprint
+(e.g. `A`, `B`, ...). Confirm the exact suffixing rule with the platform team when wiring
+a new fulfillment integration.
+
+---
+
 ## 14. Retrieval Pointer
 
 | Topic | File |
@@ -11040,6 +11109,7 @@ Callback payloads carry shipment status, tracking name, tracking code, tracking 
 - 2026-06-15: Documented login-capable vs external user creation (external_id / external_source param makes a user external; omit for login-capable accounts; merge to repair). Documented preview resolution cap (width 1200, lower quality) and the production-quality /v1/pages/<id>.jpg?fulfillment=true endpoint (superadmin-only). Source: slack-kb-sync (Matjaz, #development).
 - 2026-07-01: Added § 8a — Individual Orders (list/read/create/update via `/v1/orders` and `/v1/admin/orders`), including the PUT `order[status]=S` pattern to mark an order Shipped and the custom-field-only update path for regular users. Source: claude-chat.
 - 2026-07-04: Documented that `/copy` creates an unsaved project (set `book[saved]=1` on the new ID), and the cross-origin `PUT` CORS-preflight trap (use `POST` + `_method=put`). Source: claude-chat.
+- 2026-07-20: Documented the `fulfillment` param on the theme/project preview endpoint (placeholder-vs-resolution trade-off, not officially documented); added §13a no-fixed-outbound-IP networking note; added §13b reprint order-ID uniqueness (append a letter suffix). Source: support-ticket, fulfillment-integration call, #development.
 
 
 =================================================================
