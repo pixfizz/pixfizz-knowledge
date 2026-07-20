@@ -1571,12 +1571,23 @@ Configured in admin under: **Settings > Design Tool**.
 
 ### Integrations
 - Google Tag Manager ID
-- Image Sources (external image providers). Accepts combinable tokens, e.g. `galleries`, `device`, `pdf_import`. To expose a PDF import toolbar button you must do two things: enable the PDF Imports feature toggle (under Image Features) AND add `pdf_import` to this Image Sources field.
+- Image Sources — comma-separated list that specifies the **order of the source icons** in the editor's Images tab (not merely which sources are on). Allowed values: `device`, `galleries`, `public_galleries`, `groups`, `clipart`, `pdf_import`, `dropbox`, `google_photos`. Defaults to `device` when the field is empty. To expose a PDF import toolbar button you must do two things: enable the PDF Imports feature toggle (under Image Features) AND add `pdf_import` to this Image Sources field. `dropbox` and `google_photos` need provider OAuth setup before they work (see Google Photos as an Image Source below).
 - Help URL
 - Custom JS — inject custom JavaScript
 - Custom CSS — inject custom styles
 
 > Some Design Tool Configuration settings are only visible to Pixfizz staff. These control platform-level behaviors and are managed during onboarding or through support requests.
+
+### Google Photos as an Image Source
+
+`google_photos` is an allowed Image Sources token, but unlike `device`/`galleries` it needs OAuth setup before it works. Per storefront:
+
+1. In Google Cloud, create an API Console project and a **Web Browser** OAuth Client ID. When asked for the calling domain, enter the storefront's own domain (e.g. `clientsite.pixfizz.com`). Guide: https://developers.google.com/identity/oauth2/web/guides/get-google-api-clientid
+2. Complete Google's OAuth consent / API access configuration so the Client ID is authorised to fetch photos via the Google Photos API.
+3. Copy the Client ID into the storefront's **Super Admin** panel, **Google OAuth 2** field (left-hand settings column).
+4. Add `google_photos` to the **Image Sources** field on the relevant Design Tool Configuration.
+
+Once the Client ID is in place and Google Cloud permissions are correct, customers can select images from Google Photos inside the editor.
 
 ## Admin Mode Editor
 
@@ -1707,6 +1718,7 @@ A substitution type named **Image effects** applies a filter to image elements. 
 - 2026-06-01: Added Editor CSS Customization section, Admin Mode Editor note, and pdf_import Image Sources requirement. Source: claude-chat/slack.
 - 2026-06-30: Documented element substitution types added June 2026 — shape border width/color/radius and the Image effects (grayscale/sepia) substitution, including the required `placeholder` Name-field value. Source: notion-dashboard (2026-06-22), slack-message (#development).
 - 2026-07-04: Documented the `&aitools=true` URL flag that exposes the editor AI image tools. Source: slack-message (#development).
+- 2026-07-20: Corrected Image Sources to the full allowed value set and noted it controls icon order and defaults to device. Added Google Photos setup. Source: help-article + admin tooltip.
 
 
 =================================================================
