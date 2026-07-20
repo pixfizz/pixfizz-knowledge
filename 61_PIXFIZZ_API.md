@@ -472,6 +472,7 @@ SVG is recommended for performance and sharpness at small sizes, but cannot be u
 | `template_options[<option-code>]` | Set a template option value |
 | `template_name` | Name of the page to preview (default: first page) |
 | `page` | Page number (0-indexed). `page=0` = first page |
+| `fulfillment` | `false` (default) uses the preview pipeline and renders "show on preview" placeholders but caps width at 1200px; `true` renders at the full requested width but strips those placeholders. Not officially documented on this endpoint. |
 
 Multi-choice variants/options expect the option code. Text variants expect the text string.
 
@@ -495,6 +496,15 @@ Requires admin access.
   settings rather than the preview pipeline.
 - The `fulfillment=true` page endpoint is currently **superadmin (omnipotent) only**;
   opening it to all admins is under consideration. Confirm current access before relying on it.
+- **`fulfillment` on the theme/project preview endpoint trades placeholders against
+  resolution.** With `fulfillment=false` (preview pipeline) elements set to "show on
+  preview" ARE rendered, but output is still capped at `width=1200`. With
+  `fulfillment=true` the request renders at the full requested width but "show on
+  preview" placeholder elements are **stripped**. There is currently no way to get
+  both full resolution and "show on preview" placeholders from this endpoint — they
+  are architecturally coupled. This parameter is not officially documented on the
+  preview endpoint; confirm with the platform team before building on it, and treat a
+  raised/removed 1200px cap as a feature request.
 
 ---
 
@@ -618,6 +628,27 @@ Callback payloads carry shipment status, tracking name, tracking code, tracking 
 
 ---
 
+## 13a. Networking: No Fixed Outbound IP
+
+Pixfizz runs on a pool of workers and does **not** have a fixed outbound IP address —
+traffic from Pixfizz (FTP pushes, outbound API calls, fulfillment posts) originates
+from whichever worker handles the job. Do not ask a partner or customer to
+IP-whitelist Pixfizz, and do not build an integration that depends on a stable Pixfizz
+source IP. Authenticate integrations by another method (basic auth, tokens, signed
+requests) instead of IP allow-listing.
+
+---
+
+## 13b. Order IDs on Reprints (Fulfillment JSON)
+
+When an order is reprinted, the reprint can carry the **same order ID** as the original
+in the fulfillment JSON/job ticket, which some downstream systems reject as a duplicate.
+To keep the emitted order ID unique across reprints, append a letter suffix per reprint
+(e.g. `A`, `B`, ...). Confirm the exact suffixing rule with the platform team when wiring
+a new fulfillment integration.
+
+---
+
 ## 14. Retrieval Pointer
 
 | Topic | File |
@@ -635,3 +666,4 @@ Callback payloads carry shipment status, tracking name, tracking code, tracking 
 - 2026-06-15: Documented login-capable vs external user creation (external_id / external_source param makes a user external; omit for login-capable accounts; merge to repair). Documented preview resolution cap (width 1200, lower quality) and the production-quality /v1/pages/<id>.jpg?fulfillment=true endpoint (superadmin-only). Source: slack-kb-sync (Matjaz, #development).
 - 2026-07-01: Added § 8a — Individual Orders (list/read/create/update via `/v1/orders` and `/v1/admin/orders`), including the PUT `order[status]=S` pattern to mark an order Shipped and the custom-field-only update path for regular users. Source: claude-chat.
 - 2026-07-04: Documented that `/copy` creates an unsaved project (set `book[saved]=1` on the new ID), and the cross-origin `PUT` CORS-preflight trap (use `POST` + `_method=put`). Source: claude-chat.
+- 2026-07-20: Documented the `fulfillment` param on the theme/project preview endpoint (placeholder-vs-resolution trade-off, not officially documented); added §13a no-fixed-outbound-IP networking note; added §13b reprint order-ID uniqueness (append a letter suffix). Source: support-ticket, fulfillment-integration call, #development.

@@ -187,6 +187,15 @@ Reusable techniques confirmed in production:
 - Save and Continue callback (JS). The Save and Continue button can be
   monkey-patched to chain an action after the original behavior, using an
   `exit_target` URL parameter to control where the user lands.
+- Placeholder icon position — avoid `transform` on `.px-element-icon`. Setting a
+  CSS `transform` on `.px-element-icon` breaks the position of the placeholder
+  (upload) icon inside image zones. To restyle that icon, use properties that do
+  not create an offset/stacking context (size, color, background) rather than
+  `transform`.
+- Layout category order. Layout categories in the designer sort **alphabetically
+  by default**. They can be re-ordered visually with the CSS `order` property on
+  the category container (same flex-`order` idiom as option reordering above); the
+  underlying order is not configurable in admin.
 
 ## Font Licensing: Editor Fonts Require Embedding License
 
@@ -231,3 +240,4 @@ A substitution type named **Image effects** applies a filter to image elements. 
 - 2026-06-30: Documented element substitution types added June 2026 — shape border width/color/radius and the Image effects (grayscale/sepia) substitution, including the required `placeholder` Name-field value. Source: notion-dashboard (2026-06-22), slack-message (#development).
 - 2026-07-04: Documented the `&aitools=true` URL flag that exposes the editor AI image tools. Source: slack-message (#development).
 - 2026-07-20: Corrected Image Sources to the full allowed value set and noted it controls icon order and defaults to device. Added Google Photos setup. Source: help-article + admin tooltip.
+- 2026-07-20: Added editor-CSS gotchas — `transform` on `.px-element-icon` breaks the placeholder icon position; layout categories sort alphabetically by default and can be reordered with CSS `order`. Source: slack-message (#development), loom-video.

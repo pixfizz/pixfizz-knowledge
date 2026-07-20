@@ -268,6 +268,8 @@ Reference: [https://help.pixfizz.com/triage/automatic-discounts](https://help.pi
 
 The promo code guard (`cart.promocode_code == blank`) prevents stacking a category discount with a manual promo code. Whether to include this guard depends on the business intent.
 
+> **Property-name trap:** the property is `cart.promocode_code`, not `cart.promocode`. `cart.promocode` (without `_code`) is not a valid Cart property and resolves to nil, which is falsy. A guard written as `{%- unless cart.promocode -%}` therefore never blocks, and the discount fires even when a promo code is applied. Always use `cart.promocode_code`.
+
 **Seasonal / time-based discount:**
 
 ```liquid
@@ -384,3 +386,4 @@ scoping any onboarding that involves hundreds of price variables.
 ## Changelog
 - 2026-05-19: Added Automatic Discounts section — Liquid-based cart discounts with tiered, user category, and seasonal patterns. Source: Claude chat (webinar prep).
 - 2026-07-03: Added Extra Fees (Liquid-Based Cart Fees) section — fee-side twin of Automatic Discounts (adds instead of subtracts), configured under Shipping → Extra Fees. Includes per-duplicate-orderline surcharge pattern (seen-string + contains idiom); orderline-iteration specifics pending live confirmation. Source: Claude chat.
+- 2026-07-20: Added property-name trap — `cart.promocode` (without `_code`) is nil and silently defeats promo-code guards; always use `cart.promocode_code`. Source: claude-chat.

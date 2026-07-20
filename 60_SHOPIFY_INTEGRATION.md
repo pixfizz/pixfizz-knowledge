@@ -360,6 +360,8 @@ After creating the webhook in Shopify (Settings → Notifications), copy the sig
 
 **Project ownership on order sync.** When a Shopify order is synced and the created Pixfizz project has no owner, Pixfizz assigns the project to the user account that placed the order. This means Shopify-originated projects are owned by the ordering customer by default rather than being left unowned. Added 2026-07-07.
 
+**All line item properties captured into orderline options.** Shopify order line item properties are now captured wholesale into the corresponding Pixfizz orderline's `options`, not only the Pixfizz-specific ones. Custom line properties set by the theme or by third-party apps flow through to the Pixfizz order and are available downstream (admin, fulfillment templates). For static-product routing to work, the line item property that carries the static-product code must **exactly match** the name the webhook expects (`_pixfizz_static_product`, see §9a) — a mismatched property name is the usual reason a static line item fails to route. Confirm the exact expected property string with the platform team if routing fails. Added 2026-07-20.
+
 ---
 
 ## 9a. Static Product Ingestion (Non-Personalized Shopify Products)
@@ -727,3 +729,4 @@ Shopify has two customer account systems. The integration approach differs:
 - 2026-06-30: Documented static-product ingestion limitation with options/bundle apps (bundle expansion stamps duplicate _pixfizz_static_product; webhook skips grouped shape) and the const-redeclaration JS gotcha in the injection snippet. Source: claude-chat (Shopify static product debugging).
 - 2026-07-04: Added §15 gallery auto-open (`openGallery` after `addGalleryCard` in create callback) and §10a Globo variant-limit fallback (core variants or Shopper frontend). Source: claude-chat, Fireflies.
 - 2026-07-11: Added §1 master-CMS staging-vs-production workflow note (only api.js/product kept in sync; do not copy from staging); §9 project-ownership auto-assignment on order sync (unowned project → ordering user); §6 editor `domready` message (wait before posting into the editor iframe); §10 plain-text-editor gotcha for product/variant ID mapping CSVs (Excel corrupts IDs). Source: slack-message (#development, commits 2026-07-05/07), fireflies-call (2026-07-10).
+- 2026-07-20: Noted all Shopify line item properties are now captured into Pixfizz orderline options, and that static-product routing depends on the exact expected property name. Source: #development (commit 2026-07-13), Weekly Tech call.

@@ -357,6 +357,24 @@ Related: child sites can only override checklist snippets that already exist on 
 
 ---
 
+## Shopper v2 Account — `date_format` Capture Missing `| strip`
+
+**Symptom:** In the Shopper v2 account area, dates on the Orders list and the Dashboard
+render in a different format from the Order Details page, even though all three read the
+same `date_format` value.
+
+**Cause:** `account/v2/orders` and `account/v2/dashboard` capture the `date_format`
+checklist value **without** a trailing `| strip`, while `account/v2/order-details` strips
+it. The unstripped capture carries whitespace, so the format string does not match and the
+date renders inconsistently.
+
+**Fix:** Add `| strip` to the `date_format` capture in `account/v2/orders` and
+`account/v2/dashboard` so all three v2 account snippets agree. This is the same
+capture-comparison rule that applies to all checklist snippet values: always `| strip`
+after `{% capture %}` before comparing or using the value.
+
+---
+
 ## Changelog
 - 2026-03-21: Initial content from platform documentation export.
 - 2026-04-23: Added CSS snippet logs diagnostic note, password reset Liquid deprecation pattern, fulfillment template DPI failure, URL reserved parameter 404 gotcha, Stripe pending-without-payment issue, FTP original files intermittent failure.
@@ -366,3 +384,4 @@ Related: child sites can only override checklist snippets that already exist on 
 - 2026-06-01: Corrected Editor Iframe CSS Isolation note; added iOS HEIC upload feedback gotcha. Source: claude-chat/fireflies-call.
 - 2026-06-26: Added kiosk iPad browser-autofill login-confusion gotcha (disable autofill on shared kiosk devices). Source: fireflies-call.
 - 2026-07-11: Added CMS tar import gotcha — `admin/checklist/*` flags are not reliably applied on import (observed: custom-home-page TRUE in tar but unset after import); verify checklist flags in the admin UI after any import. Source: claude-chat (Shopper CMS tar build).
+- 2026-07-20: Added Shopper v2 account `date_format` gotcha — `account/v2/orders` and `account/v2/dashboard` miss `| strip` on the date_format capture, causing a format mismatch with order-details. Source: claude-chat.

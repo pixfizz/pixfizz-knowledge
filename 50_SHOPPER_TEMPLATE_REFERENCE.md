@@ -368,6 +368,8 @@ Each checklist key is a snippet at `admin/checklist/<key-name>`. The snippet con
 | `kiosk-pay-in-store-only` | `TRUE` = restrict pay-in-store to kiosk only |
 | `kiosk-remove-captcha` | `TRUE` = remove CAPTCHA in kiosk mode |
 
+**Kiosk captcha is per-subdomain.** Kiosk mode usually runs on its own subdomain (`kiosk-mode-domain`). CAPTCHA configuration does not carry across from the main storefront to the kiosk subdomain — captcha must be removed/configured on the kiosk subdomain specifically (e.g. `kiosk-remove-captcha` set on the kiosk site). Symptom if missed: customers hit a CAPTCHA on the kiosk that the main storefront does not show.
+
 #### Product Display
 | Key | Values / Notes |
 |---|---|
@@ -877,3 +879,4 @@ clashing with the `s-` design-system classes.
 - 2026-05-19: Added `shopper-admin` layout to layouts table. Added Section 15 — Custom Admin manage/ page inventory including tools pages. Added Section 16 — Kiosk Touchscreen Mode architecture and status. Renumbered Known Gotchas to Section 17. Source: Claude chats (admin v2 work, kiosk mode design).
 - 2026-06-01: Added Shop All page feature note. Source: fireflies-call.
 - 2026-06-15: Added Static Product Importer CSV column spec under Tools pages. Added Google Ads conversion-tracking note (no built-in preset; deploy via GTM). Added Known Gotcha: logged-out app error on custom-admin pages (page body renders before the layout user.is_admin gate; Bootstrap modal CSS inactive in custom admin). Source: claude-chat.
+- 2026-07-20: Added kiosk captcha per-subdomain note — captcha config does not carry from the main storefront to the kiosk subdomain and must be set on the kiosk site. Source: support-ticket.
