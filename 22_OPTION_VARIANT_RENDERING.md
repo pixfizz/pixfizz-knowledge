@@ -182,6 +182,24 @@ Shopper renders a `<px-image-upload>` web component with:
 Shopper renders a `<px-file-upload>` component.
 - Default accept is `image/*,.pdf` unless overridden.
 - Can display existing uploaded file name / URL.
+- **Programmatic injection:** `px-file-upload` exposes a real
+  `input[type=file]`, so a script can inject a File via a `DataTransfer`
+  object (`input.files = dt.files; input.dispatchEvent(new Event('change'))`).
+  `px-image-upload` does **not** — it is built for interactive gallery/QR
+  selection, exposes only a hidden `input[type=hidden]` and an "Upload"
+  button, and creates its file input lazily inside the dialog. To attach a
+  script-generated file to an option, use `file_upload`, not `image_upload`.
+- **Read-only vs hidden:** for a script-injected upload the option must be
+  `hidden: true` (invisible to the customer) with `read_only: false`. A
+  `read_only: true` upload renders a hidden value input plus a read-back chip
+  with no file input to inject into.
+### 5.2b Targeting a specific upload by option code
+Every option is wrapped in `<px-option code="...">`. When a product has more
+than one upload option, scope any DOM query to the wrapper —
+`document.querySelector('px-option[code="X"] px-file-upload')` — rather than
+grabbing the first upload on the page. When a code is given and no match is
+found, return null rather than falling back to the first upload, or an
+injected file lands in the wrong option.
 
 ### 5.3 Multi-upload groups (`option.custom.multi_upload_group`)
 This is a key advanced behavior.
