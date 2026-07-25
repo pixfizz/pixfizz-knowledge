@@ -28,6 +28,14 @@ Every order moves through defined statuses:
 
 Exception statuses: **Payment Failed**, **Error**, **Canceled**, **Refunded**.
 
+### Pending orders do not auto-route to production
+
+An order sitting in **Pending** does not flow to production on its own. Nothing downstream fires — no artwork generation, no fulfillment delivery, no OrderHub job — until the order is moved to **Confirmed**.
+
+Where an order lands as Pending (manual payment methods, gateway not configured, payment awaiting capture), someone must **manually confirm it in admin** before production sees it. This is the most common cause of "the order is in Pixfizz but nothing reached the lab".
+
+Check the Pending queue as part of daily order review on any site that accepts manual or offline payment.
+
 ### Status codes in Liquid
 
 In Liquid templates, `order.status` returns a **single-letter code**, not the display label. Confirmed codes:
@@ -264,3 +272,4 @@ The `manual_payment` field is a custom field set at order creation. It returns `
 - 2026-05-21: Added Automatic Discounts (negative order line values, stack with promo codes, applied at checkout). Source: Fireflies.
 - 2026-05-21: Expanded OrderHub Desktop (OHD) section with DPOF generation, AI upscaling, multi-instance behaviour, and API endpoint. Added cross-reference to 45_ORDERHUB.md. Source: OrderHub help modal.
 - 2026-06-26: Documented order.status single-letter Liquid codes (P=Pending, F=Payment Failed) and the order_payment form for Pay Now / payment retry. Source: claude-chat.
+- 2026-07-25: Clarified that Pending orders do not automatically route to production and must be manually confirmed in admin before artwork generation, fulfillment delivery, or OrderHub job creation occurs. Source: fireflies-call.

@@ -48,5 +48,19 @@ This applies to all custom field object types: product, collection, design, user
 RATIONALE: Confirmed during a client hide_gallery implementation — field created on parent was not present on child.
 SOURCE: "Custom field to hide product gallery" chat, April 24
 
+## Site Assets — No Parent→Child Inheritance
+
+Site assets (files uploaded under **Main Admin > Website > Assets**: JS, CSS, images, fonts) behave the same way as custom fields. An asset uploaded to the parent template site is **not served to child sites**. Each site holds its own asset library.
+
+This matters most for JavaScript delivered as a site asset. A build uploaded to the parent and referenced from an inherited snippet will resolve to nothing on the child, and the failure is silent — the snippet renders, the script simply never loads.
+
+Two rules follow:
+
+- Upload the asset to **every site that needs it**, not just the parent.
+- Assets are aggressively browser-cached. When a JS asset is re-uploaded, expose a version marker on the script's public namespace (e.g. `MyTool.version`) so the deployed build can be confirmed from the browser console in one step, rather than guessing whether a change failed or is simply cached.
+
+Note the asymmetry with snippets: snippets **are** inherited parent→child (and child sites can only override existing parent snippets, never create new ones). Custom fields and assets are not inherited. Do not generalise from one to the other.
+
 ## Changelog
 - 2026-03-13: Added Shopify deployment path as a distinct boundary layer.
+- 2026-07-25: Added Site Assets — No Parent→Child Inheritance, including the silent-failure mode for JS assets and the version-marker practice for confirming a deployed build past browser cache. Source: claude-chat.

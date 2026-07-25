@@ -649,6 +649,86 @@ a new fulfillment integration.
 
 ---
 
+## 13c. Admin Content API — Custom Types, Assets, and Custom Fields
+
+> **Not publicly announced.** These endpoints work but are not in the published API documentation. Treat them as subject to change and confirm behaviour against the target site before building on them.
+
+Authentication is HTTP Basic with an admin account, as in § 2.
+
+**Path prefix inconsistency:** some of these endpoints sit under `/admin/...` and others under `/v1/admin/...`, as listed below. This is not a transcription error — the prefixes genuinely differ per endpoint. Do not assume a uniform prefix; test each one.
+
+### Custom types
+
+```
+GET  /admin/custom_types.json                                    # list all custom types
+GET  /admin/custom_types/<id>.json                               # single custom type
+GET  /admin/custom_types/<id>/custom_type_instances.json         # list instances
+POST /admin/custom_types/<id>/custom_type_instances.json         # create an instance
+```
+
+Create parameters, one per custom field on the type:
+
+```
+custom_type_instance[custom][<custom-field-name>]
+```
+
+The custom type `<id>` is numeric and site-specific. Fetch the list endpoint on the target site to find it rather than reusing an ID from another site.
+
+### Assets
+
+```
+POST /admin/assets.json     # multipart encoded
+GET  /admin/assets.json     # list all assets
+```
+
+Upload parameters:
+
+```
+asset[name]
+asset[description]
+asset[file]        # multipart-encoded file
+```
+
+The upload response returns the created asset IDs. Where a custom type instance needs to reference an image, upload the asset first, take the ID from the response, then create the instance referencing it.
+
+### Updating custom fields on existing objects
+
+Custom fields are written through the parent object's update endpoint, using the object's own parameter key. The key is not always the name you would expect from the admin UI — a Design is `theme`, a Collection is `theme_category`.
+
+**Product attributes**
+
+```
+PUT /v1/admin/products/<product-id>.json
+
+product[custom][custom_field_1]=value1
+product[custom][custom_field_2]=value2
+```
+
+**Designs**
+
+```
+PUT /v1/admin/themes/<design-id>.json
+
+theme[custom][custom_field_1]=value1
+theme[custom][custom_field_2]=value2
+```
+
+**Collections**
+
+```
+PUT /admin/theme_categories/<collection-id>.json
+
+theme_category[custom][custom_field_1]=value1
+theme_category[custom][custom_field_2]=value2
+```
+
+Two things follow from § 13's CORS note and from `13_TEMPLATE_BOUNDARIES.md`:
+
+- A cross-origin `PUT` triggers a CORS preflight. Use `POST` with `_method=put` from a browser context.
+- Custom fields are site-specific and are not inherited parent to child. The field must already exist on the site being written to, or the value is silently dropped.
+
+---
+
 ## 14. Retrieval Pointer
 
 | Topic | File |
@@ -667,3 +747,4 @@ a new fulfillment integration.
 - 2026-07-01: Added § 8a — Individual Orders (list/read/create/update via `/v1/orders` and `/v1/admin/orders`), including the PUT `order[status]=S` pattern to mark an order Shipped and the custom-field-only update path for regular users. Source: claude-chat.
 - 2026-07-04: Documented that `/copy` creates an unsaved project (set `book[saved]=1` on the new ID), and the cross-origin `PUT` CORS-preflight trap (use `POST` + `_method=put`). Source: claude-chat.
 - 2026-07-20: Documented the `fulfillment` param on the theme/project preview endpoint (placeholder-vs-resolution trade-off, not officially documented); added §13a no-fixed-outbound-IP networking note; added §13b reprint order-ID uniqueness (append a letter suffix). Source: support-ticket, fulfillment-integration call, #development.
+- 2026-07-25: Added § 13c Admin Content API — custom type list/read/instance-create, asset upload and list, and the custom-field update endpoints for products, designs (`theme`), and collections (`theme_category`). Marked not publicly announced; documented the genuine `/admin` vs `/v1/admin` prefix inconsistency. Source: internal notes (Matjaz).

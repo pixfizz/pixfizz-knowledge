@@ -9,10 +9,10 @@
 1. [Summary & Statistics](#summary--statistics)
 2. [Key Notes](#key-notes)
 3. [Object Type Reference](#object-type-reference)
-   - [Product (79 total)](#product-79-total)
+   - [Product (81 total)](#product-81-total)
    - [Collection (53 fields)](#collection-53-fields)
    - [Design (25 fields)](#design-25-fields)
-   - [Post (37 fields across groups)](#post-37-fields-across-groups)
+   - [Post (36 fields across groups)](#post-36-fields-across-groups)
    - [Option (13 fields)](#option-13-fields)
    - [Cart (11 fields)](#cart-11-fields)
    - [User (7 fields)](#user-7-fields)
@@ -21,7 +21,7 @@
    - [Subcollection (6 fields)](#subcollection-6-fields)
    - [Promotion (6 fields)](#promotion-6-fields)
    - [Custom_Page (5 fields)](#custom_page-5-fields)
-   - [Blog_Post Detail (9 fields)](#blog_post-detail-9-fields)
+   - [Blog_Post Detail (8 fields)](#blog_post-detail-8-fields)
    - [Service Detail (9 fields)](#service-detail-9-fields)
    - [Business Detail (2 fields)](#business-detail-2-fields)
    - [Value (3 fields)](#value-3-fields)
@@ -49,13 +49,13 @@ This reference documents **30 object access patterns** mapping to approximately 
 
 | Object Type | Field Count | Notes |
 |-------------|-------------|-------|
-| Product | 79 (65 in code + 14 export-only) | Largest object type |
+| Product | 81 (67 in code + 14 export-only) | Largest object type |
 | Collection | 53 | Second largest |
-| Post (all groups) | 37 | Shared across 7 post group types |
+| Post (all groups) | 36 | Shared across 7 post group types |
 | Design | 25 | Theme/design configuration |
 | Option | 13 | Product option handling |
 | Cart | 11 | Checkout form inputs |
-| Blog_Post | 9 | Detail fields |
+| Blog_Post | 8 | Detail fields |
 | Service | 9 | Detail fields |
 | User | 7 | Checkout form inputs |
 | Subcollection | 6 | Collection child object |
@@ -111,11 +111,11 @@ This reference documents **30 object access patterns** mapping to approximately 
 
 ## Object Type Reference
 
-### Product (80 total)
+### Product (81 total)
 
-**66 fields in code + 14 export-only fields**
+**67 fields in code + 14 export-only fields**
 
-#### Template-Referenced Product Fields (66)
+#### Template-Referenced Product Fields (67)
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -175,6 +175,7 @@ This reference documents **30 object access patterns** mapping to approximately 
 | skip_cart_redirect | boolean | Stay on product page after add-to-cart instead of redirect |
 | sold_out | boolean | Disable purchase buttons, mark as sold out |
 | special_promo | text | Promo message displayed below cart line item |
+| spreads_as_pages | boolean | TRUE doubles the number shown in the page-count selector (display only). The submitted `book[pages]` value, pricing, and fulfillment are unchanged. |
 | starting_at | number | Starting price for tiered pricing |
 | strikethrough | number | Original price displayed as strikethrough |
 | to_pricing | number | Maximum price for price range comparison |
@@ -303,7 +304,7 @@ Reserved for platform-level features, production routing, and future functionali
 
 ---
 
-### Post (37 fields across groups)
+### Post (36 fields across groups)
 
 Post is a single CMS object type with context-dependent field naming. Fields are organized by post group type.
 
@@ -313,7 +314,6 @@ Post is a single CMS object type with context-dependent field naming. Fields are
 |-------|------|-------------|
 | blog_date | text | Publication date |
 | blog_description | text | Excerpt for blog listing |
-| blog_meta_description | text | SEO meta description |
 | blog_path | text | URL slug for blog post |
 | blog_thumbnail | asset | Thumbnail image for blog listing |
 | blog_thumbnail_alt | text | Alt text for thumbnail image |
@@ -507,7 +507,7 @@ Post is a single CMS object type with context-dependent field naming. Fields are
 
 ---
 
-### Blog_Post Detail (9 fields)
+### Blog_Post Detail (8 fields)
 
 **Blog_Post accessed as a detail/item object (vs. the Post listing context).**
 
@@ -516,7 +516,6 @@ Post is a single CMS object type with context-dependent field naming. Fields are
 | author | text | Blog post author name |
 | blog_date | text | Publication date |
 | blog_description | text | Post excerpt |
-| blog_meta_description | text | SEO meta description |
 | blog_path | text | URL slug |
 | blog_thumbnail | asset | Feature image |
 | blog_thumbnail_alt | text | Image alt text |
@@ -804,3 +803,4 @@ per-SKU variation local to the product.
 - 2026-06-30: Added hide_from_search boolean (Product + Design) — excludes a product/design from the storefront search flyout. Deployed platform-wide on Shopper. Source: claude-chat, slack-message (#development).
 - 2026-07-04: Clarified hide_from_search scope — affects the storefront search flyout only; the product remains available in POS. Source: Fireflies (2026-07-01).
 - 2026-07-11: Added Address field hide_address (boolean) — suppresses address display in the customer-facing UI for pickup locations while keeping the backend address for order routing (Address count 3 → 4). Source: slack-message (#development, 2026-07-10).
+- 2026-07-25: Added Product field spreads_as_pages (boolean, display-only page-count doubling on the page selector). Removed blog_meta_description from both the Blog Posts group and Blog_Post Detail tables — the field does not exist; Shopper SEO Settings exposes blog_post.custom.description and blog_post.custom.blog_description instead. Normalised Product counts to 81 total / 67 template-referenced (summary stats row had drifted to 79/65), Post to 36, Blog_Post Detail to 8. Source: claude-chat, fireflies-call.

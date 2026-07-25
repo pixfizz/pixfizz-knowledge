@@ -204,6 +204,12 @@ Each film scan job has a **Twin Check Number** — a unique identifier used to m
 
 The module supports **S3 Auto-Sync**: when new scan files are deposited to a configured S3 path, they are automatically ingested into the Film Scans queue without manual upload.
 
+### Automated Print Job Creation from Rolls
+
+Film scan jobs can automatically generate matching print jobs. When a roll is processed, OrderHub creates print jobs whose quantities match the roll quantities on the order, and uploads the scanned artwork directly to the operator desktop for further processing. This removes the manual step of re-keying a develop-and-print order as a separate print job, and it links into the wider darkroom services workflow.
+
+Because the print jobs are generated from roll quantities rather than from the orderline quantity, verify the generated job count against the order before releasing to production on the first few jobs after enabling this.
+
 ---
 
 ## OrderHub Downloader (OHD)
@@ -258,6 +264,31 @@ Toggle between **Production** (live) and **Test** environments during setup and 
 ### Auto-Print
 
 Purchased shipping labels can be automatically printed via PrintNode. Configured per location in Location settings.
+
+---
+
+## POS Application Behaviour
+
+### Loading a new build
+
+The POS application does **not** pick up a new build by backgrounding and returning to it. To load the latest build, the operator must fully **close and reopen** the application.
+
+The current build version is displayed at the **bottom of the login screen** when logged out. Use this to confirm which build a till is actually running before troubleshooting anything version-dependent.
+
+### Screensaver
+
+A screensaver activates after **5 minutes** of inactivity. This is intentional — it prevents burn-in on always-on till displays. It is not a session timeout and does not log the operator out.
+
+### Receipt Printer Paper Size
+
+Receipt paper size is a **software configuration, not a hardware property**. Loading a different paper roll does not change how receipts are formatted.
+
+For the Epson TM-P20II the correct paper size is **58mm**, not the 80mm default assumed for larger countertop printers. The paper size must be set in two places:
+
+1. The **Epson utility** for the printer itself
+2. The **Mac print driver** for that printer
+
+If receipts print with wrong margins, truncated lines, or excessive whitespace, check both of these before investigating the receipt template.
 
 ---
 
@@ -400,3 +431,4 @@ Both the Email and SMS tabs include a **Send Test** button. Enter any email or p
 - 2026-06-15: Added pickup-location opening hours and Google Maps link fields (surfaced in the store pickup UI at checkout). Source: slack-kb-sync (Wolf Camera call).
 - 2026-06-30: Documented OrderHub Desktop variant-value routing — Desktop maps on readable finish/variant value + size, not lab/printer-specific numeric codes; prefer readable finish codes. Source: slack-message (#development).
 - 2026-07-04: Added Order Status Sync (OrderHub → Core, shipped requires API user enabled); channel-ID copy gotcha in OHD variant updates; email-consolidation limitation (separate emails cannot be merged); PrintNode invoice auto-print troubleshooting. Source: Fireflies, slack-message (#development).
+- 2026-07-25: Added POS Application Behaviour section (close/reopen required to load a new build; build version shown at bottom of logged-out login screen; 5-minute screensaver is burn-in prevention, not a session timeout; receipt paper size is software config — Epson TM-P20II is 58mm, set in both the Epson utility and the Mac driver). Added automated print job creation from film roll quantities with artwork upload to operator desktop. Source: fireflies-call (3x repeat signal).

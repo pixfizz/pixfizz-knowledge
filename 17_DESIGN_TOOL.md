@@ -20,6 +20,18 @@ Each Pixfizz environment can have one or more Design Tool Configurations. A conf
 
 Configured in admin under: **Settings > Design Tool**.
 
+### Multiple configurations per site
+
+A site can hold several configurations side by side. A configuration is assigned to a **Template** or to a **Design** — it is not attached to a product, a collection, or a category. Whichever object the customer enters the editor through determines the configuration that loads.
+
+Running several configurations is the intended pattern where different product types need genuinely different editors (a card versus a photo book versus a wall-art product). Assign each Template or Design to the configuration that suits it rather than trying to serve everything from one configuration by toggling features on and off.
+
+### Per-configuration help modals
+
+The in-editor help modal content is a snippet, and a different snippet can be assigned per configuration through the Trip JS tutorial configuration. This means each configuration can carry its own tutorial and instructions without duplicating the editor.
+
+Trip JS tutorial blocks carry separate desktop and mobile sections. When adapting desktop content for mobile, use fluid dimensions (`width: 100%`, `max-height: 60vh`, `overflow-y: auto`, `box-sizing: border-box`) rather than fixed pixel width/height. Desktop copy wraps to far more lines at phone width, so a fixed height clips the lower paragraphs and a fixed width sits inset inside the Trip modal leaving white gaps.
+
 ---
 
 ## Configuration Settings
@@ -68,6 +80,18 @@ Configured in admin under: **Settings > Design Tool**.
 - Cut Print Autorotate
 
 **AI image tools (URL flag):** the AI image-manipulation tools in the editor are gated behind a URL parameter. Append `&aitools=true` to the design-tool URL (`?aitools=true` if there are no other query params) to expose them. Platform-level; works wherever the editor loads. Source: #development (2026-07-01).
+
+**AI restyle presets (launch set).** Seven styles ship in the Restyle section:
+
+- Watercolor
+- Pencil Sketch
+- Oil Painting
+- Cartoon
+- Pop Art
+- 3D Character
+- Anime
+
+Vintage Film was drafted during development and is **not** in the launch set. Generation is billed per image to the lab, not to Pixfizz, so usage carries a daily limit with a site default and per-user overrides.
 
 ### Typography & Color Defaults
 - Default Font, Font Palette, Font Size
@@ -232,6 +256,30 @@ A substitution type named **Image effects** applies a filter to image elements. 
 
 - Configuration gotcha: set the substitution's **Name** field to `placeholder`. An earlier build where this was misconfigured threw an application error in the design tool (Canvas and More views) that broke the whole design. The `placeholder` Name value is the correct, confirmed configuration.
 
+### Known issue: colour substitutions import as black
+
+When a template with designs is exported and imported into another site, colour element substitutions arrive as **black** rather than the assigned colour. All other substitution data comes across.
+
+Check and reset every colour substitution manually on the destination site after any template export/import. Do not assume the values carried over because the substitution records themselves are present.
+
+### Known issue: element substitutions on the photo prints interface
+
+Element substitutions do not apply correctly on the newer bulk photo prints interface.
+
+A related symptom is white borders on prints that should be borderless (or the reverse). The cause is the **layout switch resetting the crop** — moving between a bordered and borderless layout re-runs the crop and discards the previous state.
+
+Workaround until this is fixed: organise print products into two separate categories, **with borders** and **without borders**, so the customer never switches layout mid-flow.
+
+---
+
+## Page Border Radius — Bleed and Margin Guides
+
+There is no native page border-radius setting in the editor. Where a designer applies rounded corners to a page, the **bleed and margin guide lines remain square** — they are drawn against the rectangular page bounds, not the visible rounded shape.
+
+This is a display limitation of the guides, not a production problem: the actual bleed and margin values are unaffected.
+
+Workaround for a genuinely rounded page appearance: use **page masks** rather than attempting a border radius.
+
 ## Changelog
 - 2026-03-30: Created from master platform documentation export.
 - 2026-04-23: Added font licensing rule for editor embedding (digital/print embedding license required, not web font license).
@@ -241,3 +289,4 @@ A substitution type named **Image effects** applies a filter to image elements. 
 - 2026-07-04: Documented the `&aitools=true` URL flag that exposes the editor AI image tools. Source: slack-message (#development).
 - 2026-07-20: Corrected Image Sources to the full allowed value set and noted it controls icon order and defaults to device. Added Google Photos setup. Source: help-article + admin tooltip.
 - 2026-07-20: Added editor-CSS gotchas — `transform` on `.px-element-icon` breaks the placeholder icon position; layout categories sort alphabetically by default and can be reordered with CSS `order`. Source: slack-message (#development), loom-video.
+- 2026-07-25: Clarified that a design tool configuration is assigned to a Template or a Design (not to a product or category) and that several configurations can run on one site. Added the confirmed seven-style AI restyle launch set (Vintage Film excluded) with per-lab billing and daily limits. Added per-configuration help modal snippets via Trip JS (including mobile fluid-dimension rule for Trip blocks). Added two known issues — colour element substitutions import as black after template export/import, and element substitutions failing on the bulk photo prints interface with white-border symptoms caused by the layout switch resetting the crop (workaround: split print products into with-borders / without-borders categories). Added page border-radius limitation: bleed and margin guides stay square, use page masks. Source: slack-message (#development), fireflies-call, loom-video, claude-chat.
