@@ -1177,8 +1177,22 @@ This applies to all custom field object types: product, collection, design, user
 RATIONALE: Confirmed during a client hide_gallery implementation — field created on parent was not present on child.
 SOURCE: "Custom field to hide product gallery" chat, April 24
 
+## Site Assets — No Parent→Child Inheritance
+
+Site assets (files uploaded under **Main Admin > Website > Assets**: JS, CSS, images, fonts) behave the same way as custom fields. An asset uploaded to the parent template site is **not served to child sites**. Each site holds its own asset library.
+
+This matters most for JavaScript delivered as a site asset. A build uploaded to the parent and referenced from an inherited snippet will resolve to nothing on the child, and the failure is silent — the snippet renders, the script simply never loads.
+
+Two rules follow:
+
+- Upload the asset to **every site that needs it**, not just the parent.
+- Assets are aggressively browser-cached. When a JS asset is re-uploaded, expose a version marker on the script's public namespace (e.g. `MyTool.version`) so the deployed build can be confirmed from the browser console in one step, rather than guessing whether a change failed or is simply cached.
+
+Note the asymmetry with snippets: snippets **are** inherited parent→child (and child sites can only override existing parent snippets, never create new ones). Custom fields and assets are not inherited. Do not generalise from one to the other.
+
 ## Changelog
 - 2026-03-13: Added Shopify deployment path as a distinct boundary layer.
+- 2026-07-25: Added Site Assets — No Parent→Child Inheritance, including the silent-failure mode for JS assets and the version-marker practice for confirming a deployed build past browser cache. Source: claude-chat.
 
 
 =================================================================
@@ -1508,6 +1522,18 @@ Each Pixfizz environment can have one or more Design Tool Configurations. A conf
 
 Configured in admin under: **Settings > Design Tool**.
 
+### Multiple configurations per site
+
+A site can hold several configurations side by side. A configuration is assigned to a **Template** or to a **Design** — it is not attached to a product, a collection, or a category. Whichever object the customer enters the editor through determines the configuration that loads.
+
+Running several configurations is the intended pattern where different product types need genuinely different editors (a card versus a photo book versus a wall-art product). Assign each Template or Design to the configuration that suits it rather than trying to serve everything from one configuration by toggling features on and off.
+
+### Per-configuration help modals
+
+The in-editor help modal content is a snippet, and a different snippet can be assigned per configuration through the Trip JS tutorial configuration. This means each configuration can carry its own tutorial and instructions without duplicating the editor.
+
+Trip JS tutorial blocks carry separate desktop and mobile sections. When adapting desktop content for mobile, use fluid dimensions (`width: 100%`, `max-height: 60vh`, `overflow-y: auto`, `box-sizing: border-box`) rather than fixed pixel width/height. Desktop copy wraps to far more lines at phone width, so a fixed height clips the lower paragraphs and a fixed width sits inset inside the Trip modal leaving white gaps.
+
 ---
 
 ## Configuration Settings
@@ -1556,6 +1582,18 @@ Configured in admin under: **Settings > Design Tool**.
 - Cut Print Autorotate
 
 **AI image tools (URL flag):** the AI image-manipulation tools in the editor are gated behind a URL parameter. Append `&aitools=true` to the design-tool URL (`?aitools=true` if there are no other query params) to expose them. Platform-level; works wherever the editor loads. Source: #development (2026-07-01).
+
+**AI restyle presets (launch set).** Seven styles ship in the Restyle section:
+
+- Watercolor
+- Pencil Sketch
+- Oil Painting
+- Cartoon
+- Pop Art
+- 3D Character
+- Anime
+
+Vintage Film was drafted during development and is **not** in the launch set. Generation is billed per image to the lab, not to Pixfizz, so usage carries a daily limit with a site default and per-user overrides.
 
 ### Typography & Color Defaults
 - Default Font, Font Palette, Font Size
@@ -1720,6 +1758,30 @@ A substitution type named **Image effects** applies a filter to image elements. 
 
 - Configuration gotcha: set the substitution's **Name** field to `placeholder`. An earlier build where this was misconfigured threw an application error in the design tool (Canvas and More views) that broke the whole design. The `placeholder` Name value is the correct, confirmed configuration.
 
+### Known issue: colour substitutions import as black
+
+When a template with designs is exported and imported into another site, colour element substitutions arrive as **black** rather than the assigned colour. All other substitution data comes across.
+
+Check and reset every colour substitution manually on the destination site after any template export/import. Do not assume the values carried over because the substitution records themselves are present.
+
+### Known issue: element substitutions on the photo prints interface
+
+Element substitutions do not apply correctly on the newer bulk photo prints interface.
+
+A related symptom is white borders on prints that should be borderless (or the reverse). The cause is the **layout switch resetting the crop** — moving between a bordered and borderless layout re-runs the crop and discards the previous state.
+
+Workaround until this is fixed: organise print products into two separate categories, **with borders** and **without borders**, so the customer never switches layout mid-flow.
+
+---
+
+## Page Border Radius — Bleed and Margin Guides
+
+There is no native page border-radius setting in the editor. Where a designer applies rounded corners to a page, the **bleed and margin guide lines remain square** — they are drawn against the rectangular page bounds, not the visible rounded shape.
+
+This is a display limitation of the guides, not a production problem: the actual bleed and margin values are unaffected.
+
+Workaround for a genuinely rounded page appearance: use **page masks** rather than attempting a border radius.
+
 ## Changelog
 - 2026-03-30: Created from master platform documentation export.
 - 2026-04-23: Added font licensing rule for editor embedding (digital/print embedding license required, not web font license).
@@ -1729,6 +1791,7 @@ A substitution type named **Image effects** applies a filter to image elements. 
 - 2026-07-04: Documented the `&aitools=true` URL flag that exposes the editor AI image tools. Source: slack-message (#development).
 - 2026-07-20: Corrected Image Sources to the full allowed value set and noted it controls icon order and defaults to device. Added Google Photos setup. Source: help-article + admin tooltip.
 - 2026-07-20: Added editor-CSS gotchas — `transform` on `.px-element-icon` breaks the placeholder icon position; layout categories sort alphabetically by default and can be reordered with CSS `order`. Source: slack-message (#development), loom-video.
+- 2026-07-25: Clarified that a design tool configuration is assigned to a Template or a Design (not to a product or category) and that several configurations can run on one site. Added the confirmed seven-style AI restyle launch set (Vintage Film excluded) with per-lab billing and daily limits. Added per-configuration help modal snippets via Trip JS (including mobile fluid-dimension rule for Trip blocks). Added two known issues — colour element substitutions import as black after template export/import, and element substitutions failing on the bulk photo prints interface with white-border symptoms caused by the layout switch resetting the crop (workaround: split print products into with-borders / without-borders categories). Added page border-radius limitation: bleed and margin guides stay square, use page masks. Source: slack-message (#development), fireflies-call, loom-video, claude-chat.
 
 
 =================================================================
@@ -4437,6 +4500,14 @@ Every order moves through defined statuses:
 
 Exception statuses: **Payment Failed**, **Error**, **Canceled**, **Refunded**.
 
+### Pending orders do not auto-route to production
+
+An order sitting in **Pending** does not flow to production on its own. Nothing downstream fires — no artwork generation, no fulfillment delivery, no OrderHub job — until the order is moved to **Confirmed**.
+
+Where an order lands as Pending (manual payment methods, gateway not configured, payment awaiting capture), someone must **manually confirm it in admin** before production sees it. This is the most common cause of "the order is in Pixfizz but nothing reached the lab".
+
+Check the Pending queue as part of daily order review on any site that accepts manual or offline payment.
+
 ### Status codes in Liquid
 
 In Liquid templates, `order.status` returns a **single-letter code**, not the display label. Confirmed codes:
@@ -4673,6 +4744,7 @@ The `manual_payment` field is a custom field set at order creation. It returns `
 - 2026-05-21: Added Automatic Discounts (negative order line values, stack with promo codes, applied at checkout). Source: Fireflies.
 - 2026-05-21: Expanded OrderHub Desktop (OHD) section with DPOF generation, AI upscaling, multi-instance behaviour, and API endpoint. Added cross-reference to 45_ORDERHUB.md. Source: OrderHub help modal.
 - 2026-06-26: Documented order.status single-letter Liquid codes (P=Pending, F=Payment Failed) and the order_payment form for Pay Now / payment retry. Source: claude-chat.
+- 2026-07-25: Clarified that Pending orders do not automatically route to production and must be manually confirmed in admin before artwork generation, fulfillment delivery, or OrderHub job creation occurs. Source: fireflies-call.
 
 
 =================================================================
@@ -5285,6 +5357,7 @@ Two failure modes come up when a Bootstrap 4.6 modal is created or shown from a 
 
 - **jQuery is not available at script-load time.** The `style onload` attribute fires very early in page parsing, before the theme's jQuery has loaded. Any `jQuery(...)` / `$(...)` reference evaluated at load time fails silently. Only reference jQuery *inside* a user-interaction handler (click/change), which runs long after load — never at the top level of the IIFE.
 - **`position: fixed` breaks under a transformed ancestor.** A modal inside a container that has a CSS `transform` (common in sidebars/option panels) renders inline/contained rather than as a full-screen overlay, because a transformed ancestor becomes the containing block for `position: fixed`. Fix: on first show, move the modal element to `document.body` (e.g. `document.body.appendChild(modalEl)`) so it escapes the transformed ancestor. Also wire close buttons with explicit delegated click handlers rather than relying on Bootstrap's `data-dismiss` auto-wiring, which may be absent in a trimmed Bootstrap build. Source: claude-chat (test-print charge modal).
+- **`filter` on `<body>` breaks `position: fixed` and appending to body does not fix it.** `transform` is not the only property that creates a containing block for fixed positioning — `filter`, `backdrop-filter`, `perspective`, `contain`, and `will-change` do the same. A site whose `<body>` carries even a no-op `filter: blur(0px)` will contain every fixed element on the page, so the standard `document.body.appendChild(modalEl)` fix has nothing to escape to. Diagnose by checking computed style on `<body>` and every ancestor for these properties, not just `transform`. Where the offending rule cannot be removed (it is often part of a theme's page-transition effect), the fallback is a JavaScript viewport anchor that repositions the overlay against `window.scrollY` on scroll and resize. Source: claude-chat (custom designer modal).
 
 ### Variant: `sessionStorage` for tab-session persistence
 
@@ -5544,6 +5617,7 @@ This is robust regardless of which items are skipped. It applies to any Liquid J
 - 2026-06-01: Added data-method/Rails UJS stopPropagation pattern. Source: claude-chat.
 - 2026-06-30: Added conditional-skip comma handling pattern for JSON loops (first_row flag) — forloop.last breaks when items are skipped mid-loop. Source: claude-chat (search index work).
 - 2026-07-04: Added Bootstrap-modal gotchas for `style onload` IIFEs (jQuery not available at load time; append modal to `document.body` to escape transformed-ancestor `position: fixed` containment). Source: claude-chat.
+- 2026-07-25: Extended the fixed-positioning gotcha — `filter` (including a no-op `filter: blur(0px)`), `backdrop-filter`, `perspective`, `contain`, and `will-change` also create a containing block, and when the property sits on `<body>` the append-to-body fix does not work. Source: claude-chat.
 
 
 =================================================================
@@ -5756,6 +5830,12 @@ Each film scan job has a **Twin Check Number** — a unique identifier used to m
 
 The module supports **S3 Auto-Sync**: when new scan files are deposited to a configured S3 path, they are automatically ingested into the Film Scans queue without manual upload.
 
+### Automated Print Job Creation from Rolls
+
+Film scan jobs can automatically generate matching print jobs. When a roll is processed, OrderHub creates print jobs whose quantities match the roll quantities on the order, and uploads the scanned artwork directly to the operator desktop for further processing. This removes the manual step of re-keying a develop-and-print order as a separate print job, and it links into the wider darkroom services workflow.
+
+Because the print jobs are generated from roll quantities rather than from the orderline quantity, verify the generated job count against the order before releasing to production on the first few jobs after enabling this.
+
 ---
 
 ## OrderHub Downloader (OHD)
@@ -5810,6 +5890,31 @@ Toggle between **Production** (live) and **Test** environments during setup and 
 ### Auto-Print
 
 Purchased shipping labels can be automatically printed via PrintNode. Configured per location in Location settings.
+
+---
+
+## POS Application Behaviour
+
+### Loading a new build
+
+The POS application does **not** pick up a new build by backgrounding and returning to it. To load the latest build, the operator must fully **close and reopen** the application.
+
+The current build version is displayed at the **bottom of the login screen** when logged out. Use this to confirm which build a till is actually running before troubleshooting anything version-dependent.
+
+### Screensaver
+
+A screensaver activates after **5 minutes** of inactivity. This is intentional — it prevents burn-in on always-on till displays. It is not a session timeout and does not log the operator out.
+
+### Receipt Printer Paper Size
+
+Receipt paper size is a **software configuration, not a hardware property**. Loading a different paper roll does not change how receipts are formatted.
+
+For the Epson TM-P20II the correct paper size is **58mm**, not the 80mm default assumed for larger countertop printers. The paper size must be set in two places:
+
+1. The **Epson utility** for the printer itself
+2. The **Mac print driver** for that printer
+
+If receipts print with wrong margins, truncated lines, or excessive whitespace, check both of these before investigating the receipt template.
 
 ---
 
@@ -5952,6 +6057,7 @@ Both the Email and SMS tabs include a **Send Test** button. Enter any email or p
 - 2026-06-15: Added pickup-location opening hours and Google Maps link fields (surfaced in the store pickup UI at checkout). Source: slack-kb-sync (Wolf Camera call).
 - 2026-06-30: Documented OrderHub Desktop variant-value routing — Desktop maps on readable finish/variant value + size, not lab/printer-specific numeric codes; prefer readable finish codes. Source: slack-message (#development).
 - 2026-07-04: Added Order Status Sync (OrderHub → Core, shipped requires API user enabled); channel-ID copy gotcha in OHD variant updates; email-consolidation limitation (separate emails cannot be merged); PrintNode invoice auto-print troubleshooting. Source: Fireflies, slack-message (#development).
+- 2026-07-25: Added POS Application Behaviour section (close/reopen required to load a new build; build version shown at bottom of logged-out login screen; 5-minute screensaver is burn-in prevention, not a session timeout; receipt paper size is software config — Epson TM-P20II is 58mm, set in both the Epson utility and the Mac driver). Added automated print job creation from film roll quantities with artwork upload to operator desktop. Source: fireflies-call (3x repeat signal).
 
 
 =================================================================
@@ -8236,10 +8342,10 @@ FILE: 51_CUSTOM_FIELDS_REFERENCE.md
 1. [Summary & Statistics](#summary--statistics)
 2. [Key Notes](#key-notes)
 3. [Object Type Reference](#object-type-reference)
-   - [Product (79 total)](#product-79-total)
+   - [Product (81 total)](#product-81-total)
    - [Collection (53 fields)](#collection-53-fields)
    - [Design (25 fields)](#design-25-fields)
-   - [Post (37 fields across groups)](#post-37-fields-across-groups)
+   - [Post (36 fields across groups)](#post-36-fields-across-groups)
    - [Option (13 fields)](#option-13-fields)
    - [Cart (11 fields)](#cart-11-fields)
    - [User (7 fields)](#user-7-fields)
@@ -8248,7 +8354,7 @@ FILE: 51_CUSTOM_FIELDS_REFERENCE.md
    - [Subcollection (6 fields)](#subcollection-6-fields)
    - [Promotion (6 fields)](#promotion-6-fields)
    - [Custom_Page (5 fields)](#custom_page-5-fields)
-   - [Blog_Post Detail (9 fields)](#blog_post-detail-9-fields)
+   - [Blog_Post Detail (8 fields)](#blog_post-detail-8-fields)
    - [Service Detail (9 fields)](#service-detail-9-fields)
    - [Business Detail (2 fields)](#business-detail-2-fields)
    - [Value (3 fields)](#value-3-fields)
@@ -8276,13 +8382,13 @@ This reference documents **30 object access patterns** mapping to approximately 
 
 | Object Type | Field Count | Notes |
 |-------------|-------------|-------|
-| Product | 79 (65 in code + 14 export-only) | Largest object type |
+| Product | 81 (67 in code + 14 export-only) | Largest object type |
 | Collection | 53 | Second largest |
-| Post (all groups) | 37 | Shared across 7 post group types |
+| Post (all groups) | 36 | Shared across 7 post group types |
 | Design | 25 | Theme/design configuration |
 | Option | 13 | Product option handling |
 | Cart | 11 | Checkout form inputs |
-| Blog_Post | 9 | Detail fields |
+| Blog_Post | 8 | Detail fields |
 | Service | 9 | Detail fields |
 | User | 7 | Checkout form inputs |
 | Subcollection | 6 | Collection child object |
@@ -8338,11 +8444,11 @@ This reference documents **30 object access patterns** mapping to approximately 
 
 ## Object Type Reference
 
-### Product (80 total)
+### Product (81 total)
 
-**66 fields in code + 14 export-only fields**
+**67 fields in code + 14 export-only fields**
 
-#### Template-Referenced Product Fields (66)
+#### Template-Referenced Product Fields (67)
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -8402,6 +8508,7 @@ This reference documents **30 object access patterns** mapping to approximately 
 | skip_cart_redirect | boolean | Stay on product page after add-to-cart instead of redirect |
 | sold_out | boolean | Disable purchase buttons, mark as sold out |
 | special_promo | text | Promo message displayed below cart line item |
+| spreads_as_pages | boolean | TRUE doubles the number shown in the page-count selector (display only). The submitted `book[pages]` value, pricing, and fulfillment are unchanged. |
 | starting_at | number | Starting price for tiered pricing |
 | strikethrough | number | Original price displayed as strikethrough |
 | to_pricing | number | Maximum price for price range comparison |
@@ -8530,7 +8637,7 @@ Reserved for platform-level features, production routing, and future functionali
 
 ---
 
-### Post (37 fields across groups)
+### Post (36 fields across groups)
 
 Post is a single CMS object type with context-dependent field naming. Fields are organized by post group type.
 
@@ -8540,7 +8647,6 @@ Post is a single CMS object type with context-dependent field naming. Fields are
 |-------|------|-------------|
 | blog_date | text | Publication date |
 | blog_description | text | Excerpt for blog listing |
-| blog_meta_description | text | SEO meta description |
 | blog_path | text | URL slug for blog post |
 | blog_thumbnail | asset | Thumbnail image for blog listing |
 | blog_thumbnail_alt | text | Alt text for thumbnail image |
@@ -8734,7 +8840,7 @@ Post is a single CMS object type with context-dependent field naming. Fields are
 
 ---
 
-### Blog_Post Detail (9 fields)
+### Blog_Post Detail (8 fields)
 
 **Blog_Post accessed as a detail/item object (vs. the Post listing context).**
 
@@ -8743,7 +8849,6 @@ Post is a single CMS object type with context-dependent field naming. Fields are
 | author | text | Blog post author name |
 | blog_date | text | Publication date |
 | blog_description | text | Post excerpt |
-| blog_meta_description | text | SEO meta description |
 | blog_path | text | URL slug |
 | blog_thumbnail | asset | Feature image |
 | blog_thumbnail_alt | text | Image alt text |
@@ -9031,6 +9136,7 @@ per-SKU variation local to the product.
 - 2026-06-30: Added hide_from_search boolean (Product + Design) — excludes a product/design from the storefront search flyout. Deployed platform-wide on Shopper. Source: claude-chat, slack-message (#development).
 - 2026-07-04: Clarified hide_from_search scope — affects the storefront search flyout only; the product remains available in POS. Source: Fireflies (2026-07-01).
 - 2026-07-11: Added Address field hide_address (boolean) — suppresses address display in the customer-facing UI for pickup locations while keeping the backend address for order routing (Address count 3 → 4). Source: slack-message (#development, 2026-07-10).
+- 2026-07-25: Added Product field spreads_as_pages (boolean, display-only page-count doubling on the page selector). Removed blog_meta_description from both the Blog Posts group and Blog_Post Detail tables — the field does not exist; Shopper SEO Settings exposes blog_post.custom.description and blog_post.custom.blog_description instead. Normalised Product counts to 81 total / 67 template-referenced (summary stats row had drifted to 79/65), Post to 36, Blog_Post Detail to 8. Source: claude-chat, fireflies-call.
 
 
 =================================================================
@@ -11092,6 +11198,86 @@ a new fulfillment integration.
 
 ---
 
+## 13c. Admin Content API — Custom Types, Assets, and Custom Fields
+
+> **Not publicly announced.** These endpoints work but are not in the published API documentation. Treat them as subject to change and confirm behaviour against the target site before building on them.
+
+Authentication is HTTP Basic with an admin account, as in § 2.
+
+**Path prefix inconsistency:** some of these endpoints sit under `/admin/...` and others under `/v1/admin/...`, as listed below. This is not a transcription error — the prefixes genuinely differ per endpoint. Do not assume a uniform prefix; test each one.
+
+### Custom types
+
+```
+GET  /admin/custom_types.json                                    # list all custom types
+GET  /admin/custom_types/<id>.json                               # single custom type
+GET  /admin/custom_types/<id>/custom_type_instances.json         # list instances
+POST /admin/custom_types/<id>/custom_type_instances.json         # create an instance
+```
+
+Create parameters, one per custom field on the type:
+
+```
+custom_type_instance[custom][<custom-field-name>]
+```
+
+The custom type `<id>` is numeric and site-specific. Fetch the list endpoint on the target site to find it rather than reusing an ID from another site.
+
+### Assets
+
+```
+POST /admin/assets.json     # multipart encoded
+GET  /admin/assets.json     # list all assets
+```
+
+Upload parameters:
+
+```
+asset[name]
+asset[description]
+asset[file]        # multipart-encoded file
+```
+
+The upload response returns the created asset IDs. Where a custom type instance needs to reference an image, upload the asset first, take the ID from the response, then create the instance referencing it.
+
+### Updating custom fields on existing objects
+
+Custom fields are written through the parent object's update endpoint, using the object's own parameter key. The key is not always the name you would expect from the admin UI — a Design is `theme`, a Collection is `theme_category`.
+
+**Product attributes**
+
+```
+PUT /v1/admin/products/<product-id>.json
+
+product[custom][custom_field_1]=value1
+product[custom][custom_field_2]=value2
+```
+
+**Designs**
+
+```
+PUT /v1/admin/themes/<design-id>.json
+
+theme[custom][custom_field_1]=value1
+theme[custom][custom_field_2]=value2
+```
+
+**Collections**
+
+```
+PUT /admin/theme_categories/<collection-id>.json
+
+theme_category[custom][custom_field_1]=value1
+theme_category[custom][custom_field_2]=value2
+```
+
+Two things follow from § 13's CORS note and from `13_TEMPLATE_BOUNDARIES.md`:
+
+- A cross-origin `PUT` triggers a CORS preflight. Use `POST` with `_method=put` from a browser context.
+- Custom fields are site-specific and are not inherited parent to child. The field must already exist on the site being written to, or the value is silently dropped.
+
+---
+
 ## 14. Retrieval Pointer
 
 | Topic | File |
@@ -11110,6 +11296,7 @@ a new fulfillment integration.
 - 2026-07-01: Added § 8a — Individual Orders (list/read/create/update via `/v1/orders` and `/v1/admin/orders`), including the PUT `order[status]=S` pattern to mark an order Shipped and the custom-field-only update path for regular users. Source: claude-chat.
 - 2026-07-04: Documented that `/copy` creates an unsaved project (set `book[saved]=1` on the new ID), and the cross-origin `PUT` CORS-preflight trap (use `POST` + `_method=put`). Source: claude-chat.
 - 2026-07-20: Documented the `fulfillment` param on the theme/project preview endpoint (placeholder-vs-resolution trade-off, not officially documented); added §13a no-fixed-outbound-IP networking note; added §13b reprint order-ID uniqueness (append a letter suffix). Source: support-ticket, fulfillment-integration call, #development.
+- 2026-07-25: Added § 13c Admin Content API — custom type list/read/instance-create, asset upload and list, and the custom-field update endpoints for products, designs (`theme`), and collections (`theme_category`). Marked not publicly announced; documented the genuine `/admin` vs `/v1/admin` prefix inconsistency. Source: internal notes (Matjaz).
 
 
 =================================================================
@@ -14040,6 +14227,7 @@ This is the platform-truth section. Map each signal to what the platform and tem
 ### Crawlable
 - `[PLATFORM]` Built-in crawler at **Admin → Website Crawls** (`/admin/website_crawls`) generates `sitemap.xml` and `product-feed.json`. The `/site/sitemap` path does not exist; do not assume it. The crawler can be set to run automatically every 24 hours; once existing crawl errors are cleared, leaving it on a daily schedule keeps SEO health maintained without manual re-runs.
 - `[SHOPPER]` `no-index` checklist key set to `TRUE` adds a site-wide noindex. Confirm it is OFF on a live store.
+- `[SHOPPER]` **Key-name mismatch in the v2 manage admin.** The manage SEO page writes the hide-from-search toggle to `admin/checklist/launch-no-index`, but `html.head` reads `admin/checklist/no-index`. The toggle therefore appears to work in admin and silently does nothing on the storefront, so a pre-launch site can be indexed while the operator believes it is hidden. Until the template is corrected, verify the noindex is actually present in the rendered page source rather than trusting the admin toggle, or set `admin/checklist/no-index` directly. Source: claude-chat (shopper24 admin audit).
 - `[SHOPPER]` **Staging / pre-launch pages can get indexed by Google.** If a site was live on a staging URL before launch, those staging pages may already be in Google's index and compete with production. Fix by redirecting the old staging URLs to their production equivalents. The Shopper redirect config file is a JSON **array of `[regex, destination]` pairs** (each entry is a two-element array: a path-matching regex and the destination URL); anchor patterns as `^/site/<path>/?$` to tolerate a trailing slash. See `80_ONBOARDING.md` § SEO Migration for where this file lives and how it is applied.
 - For sitemap submission to Google Search Console and 301 redirect configuration during migration, see `80_ONBOARDING.md` § SEO Migration.
 
@@ -14179,6 +14367,7 @@ This meets Google's required fields for a merchant listing (`name`, `image`, and
 - 2026-06-18: Added verified 2026 stats (68% zero-click early 2026 per Adsroid; Cloudflare 57.5% bot-majority traffic, June 3 2026), with sourcing and caveats. Added glossary entries for WebMCP (real, emerging, Chrome origin trial) and OKF (real but internal-knowledge format, explicitly not an AI-visibility tactic — corrects an earlier framing). Added platform measurement tools: GSC Search Generative AI performance reports and AI controls toggle (June 2026), and Bing Webmaster Tools AI Performance/citation report (Feb 2026). Added WebMCP-in-Shopper to build opportunities. Source: claude-chat (web-verified).
 - 2026-07-11: Part D — noted the built-in crawler can run on a 24-hour schedule to maintain SEO health; added staging/pre-launch indexing gotcha with the Shopper redirect-config format (JSON array of `[regex, destination]` pairs, anchored `^/site/<path>/?$`); added the primary-domain-vs-`shop.`-subdomain consolidation recommendation under Trust and local. Source: fireflies-call (2026-07-07, 2026-07-10), claude-chat (redirect JSON build).
 - 2026-06-18: Added Part F (Product Schema: High-Fidelity Attributes), researched against Google Search Central's product / merchant-listing / product-snippet structured-data docs. Documents the current Shopper baseline, Google's required-vs-recommended set, prioritized Shopper upgrade tiers (Tier 1 ratings + return/shipping + attributes; Tier 2 variants, unit pricing, `additionalProperty`; Tier 3 Organization/Brand/`sameAs`, FAQPage), Pixfizz cautions (server-side rendering, match-visible-content, GTIN validity, `from_pricing`, loyalty/`validForMemberTier`), and two correctness flags on the current snippet (`priceValidUntil` inside a `{% dynamic %}` block; `http` vs `https` context). Added the standalone Schema Builder authoring tool. Updated the Quick capability summary, Pending Confirmation, and Build Opportunities to match. Source: claude-chat (web-verified against developers.google.com).
+- 2026-07-25: Documented the v2 manage-admin noindex key mismatch (writes `launch-no-index`, `html.head` reads `no-index`) — the hide-from-search toggle silently does nothing. Source: claude-chat.
 
 
 =================================================================
