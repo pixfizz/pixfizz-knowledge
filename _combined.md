@@ -5393,6 +5393,41 @@ Two failure modes come up when a Bootstrap 4.6 modal is created or shown from a 
 `sessionStorage` is cleared when the tab is closed but persists across page navigations within that tab.
 
 ------------------------------------------------------------------------
+# Liquid Parses Before CSS/HTML Comments
+
+A Liquid-rendered snippet is parsed as Liquid **before** the host language's
+comments mean anything. A `{% ... %}` tag inside a CSS `/* */` block, an HTML
+`<!-- -->` comment, or a JS comment is still parsed and can still throw
+(`Invalid snippet tag syntax`) or execute. Two consequences for any snippet
+delivered as CSS or JS via `{% snippet %}`:
+- Never write Liquid tag syntax inside a comment, even as documentation. A
+  banner comment reading `{% snippet 'x' %}` errors the whole file.
+- A snippet must never `{% snippet %}`-include itself.
+A CSS snippet should contain exactly one Liquid tag — the `asset_url` for its
+font/asset — and nothing else. Worth a pre-handover check.
+
+------------------------------------------------------------------------
+
+# Canvas and Form Patterns (customer-facing tools)
+
+- **Render at devicePixelRatio.** A canvas sized only in CSS pixels is
+  upscaled by the browser on retina displays and looks soft. Set
+  `canvas.width = cssW * dpr` and `ctx.setTransform(dpr,0,0,dpr,0,0)`;
+  resizing a canvas resets its transform, so reapply each frame.
+- **`form.requestSubmit()` vs `form.submit()`.** To add to cart from a custom
+  UI, prefer clicking the page's real Add-to-Cart control. As a fallback,
+  `form.requestSubmit()` fires the form's own handlers and native validation;
+  `form.submit()` bypasses both. Find the product form via
+  `uploadHost.closest('form')` — `input.form` is null when the input sits in a
+  shadow root.
+- **Cart preview of a generated image.** The default cart option loop skips
+  `option.template_option.type == 'image_upload'` (and `text`, `font`,
+  `hide_from_cart`, `edit_from_cart`). A generated preview must therefore be
+  attached as `file_upload`, and displaying it in the cart depends on whether
+  an uploaded file's asset resolves to a URL in orderline Liquid — confirm
+  before relying on it.
+
+------------------------------------------------------------------------  
 
 # Defensive Snippet Architecture
 
