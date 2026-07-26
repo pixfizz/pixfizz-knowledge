@@ -34,7 +34,7 @@ Start with **02_RETRIEVAL_MAP.md** — it routes common questions to the correct
 | 50-51 | Shopper template reference, Liquid reference, custom fields |
 | 60-62 | Shopify integration, Pixfizz API, Buy Now Personalize Later |
 | 70-72 | MyPixfizz overview, features, and data model |
-| 80-83 | Onboarding, SEO/GEO, mobile UX |
+| 80-83 | Onboarding, SEO/GEO, mobile UX, AI imagery production |
 | 90 | FAQ |
 
 ### Using with an AI assistant
