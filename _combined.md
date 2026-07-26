@@ -848,6 +848,12 @@ If a site is using the **Shopify deployment path**, Shopper files are non-author
 ### "Infrastructure / Rails version / Ruby version / Prawn / PDF library?"
 → **15_PLATFORM_ARCHITECTURE.md** § Infrastructure Versions
 
+### "AI generated images / AI video / Higgsfield / marketing imagery / lifestyle shots / can I use AI product photos?"
+→ **83_AI_IMAGERY_PRODUCTION.md**
+
+### "Can AI generate my product images? / AI product photography / is AI imagery allowed on product pages?"
+→ **83_AI_IMAGERY_PRODUCTION.md** § Part A (answer is no for the product itself)
+
 ### "Customer training / AI setup / webinar schedule / support channels?"
 → **80_ONBOARDING.md** § Customer Training and Support Resources
 
@@ -874,6 +880,7 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 - 2026-04-29: Added retrieval entries for Mapped Preview behavior (17_DESIGN_TOOL.md § Mapped Preview Behavior), Page Masks (17_DESIGN_TOOL.md § Page Masks), Design Option same-code conflict (16_PRODUCT_HIERARCHY.md § Variants vs Options), Caption translation limitations (19_XML_TEMPLATE_REFERENCE.md § Caption Translation Limitations), production file regeneration and font preprocessing (40_PLAYBOOK.md).
 - 2026-05-21: Added 45_ORDERHUB.md — comprehensive OrderHub reference (Jobs, Production Board, Processes, Locations, PDF Layout Studio, PrintNode, Film Scans, OHD, EasyPost, POS, category assignment, Email/SMS/RCS notifications). Added retrieval entries for all OrderHub topics. Source: OrderHub help modal articles.
 - 2026-05-21: Added routing entries for automatic discounts, static product importer, inventory tracking, login modal, myPixfizz hub, gift vouchers, infrastructure versions, customer training, communication preferences. Source: Q1 2026 webinar KB sync.
+- 2026-07-26: Added 83_AI_IMAGERY_PRODUCTION.md — AI marketing imagery and video production with Higgsfield. Added routing entries for AI imagery and the product-representation rule.
 
 
 =================================================================
