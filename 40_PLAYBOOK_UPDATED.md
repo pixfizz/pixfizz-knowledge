@@ -375,6 +375,50 @@ after `{% capture %}` before comparing or using the value.
 
 ---
 
+## Collection Filter Drilldown — Blank PDP After Changing a Filter
+
+**Symptom:** on a filtered product detail page, changing one filter (for example
+Width) leaves the page showing only the collection shell — description,
+production time, feature list — with no product title, price, gallery or
+add-to-cart. One of the other filters usually disappears from the sidebar at the
+same time.
+
+**Cause:** the filters are configured as flat, independent lists with no
+dependency logic between them. When the parent filter changes, the stale value
+of the dependent filter survives in the URL. If no product exists at that
+intersection the drilldown bails out, the product is never assigned, and the
+page renders the shell only.
+
+The same failure occurs with **no stale parameter at all** when the dependent
+filter's configured default is invalid for the newly selected parent value. The
+renderer falls back to that default, hits another empty intersection, and bails
+identically. This form is usually latent from day one and only surfaces when a
+second batch of products introduces sizes the original default does not cover.
+
+**Cause in the template:** both `product/product-details-filter` and
+`product/details-filter-dual-mode` used a two-tier selection guard — URL
+parameter if valid, otherwise the configured default — with no final fallback.
+When both tiers fail the selected option is nil and the drilldown breaks.
+
+**Fix:** make the guard a three-tier cascade.
+
+1.  URL parameter, if valid for the current selection
+2.  Configured default, if valid for the current selection
+3.  Otherwise the first entry of the currently available options
+
+Tier 3 guarantees a valid selection for every reachable combination, so the page
+always resolves to a real product.
+
+**Diagnosis:** build the full product matrix from a collection export before
+touching the template. The reported path is rarely the only broken one — a
+single invalid default typically produces several empty intersections at once.
+
+**Blast radius:** `product/product-details-filter` is the parent snippet used by
+many child sites. Prove the fix as a site-level override first, then promote it
+to the parent.
+
+------------------------------------------------------------------------
+
 ## Changelog
 - 2026-03-21: Initial content from platform documentation export.
 - 2026-04-23: Added CSS snippet logs diagnostic note, password reset Liquid deprecation pattern, fulfillment template DPI failure, URL reserved parameter 404 gotcha, Stripe pending-without-payment issue, FTP original files intermittent failure.
@@ -385,3 +429,4 @@ after `{% capture %}` before comparing or using the value.
 - 2026-06-26: Added kiosk iPad browser-autofill login-confusion gotcha (disable autofill on shared kiosk devices). Source: fireflies-call.
 - 2026-07-11: Added CMS tar import gotcha — `admin/checklist/*` flags are not reliably applied on import (observed: custom-home-page TRUE in tar but unset after import); verify checklist flags in the admin UI after any import. Source: claude-chat (Shopper CMS tar build).
 - 2026-07-20: Added Shopper v2 account `date_format` gotcha — `account/v2/orders` and `account/v2/dashboard` miss `| strip` on the date_format capture, causing a format mismatch with order-details. Source: claude-chat.
+- 2026-07-28: Added Collection Filter Drilldown blank-PDP entry — stale or invalid dependent filter values break the drilldown; fix is a three-tier selection cascade in `product/product-details-filter` and `product/details-filter-dual-mode`. Source: claude-chat.

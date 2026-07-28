@@ -374,6 +374,32 @@ MutationObserver. The URL parameter is cleaned via
 
 ------------------------------------------------------------------------
 
+# Custom Tool Dependency Loading
+
+A custom design tool delivered as a site asset (its own bundled build, plus any
+vendored libraries such as a ZIP writer) needs `<script>` tags on the page. The
+obvious host is `integrations/custom-body-scripts`, and it is the wrong one.
+
+`integrations/custom-body-scripts` is a snippet child sites routinely override to
+carry their own analytics and third-party tags. An include added to the parent
+copy is therefore invisible on every child that has an override, and the failure
+is silent — the product page renders, the tool never initialises, no error.
+
+**Pattern:** have the tool's own product snippet load its dependencies.
+
+-   The product snippet (e.g. `product/my-tool`) is the only file guaranteed to
+    be present wherever the tool is actually used.
+-   Guard the load so repeated renders do not double-inject: test for the global
+    the library exposes, and only create a `<script>` element if it is absent.
+-   Chain initialisation off the injected script's `onload`, not off document
+    ready — the dependency resolves after the page has already loaded.
+
+Deployment on a new site then reduces to two steps: upload the assets, add the
+product snippet. No shared-include edit, and no parent-level change that has to
+survive every child override.
+
+------------------------------------------------------------------------
+
 # Custom Type Collection: Sort + Filter Pattern
 
 When you need to both **sort** and **filter** Custom Type instances (e.g. date-based filtering, unpublished flags), the Liquid `sort` filter cannot be applied to the push-built filtered array — it silently fails on plain arrays with nested dot-notation keys.
@@ -507,3 +533,4 @@ This is robust regardless of which items are skipped. It applies to any Liquid J
 - 2026-06-30: Added conditional-skip comma handling pattern for JSON loops (first_row flag) — forloop.last breaks when items are skipped mid-loop. Source: claude-chat (search index work).
 - 2026-07-04: Added Bootstrap-modal gotchas for `style onload` IIFEs (jQuery not available at load time; append modal to `document.body` to escape transformed-ancestor `position: fixed` containment). Source: claude-chat.
 - 2026-07-25: Extended the fixed-positioning gotcha — `filter` (including a no-op `filter: blur(0px)`), `backdrop-filter`, `perspective`, `contain`, and `will-change` also create a containing block, and when the property sits on `<body>` the append-to-body fix does not work. Source: claude-chat.
+- 2026-07-28: Added Custom Tool Dependency Loading — load tool dependencies from the tool's own product snippet, never from `integrations/custom-body-scripts`, which child sites override. Source: claude-chat.

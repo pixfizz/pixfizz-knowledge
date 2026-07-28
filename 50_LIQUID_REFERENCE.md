@@ -134,6 +134,14 @@ Represents a chosen value of a variant or template option on a specific `Orderli
 | `chosen_option.uploaded_image` | `Image` object if `image_upload` type, else `nil` |
 | `chosen_option.uploaded_file` | `UploadedFile` object if `file_upload` type, else `nil` |
 
+**Reading a `file_upload` option's asset.** Use `chosen_option.uploaded_file.url`
+and `chosen_option.uploaded_file.filename`. The obvious alternatives do not work:
+`chosen_option.value` returns the raw internal reference (`db:NNN`),
+`chosen_option.asset.url` and `chosen_option.thumbnail_url` are not defined on a
+chosen option, and the `preview_url` filter applies to projects, not uploads.
+This matters most when rendering a cart thumbnail for a file attached by a
+custom design tool.
+
 ---
 
 ## ChosenOptions
@@ -731,6 +739,14 @@ Represents a file uploaded to a Pixfizz "File Upload" variant or template option
 | `uploaded_file.url` | File URL |
 | `uploaded_file.created_at` | Creation datetime. Use `date` filter. |
 
+**Resized delivery.** A Pixfizz-hosted file URL accepts a `thumbnail/{n}` path
+segment, where `n` is the rendered size in pixels — `.../thumbnail/250/...`. It
+is a **path** parameter, not a query parameter; `?height=N` has no effect. Use it
+anywhere a full-size customer upload is displayed at thumbnail scale (cart lines,
+gallery strips, review modals). On customer artwork the saving is typically an
+order of magnitude. Shopify gallery previews use the same segment — see
+**60_SHOPIFY_INTEGRATION.md**.
+
 ---
 
 ## User
@@ -1093,6 +1109,28 @@ These three forms are easy to confuse. Choose by what you want to keep:
 - `cart_unset` — detaches the current cart from the session without deleting anything. A fresh cart is started on the next add-to-cart, and the old one is still listed in `user.carts`. Use for "save this cart for later / start a new one".
 - `cart_delete` — permanently destroys a cart. Deletion runs asynchronously, so it may still appear in `user.carts` briefly after submission. On a "My carts" page, delete a specific saved cart by passing it in: `{% form 'cart_delete', cart: cart %}`.
 
+**Writing cart custom fields**
+
+`cart_update` is the form type that writes to `cart.custom`. Name the input
+`cart[custom][<field_name>]`:
+
+```liquid
+{% form 'cart_update', async: true, autosubmit: true %}
+	<input type="hidden" name="cart[custom][order_source]" value="{{ source }}">
+{% endform %}
+```
+
+Three conditions apply:
+
+- The field must already exist as a custom field on that site. Custom fields do
+  not inherit parent to child.
+- Where the value comes from a helper snippet capture, always `| strip` before
+  comparing. Helper snippets render with a trailing newline; an unstripped
+  comparison never matches, which turns a guarded auto-submit into a submit loop.
+- Guard on cart state before firing. A hidden auto-submitting `cart_update`
+  against an empty cart is wasted work at best; gate on
+  `cart.orderlines.size > 0` and on the stored value being absent or stale.
+
 **Projects**
 
 | Form Type | Required Params | Description |
@@ -1371,3 +1409,4 @@ example markup.
 - 2026-06-01: Noted Shopify IDs live in chosen_variants. Source: claude-chat.
 - 2026-06-15: Added json_parse filter to Pixfizz-extended filters. Added assign_to_user / assign_to_cart optional params to the address_create form. Source: notion-dashboard.
 - 2026-07-07: Documented cart_clear, cart_unset and cart_delete forms in the Cart forms table, plus a clear/unset/delete comparison note. Source: notion-page, slack-message.
+- 2026-07-28: Added file_upload accessor note on ChosenOption (`uploaded_file.url` / `.filename`; `value`, `asset.url`, `thumbnail_url` and the `preview_url` filter do not work), the `thumbnail/{n}` path segment on UploadedFile, and the `cart[custom][field]` write pattern for `cart_update`. Source: claude-chat.

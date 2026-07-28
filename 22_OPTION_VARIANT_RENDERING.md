@@ -201,6 +201,22 @@ grabbing the first upload on the page. When a code is given and no match is
 found, return null rather than falling back to the first upload, or an
 injected file lands in the wrong option.
 
+### 5.2c Input names differ between the product page and project-edit
+The same variant or option is submitted under a different input name depending
+on which page the shopper is on:
+
+- **Product page:** `variants[<code>]`
+- **Project-edit:** `book[options][<code>]`
+
+Any script that reads or writes an option value must therefore **suffix-match**
+the input name (`name.endsWith('[' + code + ']')`) rather than matching the full
+string. An exact match on `variants[<code>]` works on the product page and
+silently finds nothing on project-edit. The user-visible symptom is a saved
+project opening with its settings reset when the customer edits it.
+
+Hidden inputs count. A read-back routine that only inspects checked radios and
+selects will miss values that project-edit renders as `input[type=hidden]`.
+
 ### 5.3 Multi-upload groups (`option.custom.multi_upload_group`)
 This is a key advanced behavior.
 
@@ -263,3 +279,4 @@ That’s the set that needs to be “muscle memory” when debugging option rend
 
 ## Changelog
 - 2026-06-19: Added section 4.8 `toggle` selector (2-value animated CSS-only switch on `product/px-options`), including the `toggle_hide_labels` bare-switch option, guard/fallback behavior, and primary-colour sourcing. Added cart-context note (7) that toggle is product-page only. Added `toggle` and `toggle_hide_labels` to the recognize-and-document list (8).
+- 2026-07-28: Added 5.2c — option input names differ between the product page (`variants[code]`) and project-edit (`book[options][code]`); scripts must suffix-match and must handle hidden inputs. Source: claude-chat.

@@ -48,19 +48,34 @@ This applies to all custom field object types: product, collection, design, user
 RATIONALE: Confirmed during a client hide_gallery implementation — field created on parent was not present on child.
 SOURCE: "Custom field to hide product gallery" chat, April 24
 
-## Site Assets — No Parent→Child Inheritance
+## Site Assets — Inherited Parent→Child
 
-Site assets (files uploaded under **Main Admin > Website > Assets**: JS, CSS, images, fonts) behave the same way as custom fields. An asset uploaded to the parent template site is **not served to child sites**. Each site holds its own asset library.
+Site assets (files uploaded under **Main Admin > Website > Assets**: JS, CSS, images, fonts) **are** inherited parent→child, the same way snippets are. An asset uploaded to the parent template site resolves on every child site without being re-uploaded.
 
-This matters most for JavaScript delivered as a site asset. A build uploaded to the parent and referenced from an inherited snippet will resolve to nothing on the child, and the failure is silent — the snippet renders, the script simply never loads.
+This corrects the entry previously held in this section, which stated the opposite. It was confirmed on a new child-site deployment of a custom design tool: the asset resolved correctly and the real fault was elsewhere.
+
+**The failure mode is the include, not the asset.** A script asset is normally referenced from `integrations/custom-body-scripts`. That snippet is routinely overridden on child sites to carry their own analytics and third-party tags, so a `<script>` include added to the parent copy is invisible on any child that has an override. The symptom is identical to a missing asset — the page renders, the script never loads, no error.
 
 Two rules follow:
 
-- Upload the asset to **every site that needs it**, not just the parent.
+- Where a tool depends on a script asset, have the tool's own product snippet load its dependencies rather than relying on a shared include snippet that child sites override. See **41_IMPLEMENTATION_PATTERNS_UPDATED.md § Custom Tool Dependency Loading**.
 - Assets are aggressively browser-cached. When a JS asset is re-uploaded, expose a version marker on the script's public namespace (e.g. `MyTool.version`) so the deployed build can be confirmed from the browser console in one step, rather than guessing whether a change failed or is simply cached.
 
-Note the asymmetry with snippets: snippets **are** inherited parent→child (and child sites can only override existing parent snippets, never create new ones). Custom fields and assets are not inherited. Do not generalise from one to the other.
+Note the asymmetry with custom fields: snippets and assets **are** inherited parent→child; custom fields are **not**. Do not generalise from one to the other.
+
+## Parent-First Rule — What It Does Not Cover
+
+Child sites can only override snippets that already exist on the parent; they cannot create net-new snippets. See **01_CODE_GOVERNANCE**.
+
+That constraint applies to **snippets only**. It does not apply to:
+
+- **Product template options and variants** — these are product data, created directly on whichever site owns the product. There is no parent equivalent to create first.
+- **Custom fields** — created per site (see above).
+- **Site assets** — uploaded on the parent and inherited.
+
+Treating template options and variants as parent-first produces unnecessary edits on `shopper24.pixfizz.com`, which carry blast radius across every child site for no benefit.
 
 ## Changelog
 - 2026-03-13: Added Shopify deployment path as a distinct boundary layer.
 - 2026-07-25: Added Site Assets — No Parent→Child Inheritance, including the silent-failure mode for JS assets and the version-marker practice for confirming a deployed build past browser cache. Source: claude-chat.
+- 2026-07-28: Corrected Site Assets section — assets ARE inherited parent to child; the silent failure previously attributed to asset inheritance is a child override of `integrations/custom-body-scripts`. Added Parent-First Rule scope note (snippets only, not template options or variants). Source: claude-chat.

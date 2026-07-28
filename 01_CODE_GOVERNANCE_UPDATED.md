@@ -185,6 +185,28 @@ tar tf output.tar | head -5
 
 ------------------------------------------------------------------------
 
+## Master Shopper Delivery Rule (MANDATORY)
+
+The CMS importer does a full wipe-and-replace. On the master Shopper parent
+(`shopper24.pixfizz.com`) that is unacceptable risk — every child site inherits
+from it, so one bad or stale tar takes all of them down at once.
+
+-   **Never deliver a tar for the master Shopper.** Not as a convenience, and
+    not as an option offered alongside paste blocks.
+-   Deliver parent changes as **paste-ready blocks**, one per target file.
+-   Tars remain acceptable for child sites and new site builds.
+
+**Indentation exception.** The hard-tabs convention below applies to new code.
+When editing an existing file on the master Shopper, match that file's own
+indentation — many legacy pages use spaces. A block that reindents surrounding
+lines produces a noisy diff and invites a bad paste.
+
+The same caution applies to any tar produced in an earlier session: never modify
+and re-issue an old backup. Always request the current backup before making
+changes.
+
+------------------------------------------------------------------------
+
 ## Liquid String Quoting Rule (MANDATORY)
 
 Pixfizz Liquid does **not support backslash escaping** inside strings.
@@ -224,3 +246,4 @@ blank, silently failing with no error.
 - 2026-03-21: Added Code Change Output Rule — scale output format to edit size.
 - 2026-04-05: Added CMS Backup Tar Packaging Rule and Liquid String Quoting Rule.
 - 2026-04-09: Added Checklist Snippet Creation Rule — parent template must originate all snippets before child sites can override them.
+- 2026-07-28: Added Master Shopper Delivery Rule — never deliver a tar for the parent template site; parent changes ship as paste-ready blocks matching each target file's existing indentation. Source: claude-chat.

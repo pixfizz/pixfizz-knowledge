@@ -101,6 +101,12 @@ This reference documents **30 object access patterns** mapping to approximately 
 
 - **Checkout Form Input**: Cart and User custom fields are **set via HTML form inputs** during the checkout process, not via CMS admin interface. These fields store shopper-provided data.
 
+- **Field type can differ by object for the same field name**: the product tab fields `details`, `features` and `production` are **snippet-type at the Product level** and **html-type at the Collection level**. HTML pasted into the product-level field will not render as markup. Tab content authored as HTML belongs on the Collection, not on the individual product export.
+
+- **New products start with blank custom field values**: field *definitions* exist on the site, but values default to blank (and boolean fields to false) on every newly created product. An export showing empty custom fields is expected behaviour, not a failed export.
+
+- **`manage/custom-fields` is the in-CMS field authority**: the CMS carries a maintained reference page listing every custom field with its object type, field type and description, including fields that are missing from import tars. Where a field's type or purpose is ambiguous, that page outranks any export file.
+
 - **Export-Only Fields**: Product has 14 fields defined in the CMS export but **not referenced in any template**. These are reserved for platform-level features including:
   - Gift Finder (budget_tier, gift_occasion, gift_type)
   - Lab production routing (lab_printer, lab_size, oversize)
@@ -804,3 +810,4 @@ per-SKU variation local to the product.
 - 2026-07-04: Clarified hide_from_search scope — affects the storefront search flyout only; the product remains available in POS. Source: Fireflies (2026-07-01).
 - 2026-07-11: Added Address field hide_address (boolean) — suppresses address display in the customer-facing UI for pickup locations while keeping the backend address for order routing (Address count 3 → 4). Source: slack-message (#development, 2026-07-10).
 - 2026-07-25: Added Product field spreads_as_pages (boolean, display-only page-count doubling on the page selector). Removed blog_meta_description from both the Blog Posts group and Blog_Post Detail tables — the field does not exist; Shopper SEO Settings exposes blog_post.custom.description and blog_post.custom.blog_description instead. Normalised Product counts to 81 total / 67 template-referenced (summary stats row had drifted to 79/65), Post to 36, Blog_Post Detail to 8. Source: claude-chat, fireflies-call.
+- 2026-07-28: Added Key Notes entries — product tab fields (`details`, `features`, `production`) are snippet-type at Product level and html-type at Collection level; new products start with blank custom field values by design; `manage/custom-fields` is the in-CMS authority for field types and descriptions. Source: claude-chat.
