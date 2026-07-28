@@ -425,6 +425,28 @@ tar tf output.tar | head -5
 
 ------------------------------------------------------------------------
 
+## Master Shopper Delivery Rule (MANDATORY)
+
+The CMS importer does a full wipe-and-replace. On the master Shopper parent
+(`shopper24.pixfizz.com`) that is unacceptable risk — every child site inherits
+from it, so one bad or stale tar takes all of them down at once.
+
+-   **Never deliver a tar for the master Shopper.** Not as a convenience, and
+    not as an option offered alongside paste blocks.
+-   Deliver parent changes as **paste-ready blocks**, one per target file.
+-   Tars remain acceptable for child sites and new site builds.
+
+**Indentation exception.** The hard-tabs convention below applies to new code.
+When editing an existing file on the master Shopper, match that file's own
+indentation — many legacy pages use spaces. A block that reindents surrounding
+lines produces a noisy diff and invites a bad paste.
+
+The same caution applies to any tar produced in an earlier session: never modify
+and re-issue an old backup. Always request the current backup before making
+changes.
+
+------------------------------------------------------------------------
+
 ## Liquid String Quoting Rule (MANDATORY)
 
 Pixfizz Liquid does **not support backslash escaping** inside strings.
@@ -464,6 +486,7 @@ blank, silently failing with no error.
 - 2026-03-21: Added Code Change Output Rule — scale output format to edit size.
 - 2026-04-05: Added CMS Backup Tar Packaging Rule and Liquid String Quoting Rule.
 - 2026-04-09: Added Checklist Snippet Creation Rule — parent template must originate all snippets before child sites can override them.
+- 2026-07-28: Added Master Shopper Delivery Rule — never deliver a tar for the parent template site; parent changes ship as paste-ready blocks matching each target file's existing indentation. Source: claude-chat.
 
 
 =================================================================
@@ -1184,22 +1207,37 @@ This applies to all custom field object types: product, collection, design, user
 RATIONALE: Confirmed during a client hide_gallery implementation — field created on parent was not present on child.
 SOURCE: "Custom field to hide product gallery" chat, April 24
 
-## Site Assets — No Parent→Child Inheritance
+## Site Assets — Inherited Parent→Child
 
-Site assets (files uploaded under **Main Admin > Website > Assets**: JS, CSS, images, fonts) behave the same way as custom fields. An asset uploaded to the parent template site is **not served to child sites**. Each site holds its own asset library.
+Site assets (files uploaded under **Main Admin > Website > Assets**: JS, CSS, images, fonts) **are** inherited parent→child, the same way snippets are. An asset uploaded to the parent template site resolves on every child site without being re-uploaded.
 
-This matters most for JavaScript delivered as a site asset. A build uploaded to the parent and referenced from an inherited snippet will resolve to nothing on the child, and the failure is silent — the snippet renders, the script simply never loads.
+This corrects the entry previously held in this section, which stated the opposite. It was confirmed on a new child-site deployment of a custom design tool: the asset resolved correctly and the real fault was elsewhere.
+
+**The failure mode is the include, not the asset.** A script asset is normally referenced from `integrations/custom-body-scripts`. That snippet is routinely overridden on child sites to carry their own analytics and third-party tags, so a `<script>` include added to the parent copy is invisible on any child that has an override. The symptom is identical to a missing asset — the page renders, the script never loads, no error.
 
 Two rules follow:
 
-- Upload the asset to **every site that needs it**, not just the parent.
+- Where a tool depends on a script asset, have the tool's own product snippet load its dependencies rather than relying on a shared include snippet that child sites override. See **41_IMPLEMENTATION_PATTERNS_UPDATED.md § Custom Tool Dependency Loading**.
 - Assets are aggressively browser-cached. When a JS asset is re-uploaded, expose a version marker on the script's public namespace (e.g. `MyTool.version`) so the deployed build can be confirmed from the browser console in one step, rather than guessing whether a change failed or is simply cached.
 
-Note the asymmetry with snippets: snippets **are** inherited parent→child (and child sites can only override existing parent snippets, never create new ones). Custom fields and assets are not inherited. Do not generalise from one to the other.
+Note the asymmetry with custom fields: snippets and assets **are** inherited parent→child; custom fields are **not**. Do not generalise from one to the other.
+
+## Parent-First Rule — What It Does Not Cover
+
+Child sites can only override snippets that already exist on the parent; they cannot create net-new snippets. See **01_CODE_GOVERNANCE**.
+
+That constraint applies to **snippets only**. It does not apply to:
+
+- **Product template options and variants** — these are product data, created directly on whichever site owns the product. There is no parent equivalent to create first.
+- **Custom fields** — created per site (see above).
+- **Site assets** — uploaded on the parent and inherited.
+
+Treating template options and variants as parent-first produces unnecessary edits on `shopper24.pixfizz.com`, which carry blast radius across every child site for no benefit.
 
 ## Changelog
 - 2026-03-13: Added Shopify deployment path as a distinct boundary layer.
 - 2026-07-25: Added Site Assets — No Parent→Child Inheritance, including the silent-failure mode for JS assets and the version-marker practice for confirming a deployed build past browser cache. Source: claude-chat.
+- 2026-07-28: Corrected Site Assets section — assets ARE inherited parent to child; the silent failure previously attributed to asset inheritance is a child override of `integrations/custom-body-scripts`. Added Parent-First Rule scope note (snippets only, not template options or variants). Source: claude-chat.
 
 
 =================================================================
@@ -2478,6 +2516,17 @@ _Last updated: 2026-02-26_
 - Options visible unless image/file upload type.
 - Editable in cart only if site-wide cart setting allows; otherwise change via project-edit/editor/photo prints UI.
 
+## Hiding options and variants from the cart line
+
+A boolean custom field `hide_from_cart` exists on both **variants** and **template options**. Where it is set, `product/px-option-cart` skips that entry when rendering the cart line. Use it for machine-set or internal values — tool settings, cut offsets, injected file references — that should not be shown to the shopper.
+
+Two limitations apply, and both fail silently:
+
+- **The editable cart branch ignores it.** When `admin/checklist/cart-editable-options` is `TRUE`, the cart renders options through `px-option-selector` / `px-option-selector-alt` rather than the loop, and those components do not honour `hide_from_cart`. A value correctly hidden in read-only mode reappears the moment a site turns on editable cart options.
+- **Child orderlines are not filtered at all.** Options on child orderlines render unconditionally regardless of the field.
+
+`hide_from_cart` must exist as a custom field on the specific site — custom fields do not inherit parent to child (see **13_TEMPLATE_BOUNDARIES**). Before adding a new "hide this from the cart" field, check whether `hide_from_cart` already covers the case; creating a duplicate field is a common and avoidable mistake.
+
 ## Photo prints
 - Quantity not editable in cart.
 - Quantity is per-photo in Photo Prints UI; orderline priced via `cut_print_quantity`.
@@ -2487,6 +2536,9 @@ _Last updated: 2026-02-26_
 
 ## Digital-only
 - No special cart behavior.
+
+## Changelog
+- 2026-07-28: Added hide_from_cart section covering the variant/template-option cart filter and its two silent limitations (editable-cart branch, child orderlines). Source: claude-chat.
 
 
 =================================================================
@@ -2795,6 +2847,22 @@ grabbing the first upload on the page. When a code is given and no match is
 found, return null rather than falling back to the first upload, or an
 injected file lands in the wrong option.
 
+### 5.2c Input names differ between the product page and project-edit
+The same variant or option is submitted under a different input name depending
+on which page the shopper is on:
+
+- **Product page:** `variants[<code>]`
+- **Project-edit:** `book[options][<code>]`
+
+Any script that reads or writes an option value must therefore **suffix-match**
+the input name (`name.endsWith('[' + code + ']')`) rather than matching the full
+string. An exact match on `variants[<code>]` works on the product page and
+silently finds nothing on project-edit. The user-visible symptom is a saved
+project opening with its settings reset when the customer edits it.
+
+Hidden inputs count. A read-back routine that only inspects checked radios and
+selects will miss values that project-edit renders as `input[type=hidden]`.
+
 ### 5.3 Multi-upload groups (`option.custom.multi_upload_group`)
 This is a key advanced behavior.
 
@@ -2857,6 +2925,7 @@ That’s the set that needs to be “muscle memory” when debugging option rend
 
 ## Changelog
 - 2026-06-19: Added section 4.8 `toggle` selector (2-value animated CSS-only switch on `product/px-options`), including the `toggle_hide_labels` bare-switch option, guard/fallback behavior, and primary-colour sourcing. Added cart-context note (7) that toggle is product-page only. Added `toggle` and `toggle_hide_labels` to the recognize-and-document list (8).
+- 2026-07-28: Added 5.2c — option input names differ between the product page (`variants[code]`) and project-edit (`book[options][code]`); scripts must suffix-match and must handle hidden inputs. Source: claude-chat.
 
 
 =================================================================
@@ -5153,6 +5222,50 @@ after `{% capture %}` before comparing or using the value.
 
 ---
 
+## Collection Filter Drilldown — Blank PDP After Changing a Filter
+
+**Symptom:** on a filtered product detail page, changing one filter (for example
+Width) leaves the page showing only the collection shell — description,
+production time, feature list — with no product title, price, gallery or
+add-to-cart. One of the other filters usually disappears from the sidebar at the
+same time.
+
+**Cause:** the filters are configured as flat, independent lists with no
+dependency logic between them. When the parent filter changes, the stale value
+of the dependent filter survives in the URL. If no product exists at that
+intersection the drilldown bails out, the product is never assigned, and the
+page renders the shell only.
+
+The same failure occurs with **no stale parameter at all** when the dependent
+filter's configured default is invalid for the newly selected parent value. The
+renderer falls back to that default, hits another empty intersection, and bails
+identically. This form is usually latent from day one and only surfaces when a
+second batch of products introduces sizes the original default does not cover.
+
+**Cause in the template:** both `product/product-details-filter` and
+`product/details-filter-dual-mode` used a two-tier selection guard — URL
+parameter if valid, otherwise the configured default — with no final fallback.
+When both tiers fail the selected option is nil and the drilldown breaks.
+
+**Fix:** make the guard a three-tier cascade.
+
+1.  URL parameter, if valid for the current selection
+2.  Configured default, if valid for the current selection
+3.  Otherwise the first entry of the currently available options
+
+Tier 3 guarantees a valid selection for every reachable combination, so the page
+always resolves to a real product.
+
+**Diagnosis:** build the full product matrix from a collection export before
+touching the template. The reported path is rarely the only broken one — a
+single invalid default typically produces several empty intersections at once.
+
+**Blast radius:** `product/product-details-filter` is the parent snippet used by
+many child sites. Prove the fix as a site-level override first, then promote it
+to the parent.
+
+------------------------------------------------------------------------
+
 ## Changelog
 - 2026-03-21: Initial content from platform documentation export.
 - 2026-04-23: Added CSS snippet logs diagnostic note, password reset Liquid deprecation pattern, fulfillment template DPI failure, URL reserved parameter 404 gotcha, Stripe pending-without-payment issue, FTP original files intermittent failure.
@@ -5163,6 +5276,7 @@ after `{% capture %}` before comparing or using the value.
 - 2026-06-26: Added kiosk iPad browser-autofill login-confusion gotcha (disable autofill on shared kiosk devices). Source: fireflies-call.
 - 2026-07-11: Added CMS tar import gotcha — `admin/checklist/*` flags are not reliably applied on import (observed: custom-home-page TRUE in tar but unset after import); verify checklist flags in the admin UI after any import. Source: claude-chat (Shopper CMS tar build).
 - 2026-07-20: Added Shopper v2 account `date_format` gotcha — `account/v2/orders` and `account/v2/dashboard` miss `| strip` on the date_format capture, causing a format mismatch with order-details. Source: claude-chat.
+- 2026-07-28: Added Collection Filter Drilldown blank-PDP entry — stale or invalid dependent filter values break the drilldown; fix is a three-tier selection cascade in `product/product-details-filter` and `product/details-filter-dual-mode`. Source: claude-chat.
 
 
 =================================================================
@@ -5545,6 +5659,32 @@ MutationObserver. The URL parameter is cleaned via
 
 ------------------------------------------------------------------------
 
+# Custom Tool Dependency Loading
+
+A custom design tool delivered as a site asset (its own bundled build, plus any
+vendored libraries such as a ZIP writer) needs `<script>` tags on the page. The
+obvious host is `integrations/custom-body-scripts`, and it is the wrong one.
+
+`integrations/custom-body-scripts` is a snippet child sites routinely override to
+carry their own analytics and third-party tags. An include added to the parent
+copy is therefore invisible on every child that has an override, and the failure
+is silent — the product page renders, the tool never initialises, no error.
+
+**Pattern:** have the tool's own product snippet load its dependencies.
+
+-   The product snippet (e.g. `product/my-tool`) is the only file guaranteed to
+    be present wherever the tool is actually used.
+-   Guard the load so repeated renders do not double-inject: test for the global
+    the library exposes, and only create a `<script>` element if it is absent.
+-   Chain initialisation off the injected script's `onload`, not off document
+    ready — the dependency resolves after the page has already loaded.
+
+Deployment on a new site then reduces to two steps: upload the assets, add the
+product snippet. No shared-include edit, and no parent-level change that has to
+survive every child override.
+
+------------------------------------------------------------------------
+
 # Custom Type Collection: Sort + Filter Pattern
 
 When you need to both **sort** and **filter** Custom Type instances (e.g. date-based filtering, unpublished flags), the Liquid `sort` filter cannot be applied to the push-built filtered array — it silently fails on plain arrays with nested dot-notation keys.
@@ -5678,6 +5818,7 @@ This is robust regardless of which items are skipped. It applies to any Liquid J
 - 2026-06-30: Added conditional-skip comma handling pattern for JSON loops (first_row flag) — forloop.last breaks when items are skipped mid-loop. Source: claude-chat (search index work).
 - 2026-07-04: Added Bootstrap-modal gotchas for `style onload` IIFEs (jQuery not available at load time; append modal to `document.body` to escape transformed-ancestor `position: fixed` containment). Source: claude-chat.
 - 2026-07-25: Extended the fixed-positioning gotcha — `filter` (including a no-op `filter: blur(0px)`), `backdrop-filter`, `perspective`, `contain`, and `will-change` also create a containing block, and when the property sits on `<body>` the append-to-body fix does not work. Source: claude-chat.
+- 2026-07-28: Added Custom Tool Dependency Loading — load tool dependencies from the tool's own product snippet, never from `integrations/custom-body-scripts`, which child sites override. Source: claude-chat.
 
 
 =================================================================
@@ -6259,6 +6400,14 @@ Represents a chosen value of a variant or template option on a specific `Orderli
 | `chosen_option.option_value` | Alias: `variant_value` or `template_option_value` depending on context |
 | `chosen_option.uploaded_image` | `Image` object if `image_upload` type, else `nil` |
 | `chosen_option.uploaded_file` | `UploadedFile` object if `file_upload` type, else `nil` |
+
+**Reading a `file_upload` option's asset.** Use `chosen_option.uploaded_file.url`
+and `chosen_option.uploaded_file.filename`. The obvious alternatives do not work:
+`chosen_option.value` returns the raw internal reference (`db:NNN`),
+`chosen_option.asset.url` and `chosen_option.thumbnail_url` are not defined on a
+chosen option, and the `preview_url` filter applies to projects, not uploads.
+This matters most when rendering a cart thumbnail for a file attached by a
+custom design tool.
 
 ---
 
@@ -6857,6 +7006,14 @@ Represents a file uploaded to a Pixfizz "File Upload" variant or template option
 | `uploaded_file.url` | File URL |
 | `uploaded_file.created_at` | Creation datetime. Use `date` filter. |
 
+**Resized delivery.** A Pixfizz-hosted file URL accepts a `thumbnail/{n}` path
+segment, where `n` is the rendered size in pixels — `.../thumbnail/250/...`. It
+is a **path** parameter, not a query parameter; `?height=N` has no effect. Use it
+anywhere a full-size customer upload is displayed at thumbnail scale (cart lines,
+gallery strips, review modals). On customer artwork the saving is typically an
+order of magnitude. Shopify gallery previews use the same segment — see
+**60_SHOPIFY_INTEGRATION.md**.
+
 ---
 
 ## User
@@ -7219,6 +7376,28 @@ These three forms are easy to confuse. Choose by what you want to keep:
 - `cart_unset` — detaches the current cart from the session without deleting anything. A fresh cart is started on the next add-to-cart, and the old one is still listed in `user.carts`. Use for "save this cart for later / start a new one".
 - `cart_delete` — permanently destroys a cart. Deletion runs asynchronously, so it may still appear in `user.carts` briefly after submission. On a "My carts" page, delete a specific saved cart by passing it in: `{% form 'cart_delete', cart: cart %}`.
 
+**Writing cart custom fields**
+
+`cart_update` is the form type that writes to `cart.custom`. Name the input
+`cart[custom][<field_name>]`:
+
+```liquid
+{% form 'cart_update', async: true, autosubmit: true %}
+	<input type="hidden" name="cart[custom][order_source]" value="{{ source }}">
+{% endform %}
+```
+
+Three conditions apply:
+
+- The field must already exist as a custom field on that site. Custom fields do
+  not inherit parent to child.
+- Where the value comes from a helper snippet capture, always `| strip` before
+  comparing. Helper snippets render with a trailing newline; an unstripped
+  comparison never matches, which turns a guarded auto-submit into a submit loop.
+- Guard on cart state before firing. A hidden auto-submitting `cart_update`
+  against an empty cart is wasted work at best; gate on
+  `cart.orderlines.size > 0` and on the stored value being absent or stale.
+
 **Projects**
 
 | Form Type | Required Params | Description |
@@ -7497,6 +7676,7 @@ example markup.
 - 2026-06-01: Noted Shopify IDs live in chosen_variants. Source: claude-chat.
 - 2026-06-15: Added json_parse filter to Pixfizz-extended filters. Added assign_to_user / assign_to_cart optional params to the address_create form. Source: notion-dashboard.
 - 2026-07-07: Documented cart_clear, cart_unset and cart_delete forms in the Cart forms table, plus a clear/unset/delete comparison note. Source: notion-page, slack-message.
+- 2026-07-28: Added file_upload accessor note on ChosenOption (`uploaded_file.url` / `.filename`; `value`, `asset.url`, `thumbnail_url` and the `preview_url` filter do not work), the `thumbnail/{n}` path segment on UploadedFile, and the `cart[custom][field]` write pattern for `cart_update`. Source: claude-chat.
 
 
 =================================================================
@@ -8494,6 +8674,12 @@ This reference documents **30 object access patterns** mapping to approximately 
 
 - **Checkout Form Input**: Cart and User custom fields are **set via HTML form inputs** during the checkout process, not via CMS admin interface. These fields store shopper-provided data.
 
+- **Field type can differ by object for the same field name**: the product tab fields `details`, `features` and `production` are **snippet-type at the Product level** and **html-type at the Collection level**. HTML pasted into the product-level field will not render as markup. Tab content authored as HTML belongs on the Collection, not on the individual product export.
+
+- **New products start with blank custom field values**: field *definitions* exist on the site, but values default to blank (and boolean fields to false) on every newly created product. An export showing empty custom fields is expected behaviour, not a failed export.
+
+- **`manage/custom-fields` is the in-CMS field authority**: the CMS carries a maintained reference page listing every custom field with its object type, field type and description, including fields that are missing from import tars. Where a field's type or purpose is ambiguous, that page outranks any export file.
+
 - **Export-Only Fields**: Product has 14 fields defined in the CMS export but **not referenced in any template**. These are reserved for platform-level features including:
   - Gift Finder (budget_tier, gift_occasion, gift_type)
   - Lab production routing (lab_printer, lab_size, oversize)
@@ -9197,6 +9383,7 @@ per-SKU variation local to the product.
 - 2026-07-04: Clarified hide_from_search scope — affects the storefront search flyout only; the product remains available in POS. Source: Fireflies (2026-07-01).
 - 2026-07-11: Added Address field hide_address (boolean) — suppresses address display in the customer-facing UI for pickup locations while keeping the backend address for order routing (Address count 3 → 4). Source: slack-message (#development, 2026-07-10).
 - 2026-07-25: Added Product field spreads_as_pages (boolean, display-only page-count doubling on the page selector). Removed blog_meta_description from both the Blog Posts group and Blog_Post Detail tables — the field does not exist; Shopper SEO Settings exposes blog_post.custom.description and blog_post.custom.blog_description instead. Normalised Product counts to 81 total / 67 template-referenced (summary stats row had drifted to 79/65), Post to 36, Blog_Post Detail to 8. Source: claude-chat, fireflies-call.
+- 2026-07-28: Added Key Notes entries — product tab fields (`details`, `features`, `production`) are snippet-type at Product level and html-type at Collection level; new products start with blank custom field values by design; `manage/custom-fields` is the in-CMS authority for field types and descriptions. Source: claude-chat.
 
 
 =================================================================
