@@ -2,7 +2,7 @@
 
 **Authority Scope:** Customer-facing Q&A grounded in platform truth (files 10–32, 60). Covers Full Pixfizz / Shopper and Shopify + Pixfizz deployments. Not a developer reference — answers are written for store owners and operators.
 
-_Last updated: 2026-05-19_
+_Last updated: 2026-07-31_
 
 ---
 
@@ -109,6 +109,13 @@ From the storefront, customers browse to a product, select a Design (their start
 _Applies to: All_
 
 Yes. Design Tool Configurations (found in admin under Settings > Design Tool) let you toggle 30+ individual features on or off — image rotation, crop, filters, autofill, text tools, shape buttons, and more. Different product types can use different configurations. Some configuration settings are managed by Pixfizz staff at the platform level.
+
+---
+
+**Q: I only want image upload available on some templates, not all of them — how do I do that?**
+_Applies to: All_
+
+A single global `editor.css` rule (or Custom CSS field) that hides image upload applies to every template using that configuration, so it can't give you per-template control on its own. Because a Design Tool Configuration is assigned per Template or per Design (not per product or category), the way to get per-template control is to create a separate configuration for the templates that should hide image upload, with its own CSS, and assign only those templates to it — leaving the rest on a configuration where upload stays visible. See "Can I control which features appear in the editor?" above and 17_DESIGN_TOOL.md § Design Tool Configurations / Editor CSS Customization. Source: support ticket #18337.
 
 ---
 
@@ -384,3 +391,4 @@ Configurable options include:
 - 2026-04-06: Initial version. 35 Q&As covering Getting Started, Products, Design Tool, Pricing, Cart/Checkout, Shopify, Orders, Storefront, and Troubleshooting.
 - 2026-05-19: Added inventory tracking Q&A (Section 2), inline price editing Q&A (Section 4), order cancellation and transaction fees Q&A (Section 7), multi-language support Q&A (Section 8), and Batch Film Uploader workflow (new Section 10 — Film Lab Workflows). Source: Notion KB articles.
 - 2026-07-04: Added CMYK-JPEG upload caution to the image-upload Q&A (Section 3) — upload sRGB; reserve CMYK for fulfillment transformation. Source: Fireflies (2026-07-03).
+- 2026-07-31: Added per-template image upload visibility Q&A (Section 3) — use a separate Design Tool Configuration per template rather than a single global editor.css rule. Source: support ticket.

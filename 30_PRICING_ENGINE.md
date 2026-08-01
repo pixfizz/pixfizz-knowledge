@@ -2,7 +2,7 @@
 
 **Authority Scope:** Ruby pricing formulas and price variables only.
 
-_Last updated: 2026-07-03_
+_Last updated: 2026-07-31_
 
 ---
 
@@ -369,17 +369,13 @@ products across `cart.orderlines`. The first line of a given product is the orig
 
 ---
 
-## Roadmap — Price Variable Bulk Export / Import
+## Price Variable Bulk Export / Import
 
-**Status: planned, not yet shipped (2026-03-24 / 2026-04-10).**
+**Status: shipped (2026-07-28).** Previously on the roadmap as planned/not-yet-shipped; this is now live.
 
-A bulk export/import flow for Price Variables is on the roadmap. This will allow
-editing price variables in a spreadsheet and re-importing them, rather than editing
-them one at a time in the admin.
+Price Variables can be exported and imported, including across sites — export to a spreadsheet, edit in bulk, and re-import rather than editing them one at a time in the admin. This is useful for onboarding scoping involving hundreds of price variables, and for replicating a pricing setup from one site to another.
 
-Do not design around its absence — if a site needs bulk price variable edits today,
-the current workflow is still manual. But flag this as a coming capability when
-scoping any onboarding that involves hundreds of price variables.
+Source: slack-message (#development), commit e954d0b3.
 
 ---
 
@@ -387,3 +383,4 @@ scoping any onboarding that involves hundreds of price variables.
 - 2026-05-19: Added Automatic Discounts section — Liquid-based cart discounts with tiered, user category, and seasonal patterns. Source: Claude chat (webinar prep).
 - 2026-07-03: Added Extra Fees (Liquid-Based Cart Fees) section — fee-side twin of Automatic Discounts (adds instead of subtracts), configured under Shipping → Extra Fees. Includes per-duplicate-orderline surcharge pattern (seen-string + contains idiom); orderline-iteration specifics pending live confirmation. Source: Claude chat.
 - 2026-07-20: Added property-name trap — `cart.promocode` (without `_code`) is nil and silently defeats promo-code guards; always use `cart.promocode_code`. Source: claude-chat.
+- 2026-07-31: Price Variable Bulk Export/Import shipped (2026-07-28) — moved out of Roadmap, now documented as a live feature. Source: slack-message (#development).
