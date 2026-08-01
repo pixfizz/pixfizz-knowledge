@@ -1840,6 +1840,321 @@ Workaround for a genuinely rounded page appearance: use **page masks** rather th
 
 
 =================================================================
+FILE: 17_DESIGN_TOOL_1.md
+=================================================================
+
+# 17 — Design Tool
+
+**Authority Scope:** Design Tool Configurations, feature toggles, and customer-facing editor behavior.
+
+_Last updated: 2026-07-31_
+
+---
+
+## What is the Design Tool?
+
+The Design Tool is the interactive editor customers use to personalize products. It is embedded in the storefront and provides a visual interface for uploading images, adding text, applying layouts, and previewing the finished product.
+
+The Design Tool is highly configurable through **Design Tool Configurations**.
+
+---
+
+## Design Tool Configurations
+
+Each Pixfizz environment can have one or more Design Tool Configurations. A configuration controls the design tool's appearance and available features for a specific context. Templates reference a configuration, so different product types can offer different design experiences.
+
+Configured in admin under: **Settings > Design Tool**.
+
+### Multiple configurations per site
+
+A site can hold several configurations side by side. A configuration is assigned to a **Template** or to a **Design** — it is not attached to a product, a collection, or a category. Whichever object the customer enters the editor through determines the configuration that loads.
+
+Running several configurations is the intended pattern where different product types need genuinely different editors (a card versus a photo book versus a wall-art product). Assign each Template or Design to the configuration that suits it rather than trying to serve everything from one configuration by toggling features on and off.
+
+### Per-configuration help modals
+
+The in-editor help modal content is a snippet, and a different snippet can be assigned per configuration through the Trip JS tutorial configuration. This means each configuration can carry its own tutorial and instructions without duplicating the editor.
+
+Trip JS tutorial blocks carry separate desktop and mobile sections. When adapting desktop content for mobile, use fluid dimensions (`width: 100%`, `max-height: 60vh`, `overflow-y: auto`, `box-sizing: border-box`) rather than fixed pixel width/height. Desktop copy wraps to far more lines at phone width, so a fixed height clips the lower paragraphs and a fixed width sits inset inside the Trip modal leaving white gaps.
+
+---
+
+## Configuration Settings
+
+### Branding
+- Name, logo, and favicon
+- Brand color
+- Page title
+
+### Feature Toggles (30+)
+
+#### Image Features
+- Image Rotation
+- Crop Toggle
+- Color Adjustments
+- Filters
+- Flip
+- Image Borders
+- Image Size Overlay
+- QR Uploader
+- PDF Imports
+
+#### Layout & Design Features
+- Autofill Button — auto-populate images into zones
+- Two Page Spread — enable spread view for multi-page products
+- Crop Bleed — show/hide bleed area
+- Alignment Aids — snap guides and alignment helpers
+- Background Colors — allow background color changes
+- CMYK Color Picker — professional color selection
+- Border Radius — rounded corner controls
+- Shape Button — add shapes to designs
+  - Shapes support color palettes (selectable from the configured color palette)
+  - Shapes work with fulfillment transformations and calendar transformations
+- QR Code Button — generate QR codes in designs
+
+#### UX Features
+- Unedited Warning — alert if zones haven't been customized
+- Project Options — show project-level settings
+- Display Price — show pricing in the design tool
+- Copy Shared Projects — allow copying shared project links
+- Highlight Editable Elements — visual indicators for editable zones
+- Use Mapped Preview — advanced preview rendering
+
+#### Specialist Features
+- Large Format / Wall-Art mode
+- Cut Print Autorotate
+
+**AI image tools (URL flag):** the AI image-manipulation tools in the editor are gated behind a URL parameter. Append `&aitools=true` to the design-tool URL (`?aitools=true` if there are no other query params) to expose them. Platform-level; works wherever the editor loads. Source: #development (2026-07-01).
+
+**AI restyle presets (launch set).** Seven styles ship in the Restyle section:
+
+- Watercolor
+- Pencil Sketch
+- Oil Painting
+- Cartoon
+- Pop Art
+- 3D Character
+- Anime
+
+Vintage Film was drafted during development and is **not** in the launch set. Generation is billed per image to the lab, not to Pixfizz, so usage carries a daily limit with a site default and per-user overrides.
+
+**Filter selection auto-applies.** Selecting a filter (Restyle preset or Image effects filter) now applies it immediately. Previously, selecting a filter only showed a preview — if the customer went straight to cart without pressing an explicit **Apply** button, the filter was silently discarded. This has been changed to auto-apply on selection so the result can no longer be lost this way. Deployed 2026-07-27. Source: slack-message (#development), commit 8e2736ec.
+
+**Known issue — AI token usage counted globally, not per site (fix deploying to production the week of 2026-08-03).** Enabling AI tools on one site could show token usage that included consumption from other sites on the same account, rather than being scoped to that site alone (e.g. enabling AI on `photosynthesis.pixfizz.com` showed tokens consumed elsewhere). A fix to scope AI usage trackers by website has been verified on staging and is pending production deploy. Until then, do not treat a site's displayed AI token count as an accurate per-site figure. Source: slack-message (#development), commit 9615afd5.
+
+### Typography & Color Defaults
+- Default Font, Font Palette, Font Size
+- Text Color Palette
+- Default Image Border Color Palette
+- Background Color Palette
+
+### Page & URL Settings
+- Homepage URL
+- Product Display Name
+- Cart Page Name
+- Account Page Name
+
+### Integrations
+- Google Tag Manager ID
+- Image Sources — comma-separated list that specifies the **order of the source icons** in the editor's Images tab (not merely which sources are on). Allowed values: `device`, `galleries`, `public_galleries`, `groups`, `clipart`, `pdf_import`, `dropbox`, `google_photos`. Defaults to `device` when the field is empty. To expose a PDF import toolbar button you must do two things: enable the PDF Imports feature toggle (under Image Features) AND add `pdf_import` to this Image Sources field. `dropbox` and `google_photos` need provider OAuth setup before they work (see Google Photos as an Image Source below).
+- Help URL
+- Custom JS — inject custom JavaScript
+- Custom CSS — inject custom styles
+
+> Some Design Tool Configuration settings are only visible to Pixfizz staff. These control platform-level behaviors and are managed during onboarding or through support requests.
+
+### Google Photos as an Image Source
+
+`google_photos` is an allowed Image Sources token, but unlike `device`/`galleries` it needs OAuth setup before it works. Per storefront:
+
+1. In Google Cloud, create an API Console project and a **Web Browser** OAuth Client ID. When asked for the calling domain, enter the storefront's own domain (e.g. `clientsite.pixfizz.com`). Guide: https://developers.google.com/identity/oauth2/web/guides/get-google-api-clientid
+2. Complete Google's OAuth consent / API access configuration so the Client ID is authorised to fetch photos via the Google Photos API.
+3. Copy the Client ID into the storefront's **Super Admin** panel, **Google OAuth 2** field (left-hand settings column).
+4. Add `google_photos` to the **Image Sources** field on the relevant Design Tool Configuration.
+
+Once the Client ID is in place and Google Cloud permissions are correct, customers can select images from Google Photos inside the editor.
+
+## Admin Mode Editor
+
+The "Open in Editor" action on an order, which re-opens a customer's project in
+the design tool from the admin, is only visible when the Admin Mode Editor toggle
+is ON. This toggle lives in the Design Tool Configuration under Editor & Templates
+and is Super Admin only. It does not appear in the standard admin panel.
+
+---
+
+## Login Modal in the Design Tool
+
+The design tool can be configured to show a login modal when an anonymous user attempts to save a project or access the galleries tab.
+
+### Default behavior
+
+- **Existing configurations:** The login modal is **not enabled by default** on existing design tool configurations. It requires additional configuration when used from an external site (such as Shopify).
+- **New configurations:** Enabled by default on any new design tool configuration created in admin.
+
+### Trigger
+
+The login modal fires when the user clicks **"Save & Continue"**. It does **not** fire on "Save & Exit" — the Save & Exit flow relies on the target page (typically the account page) to detect whether the user is logged in and prompt login if not.
+
+### Optional links
+
+To show "Forgot password?" and/or "Register here" links next to the email/password fields in the modal, configure the corresponding URLs in the design tool configuration settings.
+
+### Shopify and other external site behavior
+
+When the design tool is embedded in an external site (such as Shopify), the login flow does **not** use the in-tool modal. Instead it opens a new browser window/tab pointing to the URL configured under **"External Login URL"** in the design tool configuration.
+
+**Setup for Shopify:**
+1. Set the **External Login URL** in the design tool configuration to a Shopify page that handles login.
+2. After successful login, the user is redirected to a page that must include the Pixfizz setup code. The default Shopify integration includes the setup code on all pages — verify this for any custom theme integrations.
+3. Recommended: create a custom Shopify confirmation page that says "You are now logged in. You may close this window and continue in the design tool."
+
+The redirect-back-to-design-tool flow depends on the Pixfizz setup code running on the post-login landing page. If using a custom Shopify theme, confirm the setup snippet is present on every page before enabling the login modal.
+
+---
+
+## Editor CSS Customization
+
+The editor can be re-themed with CSS. Where the CSS lives depends on deployment:
+- Full Pixfizz / Shopper: the `editor.css` page.
+- Shopify integration: the `shopify/custom-styles` snippet (loaded into the editor
+  from the Pixfizz side, not the Shopify theme).
+- Either path: the Custom CSS field in the Design Tool Configuration.
+
+Storefront `style/custom.css` does NOT reach inside the editor iframe. Use one of
+the locations above instead.
+
+Reusable techniques confirmed in production:
+
+- Variable aliasing. The editor exposes internal CSS custom properties (for
+  example `--bright-sky-blue`, `--seaweed`). Repointing them to the brand palette
+  re-themes the whole editor without targeting individual elements.
+- Asset URL syntax. Inside editor CSS, wrap an uploaded asset filename in @ signs
+  (for example `@Beatrice-Regular.woff2@`). The platform replaces it with the full
+  asset path at render time. This is the editor equivalent of the storefront
+  asset_url convention.
+- Button classes. Editor buttons carry both legacy classes (`px-blue`, `px-green`)
+  and newer classes (`px-primary-color`, `px-secondary-color`). Target both to
+  reskin all buttons reliably.
+- Tab show/hide. Tabs can be hidden via their `data-id` attribute plus `display:none`.
+- Option reordering. Options can be reordered with `data-option-code` plus the CSS
+  `order` property on a flex container.
+- Gallery captions. Gallery folders use `px-gallery-item px-gallery`; individual
+  images use `px-gallery-item px-image`. To hide image filenames while keeping
+  folder names visible:
+
+```css
+.px-gallery-item.px-image .px-caption {
+	display: none;
+}
+```
+
+- Action button overlay gotcha. A `.btn::after` pseudo-element set to
+  `position: absolute` creates an invisible overlay that swallows clicks and
+  blocks hover states. Action buttons can sit in different containers
+  (`px-action-buttons-container`, `px-edit-buttons-container`,
+  `px-reset-button-container`, `px-controls-container`), so widen selectors across
+  all relevant containers when styling them.
+- Default tab on load (JS). `editor.store.ui.expandTab` sets which tab is open when
+  the editor loads.
+- Save and Continue callback (JS). The Save and Continue button can be
+  monkey-patched to chain an action after the original behavior, using an
+  `exit_target` URL parameter to control where the user lands.
+- Placeholder icon position — avoid `transform` on `.px-element-icon`. Setting a
+  CSS `transform` on `.px-element-icon` breaks the position of the placeholder
+  (upload) icon inside image zones. To restyle that icon, use properties that do
+  not create an offset/stacking context (size, color, background) rather than
+  `transform`.
+- Layout category order. Layout categories in the designer sort **alphabetically
+  by default**. They can be re-ordered visually with the CSS `order` property on
+  the category container (same flex-`order` idiom as option reordering above); the
+  underlying order is not configurable in admin.
+
+## Font Licensing: Editor Fonts Require Embedding License
+
+Fonts used inside the Pixfizz editor are **embedded into personalised product renders** (print-ready files, previews). This requires a **digital embedding** or **print embedding** license — not a standard web font license.
+
+Many foundries do not offer embedding licenses, or charge significantly more for them. A foundry that sells a web font license may explicitly prohibit embedding in rendered output — this is the most common reason client font purchases fail.
+
+When advising clients on font sourcing for the editor:
+- Describe the use case as: "fonts loaded into a web-based product personalisation editor, embedded into rendered output (print-ready files or customer previews)"
+- Recommended sources:
+  - **Paratype** (paratype.com) — strong Cyrillic catalogue, commercially experienced, generally supports embedding
+  - **MyFonts** (myfonts.com) — look for Desktop / Digital Ad / App license tiers, which typically cover embedding scenarios; confirm with their support before purchasing
+- Do not recommend Google Fonts for editor use: Google Fonts licenses permit web use but do not cover embedding in commercial rendered products
+
+Note: this is separate from fonts used on the storefront (navigation, product names, body text) — those only require a web font license.
+
+---
+
+## Element Substitution Types
+
+Element substitutions re-style a design's elements per template/option without editing the design itself. Alongside the existing types (element color, blend mode), the following were added in June 2026:
+
+### Shape border substitutions
+
+Three substitution types target shape element borders:
+
+- **Shape border width**
+- **Shape border color**
+- **Shape border radius**
+
+### Image effects substitution
+
+A substitution type named **Image effects** applies a filter to image elements. Supported filters are **grayscale** and **sepia**.
+
+- Configuration gotcha: set the substitution's **Name** field to `placeholder`. An earlier build where this was misconfigured threw an application error in the design tool (Canvas and More views) that broke the whole design. The `placeholder` Name value is the correct, confirmed configuration.
+
+### Admin preview and embedded inline page behavior
+
+Element substitutions now run on all admin page previews and on embedded inline pages. Previously, admin previews skipped element substitutions unless `fulfillment=true` was set, so a preview could look different from the actual customer-facing/fulfillment render. Deployed 2026-07-31. Source: slack-message (#development), commits dc282140, b406e757, 55667a2c.
+
+### Known issue: colour substitutions import as black
+
+When a template with designs is exported and imported into another site, colour element substitutions arrive as **black** rather than the assigned colour. All other substitution data comes across.
+
+Check and reset every colour substitution manually on the destination site after any template export/import. Do not assume the values carried over because the substitution records themselves are present.
+
+### Known issue: element substitutions on the photo prints interface
+
+Element substitutions do not apply correctly on the newer bulk photo prints interface.
+
+A related symptom is white borders on prints that should be borderless (or the reverse). The cause is the **layout switch resetting the crop** — moving between a bordered and borderless layout re-runs the crop and discards the previous state.
+
+Workaround until this is fixed: organise print products into two separate categories, **with borders** and **without borders**, so the customer never switches layout mid-flow.
+
+---
+
+## Page Border Radius — Bleed and Margin Guides
+
+There is no native page border-radius setting in the editor. Where a designer applies rounded corners to a page, the **bleed and margin guide lines remain square** — they are drawn against the rectangular page bounds, not the visible rounded shape.
+
+This is a display limitation of the guides, not a production problem: the actual bleed and margin values are unaffected.
+
+Workaround for a genuinely rounded page appearance: use **page masks** rather than attempting a border radius.
+
+---
+
+## Known Issues — Mobile
+
+### Multi-page products: no indicator of which page is being edited
+
+On mobile, the card editor gives no clear indication of which page (e.g. front vs. inside) is currently being edited — the same view is clear on desktop. This has been reported via support ticket and is not yet resolved; no fix has been confirmed as of 2026-07-31. Source: support ticket #18343.
+
+## Changelog
+- 2026-03-30: Created from master platform documentation export.
+- 2026-04-23: Added font licensing rule for editor embedding (digital/print embedding license required, not web font license).
+- 2026-05-27: Added shape color palette support and fulfillment/calendar transformation support under Shape Button toggle. Added Login Modal section — default behavior, trigger (Save & Continue only), optional links, and Shopify External Login URL setup. Also consolidated duplicate Changelog sections into one. Source: Notion Dashboard (May 2026 updates).
+- 2026-06-01: Added Editor CSS Customization section, Admin Mode Editor note, and pdf_import Image Sources requirement. Source: claude-chat/slack.
+- 2026-06-30: Documented element substitution types added June 2026 — shape border width/color/radius and the Image effects (grayscale/sepia) substitution, including the required `placeholder` Name-field value. Source: notion-dashboard (2026-06-22), slack-message (#development).
+- 2026-07-04: Documented the `&aitools=true` URL flag that exposes the editor AI image tools. Source: slack-message (#development).
+- 2026-07-20: Corrected Image Sources to the full allowed value set and noted it controls icon order and defaults to device. Added Google Photos setup. Source: help-article + admin tooltip.
+- 2026-07-20: Added editor-CSS gotchas — `transform` on `.px-element-icon` breaks the placeholder icon position; layout categories sort alphabetically by default and can be reordered with CSS `order`. Source: slack-message (#development), loom-video.
+- 2026-07-25: Clarified that a design tool configuration is assigned to a Template or a Design (not to a product or category) and that several configurations can run on one site. Added the confirmed seven-style AI restyle launch set (Vintage Film excluded) with per-lab billing and daily limits. Added per-configuration help modal snippets via Trip JS (including mobile fluid-dimension rule for Trip blocks). Added two known issues — colour element substitutions import as black after template export/import, and element substitutions failing on the bulk photo prints interface with white-border symptoms caused by the layout switch resetting the crop (workaround: split print products into with-borders / without-borders categories). Added page border-radius limitation: bleed and margin guides stay square, use page masks. Source: slack-message (#development), fireflies-call, loom-video, claude-chat.
+- 2026-07-31: Documented AI restyle/filter auto-apply on selection (fixes filter loss when going to cart without pressing Apply). Added known issue: AI token usage counted globally instead of per site, fix verified on staging and pending production deploy. Documented that element substitutions now run on all admin previews and embedded inline pages (previously skipped unless `fulfillment=true`). Added known issue: no front/inside page indicator in the mobile card editor. Source: slack-message (#development), support ticket.
+
+
+=================================================================
 FILE: 18_ADMIN_NAVIGATION.md
 =================================================================
 
@@ -3467,7 +3782,7 @@ FILE: 30_PRICING_ENGINE.md
 
 **Authority Scope:** Ruby pricing formulas and price variables only.
 
-_Last updated: 2026-07-03_
+_Last updated: 2026-07-31_
 
 ---
 
@@ -3834,17 +4149,13 @@ products across `cart.orderlines`. The first line of a given product is the orig
 
 ---
 
-## Roadmap — Price Variable Bulk Export / Import
+## Price Variable Bulk Export / Import
 
-**Status: planned, not yet shipped (2026-03-24 / 2026-04-10).**
+**Status: shipped (2026-07-28).** Previously on the roadmap as planned/not-yet-shipped; this is now live.
 
-A bulk export/import flow for Price Variables is on the roadmap. This will allow
-editing price variables in a spreadsheet and re-importing them, rather than editing
-them one at a time in the admin.
+Price Variables can be exported and imported, including across sites — export to a spreadsheet, edit in bulk, and re-import rather than editing them one at a time in the admin. This is useful for onboarding scoping involving hundreds of price variables, and for replicating a pricing setup from one site to another.
 
-Do not design around its absence — if a site needs bulk price variable edits today,
-the current workflow is still manual. But flag this as a coming capability when
-scoping any onboarding that involves hundreds of price variables.
+Source: slack-message (#development), commit e954d0b3.
 
 ---
 
@@ -3852,6 +4163,7 @@ scoping any onboarding that involves hundreds of price variables.
 - 2026-05-19: Added Automatic Discounts section — Liquid-based cart discounts with tiered, user category, and seasonal patterns. Source: Claude chat (webinar prep).
 - 2026-07-03: Added Extra Fees (Liquid-Based Cart Fees) section — fee-side twin of Automatic Discounts (adds instead of subtracts), configured under Shipping → Extra Fees. Includes per-duplicate-orderline surcharge pattern (seen-string + contains idiom); orderline-iteration specifics pending live confirmation. Source: Claude chat.
 - 2026-07-20: Added property-name trap — `cart.promocode` (without `_code`) is nil and silently defeats promo-code guards; always use `cart.promocode_code`. Source: claude-chat.
+- 2026-07-31: Price Variable Bulk Export/Import shipped (2026-07-28) — moved out of Roadmap, now documented as a live feature. Source: slack-message (#development).
 
 
 =================================================================
@@ -4558,6 +4870,713 @@ Establish a naming convention at the start of each FTP integration and apply it 
 - 2026-07-04: Noted that reverting the output filename template to default flattens product-category subfolders (files land flat in the per-order folder). Source: slack-message (#development).
 - 2026-07-11: Documented UI lock — the product-level fulfillment code field is locked when the template carries its own fulfillment code (extends the code resolution/precedence note). Source: slack-message (#development, commit 2026-07-05).
 - 2026-07-11: Noted cut print filenames now use an index counter (`idx`) instead of page numbers for uniqueness. Source: fireflies-call (2026-07-09).
+
+
+=================================================================
+FILE: 31_FULFILLMENT_ENGINE_1.md
+=================================================================
+
+# 31 — Fulfillment Engine
+
+**Authority Scope:** Job ticket schema and generated file logic only.
+
+_Last updated: 2026-07-31_
+
+---
+
+# 08 — Fulfillment Templates (Job Tickets)
+
+Fulfillment Templates generate **job tickets** for external labs and systems. A "job ticket" is any machine-readable payload (JSON/XML/TXT) plus the produced artwork files that a fulfiller needs to manufacture and ship an order.
+
+This document covers:
+- A clean **Pixfizz Default Fulfillment JSON** that's safe to share with any integrator.
+- How to map Pixfizz Liquid objects into that JSON (including **options/variants**).
+- The three layers of a real integration: **asset generation**, **transport/auth**, and **payload schema**.
+- Filename Template patterns and the operational settings that affect generated files.
+
+---
+
+## Mental model: the 3 layers
+
+### 1) Asset generation (files)
+Controls *what files exist* and *what they are named*.
+Common settings you'll see in Admin:
+- **Filename Template**
+- **Single Page Output**
+- **Multiple Cut Print Copies**
+- **Color Profile** (often sRGB)
+- **Enable Perfectly Clear** (image enhancement) — the underlying billing fields for this were renamed from Perfectly Clear-specific naming to a generic "AI tokens" model as of 2026-07-30 (enhancement can now be billed against OpenAI/Gemini as well as Perfectly Clear). Exact new admin label not yet confirmed — treat "Perfectly Clear" references in admin as potentially stale until verified.
+- **Split By Orderline** (fan-out into multiple requests)
+
+These settings affect:
+- number of `generated_files`
+- `file.type` values (e.g., `cover`, `pages1`, `pages2`)
+- whether quantity is represented as **file duplication** vs **a numeric quantity field**
+- whether one order generates **one request** vs **N requests** (one per orderline)
+
+### 2) Transport + auth (delivery)
+Controls *how the payload is delivered*:
+- Hotfolder / shared drive (TXT manifests, file drops)
+- HTTP API POST/PUT (JSON/XML payloads)
+
+Auth commonly includes:
+- Static headers (API keys, subscription keys)
+- OAuth2 token retrieval + Bearer token injection
+
+> Keep transport/auth configuration separate from the payload schema. Don't bake auth into the JSON contract.
+
+### 3) Payload schema (the job ticket)
+The vendor-specific shape (JSON/XML/TXT).
+Best practice is:
+- Define a **canonical internal schema** (Pixfizz Default JSON).
+- Build vendor adapters that map canonical → vendor payload.
+
+---
+
+## Fulfillment Code Resolution and Precedence
+
+A fulfillment code routes an orderline to the correct fulfillment destination. The code can be set at more than one level, and the platform resolves them by priority:
+
+- **Template-level fulfillment code (highest priority).** A fulfillment code set on an individual template overrides everything else, including location-based fulfillment codes. (Added June 2026.)
+- **Location-based fulfillment code.** Applied when no template-level code is set.
+- **Product-level fulfillment code.** The base `fulfillment_code` product attribute (see `50_SHOPPER_TEMPLATE_REFERENCE.md`) used where not overridden above.
+
+Practical effect: if a template carries its own fulfillment code, that code wins regardless of location or product configuration. Set a template-level code only when you intend to override location/product routing.
+
+**UI lock.** Once a fulfillment code is set on a template, the product-level fulfillment code field for products using that template is locked and cannot be changed from the product screen. This is the expected consequence of the precedence order above: the template code always wins, so editing the product-level value would have no effect. To change routing for such a product, edit (or clear) the code on the template. Added June/July 2026.
+
+## Pixfizz Default Fulfillment JSON (vendor-neutral)
+
+This is the "baseline contract" for Starter Pack v4.
+
+**Key goals**
+- Simple enough to share with any vendor.
+- Expressive enough for most products (prints, books, merch).
+- Options/variants included as `{ key, value }` pairs.
+- Assets included as typed file descriptors.
+
+### Schema: `pixfizz.fulfillment.default.v1`
+
+```json
+{
+  "schema": "pixfizz.fulfillment.default.v1",
+  "order": { "..." : "..." },
+  "shipping": { "..." : "..." },
+  "jobs": [ { "..." : "..." } ]
+}
+```
+
+### Field semantics
+
+#### `order`
+Commercial + customer context:
+- ids, status, timestamps
+- totals (numeric)
+- notes (order-level)
+
+#### `shipping`
+Delivery context:
+- `method` is the storefront shipping method label/code
+- `ship_to` is the destination address
+
+> For **pickup/collection flows**, many integrations treat `order.address.is_public` as "pickup" (system/public address).
+
+#### `jobs[]`
+One producible unit per orderline.
+- `job_id` should be stable and unique within the order.
+- `quantity` is the commerce quantity (for cut prints use `cut_print_quantity`).
+- `print_quantity` is the production quantity (can differ when "Multiple Cut Print Copies" is enabled).
+
+#### `options[]`
+A normalized list of template options + product variants:
+```json
+{ "key": "paper", "value": "lustre" }
+```
+
+Rules:
+- Exclude `image_upload` / `file_upload` options.
+- Exclude blanks.
+- Prefer stable identifiers (`code`) when available; fall back to `name`.
+
+#### `assets[]`
+A normalized list of generated files:
+- `type` (e.g. `cover`, `pages1`, `pages2`, `print`)
+- `url`
+- `filename`
+- `pages` (best-effort; often `1` for cover, and project page count for interiors)
+
+---
+
+## Liquid mapping: Pixfizz Default Fulfillment JSON
+
+Copy/paste template (Shopper + CMS environments). Uses **hard tabs** for indentation.
+
+```liquid
+{
+	"schema": "pixfizz.fulfillment.default.v1",
+
+	"order": {
+		"order_id": "{{ order.code | escape_json }}",
+		"external_order_id": "{{ order.id }}",
+		"source": "pixfizz",
+		"status": "confirmed",
+		"ordered_at": "{{ order.confirmed_at }}",
+
+		"customer": {
+			"name": "{{ order.first_name | escape_json }} {{ order.last_name | escape_json }}",
+			"email": "{{ order.email | escape_json }}",
+			"phone": "{{ order.telephone | escape_json }}"
+		},
+
+		"totals": {
+			"subtotal": {{ order.orderlines_total }},
+			"shipping": {{ order.shipping }},
+			"tax": {{ order.tax }},
+			"discount": {{ order.discount }},
+			"total": {{ order.total }},
+			"currency": "{{ website.currency_code | escape_json }}"
+		},
+
+		"notes": "{{ order.notes | escape_json }}"
+	},
+
+	"shipping": {
+		"method": "{{ order.shipping_method | escape_json }}",
+		"ship_to": {
+			"name": "{{ order.address.first_name | default: order.first_name | escape_json }} {{ order.address.last_name | default: order.last_name | escape_json }}",
+			"address_1": "{{ order.address.street | escape_json }}",
+			"address_2": "{{ order.address.street2 | escape_json }}",
+			"city": "{{ order.address.city | escape_json }}",
+			"region": "{{ order.address.region | escape_json }}",
+			"postal_code": "{{ order.address.postcode | escape_json }}",
+			"country_code": "{{ order.address.country.code | escape_json }}",
+			"email": "{{ order.email | escape_json }}",
+			"phone": "{{ order.address.telephone | default: order.telephone | escape_json }}"
+		}
+	},
+
+	"jobs": [
+		{%- for line in orderlines -%}
+		{
+			"job_id": "{{ order.code | escape_json }}-{{ forloop.index }}",
+			"external_line_item_id": "{{ line.id }}",
+
+			"product": {
+				"name": "{{ line.product.name | escape_json }}",
+				"code": "{{ line.product.code | escape_json }}",
+				"category": "{{ line.product.category | escape_json }}"
+			},
+
+			"quantity": {% if line.is_cut_print %}{{ line.cut_print_quantity }}{% else %}{{ line.quantity }}{% endif %},
+			"print_quantity": {% if line.is_cut_print %}{{ line.cut_print_quantity }}{% else %}{{ line.quantity }}{% endif %},
+
+			"options": [
+				{%- assign opt_first = true -%}
+
+				{%- comment %} Template options {%- endcomment -%}
+				{%- for opt in line.chosen_template_options -%}
+					{%- if opt.template_option.type == "image_upload" or opt.template_option.type == "file_upload" or opt.value == blank -%}
+					{%- else -%}
+						{%- unless opt_first -%},{%- endunless -%}
+						{ "key": "{{ opt.template_option.code | default: opt.template_option.name | escape_json }}", "value": "{{ opt.template_option_value.code | default: opt.value | escape_json }}" }
+						{%- assign opt_first = false -%}
+					{%- endif -%}
+				{%- endfor -%}
+
+				{%- comment %} Product variants {%- endcomment -%}
+				{%- for v in line.chosen_variants -%}
+					{%- if v.variant.type == "image_upload" or v.variant.type == "file_upload" or v.variant_value.name == blank -%}
+					{%- else -%}
+						{%- unless opt_first -%},{%- endunless -%}
+						{ "key": "{{ v.variant.code | default: v.variant.name | escape_json }}", "value": "{{ v.variant_value.code | default: v.variant_value.name | escape_json }}" }
+						{%- assign opt_first = false -%}
+					{%- endif -%}
+				{%- endfor -%}
+			],
+
+			"assets": [
+				{%- for file in line.generated_files -%}
+				{
+					"type": "{{ file.type | escape_json }}",
+					"url": "{{ file.url | escape_json }}",
+					"filename": "{{ file.filename | escape_json }}",
+					"pages": {% if file.type == 'cover' %}1{% elsif line.project and line.project.page_count %}{{ line.project.page_count }}{% else %}1{% endif %}
+				}{% unless forloop.last %},{% endunless %}
+				{%- endfor -%}
+			]
+		}{% unless forloop.last %},{% endunless %}
+		{%- endfor -%}
+	]
+}
+```
+
+---
+
+## Filename Templates (default vs customized)
+
+Filename Templates control how output files are named (and optionally which folders they land in).
+
+### Common variables
+- `order.code`
+- `order.last_name`
+- `orderline.id`
+- `orderline.barcode`
+- `orderline.quantity`
+- `print_quantity` (production quantity; may differ from orderline quantity)
+- `page_output_name`
+- `layer_output_name`
+- `idx` (useful for uniqueness across multiple outputs)
+- `format` (file extension)
+
+### Operational guidance
+- Ensure **uniqueness**: include `order.code` + `orderline.barcode` + `idx`.
+- Avoid unsafe filename characters: strip/replace `|`, `/`, `\`, `:` and quotes.
+- Use folder routing sparingly (e.g., by category) when a lab watches many hotfolders.
+- **Reverting to the default template flattens folders.** The output filename template controls folder structure. If a customized template that routes into product-category subfolders is reverted to the default, those category subfolders disappear and every file lands flat in the per-order folder. Re-check the template after any reset when a lab relies on category subfolders. Source: #development (2026-06-30).
+- **Cut print filenames use an index counter, not page numbers.** For cut print output, the page number is no longer included in the generated filename; an index counter (`idx`) is used instead to keep filenames unique across the set. If a lab previously relied on page numbers appearing in cut print filenames, expect the sequential `idx` value in that position now. Source: fireflies-call (2026-07-09).
+
+### Example: adjusted filename template
+A real-world example that routes into a category subfolder and forces PDF for a specific category:
+
+```liquid
+{{ orderline.product.category }}/{{ order.last_name }}_{{ page_output_name }}_{{ order.code }}_{{ orderline.product.category }}_{{ orderline.product.name | replace: "|" }}_{{ orderline.barcode }}_{{ idx }}{% if layer_output_name %}_{{ layer_output_name }}{% endif %}_Q{{ orderline.quantity }}.{% if orderline.product.category == 'MSP-Posters-Collage Prints' %}pdf{% else %}{{ format }}{% endif %}
+```
+
+> Note: Liquid `replace` normally takes two arguments: `replace: 'from', 'to'`. Sites often use this pattern to remove pipes from filenames; standardize your preferred sanitization approach per site.
+
+---
+
+## Provider patterns to expect (for adapters)
+
+These patterns show up repeatedly across real integrations:
+
+- **Barcode-first line IDs** (`line.barcode` is the primary key in payloads).
+- **sold_to vs ship_to** split (billing identity vs delivery identity).
+- **Customs value** blocks conditionally included by country.
+- **Page count transforms** (e.g., "interior pages" excludes covers).
+- **Component-level manufacturing** (per-file components with attributes like Paper/Finishing/Binding).
+- **Pickup vs ship** driven by `order.address.is_public`.
+- **Hotfolder manifests** that group by size/media/quantity and list file paths.
+
+Keep the Pixfizz Default schema simple, then implement these as adapter-level transforms.
+
+---
+
+## JSON/XML/TXT formatting tips
+
+- For JSON: use `escape_json` on strings; keep booleans as booleans and numbers as numbers.
+- Avoid producing the string `"null"` when you mean JSON `null`.
+- For XML: use `escape` (and CDATA where required by a provider).
+- Validate the output (JSON validity, XML well-formedness) before sending to a provider.
+
+---
+
+## Worked Example — QR Code Element + Fulfillment Transformation (Oxford & Rose)
+
+Source: Oxford & Rose, 2026-04-01. Concrete example of using a design element plus
+a fulfillment transformation to inject a **per-order unique value** into the
+production artwork at fulfillment time — without requiring the shopper to do
+anything at design time.
+
+### The pattern
+
+1. **In the design tool** — a QR code design element is placed on the template.
+   The element is tagged with a reference to the Shopify order line ID (a Liquid
+   expression that evaluates to an empty placeholder in the design preview).
+2. **At fulfillment time** — a fulfillment transformation detects the tagged
+   element and **dynamically generates a unique QR code** on each production file,
+   encoded with the real order line ID for that order.
+3. **The shopper** never sees the QR code in the design tool preview. They see a
+   normal card. The production file has the QR code embedded at the tagged
+   location, ready for scanning in the fulfillment / delivery workflow.
+
+### Why this matters
+
+Before fulfillment transformations supported this pattern, injecting per-order
+dynamic content (QR codes, barcodes, serial numbers, routing codes) required
+either:
+
+- Post-processing the generated PDF with an external script (extra moving parts,
+  slower, hard to debug), or
+- Generating the code in JavaScript inside the design tool (exposes the code to
+  the shopper, who could remove or edit it).
+
+The transformation approach is clean: the design template stays the same for
+every customer, the shopper cannot tamper with the injected content, and the
+logic lives in one well-defined place.
+
+### When to reach for this pattern
+
+Any time a customer order needs a **per-order dynamic production artefact** that
+should not be editable by the shopper — QR codes for tracking, serialized
+numbers, vendor routing codes, delivery confirmation codes, etc.
+
+Use a tagged element in the design tool + a fulfillment transformation. Do not
+embed the dynamic value in the design tool itself.
+
+### Which accessor: chosen_variants, not chosen_template_options
+
+Shopify identifiers (`shopify_product_id`, `shopify_variant_id`, `shopify_line_id`)
+are stored on the orderline as **chosen_variants**, not `chosen_template_options`.
+A fulfillment transformation or job ticket that reads them must use:
+
+```liquid
+{{ orderline.chosen_variants['shopify_line_id'].value }}
+```
+
+Reading them from `chosen_template_options` resolves to nothing, so the QR code
+(or barcode, or any injected value) comes out blank with no error.
+
+Diagnostic note: the admin orderline view lists every option under a single
+generic "Options" label and does not distinguish variants from template options.
+Confirm which bucket a value lives in by inspecting the product attribute
+(Variants tab vs template Options tab) or by looping both collections in Liquid.
+
+The `barcode_datauri` Liquid filter is a related but distinct capability — that
+filter generates a barcode inline in Liquid-rendered templates (job tickets,
+emails), whereas this pattern generates a per-order graphic on the production
+artwork during fulfillment processing.
+
+---
+
+## Original Customer Files Are NOT Copied to FTP by Default
+
+Original customer-uploaded files (photos, artwork) are **not** automatically copied to the FTP/hotfolder alongside generated production artwork. They require a separate `_additional_files.json` fulfillment template to be added to the fulfillment settings.
+
+If a client asks "why aren't the originals on the FTP?", the answer is always: `_additional_files.json` is missing or not configured.
+
+---
+
+## `_additional_files.json` — Delivering Additional Files to FTP
+
+The `_additional_files.json` fulfillment template controls which additional files are fetched and placed on the FTP/hotfolder **alongside** the generated production artwork. Use this for anything that needs to land on the FTP beyond the standard rendered files — PDF job tickets, user-uploaded artwork files, text manifests, etc.
+
+The template outputs a single JSON array. Each entry specifies a `source` (where to get the file) and a `destination` (where to put it on the FTP).
+
+### Source formats
+
+`_additional_files.json` supports three `source` formats:
+
+#### 1. Simple URL (string)
+
+Fetch the file at this URL and deliver it directly:
+
+```json
+{
+	"source": "https://example.com/path/to/file.pdf",
+	"destination": "/Artwork/ORDER-123/file.pdf"
+}
+```
+
+Use for: delivering user-uploaded files, fetching existing assets by URL.
+
+#### 2. HTTP request (object with `url`, `method`, `headers`, `payload`)
+
+Make an HTTP request (typically POST) and deliver the response as a file:
+
+```json
+{
+	"source": {
+		"url": "https://yoursite.pixfizz.com/custom/craftmypdf/pdfinvoice/12345.pdf",
+		"method": "post",
+		"headers": {"Content-Type": "application/json"},
+		"payload": "{{ captured_json_body | strip | escape_json }}"
+	},
+	"destination": "/PDF Job Tickets/ORDER-123.pdf"
+}
+```
+
+Use for: generating PDF job tickets or invoices via external API (e.g. CraftMyPDF), calling any web service that returns a file.
+
+#### 3. Literal content (object with `content`)
+
+Write literal string content directly as a file:
+
+```json
+{
+	"source": { "content": "Order ORDER-123 ready for production" },
+	"destination": "/Manifests/ORDER-123.txt"
+}
+```
+
+Use for: simple text manifests, trigger files, status markers.
+
+---
+
+### Pattern 1: PDF Job Ticket via CraftMyPDF
+
+This pattern generates a PDF invoice/job ticket by POSTing order data to a CraftMyPDF API endpoint. The resulting PDF lands on the FTP alongside the production artwork.
+
+**How it works:**
+
+1. A `{% capture %}` block builds the full JSON payload containing order details, customer info, shipping/pickup logic, line items, options, and generated filenames
+2. The captured body is passed through `| strip | escape_json` (double-encoding — the JSON is itself embedded inside the outer `_additional_files.json` JSON)
+3. The `source` object POSTs to the CraftMyPDF endpoint, which returns a rendered PDF
+4. The PDF is delivered to the specified FTP destination path
+
+**Template structure:**
+
+```liquid
+{% capture pdfinvoice_json_body %}
+{
+	"template_ID": "YOUR_CRAFTMYPDF_TEMPLATE_ID",
+	"store_image_url": "https://{{ website.hostname }}/path/to/logo.svg",
+
+	{%- comment %} Site-specific label strings go here {%- endcomment -%}
+	"order_label": "Order",
+	"customer_details_label": "Customer Details",
+	"order_no_label": "Order #",
+	"order_date_label": "Order Date",
+	"order_delivery_method_label": "Delivery Method",
+	"special_instructions_label": "Special Instructions",
+	"order_sub_total_label": "Order Sub Total",
+	"discount_total_label": "Discount",
+	"shipping_total_label": "Shipping",
+	"tax_total_label": "Tax",
+	"total_label": "Total",
+	"source_label": "Source",
+	"orderline_description_label": "Description",
+	"orderline_options_label": "Options",
+	"orderline_qty_label": "QTY",
+	"orderline_each_label": "Each",
+	"orderline_total_label": "Total",
+
+	{%- comment %} Standard order data — reusable across sites {%- endcomment -%}
+	"pixfizz_order": "{{ order.code }}",
+	"order_confirmed_date": "{{ order.confirmed_at | date: "%Y-%m-%d %H:%M" }}",
+	"order_total": "{{ order.total | currency }}",
+	"order_orderlines_total": "{{ order.orderlines_total | currency }}",
+	"order_discount": "{{ order.discount | currency }}",
+	"order_shipping_cost": "{{ order.shipping | currency }}",
+	"order_tax": "{{ order.tax | currency }}",
+
+	{%- comment %} Order code — use Shopify order number if available {%- endcomment -%}
+	{%- if order.custom.shopify_order_number == blank %}
+	"order_code": "{{ order.code }}",
+	{%- else %}
+	"order_code": "{{ order.custom.shopify_order_number }}",
+	{%- endif %}
+
+	{%- comment %} Pickup vs Ship logic {%- endcomment -%}
+	{%- if order.address.is_public or order.custom.shopify_shipping_service == "" %}
+	"flash_header": "Pick Up",
+	"ship_to_label": "",
+	"order_shipping_method": "Pick Up (in store)",
+	"delivery_firstname": "",
+	"delivery_lastname": "",
+	"delivery_email": "",
+	"delivery_address": "",
+	{%- else %}
+	"flash_header": "SHIP",
+	"ship_to_label": "Ship to:",
+	{%- if order.custom.shopify_shipping_service == blank %}
+	"order_shipping_method": "{{ order.shipping_method | escape_json }}",
+	{%- else %}
+	"order_shipping_method": "{{ order.custom.shopify_shipping_service | escape_json }}",
+	{%- endif %}
+	"delivery_firstname": "{{ order.first_name | escape_json }}",
+	"delivery_lastname": "{{ order.last_name | escape_json }}",
+	"delivery_email": "{{ order.email | escape_json }}",
+	"delivery_address": "{%- if order.address.street != blank %}{{ order.address.street | escape_json }}<br>{%- endif %}{%- if order.address.street2 != blank %}{{ order.address.street2 | escape_json }}<br>{%- endif %}{%- if order.address.city != blank %}{{ order.address.city | escape_json }}<br>{%- endif %}{%- if order.address.region != blank %}{{ order.address.region | escape_json }}<br>{%- endif %}{%- if order.address.postcode != blank %}{{ order.address.postcode | escape_json }}<br>{%- endif %}{%- if order.address.country.name != blank %}{{ order.address.country.name | escape_json }}{%- endif %}",
+	{%- endif %}
+
+	{%- comment %} Payment status {%- endcomment -%}
+	{%- if order.payment_reference == blank %}
+	"payment_status": "Payment Due",
+	{%- else %}
+	"payment_status": "Paid",
+	{%- endif %}
+
+	"source": "Pixfizz",
+	"customer name": "{{ user.first_name | escape_json }} {{ user.last_name | escape_json }}",
+	"customer_email": "{{ user.email }}",
+	"email": "{{ order.email }}",
+	"phone": "{{ order.telephone }}",
+	"order_notes": "{{ order.user_notes | escape_json }}",
+
+	{%- comment %} Rush fee extraction from extra_fees {%- endcomment -%}
+	"rush_flash": "{% for fee in order.extra_fees %}{{ fee.name | replace: 'Rush Fee','RUSH' }}{% endfor %}",
+	"rush_fee": "{% assign rush_fee = order.extra_fees | first %}{% if rush_fee and rush_fee.amount > 0 %}{{ rush_fee.amount | currency }}{% else %}{{ 0 | currency }}{% endif %}",
+
+	"lines": [
+		{%- for line in order.all_orderlines %}
+		{
+			"product_name": "{{ line.product.name | escape_json }}",
+			"project_id": "{{ line.project.id }}",
+			"product_code": "{{ line.product.code | escape_json }}",
+			"qty": "{% unless line.is_cut_print %}{{ line.quantity }}{% else %}{{ line.cut_print_quantity }}{% endunless %}",
+			"unitprice": "{% unless line.is_cut_print %}{{ line.unit_price | currency }}{% else %}{{ line.unit_price | divided_by: line.cut_print_quantity | currency }}{% endunless %}",
+			"subtotal": "{{ line.price | currency }}",
+			"options": "{%- for option in line.chosen_template_options %}
+				{%- if option.template_option.type == "image_upload" or option.value == blank %}{%- else %}<b>{{ option.template_option.name | escape_json }}:</b> {{ option.value | escape_json }}<br>
+				{%- endif %}
+				{%- endfor %}
+				{%- for option in line.chosen_variants %}
+				{%- if option.variant.type == "image_upload" or option.value == blank %}{%- else %}<b>{{ option.variant.name | escape_json }}:</b> {{ option.value | escape_json }}<br>
+				{%- endif %}
+				{%- endfor %}",
+			"files": "{%- for file in line.generated_files %}
+				{%- if line.is_cut_print %}{%- else %}{{ file.filename }}<br>{%- endif %}
+				{%- endfor %}"
+		{%- unless forloop.last %}},{% endunless %}
+		{%- endfor %}
+	}
+	]
+}
+{% endcapture %}
+```
+
+**Key implementation notes for the CraftMyPDF pattern:**
+
+- The `template_ID` is a CraftMyPDF template identifier — each site gets its own branded template designed in the CraftMyPDF dashboard.
+- `order.all_orderlines` is used inside the capture block (includes all lines for the complete job ticket), while `orderlines` is used in the outer file delivery loop.
+- The `| strip | escape_json` on the captured body is critical — `strip` removes trailing whitespace from the capture, then `escape_json` escapes the entire JSON string so it can be embedded inside the outer JSON's `payload` field. This is a double-encoding pattern.
+- Pickup vs Ship logic uses `order.address.is_public` — when `true`, the order is a collection/pickup (system address); when `false`, it's a delivery with a real shipping address.
+- For Shopify sites, shipping service name comes from `order.custom.shopify_shipping_service`; for Full Pixfizz sites, from `order.shipping_method`.
+- Payment status is inferred from `order.payment_reference` — blank means unpaid.
+- Rush fee detection loops `order.extra_fees` and replaces "Rush Fee" text with "RUSH" for visual flagging on the printed job ticket.
+- Cut print orderlines need special handling: quantity comes from `cut_print_quantity`, and unit price must be divided by `cut_print_quantity` to get the per-unit price.
+- Preview image URLs can be constructed from `line.preview_url` with modified height parameters and a `share` query parameter using `line.project.share_code`.
+- Label strings (e.g. `order_label`, `customer_details_label`) are site-specific and should be customized per deployment. For multilingual sites, translate these values.
+- The `show_payment_status` field should be set to `"false"` for Shopify sites (payment is handled externally).
+
+---
+
+### Pattern 2: Delivering user-uploaded files (file_upload options/variants)
+
+This pattern delivers files that end users uploaded via `file_upload` type template options or product variants. These are files the customer attached during the ordering process (e.g. a custom logo, a PDF of their own artwork, a photo for engraving).
+
+**How it works:**
+
+1. Loop through all `orderlines`
+2. For each orderline, check both `chosen_template_options` and `chosen_variants`
+3. If an option/variant has type `file_upload` and `uploaded_file.url` is not blank, add it to the array
+4. The file is fetched from its Pixfizz-hosted URL and delivered to the FTP
+
+**Template (standalone version — without a fixed first entry):**
+
+```liquid
+[
+	{%- assign af_first = true -%}
+
+	{%- for line in orderlines -%}
+
+		{%- comment %} Template options — file_upload type {%- endcomment -%}
+		{%- for opt in line.chosen_template_options -%}
+			{%- if opt.template_option.type == "file_upload" and opt.uploaded_file.url != blank -%}
+				{%- unless af_first -%},{%- endunless -%}
+				{
+					"source": "{{ opt.uploaded_file.url | escape_json }}",
+					"destination": "/Artwork/{{ order.code | escape_json }}/Uploaded_Files/{{ forloop.parentloop.index }}-{{ opt.uploaded_file.filename | escape_json }}"
+				}
+				{%- assign af_first = false -%}
+			{%- endif -%}
+		{%- endfor -%}
+
+		{%- comment %} Product variants — file_upload type {%- endcomment -%}
+		{%- for v in line.chosen_variants -%}
+			{%- if v.variant.type == "file_upload" and v.uploaded_file.url != blank -%}
+				{%- unless af_first -%},{%- endunless -%}
+				{
+					"source": "{{ v.uploaded_file.url | escape_json }}",
+					"destination": "/Artwork/{{ order.code | escape_json }}/Uploaded_Files/{{ forloop.parentloop.index }}-{{ v.uploaded_file.filename | escape_json }}"
+				}
+				{%- assign af_first = false -%}
+			{%- endif -%}
+		{%- endfor -%}
+
+	{%- endfor -%}
+]
+```
+
+**When combined with CraftMyPDF (or any fixed first entry):**
+
+When a fixed entry always occupies position 1 in the array, the comma handling simplifies — hardcode the comma inside each conditional block rather than using a flag variable:
+
+```liquid
+[
+	{
+		"source": {
+			"url": "https://{{ website.hostname }}/custom/craftmypdf/pdfinvoice/{{ order.id }}.pdf",
+			"method": "post",
+			"headers": {"Content-Type": "application/json"},
+			"payload": "{{ pdfinvoice_json_body | strip | escape_json }}"
+		},
+		"destination": "/PDF Job Tickets/{{ order.code }}.pdf"
+	}
+
+	{%- for line in orderlines -%}
+
+		{%- comment %} Template options — file_upload type {%- endcomment -%}
+		{%- for opt in line.chosen_template_options -%}
+			{%- if opt.template_option.type == "file_upload" and opt.uploaded_file.url != blank -%}
+			,
+				{
+					"source": "{{ opt.uploaded_file.url | escape_json }}",
+					"destination": "/Artwork/{{ order.code | escape_json }}/Uploaded_Files/{{ forloop.parentloop.index }}-{{ opt.uploaded_file.filename | escape_json }}"
+				}
+			{%- endif -%}
+		{%- endfor -%}
+
+		{%- comment %} Product variants — file_upload type {%- endcomment -%}
+		{%- for v in line.chosen_variants -%}
+			{%- if v.variant.type == "file_upload" and v.uploaded_file.url != blank -%}
+			,
+				{
+					"source": "{{ v.uploaded_file.url | escape_json }}",
+					"destination": "/Artwork/{{ order.code | escape_json }}/Uploaded_Files/{{ forloop.parentloop.index }}-{{ v.uploaded_file.filename | escape_json }}"
+				}
+			{%- endif -%}
+		{%- endfor -%}
+
+	{%- endfor -%}
+]
+```
+
+---
+
+### Key rules for `_additional_files.json`
+
+- The entire template must output a **single `[...]` array**. Multiple arrays or objects outside the array is invalid JSON and will cause a silent parse error.
+- When a fixed entry (e.g. a PDF job ticket) always occupies position 1, **hardcode the comma inside each conditional block** rather than using a flag variable. This avoids the leading-comma problem entirely.
+- Do not use generic variable names like `needs_comma` — they can collide with variables set in other fulfillment templates rendered in the same context. Use a unique prefix (e.g. `af_first`) if a flag variable is needed.
+- Use `uploaded_file.filename` (not the option code/name) in the destination path to **preserve the original file extension** (e.g. `.pdf`, `.psd`, `.ai`).
+- Always use `order.code` as the default folder identifier — only use `order.custom.shopify_order_number` when explicitly required for a Shopify site.
+- `order.all_orderlines` includes all orderlines (use inside payload capture blocks for complete data). `orderlines` is the standard loop variable in the fulfillment template context (use for file delivery).
+- The double-encoding pattern (`capture` → `| strip` → `| escape_json`) is required when embedding a JSON payload inside another JSON structure. The `strip` removes trailing whitespace from the capture block; `escape_json` escapes the entire string for safe embedding.
+
+---
+
+### FTP Path Prefix: `originals/` vs `/originals/`
+
+The path prefix in a fulfillment filename or directory template determines where files land on the FTP server **relative to the order folder**:
+
+- `originals/` — places files in a subfolder **inside** the order folder (e.g. `/ORDERFOLDER/originals/filename.jpg`)
+- `/originals/` — places files in the **root** of the FTP server under `originals/`, outside the order folder hierarchy
+
+This distinction is silent — both are valid syntax and neither produces an error. Wrong choice results in files landing in an unexpected location.
+
+**Both the main fulfillment template AND the `_additional_files.json` template must be updated** when changing path structure. Updating only one will produce inconsistent delivery — production files in one place, original files in another.
+
+### Job Tickets Folder Naming Consistency
+
+When FTP routing uses a `Job Tickets` folder (e.g. to deliver PDF job tickets alongside production files), the **folder name must be consistent** across all sites and fulfillment templates in the same FTP setup.
+
+A mismatch (e.g. `Job Tickets` on one site, `job-tickets` on another) causes routing to fail silently — the FTP receives the file but the production system cannot find it.
+
+Establish a naming convention at the start of each FTP integration and apply it identically to every template that writes to that folder.
+
+---
+
+## Changelog
+- 2026-04-10: Initial content from platform documentation export.
+- 2026-05-21: Restructured _additional_files.json section — documented three source formats (simple URL, HTTP request object, literal content), added full CraftMyPDF PDF job ticket worked example with capture block and implementation notes, separated file_upload delivery as distinct Pattern 2 with standalone and combined versions, added double-encoding and orderlines scope rules. Source: claude-chat.
+- 2026-06-01: Added chosen_variants accessor note to the QR Code worked example. Source: claude-chat.
+- 2026-06-30: Documented fulfillment code resolution/precedence — template-level codes (added June 2026) have highest priority and override location-based codes. Source: notion-dashboard (2026-06-22).
+- 2026-07-04: Noted that reverting the output filename template to default flattens product-category subfolders (files land flat in the per-order folder). Source: slack-message (#development).
+- 2026-07-11: Documented UI lock — the product-level fulfillment code field is locked when the template carries its own fulfillment code (extends the code resolution/precedence note). Source: slack-message (#development, commit 2026-07-05).
+- 2026-07-11: Noted cut print filenames now use an index counter (`idx`) instead of page numbers for uniqueness. Source: fireflies-call (2026-07-09).
+- 2026-07-31: Renamed "Enable Perfectly Clear" billing field to "Enable AI Tokens" — confirms shift from Perfectly Clear-specific billing to a generic AI token model (OpenAI/Gemini). Source: slack-message (#development), commit 8aeec021.
 
 
 =================================================================
@@ -5829,7 +6848,7 @@ FILE: 45_ORDERHUB.md
 
 **Authority Scope:** OrderHub operational configuration, Jobs, Production Board, Processes, Locations, integrations, and notifications. For the core Pixfizz order lifecycle see `32_ORDER_LIFECYCLE.md`.
 
-_Last updated: 2026-06-30_
+_Last updated: 2026-07-31_
 
 ---
 
@@ -6076,6 +7095,10 @@ This keeps the OrderHub web UI in sync with local production progress.
 
 > OHD is a companion tool to OrderHub — not standalone. Requires an active OrderHub connection and API key.
 
+### Known issue: film scan folders stuck in the OHD watch folder
+
+Film scan folders have been reported not moving out of the OHD watch folder (distinct from the Film Scans Module's S3 Auto-Sync). This is a repeat issue type across support tickets; root cause and fix are not yet confirmed. If a lab reports scans not progressing, check whether files are stalled in the local OHD watch folder before escalating. Source: support ticket #18341 (pending confirmation from dev).
+
 ---
 
 ## EasyPost Shipping Integration
@@ -6259,6 +7282,7 @@ Both the Email and SMS tabs include a **Send Test** button. Enter any email or p
 - 2026-06-30: Documented OrderHub Desktop variant-value routing — Desktop maps on readable finish/variant value + size, not lab/printer-specific numeric codes; prefer readable finish codes. Source: slack-message (#development).
 - 2026-07-04: Added Order Status Sync (OrderHub → Core, shipped requires API user enabled); channel-ID copy gotcha in OHD variant updates; email-consolidation limitation (separate emails cannot be merged); PrintNode invoice auto-print troubleshooting. Source: Fireflies, slack-message (#development).
 - 2026-07-25: Added POS Application Behaviour section (close/reopen required to load a new build; build version shown at bottom of logged-out login screen; 5-minute screensaver is burn-in prevention, not a session timeout; receipt paper size is software config — Epson TM-P20II is 58mm, set in both the Epson utility and the Mac driver). Added automated print job creation from film roll quantities with artwork upload to operator desktop. Source: fireflies-call (3x repeat signal).
+- 2026-07-31: Added known issue — film scan folders reported stuck in the OHD watch folder (repeat issue type, root cause/fix not yet confirmed). Source: support ticket #18341 (pending confirmation).
 
 
 =================================================================
@@ -14997,7 +16021,7 @@ FILE: 90_FAQ.md
 
 **Authority Scope:** Customer-facing Q&A grounded in platform truth (files 10–32, 60). Covers Full Pixfizz / Shopper and Shopify + Pixfizz deployments. Not a developer reference — answers are written for store owners and operators.
 
-_Last updated: 2026-05-19_
+_Last updated: 2026-07-31_
 
 ---
 
@@ -15104,6 +16128,13 @@ From the storefront, customers browse to a product, select a Design (their start
 _Applies to: All_
 
 Yes. Design Tool Configurations (found in admin under Settings > Design Tool) let you toggle 30+ individual features on or off — image rotation, crop, filters, autofill, text tools, shape buttons, and more. Different product types can use different configurations. Some configuration settings are managed by Pixfizz staff at the platform level.
+
+---
+
+**Q: I only want image upload available on some templates, not all of them — how do I do that?**
+_Applies to: All_
+
+A single global `editor.css` rule (or Custom CSS field) that hides image upload applies to every template using that configuration, so it can't give you per-template control on its own. Because a Design Tool Configuration is assigned per Template or per Design (not per product or category), the way to get per-template control is to create a separate configuration for the templates that should hide image upload, with its own CSS, and assign only those templates to it — leaving the rest on a configuration where upload stays visible. See "Can I control which features appear in the editor?" above and 17_DESIGN_TOOL.md § Design Tool Configurations / Editor CSS Customization. Source: support ticket #18337.
 
 ---
 
@@ -15379,4 +16410,5 @@ Configurable options include:
 - 2026-04-06: Initial version. 35 Q&As covering Getting Started, Products, Design Tool, Pricing, Cart/Checkout, Shopify, Orders, Storefront, and Troubleshooting.
 - 2026-05-19: Added inventory tracking Q&A (Section 2), inline price editing Q&A (Section 4), order cancellation and transaction fees Q&A (Section 7), multi-language support Q&A (Section 8), and Batch Film Uploader workflow (new Section 10 — Film Lab Workflows). Source: Notion KB articles.
 - 2026-07-04: Added CMYK-JPEG upload caution to the image-upload Q&A (Section 3) — upload sRGB; reserve CMYK for fulfillment transformation. Source: Fireflies (2026-07-03).
+- 2026-07-31: Added per-template image upload visibility Q&A (Section 3) — use a separate Design Tool Configuration per template rather than a single global editor.css rule. Source: support ticket.
 
