@@ -134,6 +134,30 @@ _Pixfizz completes internally; customer provides brand assets._
 
 **Blockers:** Logo, colours, domain/DNS access, and a rough navigation structure from customer.
 
+#### Custom domain and SSL sequence
+
+Domain setup is a sequence with waiting built into it, not a single step to be
+left until launch week. Start it early in Phase 1.
+
+1. Customer creates a CNAME for the storefront domain or subdomain pointing at
+   `hosting.pixfizz.com`.
+2. Register the domain in Pixfizz admin under **Settings → General → Domain
+   Hosting**.
+3. Wait for DNS propagation. Allow up to **48 hours**. Tell the customer not to
+   change DNS records again while propagation is in flight, since further edits
+   restart the wait and make the problem much harder to diagnose.
+4. Once the domain resolves to Pixfizz, **request the SSL certificate**. SSL is
+   not provisioned automatically when DNS changes, it is requested after DNS is
+   confirmed correct.
+5. Certificate issuance takes roughly **40 minutes** from the request.
+
+If propagation is still failing well past 48 hours, the problem is normally at
+the registrar or the previous host rather than at Pixfizz. Have the customer
+raise it with whoever manages the domain.
+
+The same sequence applies to every additional domain on a site, including kiosk
+domains and the personalization subdomain on a Shopify plus Pixfizz build.
+
 ### Phase 2: Product Setup
 
 _Longest phase. Can run in parallel with Phase 1 if assets are ready._
@@ -481,3 +505,4 @@ Review and customize all active templates before launch — default content refe
 - 2026-06-26: Corrected 301 redirect config to outer-array format (bare single pair fails silently). Added crawler/feed JSON-error failure mode for missing product descriptions and daily auto-crawl note. Source: claude-chat/fireflies-call.
 - 2026-05-21: Major rewrite. Added all deployment paths (Custom API, Marketplace/Etsy). Added "Preparing for Onboarding" customer preparation section. Added Full Pixfizz Custom path. Expanded phase sequences with blockers. Merged content from onboarding skill. Added pre-launch handoff checklist. Added vertical-specific notes.
 - 2026-05-27: Photo Labs vertical notes: added kiosk mode setup procedure (CNAME, checklist keys, pay-in-store config), OHD single-location install rule, film 120/220 as separate products, same-day JS cutoff pattern. Phase 2: added static product CSV importer note (manage/tools/product-importer). Phase 3: added SendGrid deliverability and DNS authentication note. Pre-launch checklist: added email delivery DNS check. Custom API Phase 2: added external user warning (_uid creates non-login users; OrderHub operators must use /v1/users). Source: Fireflies calls, Slack #dev, support tickets.
+- 2026-08-05: Added the custom domain and SSL sequence to Phase 1 (CNAME to hosting.pixfizz.com, register under Settings > General > Domain Hosting, up to 48 hours propagation, SSL requested manually after DNS confirms, roughly 40 minutes to issue). Confirms SSL is not auto-provisioned. Source: fireflies-call.

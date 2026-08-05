@@ -36,6 +36,35 @@ Where an order lands as Pending (manual payment methods, gateway not configured,
 
 Check the Pending queue as part of daily order review on any site that accepts manual or offline payment.
 
+### Gateway callback webhooks must be configured on the gateway side
+
+Configuring a payment gateway in Pixfizz admin is only half the setup. Most
+gateways will not tell Pixfizz the outcome of a payment unless a callback
+webhook is registered in the gateway's own dashboard, pointing back at the
+Pixfizz callback endpoint for that site.
+
+Where that webhook is missing, the customer pays successfully and is debited,
+but Pixfizz never receives the result. The order stays in **Pending** and never
+routes to production. Nothing errors on the storefront, so this presents as a
+Pixfizz fault when it is a gateway configuration gap.
+
+**Diagnosing.** Search the server logs for requests to the site's gateway
+callback endpoint. No requests at all means the webhook is either not set up,
+or set up against the wrong URL. Test payments that debit correctly but leave
+the order Pending are the same signal.
+
+**PayU (confirmed).** In the PayU admin under **Developers > Webhooks**, create
+two webhooks, one for **Payments > Successful** and one for **Payments >
+Failed**. Both point at the same URL:
+
+```
+https://<site-domain>/cart/payu_money_callback
+```
+
+Treat "is the gateway-side webhook registered" as the first check on any
+gateway where payments succeed but orders stay Pending, before looking at
+Pixfizz configuration.
+
 ### Status codes in Liquid
 
 In Liquid templates, `order.status` returns a **single-letter code**, not the display label. Confirmed codes:
@@ -273,3 +302,4 @@ The `manual_payment` field is a custom field set at order creation. It returns `
 - 2026-05-21: Expanded OrderHub Desktop (OHD) section with DPOF generation, AI upscaling, multi-instance behaviour, and API endpoint. Added cross-reference to 45_ORDERHUB.md. Source: OrderHub help modal.
 - 2026-06-26: Documented order.status single-letter Liquid codes (P=Pending, F=Payment Failed) and the order_payment form for Pay Now / payment retry. Source: claude-chat.
 - 2026-07-25: Clarified that Pending orders do not automatically route to production and must be manually confirmed in admin before artwork generation, fulfillment delivery, or OrderHub job creation occurs. Source: fireflies-call.
+- 2026-08-05: Documented gateway callback webhooks as a required gateway-side configuration step, covering the failure mode where payment succeeds but the order stays Pending. Added the confirmed PayU setup (two webhooks, Successful and Failed, both to `/cart/payu_money_callback`) and the log-based diagnosis. Source: slack-message (#development), fireflies-call.

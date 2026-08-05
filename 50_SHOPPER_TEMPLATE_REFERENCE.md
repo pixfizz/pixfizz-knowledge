@@ -670,7 +670,10 @@ created by adding instances of the `pages` Custom Type instead.
 **Navigation path:** Main Admin → Website tab → Custom Types → Pages
 
 Create a new instance with these field values:
-- `page_path` — must match the URL segment exactly (e.g. `graduation` → `/site/graduation`)
+- `page_path` — must match the URL path exactly. At level 1 this is the single
+  segment (`graduation` → `/site/graduation`). At levels 2 and 3 it is the
+  **full slash-joined path**, not just the final segment
+  (`services/framing` → `/site/services/framing`)
 - `page_title` — page title
 - `page_description` — snippet field, optional
 - `page_content` — snippet field — main page content goes here
@@ -689,8 +692,54 @@ How it works:
 Constraints:
 - Real CMS pages always take priority over Custom Type instances on the
   same path — always use a path that has no real page equivalent
-- The path is a single segment only (level 1) — use level 2/3 catch-all
-  pages for nested paths if needed
+- Levels 1, 2 and 3 each have their own catch-all page. Each one builds
+  `page_path` by joining its own path params with `/`, so a level 3
+  instance stores all three segments in that single field
+
+### Head-level dependencies must repeat the lookup
+
+`html.head` renders **before** `{{ page.content }}`. A `custom_page` variable
+assigned inside the catch-all page body therefore does not exist yet when the
+head snippet runs. Anything in the head that depends on the Custom Type
+instance (meta title, meta description, canonical, robots) has to repeat the
+path build and the lookup inside `html.head` itself.
+
+This is the usual reason meta title and description come out blank on Custom
+Type pages while the visible page content renders correctly.
+
+The head-side lookup rebuilds the path from the request params, appending
+levels 2 and 3 only when they are present, then queries the same collection:
+
+```liquid
+{% assign cp_path = request.path_params['page-path-1'] %}
+{% if request.path_params['page-path-2'] != blank %}
+	{% assign cp_path = cp_path | append: '/' | append: request.path_params['page-path-2'] %}
+{% endif %}
+{% if request.path_params['page-path-3'] != blank %}
+	{% assign cp_path = cp_path | append: '/' | append: request.path_params['page-path-3'] %}
+{% endif %}
+{% if cp_path != blank %}
+	{% assign cp_page = website.custom_types.pages | where: 'custom.page_path', cp_path | first %}
+{% endif %}
+```
+
+The `!= blank` guard matters. Without it the lookup runs on every page on the
+site, not only on the catch-all pages.
+
+**Suppressing indexing per page.** Add a boolean custom field to the `pages`
+Custom Type and emit the robots tag from the head block above. `hide_from_index`
+matches the naming already used for products and designs. Two platform rules
+apply:
+
+- Boolean custom fields are real booleans. Test with
+  `{% if cp_page.custom.hide_from_index %}`, never against the strings
+  `'true'` or `'false'`.
+- Custom fields do not inherit from parent to child, so the field has to be
+  created on every site that needs it.
+
+The same head block is what fixes meta title and description on Custom Type
+pages, so it is worth doing all of it in one pass rather than only the robots
+tag.
 
 ## 15. Custom Admin — Shopper v2 (`/site/manage/`)
 
@@ -880,3 +929,4 @@ clashing with the `s-` design-system classes.
 - 2026-06-01: Added Shop All page feature note. Source: fireflies-call.
 - 2026-06-15: Added Static Product Importer CSV column spec under Tools pages. Added Google Ads conversion-tracking note (no built-in preset; deploy via GTM). Added Known Gotcha: logged-out app error on custom-admin pages (page body renders before the layout user.is_admin gate; Bootstrap modal CSS inactive in custom admin). Source: claude-chat.
 - 2026-07-20: Added kiosk captcha per-subdomain note — captcha config does not carry from the main storefront to the kiosk subdomain and must be set on the kiosk site. Source: support-ticket.
+- 2026-08-05: Corrected `page_path` to store the full slash-joined path at levels 2 and 3, not only the final segment, and corrected the constraint that wrongly stated level 1 only. Added Head-level dependencies must repeat the lookup, covering the `html.head` before `page.content` render order, the paste-ready head lookup block, the `!= blank` guard, and the per-page noindex pattern via a boolean `hide_from_index` custom field. Source: claude-chat.

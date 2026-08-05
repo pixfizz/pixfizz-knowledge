@@ -22,6 +22,7 @@ The dashboard also surfaces active (in-progress) carts, giving visibility into c
 ### Orders
 - **Orders** — view/manage with status filters, CSV export, barcode search
     - **Design custom fields in the orderline CSV:** to output a design-level custom field as a column in the orderline CSV export, reference it with the nested path `custom:print_book:print_theme:<field-name>` (for example `custom:print_book:print_theme:primary_collection_path`). The standard orderline CSV cannot filter on these fields, but it can output them using this path.
+    - **Money log:** the order detail page shows a payment **summary** only. The individual money log entries for that order live in Super Admin, reached with the **Show details** link on the summary. Go via Show details for per-transaction history, partial captures, or when a payment total on the order page looks wrong.
 - **Abandoned Carts** — incomplete checkouts
 - **Production Files** — production book files with project, page count, status
 - **Projects** — end users' saved personalization projects
@@ -215,3 +216,4 @@ Per-website configuration includes:
 - 2026-05-19: Expanded Inventory Management into dedicated section with enable flow, stock reduction rules, negative stock behavior, Liquid properties (product.tracks_inventory, product.current_inventory), and out-of-stock CMS pattern. Expanded Translation Support into dedicated section with Super Admin enable flow, translatable objects list, Liquid auto-resolution, translate link location, and bulk export/import. Added inline price editing to Product Attributes. Source: Notion KB articles.
 - 2026-06-01: Added active carts on the dashboard. Source: fireflies-call.
 - 2026-06-15: Documented admin-only visibility for Pages/blog (pre-publish staging gate) and the design custom-field column path for the orderline CSV export (custom:print_book:print_theme:<field>). Source: slack-kb-sync (Matjaz, #development; design-field reporting work).
+- 2026-08-05: Noted that the order detail page now shows a payment summary only, with individual money log entries reached through the Show details link into Super Admin. Source: slack-message (#development).
