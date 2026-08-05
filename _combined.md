@@ -2182,6 +2182,7 @@ The dashboard also surfaces active (in-progress) carts, giving visibility into c
 ### Orders
 - **Orders** — view/manage with status filters, CSV export, barcode search
     - **Design custom fields in the orderline CSV:** to output a design-level custom field as a column in the orderline CSV export, reference it with the nested path `custom:print_book:print_theme:<field-name>` (for example `custom:print_book:print_theme:primary_collection_path`). The standard orderline CSV cannot filter on these fields, but it can output them using this path.
+    - **Money log:** the order detail page shows a payment **summary** only. The individual money log entries for that order live in Super Admin, reached with the **Show details** link on the summary. Go via Show details for per-transaction history, partial captures, or when a payment total on the order page looks wrong.
 - **Abandoned Carts** — incomplete checkouts
 - **Production Files** — production book files with project, page count, status
 - **Projects** — end users' saved personalization projects
@@ -2375,6 +2376,7 @@ Per-website configuration includes:
 - 2026-05-19: Expanded Inventory Management into dedicated section with enable flow, stock reduction rules, negative stock behavior, Liquid properties (product.tracks_inventory, product.current_inventory), and out-of-stock CMS pattern. Expanded Translation Support into dedicated section with Super Admin enable flow, translatable objects list, Liquid auto-resolution, translate link location, and bulk export/import. Added inline price editing to Product Attributes. Source: Notion KB articles.
 - 2026-06-01: Added active carts on the dashboard. Source: fireflies-call.
 - 2026-06-15: Documented admin-only visibility for Pages/blog (pre-publish staging gate) and the design custom-field column path for the orderline CSV export (custom:print_book:print_theme:<field>). Source: slack-kb-sync (Matjaz, #development; design-field reporting work).
+- 2026-08-05: Noted that the order detail page now shows a payment summary only, with individual money log entries reached through the Show details link into Super Admin. Source: slack-message (#development).
 
 
 =================================================================
@@ -5621,6 +5623,35 @@ Where an order lands as Pending (manual payment methods, gateway not configured,
 
 Check the Pending queue as part of daily order review on any site that accepts manual or offline payment.
 
+### Gateway callback webhooks must be configured on the gateway side
+
+Configuring a payment gateway in Pixfizz admin is only half the setup. Most
+gateways will not tell Pixfizz the outcome of a payment unless a callback
+webhook is registered in the gateway's own dashboard, pointing back at the
+Pixfizz callback endpoint for that site.
+
+Where that webhook is missing, the customer pays successfully and is debited,
+but Pixfizz never receives the result. The order stays in **Pending** and never
+routes to production. Nothing errors on the storefront, so this presents as a
+Pixfizz fault when it is a gateway configuration gap.
+
+**Diagnosing.** Search the server logs for requests to the site's gateway
+callback endpoint. No requests at all means the webhook is either not set up,
+or set up against the wrong URL. Test payments that debit correctly but leave
+the order Pending are the same signal.
+
+**PayU (confirmed).** In the PayU admin under **Developers > Webhooks**, create
+two webhooks, one for **Payments > Successful** and one for **Payments >
+Failed**. Both point at the same URL:
+
+```
+https://<site-domain>/cart/payu_money_callback
+```
+
+Treat "is the gateway-side webhook registered" as the first check on any
+gateway where payments succeed but orders stay Pending, before looking at
+Pixfizz configuration.
+
 ### Status codes in Liquid
 
 In Liquid templates, `order.status` returns a **single-letter code**, not the display label. Confirmed codes:
@@ -5858,6 +5889,7 @@ The `manual_payment` field is a custom field set at order creation. It returns `
 - 2026-05-21: Expanded OrderHub Desktop (OHD) section with DPOF generation, AI upscaling, multi-instance behaviour, and API endpoint. Added cross-reference to 45_ORDERHUB.md. Source: OrderHub help modal.
 - 2026-06-26: Documented order.status single-letter Liquid codes (P=Pending, F=Payment Failed) and the order_payment form for Pay Now / payment retry. Source: claude-chat.
 - 2026-07-25: Clarified that Pending orders do not automatically route to production and must be manually confirmed in admin before artwork generation, fulfillment delivery, or OrderHub job creation occurs. Source: fireflies-call.
+- 2026-08-05: Documented gateway callback webhooks as a required gateway-side configuration step, covering the failure mode where payment succeeds but the order stays Pending. Added the confirmed PayU setup (two webhooks, Successful and Failed, both to `/cart/payu_money_callback`) and the log-based diagnosis. Source: slack-message (#development), fireflies-call.
 
 
 =================================================================
@@ -6516,6 +6548,7 @@ Two failure modes come up when a Bootstrap 4.6 modal is created or shown from a 
 - **jQuery is not available at script-load time.** The `style onload` attribute fires very early in page parsing, before the theme's jQuery has loaded. Any `jQuery(...)` / `$(...)` reference evaluated at load time fails silently. Only reference jQuery *inside* a user-interaction handler (click/change), which runs long after load — never at the top level of the IIFE.
 - **`position: fixed` breaks under a transformed ancestor.** A modal inside a container that has a CSS `transform` (common in sidebars/option panels) renders inline/contained rather than as a full-screen overlay, because a transformed ancestor becomes the containing block for `position: fixed`. Fix: on first show, move the modal element to `document.body` (e.g. `document.body.appendChild(modalEl)`) so it escapes the transformed ancestor. Also wire close buttons with explicit delegated click handlers rather than relying on Bootstrap's `data-dismiss` auto-wiring, which may be absent in a trimmed Bootstrap build. Source: claude-chat (test-print charge modal).
 - **`filter` on `<body>` breaks `position: fixed` and appending to body does not fix it.** `transform` is not the only property that creates a containing block for fixed positioning — `filter`, `backdrop-filter`, `perspective`, `contain`, and `will-change` do the same. A site whose `<body>` carries even a no-op `filter: blur(0px)` will contain every fixed element on the page, so the standard `document.body.appendChild(modalEl)` fix has nothing to escape to. Diagnose by checking computed style on `<body>` and every ancestor for these properties, not just `transform`. Where the offending rule cannot be removed (it is often part of a theme's page-transition effect), the fallback is a JavaScript viewport anchor that repositions the overlay against `window.scrollY` on scroll and resize. Source: claude-chat (custom designer modal).
+- **`position: sticky` traps a modal below the backdrop.** This is a different mechanism from the containing-block problems above. `position: sticky` (and `position: fixed`) creates a **stacking context** unconditionally, even at `z-index: auto`. A modal rendered inside a sticky container therefore cannot rise above the body-level `.modal-backdrop` at z-index 1040, however high the modal's own z-index is. The symptom is a modal that is fully visible but completely unclickable. Confirm it with `document.elementFromPoint(x, y)` at the centre of the modal: a return of `DIV.modal-backdrop` proves the trap, and a manual `document.body.appendChild(modalEl)` in the console will unblock it. Fix it in CSS rather than JavaScript, by dropping sticky only while a modal is open: `body.modal-open .product-details.sticky { position: static; }`. When writing a diagnostic that scans ancestors for this class of bug, do **not** gate the check on `z-index !== auto`, because that filter skips every `sticky` and `fixed` element and is the reason the cause gets missed. Source: claude-chat (custom design tool on a child site).
 
 ### Variant: `sessionStorage` for tab-session persistence
 
@@ -6838,6 +6871,7 @@ This is robust regardless of which items are skipped. It applies to any Liquid J
 - 2026-07-04: Added Bootstrap-modal gotchas for `style onload` IIFEs (jQuery not available at load time; append modal to `document.body` to escape transformed-ancestor `position: fixed` containment). Source: claude-chat.
 - 2026-07-25: Extended the fixed-positioning gotcha — `filter` (including a no-op `filter: blur(0px)`), `backdrop-filter`, `perspective`, `contain`, and `will-change` also create a containing block, and when the property sits on `<body>` the append-to-body fix does not work. Source: claude-chat.
 - 2026-07-28: Added Custom Tool Dependency Loading — load tool dependencies from the tool's own product snippet, never from `integrations/custom-body-scripts`, which child sites override. Source: claude-chat.
+- 2026-08-05: Added the `position: sticky` stacking-context modal trap, distinct from the containing-block gotchas, with the elementFromPoint confirmation, the `body.modal-open` CSS fix, and the diagnostic-script flaw of gating ancestor checks on `z-index !== auto`. Source: claude-chat.
 
 
 =================================================================
@@ -9379,7 +9413,10 @@ created by adding instances of the `pages` Custom Type instead.
 **Navigation path:** Main Admin → Website tab → Custom Types → Pages
 
 Create a new instance with these field values:
-- `page_path` — must match the URL segment exactly (e.g. `graduation` → `/site/graduation`)
+- `page_path` — must match the URL path exactly. At level 1 this is the single
+  segment (`graduation` → `/site/graduation`). At levels 2 and 3 it is the
+  **full slash-joined path**, not just the final segment
+  (`services/framing` → `/site/services/framing`)
 - `page_title` — page title
 - `page_description` — snippet field, optional
 - `page_content` — snippet field — main page content goes here
@@ -9398,8 +9435,54 @@ How it works:
 Constraints:
 - Real CMS pages always take priority over Custom Type instances on the
   same path — always use a path that has no real page equivalent
-- The path is a single segment only (level 1) — use level 2/3 catch-all
-  pages for nested paths if needed
+- Levels 1, 2 and 3 each have their own catch-all page. Each one builds
+  `page_path` by joining its own path params with `/`, so a level 3
+  instance stores all three segments in that single field
+
+### Head-level dependencies must repeat the lookup
+
+`html.head` renders **before** `{{ page.content }}`. A `custom_page` variable
+assigned inside the catch-all page body therefore does not exist yet when the
+head snippet runs. Anything in the head that depends on the Custom Type
+instance (meta title, meta description, canonical, robots) has to repeat the
+path build and the lookup inside `html.head` itself.
+
+This is the usual reason meta title and description come out blank on Custom
+Type pages while the visible page content renders correctly.
+
+The head-side lookup rebuilds the path from the request params, appending
+levels 2 and 3 only when they are present, then queries the same collection:
+
+```liquid
+{% assign cp_path = request.path_params['page-path-1'] %}
+{% if request.path_params['page-path-2'] != blank %}
+	{% assign cp_path = cp_path | append: '/' | append: request.path_params['page-path-2'] %}
+{% endif %}
+{% if request.path_params['page-path-3'] != blank %}
+	{% assign cp_path = cp_path | append: '/' | append: request.path_params['page-path-3'] %}
+{% endif %}
+{% if cp_path != blank %}
+	{% assign cp_page = website.custom_types.pages | where: 'custom.page_path', cp_path | first %}
+{% endif %}
+```
+
+The `!= blank` guard matters. Without it the lookup runs on every page on the
+site, not only on the catch-all pages.
+
+**Suppressing indexing per page.** Add a boolean custom field to the `pages`
+Custom Type and emit the robots tag from the head block above. `hide_from_index`
+matches the naming already used for products and designs. Two platform rules
+apply:
+
+- Boolean custom fields are real booleans. Test with
+  `{% if cp_page.custom.hide_from_index %}`, never against the strings
+  `'true'` or `'false'`.
+- Custom fields do not inherit from parent to child, so the field has to be
+  created on every site that needs it.
+
+The same head block is what fixes meta title and description on Custom Type
+pages, so it is worth doing all of it in one pass rather than only the robots
+tag.
 
 ## 15. Custom Admin — Shopper v2 (`/site/manage/`)
 
@@ -9589,6 +9672,7 @@ clashing with the `s-` design-system classes.
 - 2026-06-01: Added Shop All page feature note. Source: fireflies-call.
 - 2026-06-15: Added Static Product Importer CSV column spec under Tools pages. Added Google Ads conversion-tracking note (no built-in preset; deploy via GTM). Added Known Gotcha: logged-out app error on custom-admin pages (page body renders before the layout user.is_admin gate; Bootstrap modal CSS inactive in custom admin). Source: claude-chat.
 - 2026-07-20: Added kiosk captcha per-subdomain note — captcha config does not carry from the main storefront to the kiosk subdomain and must be set on the kiosk site. Source: support-ticket.
+- 2026-08-05: Corrected `page_path` to store the full slash-joined path at levels 2 and 3, not only the final segment, and corrected the constraint that wrongly stated level 1 only. Added Head-level dependencies must repeat the lookup, covering the `html.head` before `page.content` render order, the paste-ready head lookup block, the `!= blank` guard, and the per-page noindex pattern via a boolean `hide_from_index` custom field. Source: claude-chat.
 
 
 =================================================================
@@ -14994,6 +15078,30 @@ _Pixfizz completes internally; customer provides brand assets._
 
 **Blockers:** Logo, colours, domain/DNS access, and a rough navigation structure from customer.
 
+#### Custom domain and SSL sequence
+
+Domain setup is a sequence with waiting built into it, not a single step to be
+left until launch week. Start it early in Phase 1.
+
+1. Customer creates a CNAME for the storefront domain or subdomain pointing at
+   `hosting.pixfizz.com`.
+2. Register the domain in Pixfizz admin under **Settings → General → Domain
+   Hosting**.
+3. Wait for DNS propagation. Allow up to **48 hours**. Tell the customer not to
+   change DNS records again while propagation is in flight, since further edits
+   restart the wait and make the problem much harder to diagnose.
+4. Once the domain resolves to Pixfizz, **request the SSL certificate**. SSL is
+   not provisioned automatically when DNS changes, it is requested after DNS is
+   confirmed correct.
+5. Certificate issuance takes roughly **40 minutes** from the request.
+
+If propagation is still failing well past 48 hours, the problem is normally at
+the registrar or the previous host rather than at Pixfizz. Have the customer
+raise it with whoever manages the domain.
+
+The same sequence applies to every additional domain on a site, including kiosk
+domains and the personalization subdomain on a Shopify plus Pixfizz build.
+
 ### Phase 2: Product Setup
 
 _Longest phase. Can run in parallel with Phase 1 if assets are ready._
@@ -15341,6 +15449,7 @@ Review and customize all active templates before launch — default content refe
 - 2026-06-26: Corrected 301 redirect config to outer-array format (bare single pair fails silently). Added crawler/feed JSON-error failure mode for missing product descriptions and daily auto-crawl note. Source: claude-chat/fireflies-call.
 - 2026-05-21: Major rewrite. Added all deployment paths (Custom API, Marketplace/Etsy). Added "Preparing for Onboarding" customer preparation section. Added Full Pixfizz Custom path. Expanded phase sequences with blockers. Merged content from onboarding skill. Added pre-launch handoff checklist. Added vertical-specific notes.
 - 2026-05-27: Photo Labs vertical notes: added kiosk mode setup procedure (CNAME, checklist keys, pay-in-store config), OHD single-location install rule, film 120/220 as separate products, same-day JS cutoff pattern. Phase 2: added static product CSV importer note (manage/tools/product-importer). Phase 3: added SendGrid deliverability and DNS authentication note. Pre-launch checklist: added email delivery DNS check. Custom API Phase 2: added external user warning (_uid creates non-login users; OrderHub operators must use /v1/users). Source: Fireflies calls, Slack #dev, support tickets.
+- 2026-08-05: Added the custom domain and SSL sequence to Phase 1 (CNAME to hosting.pixfizz.com, register under Settings > General > Domain Hosting, up to 48 hours propagation, SSL requested manually after DNS confirms, roughly 40 minutes to issue). Confirms SSL is not auto-provisioned. Source: fireflies-call.
 
 
 =================================================================
