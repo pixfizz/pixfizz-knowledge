@@ -8783,6 +8783,8 @@ These behaviours differ from standard Liquid or Shopify Liquid. Confirmed throug
 | `== 'true'` on boolean Custom Type field | Use `{% if instance.custom.field_name %}` directly — boolean fields evaluate as truthy/falsy |
 | `{% assign var = nil %}` | `{% assign var = '' %}` (then test with `!= ''`) |
 | Checklist snippet capture without `strip` | Always pipe through `strip` after capture — snippet renders with trailing newline that breaks `== 'TRUE'` |
+| `{% if product != blank %}` to detect a nil object | Test an attribute that always exists on a real one: `{% if product.id %}`. Nil yields nil, which is falsy in every engine. `!= blank` is not portable and can take the "it exists" branch for an object that is nil |
+| `product.custom.x != blank` to test whether a field was set | `{% assign v = product.custom.x \| default: '' \| strip %}{% if v != '' %}`. Comparing against the empty string behaves identically everywhere; `!= blank` does not |
 
 ---
 
