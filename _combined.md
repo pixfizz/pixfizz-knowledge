@@ -10189,6 +10189,26 @@ This reference documents **30 object access patterns** mapping to approximately 
 | url_parameter | text | URL parameter appended to product URL |
 | url_path | text | Custom path for static product URL slug |
 | video | asset | Product video (webm format) for gallery display |
+| requires_design | boolean | Platform-level gate: holds the Add to Cart button until the orderline carries a design. Correct and safe to leave TRUE on products driven by a custom design tool — see the note below |
+
+### `requires_design` on custom-design-tool products
+
+`requires_design: true` makes the platform disable the Add to Cart button. That is
+correct and is usually what you want, including on products driven by a custom design
+tool.
+
+A tool that submits the product form itself must **release the button before clicking
+it** — a disabled button ignores `.click()` silently. If the tool's button resolver is
+wrong, the release never happens and the order dies at the last step with no error.
+
+**The symptom is: tool completes, Add to Cart does nothing, customer stays on the product
+page, nothing in the console.** That symptom has been misattributed to `requires_design`
+itself at least three times. It is not the flag. Verified 10 Aug 2026 by exporting two
+products on the same site — one shipping orders, one failing — and diffing them field by
+field: **zero differing fields, both `requires_design: true`.** The difference was
+entirely in the tool's JavaScript.
+
+Do not set `requires_design: false` as a workaround. Fix the resolver.
 
 #### Export-Only Product Fields (14 — not referenced in templates)
 
