@@ -2172,6 +2172,26 @@ Per-website configuration includes:
 
 ---
 
+### AI Tokens (Super Admin)
+ 
+AI token access is **off by default on every website**. It is a Super Admin
+feature flag, activated per website by a Pixfizz staff member. A site owner
+cannot turn it on themselves, and it is **not** a fulfillment template setting.
+ 
+- Setting: **Enable AI Tokens**, in the website's Super Admin configuration.
+- Formerly labelled **Enable Perfectly Clear**. Renamed 2026-07-31, when billing
+  moved from a Perfectly Clear-specific model to a generic AI token model that
+  also covers OpenAI and Gemini.
+- Until Pixfizz activates it on that website, any AI feature that consumes
+  tokens is unavailable to the site regardless of other configuration.
+- Enabling it is a request to Pixfizz, not self-service.
+Token allowances, daily limits and per-lab billing behaviour are separate from
+this flag — see `17_DESIGN_TOOL.md` for AI restyle limits. TO CONFIRM: the exact
+Super Admin screen and field position, and whether the flag is per website or
+per organization.
+ 
+---
+
 ## Changelog
 - 2026-03-30: Created from master platform documentation export.
 - 2026-04-10: Added Published Products rename, Text Upgrade bulk action, inventory tracking with dynamic stock messaging, translation export/import upgrade, font palette tooltip gotcha, server-side GA4 via webhook pattern.
@@ -2180,6 +2200,8 @@ Per-website configuration includes:
 - 2026-06-01: Added active carts on the dashboard. Source: fireflies-call.
 - 2026-06-15: Documented admin-only visibility for Pages/blog (pre-publish staging gate) and the design custom-field column path for the orderline CSV export (custom:print_book:print_theme:<field>). Source: slack-kb-sync (Matjaz, #development; design-field reporting work).
 - 2026-08-05: Noted that the order detail page now shows a payment summary only, with individual money log entries reached through the Show details link into Super Admin. Source: slack-message (#development).
+- 2026-08-11: Documented the Enable AI Tokens Super Admin feature flag — off by default, activated per website by Pixfizz staff, formerly "Enable Perfectly Clear". Clarifies that it is a Super Admin setting and not a fulfillment template field. Source: internal correction.
+```
 
 
 =================================================================
