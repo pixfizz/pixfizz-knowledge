@@ -2615,7 +2615,7 @@ When using multiple fulfillment templates that route to FTP, the folder name in 
 - 2026-04-03: Added Set Parameters section — count, grow, fulfillment, editor, preview.
 - 2026-04-03: Added definition attributes, captions, sequential page types, and four annotated product examples (photo prints, canvas, photobook, greeting card).
 - 2026-05-27: Added FTP Fulfillment Behavior section — FTP path prefix behavior (originals/ vs /originals/), _additional_files.json for sending original uploads to FTP, escape_json filter requirement for JSON job tickets, Job Tickets folder naming rule. Source: Fireflies calls, Slack #dev.
-- 2026-06-15: Added Multi-Page Product Page-Count Rules — booklet page count must be divisible by 4; old softcover templates can carry a page-count ghost bug (mitigation: rebuild on a fresh template). Source: slack-kb-sync (Amanda booklet rules; Rapid Studio softcover bug).
+- 2026-06-15: Added Multi-Page Product Page-Count Rules — booklet page count must be divisible by 4; old softcover templates can carry a page-count ghost bug (mitigation: rebuild on a fresh template). Source: slack-kb-sync (booklet rules; softcover bug).
 
 
 =================================================================
@@ -7829,7 +7829,7 @@ compute something at order time (e.g. a production deadline, a routing key, a sp
 SKU) and persist it onto the order for downstream use — the order template, the
 admin, exports, fulfillment transformations, etc.
 
-**Use case seen in production:** Rapid Studio — a Liquid script calculates the
+**Use case seen in production:** a live client site — a Liquid script calculates the
 production deadline from the product, shipping option, and current date, writes it
 into a custom order field, and the value is then displayed on the order detail page
 and used by the production workflow.
@@ -7839,7 +7839,7 @@ fields could only be set at add-to-cart time via form inputs or by the user at
 checkout. They can now be written programmatically at any point a Liquid script
 runs on an order.
 
-Canonical snippet pending — capture from the Rapid Studio site once stable.
+Canonical snippet pending — capture from the reference site once stable.
 
 ---
 
@@ -7894,7 +7894,7 @@ the checkbox to pin the product's own title.
 
 ## UTM capture snippet
 
-**Shipped, 2026-03-24** (Rapid Studio initial deployment).
+**Shipped, 2026-03-24** (initial client deployment).
 
 A reusable Liquid snippet that captures incoming UTM parameters (`utm_source`,
 `utm_medium`, `utm_campaign`, etc.) into user state so they persist through the
@@ -7903,13 +7903,13 @@ GA4 events.
 
 Use this whenever a site needs marketing source attribution that survives the
 user navigating away from the landing URL. Final canonical version still
-stabilizing — pull from the Rapid Studio deployment when adding to a new site.
+stabilizing — pull from the reference deployment when adding to a new site.
 
 ---
 
 ## Meta Pixel + GA4 — debug mode gotcha
 
-**Recurring gotcha (Amanda Livingston, 2026-03-24).**
+**Recurring gotcha (2026-03-24).**
 
 When setting up Meta Pixel alongside GA4 on a Shopper site, **remember to
 disable GA4 debug mode** before going live. GA4 debug mode (enabled via the
