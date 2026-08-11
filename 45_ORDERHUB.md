@@ -449,7 +449,7 @@ order types.
 
 ## Changelog
 - 2026-05-21: Created. Content sourced from OrderHub help modal articles (orderhub.pixfizz.com). Covers: Jobs, custom statuses, Production Board, Processes, Locations, PDF Layout Studio, PrintNode, Film Scans, OHD, EasyPost, POS category filter, Pixfizz category assignment, Email/SMS/RCS notifications.
-- 2026-06-15: Added pickup-location opening hours and Google Maps link fields (surfaced in the store pickup UI at checkout). Source: slack-kb-sync (Wolf Camera call).
+- 2026-06-15: Added pickup-location opening hours and Google Maps link fields (surfaced in the store pickup UI at checkout). Source: slack-kb-sync (client call).
 - 2026-06-30: Documented OrderHub Desktop variant-value routing — Desktop maps on readable finish/variant value + size, not lab/printer-specific numeric codes; prefer readable finish codes. Source: slack-message (#development).
 - 2026-07-04: Added Order Status Sync (OrderHub → Core, shipped requires API user enabled); channel-ID copy gotcha in OHD variant updates; email-consolidation limitation (separate emails cannot be merged); PrintNode invoice auto-print troubleshooting. Source: Fireflies, slack-message (#development).
 - 2026-07-25: Added POS Application Behaviour section (close/reopen required to load a new build; build version shown at bottom of logged-out login screen; 5-minute screensaver is burn-in prevention, not a session timeout; receipt paper size is software config — Epson TM-P20II is 58mm, set in both the Epson utility and the Mac driver). Added automated print job creation from film roll quantities with artwork upload to operator desktop. Source: fireflies-call (3x repeat signal).

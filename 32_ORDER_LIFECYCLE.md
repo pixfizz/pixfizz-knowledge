@@ -290,7 +290,7 @@ Before sending:
 1. Check `order_custom_manual_payment == true`
 2. Check the customer has not placed a newer confirmed order — if they have, skip the reminder
 
-The `manual_payment` field is a custom field set at order creation. It returns `true` for orders placed using manual payment methods (e.g. bank transfer, pay-in-store). Confirmed by Rapid Studio implementation (April 2026).
+The `manual_payment` field is a custom field set at order creation. It returns `true` for orders placed using manual payment methods (e.g. bank transfer, pay-in-store). Confirmed in a production implementation (April 2026).
 
 ---
 
