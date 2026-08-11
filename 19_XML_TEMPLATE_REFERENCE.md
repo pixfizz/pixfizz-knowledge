@@ -427,4 +427,4 @@ When using multiple fulfillment templates that route to FTP, the folder name in 
 - 2026-04-03: Added Set Parameters section — count, grow, fulfillment, editor, preview.
 - 2026-04-03: Added definition attributes, captions, sequential page types, and four annotated product examples (photo prints, canvas, photobook, greeting card).
 - 2026-05-27: Added FTP Fulfillment Behavior section — FTP path prefix behavior (originals/ vs /originals/), _additional_files.json for sending original uploads to FTP, escape_json filter requirement for JSON job tickets, Job Tickets folder naming rule. Source: Fireflies calls, Slack #dev.
-- 2026-06-15: Added Multi-Page Product Page-Count Rules — booklet page count must be divisible by 4; old softcover templates can carry a page-count ghost bug (mitigation: rebuild on a fresh template). Source: slack-kb-sync (Amanda booklet rules; Rapid Studio softcover bug).
+- 2026-06-15: Added Multi-Page Product Page-Count Rules — booklet page count must be divisible by 4; old softcover templates can carry a page-count ghost bug (mitigation: rebuild on a fresh template). Source: slack-kb-sync (booklet rules; softcover bug).

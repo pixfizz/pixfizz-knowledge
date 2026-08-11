@@ -1264,7 +1264,7 @@ compute something at order time (e.g. a production deadline, a routing key, a sp
 SKU) and persist it onto the order for downstream use — the order template, the
 admin, exports, fulfillment transformations, etc.
 
-**Use case seen in production:** Rapid Studio — a Liquid script calculates the
+**Use case seen in production:** a live client site — a Liquid script calculates the
 production deadline from the product, shipping option, and current date, writes it
 into a custom order field, and the value is then displayed on the order detail page
 and used by the production workflow.
@@ -1274,7 +1274,7 @@ fields could only be set at add-to-cart time via form inputs or by the user at
 checkout. They can now be written programmatically at any point a Liquid script
 runs on an order.
 
-Canonical snippet pending — capture from the Rapid Studio site once stable.
+Canonical snippet pending — capture from the reference site once stable.
 
 ---
 
@@ -1329,7 +1329,7 @@ the checkbox to pin the product's own title.
 
 ## UTM capture snippet
 
-**Shipped, 2026-03-24** (Rapid Studio initial deployment).
+**Shipped, 2026-03-24** (initial client deployment).
 
 A reusable Liquid snippet that captures incoming UTM parameters (`utm_source`,
 `utm_medium`, `utm_campaign`, etc.) into user state so they persist through the
@@ -1338,13 +1338,13 @@ GA4 events.
 
 Use this whenever a site needs marketing source attribution that survives the
 user navigating away from the landing URL. Final canonical version still
-stabilizing — pull from the Rapid Studio deployment when adding to a new site.
+stabilizing — pull from the reference deployment when adding to a new site.
 
 ---
 
 ## Meta Pixel + GA4 — debug mode gotcha
 
-**Recurring gotcha (Amanda Livingston, 2026-03-24).**
+**Recurring gotcha (2026-03-24).**
 
 When setting up Meta Pixel alongside GA4 on a Shopper site, **remember to
 disable GA4 debug mode** before going live. GA4 debug mode (enabled via the
