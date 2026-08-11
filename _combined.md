@@ -7021,6 +7021,40 @@ field is a real boolean, never the string `'true'`.
 
 ---
 
+## Browser-generated print files carry no physical size
+
+`canvas.toBlob()` writes **no pHYs chunk**. A PNG produced from a canvas therefore
+declares no physical size at all, and anything opening it falls back to 72 dpi.
+
+The pixels can be perfectly correct and the file will still print at the wrong size.
+Measured on a real gang sheet, 10 Aug 2026: 1800 x 9000 px for an ordered 12 x 60 in
+sheet — exactly 150 dpi, geometrically correct — with zero pHYs chunks, so it opens as
+**25 x 125 in**.
+
+This is invisible on screen and invisible in any proof. It presents to the lab as
+"the printables are not coming in the right size".
+
+**Inject the chunk after `toBlob`.** It is 9 bytes of data — X and Y pixels-per-metre as
+big-endian uint32, then a unit byte of 1 — placed immediately after IHDR, which is always
+the first chunk and always 25 bytes, so the insertion point is a constant offset of 33
+bytes. CRC32 over the type and data.
+
+Three rules for the implementation:
+
+- **Tag with the ACHIEVED dpi, not the requested one.** Browsers clamp large canvases, so
+  the two can differ. A file that lies about its own resolution is worse than one that
+  admits being soft.
+- **Replace any existing chunk rather than appending**, or the winner is undefined.
+- **Never throw.** Return the original blob unchanged on any anomaly. A missing DPI tag is
+  bad; failing the export outright is worse.
+
+Note pHYs stores pixels-per-*metre*, so 150 dpi round-trips as 150.0124 and a 72 in sheet
+reads back as 71.99 in. That is inherent and harmless.
+
+**PDF output does not need this** — page boxes already declare physical size.
+
+---
+
 ## Changelog
 
 - 2026-03-12: Added `style onload` Re-injection Pattern section. Updated Dynamic UI Trigger Pattern.
