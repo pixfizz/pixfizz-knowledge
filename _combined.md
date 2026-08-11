@@ -9892,6 +9892,41 @@ A `<button>` inside a form submits by default, but an attribute selector matches
 **Fix:** Resolve by class and visible text — `.add-to-cart-button`, or
 `/add[\s_-]*to[\s_-]*(cart|basket|bag)/i` — never by `button[type="submit"]` alone.
 
+## The Add to Cart control
+
+Measured on a live Shopper product page, 10 Aug 2026.
+
+```html
+<form class="project_create">
+	…
+	<px-option code="…">…</px-option>
+	…
+	<button class="btn btn-block btn-primary add-to-cart-button">ADD TO CART · $20.00</button>
+</form>
+```
+
+Three things matter to anything that scripts against it:
+
+- **The form is `.project_create`**, not `.product-form`. The artwork/option elements are
+  inside it, so `closest('form')` from a `px-option` reaches it reliably.
+- **The button carries NO `type` attribute.** A `<button>` inside a form submits by
+  default, but `form.querySelector('button[type="submit"]')` matches only the *literal*
+  attribute and therefore **returns null**. This is a silent failure: the selector finds
+  nothing, whatever depended on it quietly does not happen, and no error is raised.
+- **Resolve it by text and class instead:**
+
+```js
+	/add[\s_-]*to[\s_-]*(cart|basket|bag)/i
+```
+
+  tested against the element's `textContent`, `value`, `aria-label`, `title`, `id` and
+  `className`. That matches both the visible label and the `add-to-cart-button` class.
+
+**A disabled button ignores `.click()` silently.** Anything that programmatically submits
+the product form must re-enable the button first, and must therefore be able to find it.
+The two failures compound: a resolver that returns null cannot re-enable anything, so the
+click is swallowed and the customer stays on the product page with no error shown.
+
 ### Reading the product price from JavaScript (2026-08-10)
 **Status:** Confirmed. Applies to any custom tool or snippet mirroring the live price.
 - The price is rendered by a `px-product-price` web component, not by static markup.
