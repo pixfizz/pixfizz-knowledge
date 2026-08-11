@@ -183,6 +183,106 @@ tar tf output.tar | head -5
 # Must show: asset_files/..., NOT: v2kiosk/asset_files/...
 ```
 
+### Front matter is a database row, not metadata
+
+The importer writes `name`, `description` and `renderer_type` straight into
+columns. A snippet, page or layout file missing `renderer_type` aborts the whole
+upload with a generic application error naming no file:
+
+| Field | Value |
+|---|---|
+| Type | `Mysql2::Error` |
+| Extra Info | `Column 'renderer_type' cannot be null` |
+
+```yaml
+---
+name: style/color-background
+description: Page base colour.
+renderer_type: 1
+---
+```
+
+- The `description` **value** may be empty, but the **key** must exist.
+- `renderer_type` must be present and an integer. Snippets and pages `1`,
+  layouts `0`.
+- Take the value from the seed backup for that exact file rather than guessing.
+
+### Packaging is one atomic command
+
+tar → validate → distribute, never hand-assembled across separate shell steps.
+A tar older than the build tree **imports cleanly, reports success and changes
+nothing**. There is no error anywhere, and it reads to the customer as the
+platform ignoring them rather than as a packaging mistake. Assert the tar is
+newer than every file in the build tree before it leaves:
+
+```bash
+tar -tvf dist/site.tar | grep <expected-asset>
+stat -c '%y %n' dist/site.tar build/snippets/<edited-file>
+```
+
+Ruled out and worth recording, because both are plausible theories for "the
+import did nothing" and both are wrong: CMS backup imports **do** carry
+`asset_files/` and `assets/` correctly, and the CDN derives its URL from a
+content hash, so re-uploading a changed image under an unchanged filename does
+**not** hit a stale cache. Check tar freshness first.
+
+### The seed backup is the Liquid vocabulary
+
+A known-working export of the target site is the only verified corpus for that
+site. Any tag, filter or quoted expression appearing nowhere in it is an
+unverified guess, and an unverified construct in a shared element (header,
+footer, layout) takes down every page at render time. Prefer an idiom the site
+already uses: a site whose footer uses
+`{% dynamic %}{{ 'today' | date: '%Y' }}{% enddynamic %}` should not receive
+`{{ 'now' | date: '%Y' }}`, even though `date` is valid in both.
+
+Related: overwriting a **value-bearing** `admin/checklist/*` snippet with a
+boolean produces a render-time failure on every page. See
+`50_SHOPPER_TEMPLATE_REFERENCE.md` §5.
+
+------------------------------------------------------------------------
+
+## Custom Type Instance Archive Packaging Rule
+
+A different format on a different import path (Website → Custom Types →
+*type* → Import). Confirmed against a real export and a real re-import.
+
+```
+./assets/  ./fonts/  ./glb_files/  ./images/  ./pdfs/     (all empty)
+./__custom_type_instances.yml
+```
+
+```yaml
+---
+custom_type_instances:
+- custom:
+    page_path: sample-path
+    admin_only: false
+    page_title: Sample Page Name
+    page_schema: any page schema
+    page_content: the page content in html
+    page_description: this is where the meta description goes
+__asset_map: {}
+__image_map: {}
+__pdf_map: {}
+__font_map: {}
+```
+
+- **gzip it** (`.tar.gz`), unlike the CMS backup which is a plain `.tar`.
+- The five media directories must exist even when empty.
+- All four `__*_map` keys must be present, even as `{}`.
+- Emit `page_content` as a **literal block scalar** (`|-`). Shopper markup is
+  hard-tab indented and YAML permits tabs inside block content; only the leading
+  space prefix is structural. Quoting or folding mangles it.
+- Double-quote titles and descriptions — apostrophes are common and plain
+  scalars are fragile.
+- Round-trip the YAML and assert byte-identical content before shipping.
+- Unconfirmed: whether `page_content` renders Liquid.
+
+The **per-product export archive** uses the same five-empty-directory `.tar.gz`
+convention and carries `__product.yml`. See `51_CUSTOM_FIELDS_REFERENCE.md` for
+its verified behaviour as a bulk-creation format.
+
 ------------------------------------------------------------------------
 
 ## Master Shopper Delivery Rule (MANDATORY)
@@ -247,3 +347,4 @@ blank, silently failing with no error.
 - 2026-04-05: Added CMS Backup Tar Packaging Rule and Liquid String Quoting Rule.
 - 2026-04-09: Added Checklist Snippet Creation Rule — parent template must originate all snippets before child sites can override them.
 - 2026-07-28: Added Master Shopper Delivery Rule — never deliver a tar for the parent template site; parent changes ship as paste-ready blocks matching each target file's existing indentation. Source: claude-chat.
+- 2026-08-11: Hardened the CMS Backup Tar Packaging Rule — front matter is a database row and a missing `renderer_type` aborts the import with a generic error naming no file; packaging must be one atomic command with a freshness assertion, because a stale tar imports cleanly and changes nothing; the seed backup is the authority for Liquid vocabulary. Recorded that `asset_files/` transfer and CDN content-hash cache-busting were both ruled out as causes. Added the Custom Type Instance Archive Packaging Rule (gzipped, five empty media directories, four `__*_map` keys, literal block scalar for `page_content`). Source: claude-chat.

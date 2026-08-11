@@ -522,6 +522,68 @@ Use a `first_row` flag instead, and prepend a comma before every emitted row exc
 
 This is robust regardless of which items are skipped. It applies to any Liquid JSON emitter — search index pages, fulfillment payloads, product feeds.
 
+## Measured platform behaviour
+
+Evidence-backed on a live child site, not inference. Recorded because each one
+either removes a constraint people assume exists, or is a constraint people
+assume does not.
+
+**`parse_json` is cheap at scale.** Parsing a ~20,700-character JSON string 25
+times in a single page render produced no measurable TTFB change (10-run
+medians: baseline ~0.79s, 1× parse ~0.72s, 25× parse ~0.70s — all inside network
+noise). Large-JSON runtime composition is a safe pattern. This corrects any
+assumption that `parse_json` must be rationed.
+
+**Redirects capture dotted root paths.** A redirect rule such as
+`[["^/llms\\.txt$", "<asset-url>"]]` fires as a 301 (x-runtime ~6ms) and serves
+the CDN asset. Root-level "file" URLs are servable with no platform work.
+
+**The asset store is extension-filtered.** The uploader **rejects `.txt` and
+`.md`** (greyed in the picker) and **accepts `.json`** alongside images, js,
+css, fonts and pdf. Two consequences: text-content root files must upload under
+a `.json` name and will serve as `application/json`, which is functionally fine
+for AI crawlers and cosmetically imperfect; and any generated creation bundle
+must not put `.txt`/`.md` in `asset_files/` without verifying the importer path
+separately.
+
+**Image pipeline is WebP-only.** No AVIF support; `format: 'webp'` is the
+ceiling. Do not emit AVIF variants in any `srcset`. *(Pending: AVIF was raised
+as a future capability on the 2026-08-10 technical call. Treat WebP as current
+until it ships.)*
+
+**Admin-only custom type instances are platform-hidden**, visible to logged-in
+admins and no one else. This is platform behaviour, not template behaviour, and
+is the mechanism for preview-and-approve workflows.
+
+---
+
+## `!= blank` is not portable, and treats nil as blank
+
+Two portability bugs that were invisible to reading the Liquid and only showed
+up on execution:
+
+- `{% if product.custom.field != blank %}` — in Ruby Liquid, nil **is** blank, so
+  this behaves as intended on Pixfizz but not in other Liquid engines. Anything
+  ported or tested outside the platform will diverge.
+- `{% if product.id != blank %}` reported a nil product as present.
+
+**Portable pattern:** normalise, then compare against an empty string.
+
+```liquid
+{% assign v = product.custom.field | default: '' | strip %}
+{% if v != '' %}
+	...
+{% endif %}
+```
+
+For plain existence, `{%- if product.id -%}` is correct and unambiguous.
+
+Related, from `50_LIQUID_REFERENCE.md`: `nil == false` evaluates as `false`, so
+use `!= true` rather than `== false` for boolean checks; and a boolean custom
+field is a real boolean, never the string `'true'`.
+
+---
+
 ## Changelog
 
 - 2026-03-12: Added `style onload` Re-injection Pattern section. Updated Dynamic UI Trigger Pattern.
@@ -536,3 +598,4 @@ This is robust regardless of which items are skipped. It applies to any Liquid J
 - 2026-07-25: Extended the fixed-positioning gotcha — `filter` (including a no-op `filter: blur(0px)`), `backdrop-filter`, `perspective`, `contain`, and `will-change` also create a containing block, and when the property sits on `<body>` the append-to-body fix does not work. Source: claude-chat.
 - 2026-07-28: Added Custom Tool Dependency Loading — load tool dependencies from the tool's own product snippet, never from `integrations/custom-body-scripts`, which child sites override. Source: claude-chat.
 - 2026-08-05: Added the `position: sticky` stacking-context modal trap, distinct from the containing-block gotchas, with the elementFromPoint confirmation, the `body.modal-open` CSS fix, and the diagnostic-script flaw of gating ancestor checks on `z-index !== auto`. Source: claude-chat.
+- 2026-08-11: Added Measured platform behaviour — `parse_json` is cheap at scale (25 parses of a 20KB payload per render, no measurable TTFB change); redirects capture dotted root paths so `llms.txt` and similar are servable from an asset; the asset uploader is extension-filtered (.txt/.md rejected, .json accepted); WebP is the image-pipeline ceiling with no AVIF (AVIF under discussion, pending). Added the `!= blank` nil trap and the `| default: '' | strip` portable comparison. Source: claude-chat (Shopper v2 verification kit).

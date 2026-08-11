@@ -286,6 +286,41 @@ Each checklist key is a snippet at `admin/checklist/<key-name>`. The snippet con
 - `FALSE` is also used explicitly in some cases
 - Non-boolean settings contain the actual value (color hex, domain, font name, etc.)
 
+### Value-bearing checklists — never assume boolean
+
+Many checklist snippets hold a value the parent **interpolates directly**.
+Overwriting one with `TRUE` does not disable a feature; it produces a
+render-time failure. `cart-icon` set to `TRUE` resolves
+`{% snippet 'icons/' + value + '.svg' %}` to `icons/TRUE.svg`, and because the
+header renders on every page the whole site goes down with
+`Liquid error: Snippet not found`.
+
+Known value-bearing keys: `cart-icon`, `user-icon`, `font-body`
+(`avenir` / `lato` / `open-sans` / `custom`), `header-logo-position`
+(`LEFT` / `CENTER`), `gallery-thumb-position`, `align-collection-card`,
+`align-collection-title`, `variant_columns` (`col-md-6`),
+`variant_columns_mobile`, `country-filter` (`United States`),
+`description-position`, `pricing-tab-position`, `upload-btn-style`.
+
+**Rules when editing checklists on an existing site:**
+
+1. **Read the seed value first.** Never assume a key is a boolean.
+2. **Preserve the site's own vocabulary** — value type *and* token case. A site
+   using `FALSE` (not blank) for off, and `LEFT` (not `left`), must keep both.
+   Comparisons against `'TRUE'` are case-sensitive.
+3. **Override only where the build genuinely requires it.** On one rebuild, 14
+   of 26 changed checklists were reverted as unnecessary; every one had been an
+   unforced risk.
+4. **Capture cleanly.** A `{% capture %}` of a checklist snippet includes
+   surrounding newlines and indentation. Always `| strip` (and `| upcase` where
+   case is uncertain) before comparing, or every comparison silently falls
+   through to the default.
+
+**`custom-X-page` flags against an empty target snippet.** A key such as
+`admin/checklist/custom-faq-page` set to `TRUE` with an empty `website/faq_page`
+renders a blank page with no error. Worth checking on any site you touch — it is
+frequently pre-existing rather than introduced.
+
 ### Full checklist key inventory
 
 #### Navigation & Header
@@ -919,6 +954,61 @@ Bootstrap `.modal` renders as unstyled inline content. For modals inside custom 
 pure-CSS `:target` toggle (or another no-JS pattern) scoped under a `pf-` prefix to avoid
 clashing with the `s-` design-system classes.
 
+### Add to Cart button carries no `type` attribute (2026-08-10)
+**Status:** Confirmed on live product pages.
+**Symptom:** Custom JavaScript that resolves the cart button as
+`form.querySelector('button[type="submit"], input[type="submit"]')` gets `null`, so any
+programmatic enable or `.click()` does nothing. A `.click()` on a still-disabled button is
+silently swallowed — no error, no navigation, and the user simply stays on the page.
+**Cause:** The real control is
+`<button class="btn btn-block btn-primary add-to-cart-button">ADD TO CART · $20.00</button>`.
+A `<button>` inside a form submits by default, but an attribute selector matches only the
+*literal* attribute, and `type` is absent.
+**Fix:** Resolve by class and visible text — `.add-to-cart-button`, or
+`/add[\s_-]*to[\s_-]*(cart|basket|bag)/i` — never by `button[type="submit"]` alone.
+
+### Reading the product price from JavaScript (2026-08-10)
+**Status:** Confirmed. Applies to any custom tool or snippet mirroring the live price.
+- The price is rendered by a `px-product-price` web component, not by static markup.
+  Read that element, and fall back to its `initial` attribute.
+- **Do not scrape `.product-price` text.** On any product with
+  `product.custom.regular_pricing` set, `product/product-details` renders the struck-through
+  pre-discount price **first** inside the same block, so a non-global regex returns the wrong
+  number. Verified: a product selling at $29.00 reported $45.00. If a text scrape is
+  unavoidable, strip `<s>` and `<del>` content first.
+- **A `MutationObserver` must sit on the `px-product-price` element itself.** It replaces its
+  own contents, so watching a parent leaves the reader stale after a variant change.
+- **Do not compute per-unit price by dividing total by quantity in JavaScript.** It disagrees
+  with the platform on rounding, and on any ladder with a fixed component it is a different
+  number. When `display_each_pricing: true` is set on the product, the page already renders
+  the platform's own per-unit figure in a second `px-product-price` instance carrying
+  `unit-price="true"` — read that.
+
+### A child's CMS backup can hold a stale copy of a parent snippet (2026-08-10)
+**Status:** Confirmed on a live child site.
+**Symptom:** A snippet present in the child's CMS backup is **not** what the site renders.
+Observed on `collection/collection-filters-static`, where the backup's version built product
+cards one way and the live render (inherited from the parent) built them another, with markup
+and scripts in the live version that appear nowhere in the backup.
+**Cause:** The child had no active override. The parent's newer snippet was rendering, and the
+backup carried an inherited copy from whenever it was last synced.
+**Two consequences:**
+1. The backup is not a reliable picture of the parent. A snippet being *present* in the
+   backup does not mean its *content* matches the parent's.
+2. "Copy it down and edit it" silently reverts parent improvements — filter fixes,
+   accessibility work, new card fields — with nothing in the diff to notice, because the diff
+   is against the stale copy.
+**Rule:** Before overriding any snippet, get its current source from the parent admin or from
+the rendered page, never from the child's backup. Then change only what must change and leave
+the rest verbatim.
+**Prefer not to override at all when the change is presentational.** Scoped CSS on the
+section wrapper does the job without freezing hundreds of lines of parent logic, and stays
+correct when the parent snippet moves on.
+**Corollary:** the parent-first rule (a child can only override a snippet the parent already
+has) still holds, but the inverse does not — a snippet **absent** from the child's backup may
+well exist on the parent and be perfectly legal to override for the first time. Confirm from
+the parent admin rather than treating absence as proof it does not exist.
+
 ## Changelog
 - 2026-03-14: Added website/homepage snippet pattern and Custom Admin checkbox requirement to Section 13.
 - 2026-03-19: Added how to create pages with Custom Types to Section 14.
@@ -930,3 +1020,4 @@ clashing with the `s-` design-system classes.
 - 2026-06-15: Added Static Product Importer CSV column spec under Tools pages. Added Google Ads conversion-tracking note (no built-in preset; deploy via GTM). Added Known Gotcha: logged-out app error on custom-admin pages (page body renders before the layout user.is_admin gate; Bootstrap modal CSS inactive in custom admin). Source: claude-chat.
 - 2026-07-20: Added kiosk captcha per-subdomain note — captcha config does not carry from the main storefront to the kiosk subdomain and must be set on the kiosk site. Source: support-ticket.
 - 2026-08-05: Corrected `page_path` to store the full slash-joined path at levels 2 and 3, not only the final segment, and corrected the constraint that wrongly stated level 1 only. Added Head-level dependencies must repeat the lookup, covering the `html.head` before `page.content` render order, the paste-ready head lookup block, the `!= blank` guard, and the per-page noindex pattern via a boolean `hide_from_index` custom field. Source: claude-chat.
+- 2026-08-11: Added Value-bearing checklists to Section 5 — many `admin/checklist/*` keys hold interpolated values, and overwriting one with a boolean takes every page down; includes the known value-bearing key list, the case-sensitivity and `| strip` capture rules, and the `custom-X-page` flag against an empty target snippet. Added three Known Gotchas: the Add to Cart button carries no `type` attribute; reading the product price from JavaScript (`px-product-price`, the `regular_pricing` strikethrough trap, observer placement, and `unit-price="true"` instead of JS division); and a child's CMS backup can hold a stale inherited copy of a parent snippet. Source: claude-chat.

@@ -430,6 +430,23 @@ Both the Email and SMS tabs include a **Send Test** button. Enter any email or p
 
 ---
 
+## Custom fields consumed by OrderHub must be lowercase
+
+Any custom field that OrderHub is expected to read — order type flags, delivery
+speed options, client-specific routing fields — must be named in **lowercase**.
+Mixed-case or capitalised field names are not matched.
+
+New fields must also be **whitelisted in OrderHub** before they route. Creating
+the field on the Shopper side is not sufficient on its own; a field that exists
+and holds a value but was never whitelisted simply does not reach OrderHub, with
+no error on either side.
+
+This came up while adding Rush and Urgent delivery classifications as boolean
+fields, alongside two generic white-labelled option fields for client-specific
+order types.
+
+---
+
 ## Changelog
 - 2026-05-21: Created. Content sourced from OrderHub help modal articles (orderhub.pixfizz.com). Covers: Jobs, custom statuses, Production Board, Processes, Locations, PDF Layout Studio, PrintNode, Film Scans, OHD, EasyPost, POS category filter, Pixfizz category assignment, Email/SMS/RCS notifications.
 - 2026-06-15: Added pickup-location opening hours and Google Maps link fields (surfaced in the store pickup UI at checkout). Source: slack-kb-sync (Wolf Camera call).
@@ -437,3 +454,4 @@ Both the Email and SMS tabs include a **Send Test** button. Enter any email or p
 - 2026-07-04: Added Order Status Sync (OrderHub → Core, shipped requires API user enabled); channel-ID copy gotcha in OHD variant updates; email-consolidation limitation (separate emails cannot be merged); PrintNode invoice auto-print troubleshooting. Source: Fireflies, slack-message (#development).
 - 2026-07-25: Added POS Application Behaviour section (close/reopen required to load a new build; build version shown at bottom of logged-out login screen; 5-minute screensaver is burn-in prevention, not a session timeout; receipt paper size is software config — Epson TM-P20II is 58mm, set in both the Epson utility and the Mac driver). Added automated print job creation from film roll quantities with artwork upload to operator desktop. Source: fireflies-call (3x repeat signal).
 - 2026-07-31: Added known issue — film scan folders reported stuck in the OHD watch folder (repeat issue type, root cause/fix not yet confirmed). Source: support ticket #18341 (pending confirmation).
+- 2026-08-11: Added the custom field naming rule — any new custom field that OrderHub must read has to be lowercase, and whitelisted in OrderHub before it will route. Source: fireflies-call (2026-08-07).

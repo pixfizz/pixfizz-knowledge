@@ -101,7 +101,15 @@ This reference documents **30 object access patterns** mapping to approximately 
 
 - **Checkout Form Input**: Cart and User custom fields are **set via HTML form inputs** during the checkout process, not via CMS admin interface. These fields store shopper-provided data.
 
-- **Field type can differ by object for the same field name**: the product tab fields `details`, `features` and `production` are **snippet-type at the Product level** and **html-type at the Collection level**. HTML pasted into the product-level field will not render as markup. Tab content authored as HTML belongs on the Collection, not on the individual product export.
+- **There is no `html` field type.** Confirmed twice (custom type schema editor, and the Product Attributes → Custom Field Schema → New Field dropdown). The type list is exactly **text · multitext · boolean · number · asset · snippet**. Entries in this file previously typed as `html` have been corrected to `snippet`.
+
+- **What each non-string type returns in Liquid**: `snippet` returns the **rendered snippet**; `asset` returns an **`Asset` object** (pass it through the `asset_url` filter); everything else returns a plain string, or nil. A filename held in an `asset`-type field and the same filename held in a `text`-type field both work through `asset_url`, but they are not the same value — one is an object, one is a string. Pick one type per field and keep every product consistent, or fallback logic such as `{% if x != blank %}` behaves differently product to product.
+
+- **The `Public` flag controls non-admin EDIT rights, not storefront visibility.** `product.custom.<field>` renders from Liquid whether or not Public is ticked. Leave it unticked for any field that exists purely to feed a template, which is nearly all of them. Tick it only where a non-admin user is meant to change the value themselves. The name reads like a visibility switch, and the cautious default of ticking it "so the storefront can see it" silently hands edit rights on template-critical fields to non-admin users.
+
+- **Large content: snippet-type only.** A snippet-type custom field holds 20,000+ characters, returned byte-clean via `item.custom.<field>` with no entity encoding and round-tripping through `parse_json` intact. A **text-type field does not** — the practical cap is small, on the order of ~1KB. (Exact text-type limit still to be pinned; treat anything over ~1KB as snippet-type.) Snippet-type fields are conventionally used to *reference* a snippet but can also hold content directly. This is a separate limit from the ~2KB cap on **template options**.
+
+- **Field type can differ by object for the same field name**: the product tab fields `details`, `features` and `production` render as markup at the Collection level but not at the Product level. Tab content authored as HTML belongs on the Collection, not on the individual product export.
 
 - **New products start with blank custom field values**: field *definitions* exist on the site, but values default to blank (and boolean fields to false) on every newly created product. An export showing empty custom fields is expected behaviour, not a failed export.
 
@@ -220,28 +228,28 @@ Reserved for platform-level features, production routing, and future functionali
 
 | Field | Type | Description |
 |-------|------|-------------|
-| additional | html | Additional collapsible details section on product page |
+| additional | snippet | Additional collapsible details section on product page |
 | banner | asset | Banner image displayed at top of collection |
-| banner_html | html | HTML content displayed below banner image |
+| banner_html | snippet | HTML content displayed below banner image |
 | breadcrumb | string | Breadcrumb format: 'product' or design name |
 | btn_add_to_cart | boolean | Show 'Add to Cart' on product detail page |
 | btn_buy_now_design_later | boolean | Show 'Buy Now & Design Later' button on PDP |
 | btn_design_tool | boolean | Show 'Design Tool' button on PDP |
 | collection_filters | text | Filter configuration, one per line: "Label \| URL \| Attribute" |
-| collection_footer | html | Footer content on collection and product pages |
+| collection_footer | snippet | Footer content on collection and product pages |
 | collection_pdp_filters | text | Product page-specific filter configuration |
 | combine_design_static | boolean | Combine design and static products in same listing |
 | contact_label | string | Label for contact section on design-now page |
-| custom_filters | html | Custom filter UI rendered alongside standard filters |
+| custom_filters | snippet | Custom filter UI rendered alongside standard filters |
 | design_now_disable_required | boolean | Skip required field validation on design-now |
-| details | html | 'Details' tab content on product page |
+| details | snippet | 'Details' tab content on product page |
 | disable_live_preview_on_shop | boolean | Hide live preview on collection listing page |
 | disable_required_form | boolean | Skip HTML5 required field validation |
 | dynamic_production_time | boolean | Calculate production time dynamically |
-| features | html | 'Features' section content on product page |
+| features | snippet | 'Features' section content on product page |
 | gallery_stacked | boolean | Display gallery images vertically instead of grid |
 | google_category | string | Google Product Taxonomy category for schema.org |
-| help_video | html | Embedded help video on product detail page |
+| help_video | snippet | Embedded help video on product detail page |
 | hide_collection_filters | boolean | Hide sidebar filter panel entirely |
 | hide_delivery_options | boolean | Hide delivery/shipping option section on PDP |
 | hide_design_options | boolean | Hide design options selector panel |
@@ -250,14 +258,14 @@ Reserved for platform-level features, production routing, and future functionali
 | load_more | boolean | Enable infinite scroll pagination |
 | meta_description | string | SEO meta description for collection page |
 | meta_title | string | SEO meta title for collection page |
-| options | html | 'Options' tab content on product page |
+| options | snippet | 'Options' tab content on product page |
 | pdp_layout | boolean | Dual-mode product detail page layout |
-| pricing | html | 'Pricing' tab content on product page |
+| pricing | snippet | 'Pricing' tab content on product page |
 | print_ux | boolean | Special photo prints product detail layout |
-| production | html | 'Production & Shipping' tab on product page |
+| production | snippet | 'Production & Shipping' tab on product page |
 | production_time | number | Production time in days (0 = same-day) |
 | production_time_custom | string | Custom production time text display |
-| promotion | html | Promotional content displayed on cart page |
+| promotion | snippet | Promotional content displayed on cart page |
 | promotion_message | string | Limited-time offer message |
 | quickview | boolean | Enable quickview modal on collection listings |
 | remove_live_preview_img_schema | boolean | Exclude preview images from schema.org markup |
@@ -289,7 +297,7 @@ Reserved for platform-level features, production routing, and future functionali
 | display_name | string | Custom name overriding design code name |
 | envelope_imprinting | string | Envelope design code reference for cart display |
 | extra_info | string | Extra metadata for prints JSON output |
-| features | html | Features content (cascade: design > product > collection) |
+| features | snippet | Features content (cascade: design > product > collection) |
 | holiday_dates | boolean | Enable holiday date picker on design-now |
 | img_alt | string | Alt text for shop gallery images |
 | meta_description | string | SEO meta description for design page |
@@ -299,7 +307,7 @@ Reserved for platform-level features, production routing, and future functionali
 | only_design_now | boolean | Show only 'Design Now', hide 'Add to Cart' option |
 | personal_dates | boolean | Enable personal date picker on design-now |
 | preview_alt_tag | string | Alt text for gallery preview images |
-| promotion | html | Promotional content on cart page |
+| promotion | snippet | Promotional content on cart page |
 | promotion_badge | string | Badge on product cards and PDP (e.g., 'On Sale') |
 | reverse_live_preview_on_shop | boolean | Swap front/back preview orientation on shop |
 | shop_label | string | Custom label on product cards in shop |
@@ -341,7 +349,7 @@ Post is a single CMS object type with context-dependent field naming. Fields are
 
 | Field | Type | Description |
 |-------|------|-------------|
-| faq_content | html | Answer/content for FAQ item |
+| faq_content | snippet | Answer/content for FAQ item |
 | faq_header | text | Question heading |
 | faq_order | number | Sort order in FAQ listing |
 
@@ -398,7 +406,7 @@ Post is a single CMS object type with context-dependent field naming. Fields are
 |-------|------|-------------|
 | description | text | Option description shown to shopper |
 | display | boolean | Show option on product page |
-| html | snippet | Custom HTML for option rendering |
+| snippet | snippet | Custom HTML for option rendering |
 | img | asset | Option preview image |
 | img_alt | text | Alt text for preview image |
 | label | text | Display label for option |
@@ -505,7 +513,7 @@ Post is a single CMS object type with context-dependent field naming. Fields are
 
 | Field | Type | Description |
 |-------|------|-------------|
-| content | html | Page content |
+| content | snippet | Page content |
 | meta_description | text | SEO meta description |
 | meta_title | text | SEO meta title |
 | title | text | Page title |
@@ -526,7 +534,7 @@ Post is a single CMS object type with context-dependent field naming. Fields are
 | blog_thumbnail | asset | Feature image |
 | blog_thumbnail_alt | text | Image alt text |
 | blog_title | text | Post title |
-| content | html | Full post content |
+| content | snippet | Full post content |
 
 ---
 
@@ -536,7 +544,7 @@ Post is a single CMS object type with context-dependent field naming. Fields are
 
 | Field | Type | Description |
 |-------|------|-------------|
-| content | html | Service page full content |
+| content | snippet | Service page full content |
 | service_description | text | Service excerpt |
 | service_meta_description | text | SEO meta description |
 | service_path | text | URL slug |
@@ -740,7 +748,7 @@ Export custom field definitions from CMS admin for each object type:
 
 1. For each missing field, create definition with:
    - Proper field name (lowercase, snake_case)
-   - Type (text, number, boolean, asset, html, snippet, multitext, object)
+   - Type (text, multitext, boolean, number, asset, snippet — there is no `html` type)
    - Description from this reference
    - Any relevant UI hints or validation rules
 
@@ -804,6 +812,58 @@ where the same product is sold under both models — the pricing variable lives 
 the product as a custom field rather than as a global Price Variable, keeping
 per-SKU variation local to the product.
 
+## The per-product export archive is also an import format
+
+Manage Products → Product Attributes → *product* → **Export** produces an
+archive that **imports** back through Product Attributes → **Import**, one
+product per archive. Unlike the Static Product Importer CSV — which creates flat
+products with a single price and cannot create variants — this format carries
+`variant_types`, each with a full `variant_values` list. A size ladder is
+therefore expressible, which makes a large catalogue a generated artifact rather
+than a five-minute-per-product hand build.
+
+**Archive shape** (gzipped `.tar.gz`, same five-empty-media-directory convention
+as the Custom Type instance archive):
+
+```
+./assets/  ./fonts/  ./glb_files/  ./images/  ./pdfs/     (all empty)
+./__product.yml
+```
+
+`__product.yml` holds the product row, its `custom:` hash, `linked_assets`, and
+`variant_types`, then the four `__*_map: {}` keys.
+
+**Verified behaviour:**
+
+- **A blank `id:` is accepted** at product, variant-type and variant-value
+  level; the platform assigns its own. No id reservation, no collision handling.
+- **An asset-type custom field is set from a plain filename string**, with
+  `__asset_map: {}` left empty. The asset must already exist in Website →
+  Assets, so import the CMS backup (which carries `asset_files/`) **before** the
+  products.
+- **Unset custom fields simply do not appear.** The `custom:` hash of a fresh
+  product contains only the boolean schema fields at `false`. Absence is not an
+  error and is not the same as an empty string.
+
+**Untested — flag before relying on:** whether re-importing an archive whose
+`code` already exists updates in place or creates a duplicate; whether
+`linked_assets` drives the Preview Images panel; whether `image:` accepts a bare
+filename the way an asset-type field does.
+
+**If generating the YAML, reproduce Ruby Psych's whitespace exactly.** Psych
+writes a nil as `key: ` (key, colon, one **trailing space**) and a mapping or
+sequence key as `key:` with no trailing space. Python's `yaml.dump` gets both
+wrong. Parse a real export, re-emit it, assert byte-identical, and refuse to run
+otherwise — and keep that reference export next to the generator, or the
+assertion has nothing to assert against.
+
+**Naming rule that pairs with this:** put print dimensions in the variant name
+(`8x10`, `16 x 20 in`, `50 x 70 cm`) so size-aware storefront features can read
+them off the platform's own rendered controls rather than needing injected data
+attributes.
+
+---
+
 ## Changelog
 - 2026-06-01: Added Collection field sub_collections_position (subcollection render order). Source: chat/slack/call.
 - 2026-06-30: Added hide_from_search boolean (Product + Design) — excludes a product/design from the storefront search flyout. Deployed platform-wide on Shopper. Source: claude-chat, slack-message (#development).
@@ -811,3 +871,4 @@ per-SKU variation local to the product.
 - 2026-07-11: Added Address field hide_address (boolean) — suppresses address display in the customer-facing UI for pickup locations while keeping the backend address for order routing (Address count 3 → 4). Source: slack-message (#development, 2026-07-10).
 - 2026-07-25: Added Product field spreads_as_pages (boolean, display-only page-count doubling on the page selector). Removed blog_meta_description from both the Blog Posts group and Blog_Post Detail tables — the field does not exist; Shopper SEO Settings exposes blog_post.custom.description and blog_post.custom.blog_description instead. Normalised Product counts to 81 total / 67 template-referenced (summary stats row had drifted to 79/65), Post to 36, Blog_Post Detail to 8. Source: claude-chat, fireflies-call.
 - 2026-07-28: Added Key Notes entries — product tab fields (`details`, `features`, `production`) are snippet-type at Product level and html-type at Collection level; new products start with blank custom field values by design; `manage/custom-fields` is the in-CMS authority for field types and descriptions. Source: claude-chat.
+- 2026-08-11: Corrected the field type list — there is no `html` type; all 18 table rows typed `html` changed to `snippet`, and the Phase 3 type list corrected to text/multitext/boolean/number/asset/snippet. Added Key Notes for what each non-string type returns in Liquid, the `Public` flag controlling non-admin edit rights rather than storefront visibility, and large-content capacity being snippet-type only (text-type caps around 1KB). Added Section — the per-product export archive as a bulk-creation format carrying variant types and values. Source: claude-chat (Shopper v2 verification kit, art-archive build).
