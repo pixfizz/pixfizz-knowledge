@@ -417,6 +417,34 @@ single invalid default typically produces several empty intersections at once.
 many child sites. Prove the fix as a site-level override first, then promote it
 to the parent.
 
+## Two rules for diagnosing platform problems
+
+### A matching symptom is not a confirmed cause
+
+When the documented cause predicts the observed symptom *exactly*, that is when to be most
+careful, not least. A perfect match is what stops people looking further.
+
+**Find a working instance and diff it before acting.** Export the product, site or
+configuration that works, diff it field by field against the one that does not, and act on
+the difference. If the working one carries the supposedly-fatal setting, the documentation
+is wrong.
+
+This has now resolved two multi-round misdiagnoses on this platform, both of which had
+survived several confident, internally consistent explanations.
+
+### A measurement is only evidence if the path it travelled is known not to alter it
+
+Chat attachments, messaging apps and some file-sharing tools silently re-encode files —
+commonly capping the long edge and converting to JPEG, which destroys transparency.
+
+- Measure on the machine holding the file, or transfer by a path known to preserve bytes,
+  and **confirm the byte count and checksum match the source**.
+- Read the file's own header rather than a viewer's info panel. A macOS info panel reports
+  "RGB" for an RGBA PNG and "72 dpi" for a file with no DPI at all — both readings have
+  caused wrong diagnoses.
+- **If measurements cluster on a suspiciously round number, that number is far more likely
+  to be a limit in the measurement path than a threshold in the system being studied.**
+
 ------------------------------------------------------------------------
 
 ## Changelog
