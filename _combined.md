@@ -423,6 +423,106 @@ tar tf output.tar | head -5
 # Must show: asset_files/..., NOT: v2kiosk/asset_files/...
 ```
 
+### Front matter is a database row, not metadata
+
+The importer writes `name`, `description` and `renderer_type` straight into
+columns. A snippet, page or layout file missing `renderer_type` aborts the whole
+upload with a generic application error naming no file:
+
+| Field | Value |
+|---|---|
+| Type | `Mysql2::Error` |
+| Extra Info | `Column 'renderer_type' cannot be null` |
+
+```yaml
+---
+name: style/color-background
+description: Page base colour.
+renderer_type: 1
+---
+```
+
+- The `description` **value** may be empty, but the **key** must exist.
+- `renderer_type` must be present and an integer. Snippets and pages `1`,
+  layouts `0`.
+- Take the value from the seed backup for that exact file rather than guessing.
+
+### Packaging is one atomic command
+
+tar → validate → distribute, never hand-assembled across separate shell steps.
+A tar older than the build tree **imports cleanly, reports success and changes
+nothing**. There is no error anywhere, and it reads to the customer as the
+platform ignoring them rather than as a packaging mistake. Assert the tar is
+newer than every file in the build tree before it leaves:
+
+```bash
+tar -tvf dist/site.tar | grep <expected-asset>
+stat -c '%y %n' dist/site.tar build/snippets/<edited-file>
+```
+
+Ruled out and worth recording, because both are plausible theories for "the
+import did nothing" and both are wrong: CMS backup imports **do** carry
+`asset_files/` and `assets/` correctly, and the CDN derives its URL from a
+content hash, so re-uploading a changed image under an unchanged filename does
+**not** hit a stale cache. Check tar freshness first.
+
+### The seed backup is the Liquid vocabulary
+
+A known-working export of the target site is the only verified corpus for that
+site. Any tag, filter or quoted expression appearing nowhere in it is an
+unverified guess, and an unverified construct in a shared element (header,
+footer, layout) takes down every page at render time. Prefer an idiom the site
+already uses: a site whose footer uses
+`{% dynamic %}{{ 'today' | date: '%Y' }}{% enddynamic %}` should not receive
+`{{ 'now' | date: '%Y' }}`, even though `date` is valid in both.
+
+Related: overwriting a **value-bearing** `admin/checklist/*` snippet with a
+boolean produces a render-time failure on every page. See
+`50_SHOPPER_TEMPLATE_REFERENCE.md` §5.
+
+------------------------------------------------------------------------
+
+## Custom Type Instance Archive Packaging Rule
+
+A different format on a different import path (Website → Custom Types →
+*type* → Import). Confirmed against a real export and a real re-import.
+
+```
+./assets/  ./fonts/  ./glb_files/  ./images/  ./pdfs/     (all empty)
+./__custom_type_instances.yml
+```
+
+```yaml
+---
+custom_type_instances:
+- custom:
+    page_path: sample-path
+    admin_only: false
+    page_title: Sample Page Name
+    page_schema: any page schema
+    page_content: the page content in html
+    page_description: this is where the meta description goes
+__asset_map: {}
+__image_map: {}
+__pdf_map: {}
+__font_map: {}
+```
+
+- **gzip it** (`.tar.gz`), unlike the CMS backup which is a plain `.tar`.
+- The five media directories must exist even when empty.
+- All four `__*_map` keys must be present, even as `{}`.
+- Emit `page_content` as a **literal block scalar** (`|-`). Shopper markup is
+  hard-tab indented and YAML permits tabs inside block content; only the leading
+  space prefix is structural. Quoting or folding mangles it.
+- Double-quote titles and descriptions — apostrophes are common and plain
+  scalars are fragile.
+- Round-trip the YAML and assert byte-identical content before shipping.
+- Unconfirmed: whether `page_content` renders Liquid.
+
+The **per-product export archive** uses the same five-empty-directory `.tar.gz`
+convention and carries `__product.yml`. See `51_CUSTOM_FIELDS_REFERENCE.md` for
+its verified behaviour as a bulk-creation format.
+
 ------------------------------------------------------------------------
 
 ## Master Shopper Delivery Rule (MANDATORY)
@@ -487,6 +587,7 @@ blank, silently failing with no error.
 - 2026-04-05: Added CMS Backup Tar Packaging Rule and Liquid String Quoting Rule.
 - 2026-04-09: Added Checklist Snippet Creation Rule — parent template must originate all snippets before child sites can override them.
 - 2026-07-28: Added Master Shopper Delivery Rule — never deliver a tar for the parent template site; parent changes ship as paste-ready blocks matching each target file's existing indentation. Source: claude-chat.
+- 2026-08-11: Hardened the CMS Backup Tar Packaging Rule — front matter is a database row and a missing `renderer_type` aborts the import with a generic error naming no file; packaging must be one atomic command with a freshness assertion, because a stale tar imports cleanly and changes nothing; the seed backup is the authority for Liquid vocabulary. Recorded that `asset_files/` transfer and CDN content-hash cache-busting were both ruled out as causes. Added the Custom Type Instance Archive Packaging Rule (gzipped, five empty media directories, four `__*_map` keys, literal block scalar for `page_content`). Source: claude-chat.
 
 
 =================================================================
@@ -6858,6 +6959,68 @@ Use a `first_row` flag instead, and prepend a comma before every emitted row exc
 
 This is robust regardless of which items are skipped. It applies to any Liquid JSON emitter — search index pages, fulfillment payloads, product feeds.
 
+## Measured platform behaviour
+
+Evidence-backed on a live child site, not inference. Recorded because each one
+either removes a constraint people assume exists, or is a constraint people
+assume does not.
+
+**`parse_json` is cheap at scale.** Parsing a ~20,700-character JSON string 25
+times in a single page render produced no measurable TTFB change (10-run
+medians: baseline ~0.79s, 1× parse ~0.72s, 25× parse ~0.70s — all inside network
+noise). Large-JSON runtime composition is a safe pattern. This corrects any
+assumption that `parse_json` must be rationed.
+
+**Redirects capture dotted root paths.** A redirect rule such as
+`[["^/llms\\.txt$", "<asset-url>"]]` fires as a 301 (x-runtime ~6ms) and serves
+the CDN asset. Root-level "file" URLs are servable with no platform work.
+
+**The asset store is extension-filtered.** The uploader **rejects `.txt` and
+`.md`** (greyed in the picker) and **accepts `.json`** alongside images, js,
+css, fonts and pdf. Two consequences: text-content root files must upload under
+a `.json` name and will serve as `application/json`, which is functionally fine
+for AI crawlers and cosmetically imperfect; and any generated creation bundle
+must not put `.txt`/`.md` in `asset_files/` without verifying the importer path
+separately.
+
+**Image pipeline is WebP-only.** No AVIF support; `format: 'webp'` is the
+ceiling. Do not emit AVIF variants in any `srcset`. *(Pending: AVIF was raised
+as a future capability on the 2026-08-10 technical call. Treat WebP as current
+until it ships.)*
+
+**Admin-only custom type instances are platform-hidden**, visible to logged-in
+admins and no one else. This is platform behaviour, not template behaviour, and
+is the mechanism for preview-and-approve workflows.
+
+---
+
+## `!= blank` is not portable, and treats nil as blank
+
+Two portability bugs that were invisible to reading the Liquid and only showed
+up on execution:
+
+- `{% if product.custom.field != blank %}` — in Ruby Liquid, nil **is** blank, so
+  this behaves as intended on Pixfizz but not in other Liquid engines. Anything
+  ported or tested outside the platform will diverge.
+- `{% if product.id != blank %}` reported a nil product as present.
+
+**Portable pattern:** normalise, then compare against an empty string.
+
+```liquid
+{% assign v = product.custom.field | default: '' | strip %}
+{% if v != '' %}
+	...
+{% endif %}
+```
+
+For plain existence, `{%- if product.id -%}` is correct and unambiguous.
+
+Related, from `50_LIQUID_REFERENCE.md`: `nil == false` evaluates as `false`, so
+use `!= true` rather than `== false` for boolean checks; and a boolean custom
+field is a real boolean, never the string `'true'`.
+
+---
+
 ## Changelog
 
 - 2026-03-12: Added `style onload` Re-injection Pattern section. Updated Dynamic UI Trigger Pattern.
@@ -6872,6 +7035,7 @@ This is robust regardless of which items are skipped. It applies to any Liquid J
 - 2026-07-25: Extended the fixed-positioning gotcha — `filter` (including a no-op `filter: blur(0px)`), `backdrop-filter`, `perspective`, `contain`, and `will-change` also create a containing block, and when the property sits on `<body>` the append-to-body fix does not work. Source: claude-chat.
 - 2026-07-28: Added Custom Tool Dependency Loading — load tool dependencies from the tool's own product snippet, never from `integrations/custom-body-scripts`, which child sites override. Source: claude-chat.
 - 2026-08-05: Added the `position: sticky` stacking-context modal trap, distinct from the containing-block gotchas, with the elementFromPoint confirmation, the `body.modal-open` CSS fix, and the diagnostic-script flaw of gating ancestor checks on `z-index !== auto`. Source: claude-chat.
+- 2026-08-11: Added Measured platform behaviour — `parse_json` is cheap at scale (25 parses of a 20KB payload per render, no measurable TTFB change); redirects capture dotted root paths so `llms.txt` and similar are servable from an asset; the asset uploader is extension-filtered (.txt/.md rejected, .json accepted); WebP is the image-pipeline ceiling with no AVIF (AVIF under discussion, pending). Added the `!= blank` nil trap and the `| default: '' | strip` portable comparison. Source: claude-chat (Shopper v2 verification kit).
 
 
 =================================================================
@@ -7310,6 +7474,23 @@ Both the Email and SMS tabs include a **Send Test** button. Enter any email or p
 
 ---
 
+## Custom fields consumed by OrderHub must be lowercase
+
+Any custom field that OrderHub is expected to read — order type flags, delivery
+speed options, client-specific routing fields — must be named in **lowercase**.
+Mixed-case or capitalised field names are not matched.
+
+New fields must also be **whitelisted in OrderHub** before they route. Creating
+the field on the Shopper side is not sufficient on its own; a field that exists
+and holds a value but was never whitelisted simply does not reach OrderHub, with
+no error on either side.
+
+This came up while adding Rush and Urgent delivery classifications as boolean
+fields, alongside two generic white-labelled option fields for client-specific
+order types.
+
+---
+
 ## Changelog
 - 2026-05-21: Created. Content sourced from OrderHub help modal articles (orderhub.pixfizz.com). Covers: Jobs, custom statuses, Production Board, Processes, Locations, PDF Layout Studio, PrintNode, Film Scans, OHD, EasyPost, POS category filter, Pixfizz category assignment, Email/SMS/RCS notifications.
 - 2026-06-15: Added pickup-location opening hours and Google Maps link fields (surfaced in the store pickup UI at checkout). Source: slack-kb-sync (Wolf Camera call).
@@ -7317,6 +7498,7 @@ Both the Email and SMS tabs include a **Send Test** button. Enter any email or p
 - 2026-07-04: Added Order Status Sync (OrderHub → Core, shipped requires API user enabled); channel-ID copy gotcha in OHD variant updates; email-consolidation limitation (separate emails cannot be merged); PrintNode invoice auto-print troubleshooting. Source: Fireflies, slack-message (#development).
 - 2026-07-25: Added POS Application Behaviour section (close/reopen required to load a new build; build version shown at bottom of logged-out login screen; 5-minute screensaver is burn-in prevention, not a session timeout; receipt paper size is software config — Epson TM-P20II is 58mm, set in both the Epson utility and the Mac driver). Added automated print job creation from film roll quantities with artwork upload to operator desktop. Source: fireflies-call (3x repeat signal).
 - 2026-07-31: Added known issue — film scan folders reported stuck in the OHD watch folder (repeat issue type, root cause/fix not yet confirmed). Source: support ticket #18341 (pending confirmation).
+- 2026-08-11: Added the custom field naming rule — any new custom field that OrderHub must read has to be lowercase, and whitelisted in OrderHub before it will route. Source: fireflies-call (2026-08-07).
 
 
 =================================================================
@@ -9029,6 +9211,41 @@ Each checklist key is a snippet at `admin/checklist/<key-name>`. The snippet con
 - `FALSE` is also used explicitly in some cases
 - Non-boolean settings contain the actual value (color hex, domain, font name, etc.)
 
+### Value-bearing checklists — never assume boolean
+
+Many checklist snippets hold a value the parent **interpolates directly**.
+Overwriting one with `TRUE` does not disable a feature; it produces a
+render-time failure. `cart-icon` set to `TRUE` resolves
+`{% snippet 'icons/' + value + '.svg' %}` to `icons/TRUE.svg`, and because the
+header renders on every page the whole site goes down with
+`Liquid error: Snippet not found`.
+
+Known value-bearing keys: `cart-icon`, `user-icon`, `font-body`
+(`avenir` / `lato` / `open-sans` / `custom`), `header-logo-position`
+(`LEFT` / `CENTER`), `gallery-thumb-position`, `align-collection-card`,
+`align-collection-title`, `variant_columns` (`col-md-6`),
+`variant_columns_mobile`, `country-filter` (`United States`),
+`description-position`, `pricing-tab-position`, `upload-btn-style`.
+
+**Rules when editing checklists on an existing site:**
+
+1. **Read the seed value first.** Never assume a key is a boolean.
+2. **Preserve the site's own vocabulary** — value type *and* token case. A site
+   using `FALSE` (not blank) for off, and `LEFT` (not `left`), must keep both.
+   Comparisons against `'TRUE'` are case-sensitive.
+3. **Override only where the build genuinely requires it.** On one rebuild, 14
+   of 26 changed checklists were reverted as unnecessary; every one had been an
+   unforced risk.
+4. **Capture cleanly.** A `{% capture %}` of a checklist snippet includes
+   surrounding newlines and indentation. Always `| strip` (and `| upcase` where
+   case is uncertain) before comparing, or every comparison silently falls
+   through to the default.
+
+**`custom-X-page` flags against an empty target snippet.** A key such as
+`admin/checklist/custom-faq-page` set to `TRUE` with an empty `website/faq_page`
+renders a blank page with no error. Worth checking on any site you touch — it is
+frequently pre-existing rather than introduced.
+
 ### Full checklist key inventory
 
 #### Navigation & Header
@@ -9662,6 +9879,61 @@ Bootstrap `.modal` renders as unstyled inline content. For modals inside custom 
 pure-CSS `:target` toggle (or another no-JS pattern) scoped under a `pf-` prefix to avoid
 clashing with the `s-` design-system classes.
 
+### Add to Cart button carries no `type` attribute (2026-08-10)
+**Status:** Confirmed on live product pages.
+**Symptom:** Custom JavaScript that resolves the cart button as
+`form.querySelector('button[type="submit"], input[type="submit"]')` gets `null`, so any
+programmatic enable or `.click()` does nothing. A `.click()` on a still-disabled button is
+silently swallowed — no error, no navigation, and the user simply stays on the page.
+**Cause:** The real control is
+`<button class="btn btn-block btn-primary add-to-cart-button">ADD TO CART · $20.00</button>`.
+A `<button>` inside a form submits by default, but an attribute selector matches only the
+*literal* attribute, and `type` is absent.
+**Fix:** Resolve by class and visible text — `.add-to-cart-button`, or
+`/add[\s_-]*to[\s_-]*(cart|basket|bag)/i` — never by `button[type="submit"]` alone.
+
+### Reading the product price from JavaScript (2026-08-10)
+**Status:** Confirmed. Applies to any custom tool or snippet mirroring the live price.
+- The price is rendered by a `px-product-price` web component, not by static markup.
+  Read that element, and fall back to its `initial` attribute.
+- **Do not scrape `.product-price` text.** On any product with
+  `product.custom.regular_pricing` set, `product/product-details` renders the struck-through
+  pre-discount price **first** inside the same block, so a non-global regex returns the wrong
+  number. Verified: a product selling at $29.00 reported $45.00. If a text scrape is
+  unavoidable, strip `<s>` and `<del>` content first.
+- **A `MutationObserver` must sit on the `px-product-price` element itself.** It replaces its
+  own contents, so watching a parent leaves the reader stale after a variant change.
+- **Do not compute per-unit price by dividing total by quantity in JavaScript.** It disagrees
+  with the platform on rounding, and on any ladder with a fixed component it is a different
+  number. When `display_each_pricing: true` is set on the product, the page already renders
+  the platform's own per-unit figure in a second `px-product-price` instance carrying
+  `unit-price="true"` — read that.
+
+### A child's CMS backup can hold a stale copy of a parent snippet (2026-08-10)
+**Status:** Confirmed on a live child site.
+**Symptom:** A snippet present in the child's CMS backup is **not** what the site renders.
+Observed on `collection/collection-filters-static`, where the backup's version built product
+cards one way and the live render (inherited from the parent) built them another, with markup
+and scripts in the live version that appear nowhere in the backup.
+**Cause:** The child had no active override. The parent's newer snippet was rendering, and the
+backup carried an inherited copy from whenever it was last synced.
+**Two consequences:**
+1. The backup is not a reliable picture of the parent. A snippet being *present* in the
+   backup does not mean its *content* matches the parent's.
+2. "Copy it down and edit it" silently reverts parent improvements — filter fixes,
+   accessibility work, new card fields — with nothing in the diff to notice, because the diff
+   is against the stale copy.
+**Rule:** Before overriding any snippet, get its current source from the parent admin or from
+the rendered page, never from the child's backup. Then change only what must change and leave
+the rest verbatim.
+**Prefer not to override at all when the change is presentational.** Scoped CSS on the
+section wrapper does the job without freezing hundreds of lines of parent logic, and stays
+correct when the parent snippet moves on.
+**Corollary:** the parent-first rule (a child can only override a snippet the parent already
+has) still holds, but the inverse does not — a snippet **absent** from the child's backup may
+well exist on the parent and be perfectly legal to override for the first time. Confirm from
+the parent admin rather than treating absence as proof it does not exist.
+
 ## Changelog
 - 2026-03-14: Added website/homepage snippet pattern and Custom Admin checkbox requirement to Section 13.
 - 2026-03-19: Added how to create pages with Custom Types to Section 14.
@@ -9673,6 +9945,7 @@ clashing with the `s-` design-system classes.
 - 2026-06-15: Added Static Product Importer CSV column spec under Tools pages. Added Google Ads conversion-tracking note (no built-in preset; deploy via GTM). Added Known Gotcha: logged-out app error on custom-admin pages (page body renders before the layout user.is_admin gate; Bootstrap modal CSS inactive in custom admin). Source: claude-chat.
 - 2026-07-20: Added kiosk captcha per-subdomain note — captcha config does not carry from the main storefront to the kiosk subdomain and must be set on the kiosk site. Source: support-ticket.
 - 2026-08-05: Corrected `page_path` to store the full slash-joined path at levels 2 and 3, not only the final segment, and corrected the constraint that wrongly stated level 1 only. Added Head-level dependencies must repeat the lookup, covering the `html.head` before `page.content` render order, the paste-ready head lookup block, the `!= blank` guard, and the per-page noindex pattern via a boolean `hide_from_index` custom field. Source: claude-chat.
+- 2026-08-11: Added Value-bearing checklists to Section 5 — many `admin/checklist/*` keys hold interpolated values, and overwriting one with a boolean takes every page down; includes the known value-bearing key list, the case-sensitivity and `| strip` capture rules, and the `custom-X-page` flag against an empty target snippet. Added three Known Gotchas: the Add to Cart button carries no `type` attribute; reading the product price from JavaScript (`px-product-price`, the `regular_pricing` strikethrough trap, observer placement, and `unit-price="true"` instead of JS division); and a child's CMS backup can hold a stale inherited copy of a parent snippet. Source: claude-chat.
 
 
 =================================================================
@@ -9782,7 +10055,15 @@ This reference documents **30 object access patterns** mapping to approximately 
 
 - **Checkout Form Input**: Cart and User custom fields are **set via HTML form inputs** during the checkout process, not via CMS admin interface. These fields store shopper-provided data.
 
-- **Field type can differ by object for the same field name**: the product tab fields `details`, `features` and `production` are **snippet-type at the Product level** and **html-type at the Collection level**. HTML pasted into the product-level field will not render as markup. Tab content authored as HTML belongs on the Collection, not on the individual product export.
+- **There is no `html` field type.** Confirmed twice (custom type schema editor, and the Product Attributes → Custom Field Schema → New Field dropdown). The type list is exactly **text · multitext · boolean · number · asset · snippet**. Entries in this file previously typed as `html` have been corrected to `snippet`.
+
+- **What each non-string type returns in Liquid**: `snippet` returns the **rendered snippet**; `asset` returns an **`Asset` object** (pass it through the `asset_url` filter); everything else returns a plain string, or nil. A filename held in an `asset`-type field and the same filename held in a `text`-type field both work through `asset_url`, but they are not the same value — one is an object, one is a string. Pick one type per field and keep every product consistent, or fallback logic such as `{% if x != blank %}` behaves differently product to product.
+
+- **The `Public` flag controls non-admin EDIT rights, not storefront visibility.** `product.custom.<field>` renders from Liquid whether or not Public is ticked. Leave it unticked for any field that exists purely to feed a template, which is nearly all of them. Tick it only where a non-admin user is meant to change the value themselves. The name reads like a visibility switch, and the cautious default of ticking it "so the storefront can see it" silently hands edit rights on template-critical fields to non-admin users.
+
+- **Large content: snippet-type only.** A snippet-type custom field holds 20,000+ characters, returned byte-clean via `item.custom.<field>` with no entity encoding and round-tripping through `parse_json` intact. A **text-type field does not** — the practical cap is small, on the order of ~1KB. (Exact text-type limit still to be pinned; treat anything over ~1KB as snippet-type.) Snippet-type fields are conventionally used to *reference* a snippet but can also hold content directly. This is a separate limit from the ~2KB cap on **template options**.
+
+- **Field type can differ by object for the same field name**: the product tab fields `details`, `features` and `production` render as markup at the Collection level but not at the Product level. Tab content authored as HTML belongs on the Collection, not on the individual product export.
 
 - **New products start with blank custom field values**: field *definitions* exist on the site, but values default to blank (and boolean fields to false) on every newly created product. An export showing empty custom fields is expected behaviour, not a failed export.
 
@@ -9901,28 +10182,28 @@ Reserved for platform-level features, production routing, and future functionali
 
 | Field | Type | Description |
 |-------|------|-------------|
-| additional | html | Additional collapsible details section on product page |
+| additional | snippet | Additional collapsible details section on product page |
 | banner | asset | Banner image displayed at top of collection |
-| banner_html | html | HTML content displayed below banner image |
+| banner_html | snippet | HTML content displayed below banner image |
 | breadcrumb | string | Breadcrumb format: 'product' or design name |
 | btn_add_to_cart | boolean | Show 'Add to Cart' on product detail page |
 | btn_buy_now_design_later | boolean | Show 'Buy Now & Design Later' button on PDP |
 | btn_design_tool | boolean | Show 'Design Tool' button on PDP |
 | collection_filters | text | Filter configuration, one per line: "Label \| URL \| Attribute" |
-| collection_footer | html | Footer content on collection and product pages |
+| collection_footer | snippet | Footer content on collection and product pages |
 | collection_pdp_filters | text | Product page-specific filter configuration |
 | combine_design_static | boolean | Combine design and static products in same listing |
 | contact_label | string | Label for contact section on design-now page |
-| custom_filters | html | Custom filter UI rendered alongside standard filters |
+| custom_filters | snippet | Custom filter UI rendered alongside standard filters |
 | design_now_disable_required | boolean | Skip required field validation on design-now |
-| details | html | 'Details' tab content on product page |
+| details | snippet | 'Details' tab content on product page |
 | disable_live_preview_on_shop | boolean | Hide live preview on collection listing page |
 | disable_required_form | boolean | Skip HTML5 required field validation |
 | dynamic_production_time | boolean | Calculate production time dynamically |
-| features | html | 'Features' section content on product page |
+| features | snippet | 'Features' section content on product page |
 | gallery_stacked | boolean | Display gallery images vertically instead of grid |
 | google_category | string | Google Product Taxonomy category for schema.org |
-| help_video | html | Embedded help video on product detail page |
+| help_video | snippet | Embedded help video on product detail page |
 | hide_collection_filters | boolean | Hide sidebar filter panel entirely |
 | hide_delivery_options | boolean | Hide delivery/shipping option section on PDP |
 | hide_design_options | boolean | Hide design options selector panel |
@@ -9931,14 +10212,14 @@ Reserved for platform-level features, production routing, and future functionali
 | load_more | boolean | Enable infinite scroll pagination |
 | meta_description | string | SEO meta description for collection page |
 | meta_title | string | SEO meta title for collection page |
-| options | html | 'Options' tab content on product page |
+| options | snippet | 'Options' tab content on product page |
 | pdp_layout | boolean | Dual-mode product detail page layout |
-| pricing | html | 'Pricing' tab content on product page |
+| pricing | snippet | 'Pricing' tab content on product page |
 | print_ux | boolean | Special photo prints product detail layout |
-| production | html | 'Production & Shipping' tab on product page |
+| production | snippet | 'Production & Shipping' tab on product page |
 | production_time | number | Production time in days (0 = same-day) |
 | production_time_custom | string | Custom production time text display |
-| promotion | html | Promotional content displayed on cart page |
+| promotion | snippet | Promotional content displayed on cart page |
 | promotion_message | string | Limited-time offer message |
 | quickview | boolean | Enable quickview modal on collection listings |
 | remove_live_preview_img_schema | boolean | Exclude preview images from schema.org markup |
@@ -9970,7 +10251,7 @@ Reserved for platform-level features, production routing, and future functionali
 | display_name | string | Custom name overriding design code name |
 | envelope_imprinting | string | Envelope design code reference for cart display |
 | extra_info | string | Extra metadata for prints JSON output |
-| features | html | Features content (cascade: design > product > collection) |
+| features | snippet | Features content (cascade: design > product > collection) |
 | holiday_dates | boolean | Enable holiday date picker on design-now |
 | img_alt | string | Alt text for shop gallery images |
 | meta_description | string | SEO meta description for design page |
@@ -9980,7 +10261,7 @@ Reserved for platform-level features, production routing, and future functionali
 | only_design_now | boolean | Show only 'Design Now', hide 'Add to Cart' option |
 | personal_dates | boolean | Enable personal date picker on design-now |
 | preview_alt_tag | string | Alt text for gallery preview images |
-| promotion | html | Promotional content on cart page |
+| promotion | snippet | Promotional content on cart page |
 | promotion_badge | string | Badge on product cards and PDP (e.g., 'On Sale') |
 | reverse_live_preview_on_shop | boolean | Swap front/back preview orientation on shop |
 | shop_label | string | Custom label on product cards in shop |
@@ -10022,7 +10303,7 @@ Post is a single CMS object type with context-dependent field naming. Fields are
 
 | Field | Type | Description |
 |-------|------|-------------|
-| faq_content | html | Answer/content for FAQ item |
+| faq_content | snippet | Answer/content for FAQ item |
 | faq_header | text | Question heading |
 | faq_order | number | Sort order in FAQ listing |
 
@@ -10079,7 +10360,7 @@ Post is a single CMS object type with context-dependent field naming. Fields are
 |-------|------|-------------|
 | description | text | Option description shown to shopper |
 | display | boolean | Show option on product page |
-| html | snippet | Custom HTML for option rendering |
+| snippet | snippet | Custom HTML for option rendering |
 | img | asset | Option preview image |
 | img_alt | text | Alt text for preview image |
 | label | text | Display label for option |
@@ -10186,7 +10467,7 @@ Post is a single CMS object type with context-dependent field naming. Fields are
 
 | Field | Type | Description |
 |-------|------|-------------|
-| content | html | Page content |
+| content | snippet | Page content |
 | meta_description | text | SEO meta description |
 | meta_title | text | SEO meta title |
 | title | text | Page title |
@@ -10207,7 +10488,7 @@ Post is a single CMS object type with context-dependent field naming. Fields are
 | blog_thumbnail | asset | Feature image |
 | blog_thumbnail_alt | text | Image alt text |
 | blog_title | text | Post title |
-| content | html | Full post content |
+| content | snippet | Full post content |
 
 ---
 
@@ -10217,7 +10498,7 @@ Post is a single CMS object type with context-dependent field naming. Fields are
 
 | Field | Type | Description |
 |-------|------|-------------|
-| content | html | Service page full content |
+| content | snippet | Service page full content |
 | service_description | text | Service excerpt |
 | service_meta_description | text | SEO meta description |
 | service_path | text | URL slug |
@@ -10421,7 +10702,7 @@ Export custom field definitions from CMS admin for each object type:
 
 1. For each missing field, create definition with:
    - Proper field name (lowercase, snake_case)
-   - Type (text, number, boolean, asset, html, snippet, multitext, object)
+   - Type (text, multitext, boolean, number, asset, snippet — there is no `html` type)
    - Description from this reference
    - Any relevant UI hints or validation rules
 
@@ -10485,6 +10766,58 @@ where the same product is sold under both models — the pricing variable lives 
 the product as a custom field rather than as a global Price Variable, keeping
 per-SKU variation local to the product.
 
+## The per-product export archive is also an import format
+
+Manage Products → Product Attributes → *product* → **Export** produces an
+archive that **imports** back through Product Attributes → **Import**, one
+product per archive. Unlike the Static Product Importer CSV — which creates flat
+products with a single price and cannot create variants — this format carries
+`variant_types`, each with a full `variant_values` list. A size ladder is
+therefore expressible, which makes a large catalogue a generated artifact rather
+than a five-minute-per-product hand build.
+
+**Archive shape** (gzipped `.tar.gz`, same five-empty-media-directory convention
+as the Custom Type instance archive):
+
+```
+./assets/  ./fonts/  ./glb_files/  ./images/  ./pdfs/     (all empty)
+./__product.yml
+```
+
+`__product.yml` holds the product row, its `custom:` hash, `linked_assets`, and
+`variant_types`, then the four `__*_map: {}` keys.
+
+**Verified behaviour:**
+
+- **A blank `id:` is accepted** at product, variant-type and variant-value
+  level; the platform assigns its own. No id reservation, no collision handling.
+- **An asset-type custom field is set from a plain filename string**, with
+  `__asset_map: {}` left empty. The asset must already exist in Website →
+  Assets, so import the CMS backup (which carries `asset_files/`) **before** the
+  products.
+- **Unset custom fields simply do not appear.** The `custom:` hash of a fresh
+  product contains only the boolean schema fields at `false`. Absence is not an
+  error and is not the same as an empty string.
+
+**Untested — flag before relying on:** whether re-importing an archive whose
+`code` already exists updates in place or creates a duplicate; whether
+`linked_assets` drives the Preview Images panel; whether `image:` accepts a bare
+filename the way an asset-type field does.
+
+**If generating the YAML, reproduce Ruby Psych's whitespace exactly.** Psych
+writes a nil as `key: ` (key, colon, one **trailing space**) and a mapping or
+sequence key as `key:` with no trailing space. Python's `yaml.dump` gets both
+wrong. Parse a real export, re-emit it, assert byte-identical, and refuse to run
+otherwise — and keep that reference export next to the generator, or the
+assertion has nothing to assert against.
+
+**Naming rule that pairs with this:** put print dimensions in the variant name
+(`8x10`, `16 x 20 in`, `50 x 70 cm`) so size-aware storefront features can read
+them off the platform's own rendered controls rather than needing injected data
+attributes.
+
+---
+
 ## Changelog
 - 2026-06-01: Added Collection field sub_collections_position (subcollection render order). Source: chat/slack/call.
 - 2026-06-30: Added hide_from_search boolean (Product + Design) — excludes a product/design from the storefront search flyout. Deployed platform-wide on Shopper. Source: claude-chat, slack-message (#development).
@@ -10492,6 +10825,7 @@ per-SKU variation local to the product.
 - 2026-07-11: Added Address field hide_address (boolean) — suppresses address display in the customer-facing UI for pickup locations while keeping the backend address for order routing (Address count 3 → 4). Source: slack-message (#development, 2026-07-10).
 - 2026-07-25: Added Product field spreads_as_pages (boolean, display-only page-count doubling on the page selector). Removed blog_meta_description from both the Blog Posts group and Blog_Post Detail tables — the field does not exist; Shopper SEO Settings exposes blog_post.custom.description and blog_post.custom.blog_description instead. Normalised Product counts to 81 total / 67 template-referenced (summary stats row had drifted to 79/65), Post to 36, Blog_Post Detail to 8. Source: claude-chat, fireflies-call.
 - 2026-07-28: Added Key Notes entries — product tab fields (`details`, `features`, `production`) are snippet-type at Product level and html-type at Collection level; new products start with blank custom field values by design; `manage/custom-fields` is the in-CMS authority for field types and descriptions. Source: claude-chat.
+- 2026-08-11: Corrected the field type list — there is no `html` type; all 18 table rows typed `html` changed to `snippet`, and the Phase 3 type list corrected to text/multitext/boolean/number/asset/snippet. Added Key Notes for what each non-string type returns in Liquid, the `Public` flag controlling non-admin edit rights rather than storefront visibility, and large-content capacity being snippet-type only (text-type caps around 1KB). Added Section — the per-product export archive as a bulk-creation format carrying variant types and values. Source: claude-chat (Shopper v2 verification kit, art-archive build).
 
 
 =================================================================
