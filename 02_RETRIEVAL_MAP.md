@@ -383,7 +383,8 @@ If a site is using the **Shopify deployment path**, Shopper files are non-author
 → **83_AI_IMAGERY_PRODUCTION.md** § Part A (answer is no for the product itself)
 
 ### "Customer training / AI setup / webinar schedule / support channels?"
-→ **80_ONBOARDING.md** § Customer Training and Support Resources
+→ **90_FAQ.md** § Section 1 (support channels and training)
+→ *Note: `80_ONBOARDING.md` has no "Customer Training and Support Resources" section. This route was recorded in the 2026-05-21 sync against content that was never added. Corrected 2026-08-14.*
 
 ### "Communication preferences / email opt-in / SMS opt-in / marketing consent?"
 → **50_SHOPPER_TEMPLATE_REFERENCE.md** § Account Page Redesign (Communication Preferences)
@@ -409,3 +410,4 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 - 2026-05-21: Added 45_ORDERHUB.md — comprehensive OrderHub reference (Jobs, Production Board, Processes, Locations, PDF Layout Studio, PrintNode, Film Scans, OHD, EasyPost, POS, category assignment, Email/SMS/RCS notifications). Added retrieval entries for all OrderHub topics. Source: OrderHub help modal articles.
 - 2026-05-21: Added routing entries for automatic discounts, static product importer, inventory tracking, login modal, myPixfizz hub, gift vouchers, infrastructure versions, customer training, communication preferences. Source: Q1 2026 webinar KB sync.
 - 2026-07-26: Added 83_AI_IMAGERY_PRODUCTION.md — AI marketing imagery and video production with Higgsfield. Added routing entries for AI imagery and the product-representation rule.
+- 2026-08-14: Audited the 2026-05-21 routing entries against the files they point at. Two pointed at sections that did not exist: Gift Vouchers (now written into 18_ADMIN_NAVIGATION.md § Marketing) and Customer Training and Support Resources (re-pointed to 90_FAQ.md § Section 1). Source: kbsync audit.

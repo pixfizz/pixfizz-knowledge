@@ -42,6 +42,10 @@ Customer accounts and access management.
 
 ### Marketing
 - **Promocodes** — promotional code management
+- **Gift Vouchers** — gift voucher / gift card issuing and tracking
+    - **A voucher's value can be changed after the voucher has been created.** It is not fixed at issue. Updating the value is supported through the API, which makes it possible to top up or reset an existing voucher rather than issuing a replacement code. Useful for re-use-credit promotions where the customer already holds the code. TO CONFIRM: whether the value is also editable directly in the admin UI, and the exact API endpoint and payload.
+    - Gift voucher emails are sent through the `email-shopper/templates/gift-voucher` template (see `52_SNIPPET_INVENTORY.md`).
+    - Voucher codes can be **embedded in fulfillment output** — printed into the production/packaging files for an order — so an online-issued voucher can be tracked when it is redeemed in store. Implemented through the fulfillment template, the same mechanism as any other per-order dynamic value (see `31_FULFILLMENT_ENGINE.md`). TO CONFIRM: the exact Liquid accessor for the voucher code on the orderline.
 
 ### Products
 - **Published Products** — published products list (everything in a Collection). Renamed from "All Products" on 2026-03-30 to make it clear the listing is scoped to published items only.
@@ -238,4 +242,4 @@ per organization.
 - 2026-06-15: Documented admin-only visibility for Pages/blog (pre-publish staging gate) and the design custom-field column path for the orderline CSV export (custom:print_book:print_theme:<field>). Source: slack-kb-sync (Matjaz, #development; design-field reporting work).
 - 2026-08-05: Noted that the order detail page now shows a payment summary only, with individual money log entries reached through the Show details link into Super Admin. Source: slack-message (#development).
 - 2026-08-11: Documented the Enable AI Tokens Super Admin feature flag — off by default, activated per website by Pixfizz staff, formerly "Enable Perfectly Clear". Clarifies that it is a Super Admin setting and not a fulfillment template field. Source: internal correction.
-```
+- 2026-08-14: Added Gift Vouchers under Marketing — the section `02_RETRIEVAL_MAP.md` already routed to but which did not exist in this file. Documented that a voucher's value can be updated after creation via the API, and that voucher codes can be printed into fulfillment output for in-store redemption tracking. Removed a stray closing code fence at end of file. Source: slack-message (#development, 2026-08-14), fireflies-call (2026-08-10).

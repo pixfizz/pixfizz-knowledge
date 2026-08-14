@@ -447,6 +447,88 @@ commonly capping the long edge and converting to JPEG, which destroys transparen
 
 ------------------------------------------------------------------------
 
+## Customer-Supplied Strings Rendered in Admin Must Be Escaped
+
+Any shopper-controlled value that an admin page renders — address lines, order
+notes, company names, personalisation text, uploaded filenames — is untrusted
+input on a page viewed by a privileged user. Unescaped, it is a stored
+cross-site-scripting vector aimed directly at admin sessions, and the shopper
+never needs an account to plant it: placing an order is enough.
+
+The rule for any custom admin or job-ticket rendering:
+
+- Pass every shopper-supplied value through `escape` (or `escape_json` in JSON
+  fulfillment templates) before it reaches the page. `31_FULFILLMENT_ENGINE.md`
+  already applies `escape_json` throughout its payload examples for this reason.
+- Treat the admin surface as the higher-value target, not the lower one. A
+  storefront XSS reaches one shopper's session; an admin XSS reaches the account
+  that can read every order on the site.
+- Do not rely on field-level validation at the point of entry. Address and note
+  fields legitimately accept punctuation, and the checkout form is not the only
+  writer — the API and imports write the same fields.
+
+### If admin credential compromise is suspected
+
+Order of operations, because doing these in the wrong order leaves the window
+open:
+
+1. Fix the injection point first. Rotating credentials while the payload is
+   still rendering just re-harvests the new ones.
+2. Force a logout of all admin sessions site-wide, so any session already
+   hijacked is invalidated.
+3. Reset affected admin passwords and issue temporary credentials.
+4. Review the login log for unexpected source geographies before assuming the
+   attempt failed.
+
+Note that a bulk password reset across an account holding **many sites** has
+been observed to time out where a single-site reset succeeds — if the reset
+appears to fail on a large multi-site account, that is the likely cause rather
+than a wrong credential. Escalate rather than retrying blindly.
+
+Incident-specific detail (affected sites, indicators of compromise, the
+superadmin reset path) is deliberately **not** in this public reference — it
+lives in the private internal repo.
+
+------------------------------------------------------------------------
+
+## Editing a Confirmed Order Does Not Regenerate Its Production Files
+
+Changing anything on an order that has already produced artwork — editing the
+project in the design tool, correcting a calendar element, swapping an image —
+leaves the previously generated production files untouched. The order in admin
+shows the edit; the lab still receives the pre-edit artwork, with nothing to
+signal the discrepancy.
+
+After any edit to a confirmed order, **force a refulfill from the admin order
+detail page**. Because the platform will not issue a new production file while
+an old one exists on the project, the existing generated file must be deleted
+first (see Production File Regeneration above).
+
+This is the failure mode behind "we corrected it and the wrong version still
+printed". Treat the refulfill as part of the edit, not as an optional follow-up.
+
+------------------------------------------------------------------------
+
+## Wrapped-Canvas Products: Mirrored Edges Are a Template Fault, Not a Render Fault
+
+Symptom: a gallery-wrap canvas comes off the press with the wrapped edges
+mirrored — the image reflected around the wrap rather than continuing across it.
+
+This presents as a rendering or production bug and is almost always neither. The
+two things to check, in order:
+
+1. **The product template definition** — the page/wrap geometry declared in the
+   XML for that product.
+2. **The bleed value** — a bleed that does not match the physical wrap depth
+   makes the wrap region fall in the wrong place, and mirroring is the visible
+   result.
+
+Correcting the template and the bleed size resolves it. Do not start by
+re-rendering the order or re-uploading the customer's image; neither addresses
+the cause, and both cost a print.
+
+------------------------------------------------------------------------
+
 ## Changelog
 - 2026-03-21: Initial content from platform documentation export.
 - 2026-04-23: Added CSS snippet logs diagnostic note, password reset Liquid deprecation pattern, fulfillment template DPI failure, URL reserved parameter 404 gotcha, Stripe pending-without-payment issue, FTP original files intermittent failure.
@@ -457,4 +539,5 @@ commonly capping the long edge and converting to JPEG, which destroys transparen
 - 2026-06-26: Added kiosk iPad browser-autofill login-confusion gotcha (disable autofill on shared kiosk devices). Source: fireflies-call.
 - 2026-07-11: Added CMS tar import gotcha — `admin/checklist/*` flags are not reliably applied on import (observed: custom-home-page TRUE in tar but unset after import); verify checklist flags in the admin UI after any import. Source: claude-chat (Shopper CMS tar build).
 - 2026-07-20: Added Shopper v2 account `date_format` gotcha — `account/v2/orders` and `account/v2/dashboard` miss `| strip` on the date_format capture, causing a format mismatch with order-details. Source: claude-chat.
+- 2026-08-14: Added the rule that shopper-supplied strings rendered on admin pages must be escaped, with the ordered response steps for suspected admin credential compromise (fix injection point, force site-wide logout, then rotate) and the multi-site bulk-password-reset timeout note. Added the rule that editing a confirmed order does not regenerate its production files — force refulfill, deleting the existing generated file first. Added wrapped-canvas mirrored-edge diagnosis (template definition and bleed value, not the renderer). Source: slack-message (#support), fireflies-call (2026-08-11/12).
 - 2026-07-28: Added Collection Filter Drilldown blank-PDP entry — stale or invalid dependent filter values break the drilldown; fix is a three-tier selection cascade in `product/product-details-filter` and `product/details-filter-dual-mode`. Source: claude-chat.

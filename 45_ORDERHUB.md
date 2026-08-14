@@ -442,8 +442,48 @@ and holds a value but was never whitelisted simply does not reach OrderHub, with
 no error on either side.
 
 This came up while adding Rush and Urgent delivery classifications as boolean
-fields, alongside two generic white-labelled option fields for client-specific
+fields, alongside generic white-labelled option fields for client-specific
 order types.
+
+### The five order-level boolean slots
+
+OrderHub supports **five** order-level boolean custom fields, not four. Confirmed
+2026-08-13 against the authoritative list circulated by the OrderHub owner:
+
+| Field | Meaning |
+|---|---|
+| `rush` | Standard rush tier |
+| `urgent` | Faster-than-rush tier (typically same day) |
+| `option1` | Generic slot, white-labelled per client |
+| `option2` | Generic slot, white-labelled per client |
+| `option3` | Generic slot, white-labelled per client |
+
+Naming rules that are easy to get wrong:
+
+- **No underscore and no digit separator** — the names are `option1`, `option2`,
+  `option3`, not `option_1`.
+- `rush` and `urgent` are **mutually exclusive** — model them as one radio group,
+  never as two independent checkboxes.
+- `option1`–`option3` are independent of each other and of the rush tier. Reserve
+  `rush` and `urgent` for genuine delivery-speed tiers; anything else (a
+  slow-it-down discount, a VIP flag, a client-specific order type) belongs in a
+  generic slot.
+
+**Where the customer-facing label lives is not yet settled.** Two readings are on
+record: the label is configured per client **in OrderHub** (so the storefront
+sends only the boolean), or the label **travels from the storefront** alongside
+the flag (which would require a companion `option1_label`-style text field,
+lowercase and separately whitelisted). Confirm with the OrderHub owner before
+building the label path — the two designs differ in how many fields need
+whitelisting.
+
+**Migration trap.** Where a site already applies a rush charge through an Extra
+Fee rule keyed on an older single-string field (for example a `rush_option` field
+holding `none` / `standard` / `sameday`), renaming the field **silently drops the
+fee**: the customer selects the faster tier, pays nothing, and the order still
+reports as urgent. Re-point the Extra Fee rule in the same deploy as the field
+rename, never afterwards. Carts already open at cutover will read as no-rush
+unless the old values are mapped across.
 
 ---
 
@@ -455,3 +495,4 @@ order types.
 - 2026-07-25: Added POS Application Behaviour section (close/reopen required to load a new build; build version shown at bottom of logged-out login screen; 5-minute screensaver is burn-in prevention, not a session timeout; receipt paper size is software config — Epson TM-P20II is 58mm, set in both the Epson utility and the Mac driver). Added automated print job creation from film roll quantities with artwork upload to operator desktop. Source: fireflies-call (3x repeat signal).
 - 2026-07-31: Added known issue — film scan folders reported stuck in the OHD watch folder (repeat issue type, root cause/fix not yet confirmed). Source: support ticket #18341 (pending confirmation).
 - 2026-08-11: Added the custom field naming rule — any new custom field that OrderHub must read has to be lowercase, and whitelisted in OrderHub before it will route. Source: fireflies-call (2026-08-07).
+- 2026-08-14: Corrected the order-level boolean slot count from four to five (`rush`, `urgent`, `option1`, `option2`, `option3`) and documented the no-underscore naming rule, the rush/urgent mutual exclusivity, the unresolved label-ownership question, and the Extra Fee re-point trap when migrating off a single-string rush field. Source: fireflies-call (2026-08-13), slack-message (#development).

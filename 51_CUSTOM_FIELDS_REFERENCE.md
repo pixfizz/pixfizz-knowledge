@@ -440,7 +440,7 @@ Post is a single CMS object type with context-dependent field naming. Fields are
 
 ---
 
-### Cart (11 fields)
+### Cart (16 fields)
 
 **Note:** Cart custom fields are set via HTML form inputs during checkout, not CMS admin.
 
@@ -451,12 +451,27 @@ Post is a single CMS object type with context-dependent field naming. Fields are
 | gift_wrap | boolean | Gift wrap option selected |
 | locale | text | Shopper's locale preference |
 | note | text | Order note from checkout form |
+| option1 | boolean | Generic white-labelled order flag, wording configured per client. Reaches OrderHub once whitelisted. Rolling out from 2026-08. |
+| option2 | boolean | Generic white-labelled order flag. Rolling out from 2026-08. |
+| option3 | boolean | Generic white-labelled order flag. Rolling out from 2026-08. |
 | phone | text | Shopper phone number from form |
 | preferred_delivery | text | Preferred delivery method |
-| rush_production | boolean | Rush production option selected |
+| rush | boolean | Standard rush delivery tier. Mutually exclusive with `urgent`. Rolling out from 2026-08. |
+| rush_production | boolean | Rush production option selected (older single-purpose flag; superseded by `rush` on sites moved to the delivery-speed radio group) |
 | scheduled_delivery_date | text | Scheduled delivery date if applicable |
 | special_instructions | text | Special handling instructions |
 | timezone | text | Shopper's timezone for scheduling |
+| urgent | boolean | Faster-than-rush delivery tier (typically same day). Mutually exclusive with `rush`. Rolling out from 2026-08. |
+
+**Naming.** `option1`–`option3` carry no underscore. All five flags must be
+lowercase and whitelisted in OrderHub before they route — see
+`45_ORDERHUB.md` § The five order-level boolean slots.
+
+**Value convention.** Write the explicit strings `true` and `false`, never blank.
+Blank is not confirmed to clear a cart custom field, and a flag that sticks on
+`true` keeps charging the customer after they switch back. Because `false` is a
+non-empty string, every Liquid test must be `== 'true'`; a blank value means the
+field was never set, which reads as off.
 
 ---
 
@@ -891,4 +906,5 @@ attributes.
 - 2026-07-11: Added Address field hide_address (boolean) — suppresses address display in the customer-facing UI for pickup locations while keeping the backend address for order routing (Address count 3 → 4). Source: slack-message (#development, 2026-07-10).
 - 2026-07-25: Added Product field spreads_as_pages (boolean, display-only page-count doubling on the page selector). Removed blog_meta_description from both the Blog Posts group and Blog_Post Detail tables — the field does not exist; Shopper SEO Settings exposes blog_post.custom.description and blog_post.custom.blog_description instead. Normalised Product counts to 81 total / 67 template-referenced (summary stats row had drifted to 79/65), Post to 36, Blog_Post Detail to 8. Source: claude-chat, fireflies-call.
 - 2026-07-28: Added Key Notes entries — product tab fields (`details`, `features`, `production`) are snippet-type at Product level and html-type at Collection level; new products start with blank custom field values by design; `manage/custom-fields` is the in-CMS authority for field types and descriptions. Source: claude-chat.
+- 2026-08-14: Added the checkout delivery-speed and generic order flags to the Cart table (`rush`, `urgent`, `option1`, `option2`, `option3`; count 11 → 16), with the no-underscore naming rule, the OrderHub lowercase/whitelist dependency, and the explicit `true`/`false` value convention. Noted `rush_production` as the older single-purpose flag it supersedes. Source: fireflies-call (2026-08-13), claude-chat.
 - 2026-08-11: Corrected the field type list — there is no `html` type; all 18 table rows typed `html` changed to `snippet`, and the Phase 3 type list corrected to text/multitext/boolean/number/asset/snippet. Added Key Notes for what each non-string type returns in Liquid, the `Public` flag controlling non-admin edit rights rather than storefront visibility, and large-content capacity being snippet-type only (text-type caps around 1KB). Added Section — the per-product export archive as a bulk-creation format carrying variant types and values. Source: claude-chat (Shopper v2 verification kit, art-archive build).

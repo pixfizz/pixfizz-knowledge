@@ -46,6 +46,22 @@ Yes. Pixfizz creates a temporary anonymous identity for every visitor automatica
 
 ---
 
+**Q: How do I raise a support ticket, and where do I track it?**
+_Applies to: All_
+
+Support runs through the **myPixfizz portal** (`my.pixfizz.com`). Raise a ticket there, track its status, and see the full conversation thread in one place. The portal is also where you find training videos, what's new, the roadmap, and your onboarding tasks.
+
+The previous third-party helpdesk is being retired — from **1 September 2026** the myPixfizz portal is the support channel. Tickets raised through the old system before that date are being carried across; if you have an open ticket, it will continue to be worked. Email to the support address still reaches the team either way.
+
+---
+
+**Q: Is there regular training on new platform features?**
+_Applies to: All_
+
+Yes. Pixfizz runs a **quarterly review webinar** covering platform updates and new capabilities — the next one is **1 September 2026**. Recordings and walkthrough videos are published in the myPixfizz portal afterwards, so missing the live session is not a problem.
+
+---
+
 ## Section 2 — Products, Templates & Collections
 
 **Q: What's the difference between a Product Attribute, a Template, and a Design?**
@@ -388,6 +404,7 @@ Configurable options include:
 ---
 
 ## Changelog
+- 2026-08-14: Added Section 1 entries for the support channel (myPixfizz portal; third-party helpdesk retired 1 September 2026) and the quarterly review webinar. Source: fireflies-call (2026-08-11/12/13, 3x repeat signal).
 - 2026-04-06: Initial version. 35 Q&As covering Getting Started, Products, Design Tool, Pricing, Cart/Checkout, Shopify, Orders, Storefront, and Troubleshooting.
 - 2026-05-19: Added inventory tracking Q&A (Section 2), inline price editing Q&A (Section 4), order cancellation and transaction fees Q&A (Section 7), multi-language support Q&A (Section 8), and Batch Film Uploader workflow (new Section 10 — Film Lab Workflows). Source: Notion KB articles.
 - 2026-07-04: Added CMYK-JPEG upload caution to the image-upload Q&A (Section 3) — upload sRGB; reserve CMYK for fulfillment transformation. Source: Fireflies (2026-07-03).

@@ -520,6 +520,31 @@ Calendar transformations (the admin configuration that maps calendar dates to ou
 
 Week-number triggering fires a transformation on a given week (for example week 1 or week 52) rather than a fixed calendar date.
 
+---
+
+## Reaching Elements Hidden Behind a Calendar Grid
+
+Calendar and planner pages stack a lot of elements in the same place, and a grid
+or overlay element will often sit on top of the element that actually needs
+editing, making it unselectable in the design tool.
+
+The fix is the layer mechanism already defined for the template. Layers can be
+toggled off temporarily in the admin design tool purely as an editing aid —
+hiding the blocking layer exposes the element underneath, and visibility is
+restored afterwards. Layer visibility toggled this way is an editing convenience
+only and does not change what is fulfilled; production output follows the
+`visibility` and `separate-file` attributes declared in the `<layers>` block.
+See `19_XML_TEMPLATE_REFERENCE.md` § PDF Layers for the attribute reference.
+
+**After editing, refulfill manually.** Editing a calendar element on an order
+that has already generated production files does **not** regenerate those files.
+The order must be force-refulfilled from the admin order detail page, and the
+existing generated file has to be deleted before a new one can be requested
+(see `40_PLAYBOOK_UPDATED.md` § Production File Regeneration). Skipping this
+step means the lab prints the pre-edit version with nothing to indicate the
+edit was ever made.
+
 ## Changelog
 - 2026-04-03: Created from platform documentation and annotated real-world examples provided by AdeB. Covers definition attributes, set parameters, full dates vocabulary, foreachdate, named sequence patterns, and three annotated examples.
 - 2026-06-30: Documented week-number triggering for calendar transformations. Source: notion-dashboard (2026-06-22).
+- 2026-08-14: Added the layer-visibility technique for reaching calendar elements blocked by an overlapping grid, and the rule that a manual refulfill is required after any such edit before production files reflect it. Source: fireflies-call (2026-08-12).
