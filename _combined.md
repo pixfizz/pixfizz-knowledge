@@ -979,7 +979,8 @@ If a site is using the **Shopify deployment path**, Shopper files are non-author
 → **83_AI_IMAGERY_PRODUCTION.md** § Part A (answer is no for the product itself)
 
 ### "Customer training / AI setup / webinar schedule / support channels?"
-→ **80_ONBOARDING.md** § Customer Training and Support Resources
+→ **90_FAQ.md** § Section 1 (support channels and training)
+→ *Note: `80_ONBOARDING.md` has no "Customer Training and Support Resources" section. This route was recorded in the 2026-05-21 sync against content that was never added. Corrected 2026-08-14.*
 
 ### "Communication preferences / email opt-in / SMS opt-in / marketing consent?"
 → **50_SHOPPER_TEMPLATE_REFERENCE.md** § Account Page Redesign (Communication Preferences)
@@ -1005,6 +1006,7 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 - 2026-05-21: Added 45_ORDERHUB.md — comprehensive OrderHub reference (Jobs, Production Board, Processes, Locations, PDF Layout Studio, PrintNode, Film Scans, OHD, EasyPost, POS, category assignment, Email/SMS/RCS notifications). Added retrieval entries for all OrderHub topics. Source: OrderHub help modal articles.
 - 2026-05-21: Added routing entries for automatic discounts, static product importer, inventory tracking, login modal, myPixfizz hub, gift vouchers, infrastructure versions, customer training, communication preferences. Source: Q1 2026 webinar KB sync.
 - 2026-07-26: Added 83_AI_IMAGERY_PRODUCTION.md — AI marketing imagery and video production with Higgsfield. Added routing entries for AI imagery and the product-representation rule.
+- 2026-08-14: Audited the 2026-05-21 routing entries against the files they point at. Two pointed at sections that did not exist: Gift Vouchers (now written into 18_ADMIN_NAVIGATION.md § Marketing) and Customer Training and Support Resources (re-pointed to 90_FAQ.md § Section 1). Source: kbsync audit.
 
 
 =================================================================
@@ -2005,6 +2007,10 @@ Customer accounts and access management.
 
 ### Marketing
 - **Promocodes** — promotional code management
+- **Gift Vouchers** — gift voucher / gift card issuing and tracking
+    - **A voucher's value can be changed after the voucher has been created.** It is not fixed at issue. Updating the value is supported through the API, which makes it possible to top up or reset an existing voucher rather than issuing a replacement code. Useful for re-use-credit promotions where the customer already holds the code. TO CONFIRM: whether the value is also editable directly in the admin UI, and the exact API endpoint and payload.
+    - Gift voucher emails are sent through the `email-shopper/templates/gift-voucher` template (see `52_SNIPPET_INVENTORY.md`).
+    - Voucher codes can be **embedded in fulfillment output** — printed into the production/packaging files for an order — so an online-issued voucher can be tracked when it is redeemed in store. Implemented through the fulfillment template, the same mechanism as any other per-order dynamic value (see `31_FULFILLMENT_ENGINE.md`). TO CONFIRM: the exact Liquid accessor for the voucher code on the orderline.
 
 ### Products
 - **Published Products** — published products list (everything in a Collection). Renamed from "All Products" on 2026-03-30 to make it clear the listing is scoped to published items only.
@@ -2201,7 +2207,7 @@ per organization.
 - 2026-06-15: Documented admin-only visibility for Pages/blog (pre-publish staging gate) and the design custom-field column path for the orderline CSV export (custom:print_book:print_theme:<field>). Source: slack-kb-sync (Matjaz, #development; design-field reporting work).
 - 2026-08-05: Noted that the order detail page now shows a payment summary only, with individual money log entries reached through the Show details link into Super Admin. Source: slack-message (#development).
 - 2026-08-11: Documented the Enable AI Tokens Super Admin feature flag — off by default, activated per website by Pixfizz staff, formerly "Enable Perfectly Clear". Clarifies that it is a Super Admin setting and not a fulfillment template field. Source: internal correction.
-```
+- 2026-08-14: Added Gift Vouchers under Marketing — the section `02_RETRIEVAL_MAP.md` already routed to but which did not exist in this file. Documented that a voucher's value can be updated after creation via the API, and that voucher codes can be printed into fulfillment output for in-store redemption tracking. Removed a stray closing code fence at end of file. Source: slack-message (#development, 2026-08-14), fireflies-call (2026-08-10).
 
 
 =================================================================
@@ -3596,9 +3602,34 @@ Calendar transformations (the admin configuration that maps calendar dates to ou
 
 Week-number triggering fires a transformation on a given week (for example week 1 or week 52) rather than a fixed calendar date.
 
+---
+
+## Reaching Elements Hidden Behind a Calendar Grid
+
+Calendar and planner pages stack a lot of elements in the same place, and a grid
+or overlay element will often sit on top of the element that actually needs
+editing, making it unselectable in the design tool.
+
+The fix is the layer mechanism already defined for the template. Layers can be
+toggled off temporarily in the admin design tool purely as an editing aid —
+hiding the blocking layer exposes the element underneath, and visibility is
+restored afterwards. Layer visibility toggled this way is an editing convenience
+only and does not change what is fulfilled; production output follows the
+`visibility` and `separate-file` attributes declared in the `<layers>` block.
+See `19_XML_TEMPLATE_REFERENCE.md` § PDF Layers for the attribute reference.
+
+**After editing, refulfill manually.** Editing a calendar element on an order
+that has already generated production files does **not** regenerate those files.
+The order must be force-refulfilled from the admin order detail page, and the
+existing generated file has to be deleted before a new one can be requested
+(see `40_PLAYBOOK_UPDATED.md` § Production File Regeneration). Skipping this
+step means the lab prints the pre-edit version with nothing to indicate the
+edit was ever made.
+
 ## Changelog
 - 2026-04-03: Created from platform documentation and annotated real-world examples provided by AdeB. Covers definition attributes, set parameters, full dates vocabulary, foreachdate, named sequence patterns, and three annotated examples.
 - 2026-06-30: Documented week-number triggering for calendar transformations. Source: notion-dashboard (2026-06-22).
+- 2026-08-14: Added the layer-visibility technique for reaching calendar elements blocked by an overlapping grid, and the rule that a manual refulfill is required after any such edit before production files reflect it. Source: fireflies-call (2026-08-12).
 
 
 =================================================================
@@ -5464,6 +5495,88 @@ commonly capping the long edge and converting to JPEG, which destroys transparen
 
 ------------------------------------------------------------------------
 
+## Customer-Supplied Strings Rendered in Admin Must Be Escaped
+
+Any shopper-controlled value that an admin page renders — address lines, order
+notes, company names, personalisation text, uploaded filenames — is untrusted
+input on a page viewed by a privileged user. Unescaped, it is a stored
+cross-site-scripting vector aimed directly at admin sessions, and the shopper
+never needs an account to plant it: placing an order is enough.
+
+The rule for any custom admin or job-ticket rendering:
+
+- Pass every shopper-supplied value through `escape` (or `escape_json` in JSON
+  fulfillment templates) before it reaches the page. `31_FULFILLMENT_ENGINE.md`
+  already applies `escape_json` throughout its payload examples for this reason.
+- Treat the admin surface as the higher-value target, not the lower one. A
+  storefront XSS reaches one shopper's session; an admin XSS reaches the account
+  that can read every order on the site.
+- Do not rely on field-level validation at the point of entry. Address and note
+  fields legitimately accept punctuation, and the checkout form is not the only
+  writer — the API and imports write the same fields.
+
+### If admin credential compromise is suspected
+
+Order of operations, because doing these in the wrong order leaves the window
+open:
+
+1. Fix the injection point first. Rotating credentials while the payload is
+   still rendering just re-harvests the new ones.
+2. Force a logout of all admin sessions site-wide, so any session already
+   hijacked is invalidated.
+3. Reset affected admin passwords and issue temporary credentials.
+4. Review the login log for unexpected source geographies before assuming the
+   attempt failed.
+
+Note that a bulk password reset across an account holding **many sites** has
+been observed to time out where a single-site reset succeeds — if the reset
+appears to fail on a large multi-site account, that is the likely cause rather
+than a wrong credential. Escalate rather than retrying blindly.
+
+Incident-specific detail (affected sites, indicators of compromise, the
+superadmin reset path) is deliberately **not** in this public reference — it
+lives in the private internal repo.
+
+------------------------------------------------------------------------
+
+## Editing a Confirmed Order Does Not Regenerate Its Production Files
+
+Changing anything on an order that has already produced artwork — editing the
+project in the design tool, correcting a calendar element, swapping an image —
+leaves the previously generated production files untouched. The order in admin
+shows the edit; the lab still receives the pre-edit artwork, with nothing to
+signal the discrepancy.
+
+After any edit to a confirmed order, **force a refulfill from the admin order
+detail page**. Because the platform will not issue a new production file while
+an old one exists on the project, the existing generated file must be deleted
+first (see Production File Regeneration above).
+
+This is the failure mode behind "we corrected it and the wrong version still
+printed". Treat the refulfill as part of the edit, not as an optional follow-up.
+
+------------------------------------------------------------------------
+
+## Wrapped-Canvas Products: Mirrored Edges Are a Template Fault, Not a Render Fault
+
+Symptom: a gallery-wrap canvas comes off the press with the wrapped edges
+mirrored — the image reflected around the wrap rather than continuing across it.
+
+This presents as a rendering or production bug and is almost always neither. The
+two things to check, in order:
+
+1. **The product template definition** — the page/wrap geometry declared in the
+   XML for that product.
+2. **The bleed value** — a bleed that does not match the physical wrap depth
+   makes the wrap region fall in the wrong place, and mirroring is the visible
+   result.
+
+Correcting the template and the bleed size resolves it. Do not start by
+re-rendering the order or re-uploading the customer's image; neither addresses
+the cause, and both cost a print.
+
+------------------------------------------------------------------------
+
 ## Changelog
 - 2026-03-21: Initial content from platform documentation export.
 - 2026-04-23: Added CSS snippet logs diagnostic note, password reset Liquid deprecation pattern, fulfillment template DPI failure, URL reserved parameter 404 gotcha, Stripe pending-without-payment issue, FTP original files intermittent failure.
@@ -5474,6 +5587,7 @@ commonly capping the long edge and converting to JPEG, which destroys transparen
 - 2026-06-26: Added kiosk iPad browser-autofill login-confusion gotcha (disable autofill on shared kiosk devices). Source: fireflies-call.
 - 2026-07-11: Added CMS tar import gotcha — `admin/checklist/*` flags are not reliably applied on import (observed: custom-home-page TRUE in tar but unset after import); verify checklist flags in the admin UI after any import. Source: claude-chat (Shopper CMS tar build).
 - 2026-07-20: Added Shopper v2 account `date_format` gotcha — `account/v2/orders` and `account/v2/dashboard` miss `| strip` on the date_format capture, causing a format mismatch with order-details. Source: claude-chat.
+- 2026-08-14: Added the rule that shopper-supplied strings rendered on admin pages must be escaped, with the ordered response steps for suspected admin credential compromise (fix injection point, force site-wide logout, then rotate) and the multi-site bulk-password-reset timeout note. Added the rule that editing a confirmed order does not regenerate its production files — force refulfill, deleting the existing generated file first. Added wrapped-canvas mirrored-edge diagnosis (template definition and bleed value, not the renderer). Source: slack-message (#support), fireflies-call (2026-08-11/12).
 - 2026-07-28: Added Collection Filter Drilldown blank-PDP entry — stale or invalid dependent filter values break the drilldown; fix is a three-tier selection cascade in `product/product-details-filter` and `product/details-filter-dual-mode`. Source: claude-chat.
 
 
@@ -6566,8 +6680,48 @@ and holds a value but was never whitelisted simply does not reach OrderHub, with
 no error on either side.
 
 This came up while adding Rush and Urgent delivery classifications as boolean
-fields, alongside two generic white-labelled option fields for client-specific
+fields, alongside generic white-labelled option fields for client-specific
 order types.
+
+### The five order-level boolean slots
+
+OrderHub supports **five** order-level boolean custom fields, not four. Confirmed
+2026-08-13 against the authoritative list circulated by the OrderHub owner:
+
+| Field | Meaning |
+|---|---|
+| `rush` | Standard rush tier |
+| `urgent` | Faster-than-rush tier (typically same day) |
+| `option1` | Generic slot, white-labelled per client |
+| `option2` | Generic slot, white-labelled per client |
+| `option3` | Generic slot, white-labelled per client |
+
+Naming rules that are easy to get wrong:
+
+- **No underscore and no digit separator** — the names are `option1`, `option2`,
+  `option3`, not `option_1`.
+- `rush` and `urgent` are **mutually exclusive** — model them as one radio group,
+  never as two independent checkboxes.
+- `option1`–`option3` are independent of each other and of the rush tier. Reserve
+  `rush` and `urgent` for genuine delivery-speed tiers; anything else (a
+  slow-it-down discount, a VIP flag, a client-specific order type) belongs in a
+  generic slot.
+
+**Where the customer-facing label lives is not yet settled.** Two readings are on
+record: the label is configured per client **in OrderHub** (so the storefront
+sends only the boolean), or the label **travels from the storefront** alongside
+the flag (which would require a companion `option1_label`-style text field,
+lowercase and separately whitelisted). Confirm with the OrderHub owner before
+building the label path — the two designs differ in how many fields need
+whitelisting.
+
+**Migration trap.** Where a site already applies a rush charge through an Extra
+Fee rule keyed on an older single-string field (for example a `rush_option` field
+holding `none` / `standard` / `sameday`), renaming the field **silently drops the
+fee**: the customer selects the faster tier, pays nothing, and the order still
+reports as urgent. Re-point the Extra Fee rule in the same deploy as the field
+rename, never afterwards. Carts already open at cutover will read as no-rush
+unless the old values are mapped across.
 
 ---
 
@@ -6579,6 +6733,7 @@ order types.
 - 2026-07-25: Added POS Application Behaviour section (close/reopen required to load a new build; build version shown at bottom of logged-out login screen; 5-minute screensaver is burn-in prevention, not a session timeout; receipt paper size is software config — Epson TM-P20II is 58mm, set in both the Epson utility and the Mac driver). Added automated print job creation from film roll quantities with artwork upload to operator desktop. Source: fireflies-call (3x repeat signal).
 - 2026-07-31: Added known issue — film scan folders reported stuck in the OHD watch folder (repeat issue type, root cause/fix not yet confirmed). Source: support ticket #18341 (pending confirmation).
 - 2026-08-11: Added the custom field naming rule — any new custom field that OrderHub must read has to be lowercase, and whitelisted in OrderHub before it will route. Source: fireflies-call (2026-08-07).
+- 2026-08-14: Corrected the order-level boolean slot count from four to five (`rush`, `urgent`, `option1`, `option2`, `option3`) and documented the no-underscore naming rule, the rush/urgent mutual exclusivity, the unresolved label-ownership question, and the Extra Fee re-point trap when migrating off a single-string rush field. Source: fireflies-call (2026-08-13), slack-message (#development).
 
 
 =================================================================
@@ -9511,7 +9666,7 @@ Post is a single CMS object type with context-dependent field naming. Fields are
 
 ---
 
-### Cart (11 fields)
+### Cart (16 fields)
 
 **Note:** Cart custom fields are set via HTML form inputs during checkout, not CMS admin.
 
@@ -9522,12 +9677,27 @@ Post is a single CMS object type with context-dependent field naming. Fields are
 | gift_wrap | boolean | Gift wrap option selected |
 | locale | text | Shopper's locale preference |
 | note | text | Order note from checkout form |
+| option1 | boolean | Generic white-labelled order flag, wording configured per client. Reaches OrderHub once whitelisted. Rolling out from 2026-08. |
+| option2 | boolean | Generic white-labelled order flag. Rolling out from 2026-08. |
+| option3 | boolean | Generic white-labelled order flag. Rolling out from 2026-08. |
 | phone | text | Shopper phone number from form |
 | preferred_delivery | text | Preferred delivery method |
-| rush_production | boolean | Rush production option selected |
+| rush | boolean | Standard rush delivery tier. Mutually exclusive with `urgent`. Rolling out from 2026-08. |
+| rush_production | boolean | Rush production option selected (older single-purpose flag; superseded by `rush` on sites moved to the delivery-speed radio group) |
 | scheduled_delivery_date | text | Scheduled delivery date if applicable |
 | special_instructions | text | Special handling instructions |
 | timezone | text | Shopper's timezone for scheduling |
+| urgent | boolean | Faster-than-rush delivery tier (typically same day). Mutually exclusive with `rush`. Rolling out from 2026-08. |
+
+**Naming.** `option1`–`option3` carry no underscore. All five flags must be
+lowercase and whitelisted in OrderHub before they route — see
+`45_ORDERHUB.md` § The five order-level boolean slots.
+
+**Value convention.** Write the explicit strings `true` and `false`, never blank.
+Blank is not confirmed to clear a cart custom field, and a flag that sticks on
+`true` keeps charging the customer after they switch back. Because `false` is a
+non-empty string, every Liquid test must be `== 'true'`; a blank value means the
+field was never set, which reads as off.
 
 ---
 
@@ -9962,6 +10132,7 @@ attributes.
 - 2026-07-11: Added Address field hide_address (boolean) — suppresses address display in the customer-facing UI for pickup locations while keeping the backend address for order routing (Address count 3 → 4). Source: slack-message (#development, 2026-07-10).
 - 2026-07-25: Added Product field spreads_as_pages (boolean, display-only page-count doubling on the page selector). Removed blog_meta_description from both the Blog Posts group and Blog_Post Detail tables — the field does not exist; Shopper SEO Settings exposes blog_post.custom.description and blog_post.custom.blog_description instead. Normalised Product counts to 81 total / 67 template-referenced (summary stats row had drifted to 79/65), Post to 36, Blog_Post Detail to 8. Source: claude-chat, fireflies-call.
 - 2026-07-28: Added Key Notes entries — product tab fields (`details`, `features`, `production`) are snippet-type at Product level and html-type at Collection level; new products start with blank custom field values by design; `manage/custom-fields` is the in-CMS authority for field types and descriptions. Source: claude-chat.
+- 2026-08-14: Added the checkout delivery-speed and generic order flags to the Cart table (`rush`, `urgent`, `option1`, `option2`, `option3`; count 11 → 16), with the no-underscore naming rule, the OrderHub lowercase/whitelist dependency, and the explicit `true`/`false` value convention. Noted `rush_production` as the older single-purpose flag it supersedes. Source: fireflies-call (2026-08-13), claude-chat.
 - 2026-08-11: Corrected the field type list — there is no `html` type; all 18 table rows typed `html` changed to `snippet`, and the Phase 3 type list corrected to text/multitext/boolean/number/asset/snippet. Added Key Notes for what each non-string type returns in Liquid, the `Public` flag controlling non-admin edit rights rather than storefront visibility, and large-content capacity being snippet-type only (text-type caps around 1KB). Added Section — the per-product export archive as a bulk-creation format carrying variant types and values. Source: claude-chat (Shopper v2 verification kit, art-archive build).
 
 
@@ -15645,6 +15816,22 @@ Yes. Pixfizz creates a temporary anonymous identity for every visitor automatica
 
 ---
 
+**Q: How do I raise a support ticket, and where do I track it?**
+_Applies to: All_
+
+Support runs through the **myPixfizz portal** (`my.pixfizz.com`). Raise a ticket there, track its status, and see the full conversation thread in one place. The portal is also where you find training videos, what's new, the roadmap, and your onboarding tasks.
+
+The previous third-party helpdesk is being retired — from **1 September 2026** the myPixfizz portal is the support channel. Tickets raised through the old system before that date are being carried across; if you have an open ticket, it will continue to be worked. Email to the support address still reaches the team either way.
+
+---
+
+**Q: Is there regular training on new platform features?**
+_Applies to: All_
+
+Yes. Pixfizz runs a **quarterly review webinar** covering platform updates and new capabilities — the next one is **1 September 2026**. Recordings and walkthrough videos are published in the myPixfizz portal afterwards, so missing the live session is not a problem.
+
+---
+
 ## Section 2 — Products, Templates & Collections
 
 **Q: What's the difference between a Product Attribute, a Template, and a Design?**
@@ -15987,6 +16174,7 @@ Configurable options include:
 ---
 
 ## Changelog
+- 2026-08-14: Added Section 1 entries for the support channel (myPixfizz portal; third-party helpdesk retired 1 September 2026) and the quarterly review webinar. Source: fireflies-call (2026-08-11/12/13, 3x repeat signal).
 - 2026-04-06: Initial version. 35 Q&As covering Getting Started, Products, Design Tool, Pricing, Cart/Checkout, Shopify, Orders, Storefront, and Troubleshooting.
 - 2026-05-19: Added inventory tracking Q&A (Section 2), inline price editing Q&A (Section 4), order cancellation and transaction fees Q&A (Section 7), multi-language support Q&A (Section 8), and Batch Film Uploader workflow (new Section 10 — Film Lab Workflows). Source: Notion KB articles.
 - 2026-07-04: Added CMYK-JPEG upload caution to the image-upload Q&A (Section 3) — upload sRGB; reserve CMYK for fulfillment transformation. Source: Fireflies (2026-07-03).
