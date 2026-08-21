@@ -4863,6 +4863,21 @@ Orders can enter Pixfizz through multiple paths:
 - **Marketplaces** — from connected marketplaces (e.g. Etsy)
 - **Kiosk / In-store** — orders at physical retail locations
 
+### Kiosk Terminal Tracking
+
+`custom.kiosk_id` is a **whitelisted custom order property** — it is preserved through checkout
+and accessible on the order record in admin.
+
+Kiosk sites can tag orders by terminal by appending `?terminal=N` to any page URL:
+
+https://yoursite.pixfizz.com/shop?terminal=1 https://yoursite.pixfizz.com/shop?terminal=2
+
+
+The terminal value is captured in the order source, enabling per-terminal order routing and
+reporting in OrderHub. In use on production kiosk sites (confirmed Aug 2026).
+
+SOURCE: #development Slack, Richard + Alex, 2026-08-18–21.
+
 All orders follow the same lifecycle and production pipeline regardless of origin.
 
 ---
@@ -5032,6 +5047,19 @@ Desktop application for photo lab operators. Runs locally, polls OrderHub for ne
 ### Multi-instance Behaviour
 If multiple OHD instances run across workstations, job delivery is **first-come-first-served** — a job goes to only one instance. Instances can be filtered by location.
 
+### FTP Folder Fulfillment Mode
+
+OHD can connect directly to a local FTP folder and move fulfillment files to local lab
+infrastructure — useful for labs that do not have Syncovery installed.
+
+**Configuration:** OHD Settings → connect to FTP folder → set the folder name to the lab's
+hotfolder name (e.g. "Labworks"). Do **not** name the folder "OrderHub".
+
+**Use case:** Labworks hotfolder integration for labs without Syncovery (e.g. Diversified Prints
+setup). Files are moved to the local hotfolder directly from OHD rather than being pulled via Syncovery.
+
+SOURCE: #development Slack, Richard, 2026-08-17.
+
 ### API Status Update Endpoint
 ```
 POST /functions/v1/update-job-status
@@ -5041,7 +5069,17 @@ Headers: X-API-Key: <api_key>
 > OHD is a companion tool to OrderHub — not standalone. Requires active OrderHub connection. For full operational detail see `45_ORDERHUB.md`.
 
 ---
+## Rush / Urgent Order Options
 
+The platform supports a rush/urgent order flag compatible with OrderHub file-naming conventions.
+Tested and confirmed on production sites (Aug 2026) — ready for broad rollout.
+
+- Configure via order settings in admin
+- Rush orders are correctly identified by OrderHub for priority processing
+- The `cart.rush_production` custom field (boolean) is set at checkout when the shopper selects rush
+
+SOURCE: Fireflies call (Documentation, Aug 14 2026).
+---
 ## Automatic Discounts
 
 Pixfizz supports **automatic discounts** applied as negative line values on orders. Key behavior:
@@ -5078,6 +5116,9 @@ The `manual_payment` field is a custom field set at order creation. It returns `
 - 2026-06-26: Documented order.status single-letter Liquid codes (P=Pending, F=Payment Failed) and the order_payment form for Pay Now / payment retry. Source: claude-chat.
 - 2026-07-25: Clarified that Pending orders do not automatically route to production and must be manually confirmed in admin before artwork generation, fulfillment delivery, or OrderHub job creation occurs. Source: fireflies-call.
 - 2026-08-05: Documented gateway callback webhooks as a required gateway-side configuration step, covering the failure mode where payment succeeds but the order stays Pending. Added the confirmed PayU setup (two webhooks, Successful and Failed, both to `/cart/payu_money_callback`) and the log-based diagnosis. Source: slack-message (#development), fireflies-call.
+- 2026-08-21: Added OHD FTP folder fulfillment mode. Source: slack-message (#development, Richard, Aug 17).
+- 2026-08-21: Added kiosk terminal tracking (custom.kiosk_id + ?terminal=N URL param). Source: slack-message (#development).
+- 2026-08-21: Added rush/urgent order options section. Source: fireflies-call (Documentation call, Aug 14).
 
 
 =================================================================
