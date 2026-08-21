@@ -4016,12 +4016,27 @@ Price Variables can be exported and imported, including across sites — export 
 Source: slack-message (#development), commit e954d0b3.
 
 ---
+## Packaging Tab — Do Not Use
 
+The **Packaging** tab exists in the product admin but is a legacy feature — almost no live clients
+use it, and it is not recommended for new setups.
+
+**Why:** In mixed-product orders, per-package prices aggregate unpredictably (multiple products go
+into one package, but the formula can't know what else is in the order at pricing time). The result
+is often an expensive and confusing checkout experience.
+
+**Recommended approach:** Always use **shipping pricing formulas** instead of the Packaging tab.
+If a client asks about Packaging, redirect them to shipping formula configuration.
+
+RATIONALE: Repeat signal — Loom video in #kb-sync + #development question same week.
+SOURCE TYPE: loom-video + slack-message
+---
 ## Changelog
 - 2026-05-19: Added Automatic Discounts section — Liquid-based cart discounts with tiered, user category, and seasonal patterns. Source: Claude chat (webinar prep).
 - 2026-07-03: Added Extra Fees (Liquid-Based Cart Fees) section — fee-side twin of Automatic Discounts (adds instead of subtracts), configured under Shipping → Extra Fees. Includes per-duplicate-orderline surcharge pattern (seen-string + contains idiom); orderline-iteration specifics pending live confirmation. Source: Claude chat.
 - 2026-07-20: Added property-name trap — `cart.promocode` (without `_code`) is nil and silently defeats promo-code guards; always use `cart.promocode_code`. Source: claude-chat.
 - 2026-07-31: Price Variable Bulk Export/Import shipped (2026-07-28) — moved out of Roadmap, now documented as a live feature. Source: slack-message (#development).
+- 2026-08-21: Documented Packaging tab as legacy feature; shipping formulas recommended instead. Source: loom-video + slack-message.
 
 
 =================================================================
