@@ -1875,6 +1875,21 @@ Reusable techniques confirmed in production:
   the category container (same flex-`order` idiom as option reordering above); the
   underlying order is not configurable in admin.
 
+---
+## Zero-Width or Zero-Height Shapes Corrupt PDF Output
+
+A shape element with a width or height of 0 causes `NaN` to be written into the generated PDF,
+producing a corrupt output file. The platform no longer writes NaN for zero-size shapes (fix
+deployed Aug 2026), but any zero-width/height shapes already present in live projects should be
+removed manually.
+
+**Rendering difference by viewer:**
+- Chrome PDF viewer: renders a 1px black line
+- Acrobat and Firefox: render nothing
+
+**Source:** #development Slack, Matjaz, 2026-08-17.
+
+---
 ## Font Licensing: Editor Fonts Require Embedding License
 
 Fonts used inside the Pixfizz editor are **embedded into personalised product renders** (print-ready files, previews). This requires a **digital embedding** or **print embedding** license — not a standard web font license.
@@ -1945,6 +1960,14 @@ Workaround for a genuinely rounded page appearance: use **page masks** rather th
 ### Multi-page products: no indicator of which page is being edited
 
 On mobile, the card editor gives no clear indication of which page (e.g. front vs. inside) is currently being edited — the same view is clear on desktop. This has been reported via support ticket and is not yet resolved; no fix has been confirmed as of 2026-07-31. Source: support ticket #18343.
+
+## Element Substitutions — Opacity Control
+
+Element opacity can be controlled through element substitutions, enabling opacity values to be
+driven by product option selections or other configuration values. Useful for calendar and
+photo book products where transparency effects need to vary by option choice.
+
+SOURCE: Fireflies call (Shaun Bowen / Rapid Studio, 2026-08-18). Confirmed live: 2026-08-21.
 
 ## Changelog
 - 2026-03-30: Created from master platform documentation export.
