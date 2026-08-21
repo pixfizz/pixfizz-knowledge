@@ -728,6 +728,82 @@ Two things follow from § 13's CORS note and from `13_TEMPLATE_BOUNDARIES.md`:
 - Custom fields are site-specific and are not inherited parent to child. The field must already exist on the site being written to, or the value is silently dropped.
 
 ---
+## 13a. Promocodes and Gift Vouchers
+
+Promocodes apply discounts at checkout. Gift vouchers are Promocodes with `reuse_credit: true` — they function as a balance that can be spent across multiple orders.
+
+### Promocode fields
+
+| Field | Description |
+|---|---|
+| `code` | Public reference code used at checkout |
+| `name` | Friendly name (visible publicly) |
+| `used` | Boolean — if `true`, the promocode cannot be used again |
+| `starts_at` | Date/time the promocode becomes active (defaults to now if omitted) |
+| `expires_at` | Date/time the promocode expires — **required** |
+| `multiple_use` | Boolean — allow use across multiple orders |
+| `number_remaining` | Limit total uses (optional) |
+| `amount` | Fixed amount off total cart price |
+| `percentage` | Fixed percentage off total cart price |
+| `reuse_credit` | Boolean — gift voucher mode; `amount` acts as spendable balance across multiple orders |
+| `discount_rules` | JSON string for complex discount behaviour (overrides simple fields) |
+
+### Create a site-wide promocode
+
+POST /v1/promocodes.json
+
+
+```bash
+curl -X POST \
+     -d "promocode[name]=Summer Sale" \
+     -d "promocode[code]=SUMMER25" \
+     -d "promocode[expires_at]=2026-09-01T00:00:00+00:00" \
+     -d "promocode[multiple_use]=true" \
+     -d "promocode[percentage]=25" \
+     https://yoursite.pixfizz.com/v1/promocodes.json
+```
+
+`starts_at` is optional — defaults to the current date/time (immediately active).
+
+### Create a user-specific gift voucher
+
+POST /v1/users/{user_id}/promocodes.json
+
+
+```bash
+curl -X POST \
+     -d "promocode[expires_at]=2027-12-31" \
+     -d "promocode[amount]=20" \
+     -d "promocode[reuse_credit]=true" \
+     https://yoursite.pixfizz.com/v1/users/169407050/promocodes.json
+```
+
+This creates a $20 gift voucher usable only by the specified user, spendable across multiple orders.
+
+### Read
+
+GET /v1/promocodes/{id}.json GET /v1/promocodes/_code/{CODE}.json GET /v1/promocodes.json # all site promocodes GET /v1/users/{user_id}/promocodes.json # user's promocodes
+
+
+### Update
+
+PUT /v1/promocodes/{id}.json
+
+
+Updatable fields: `code`, `name`, `used`, `starts_at`, `expires_at`.
+
+> **Critical:** `amount`, `percentage`, and `discount_rules` are **immutable after creation**. To correct a voucher's value, delete and recreate it. Order history of the original promocode is preserved even after deletion.
+
+### Delete (only after expiry)
+
+DELETE /v1/promocodes/{id}.json
+
+
+Deletion is only permitted after the promocode has expired. Historical order data referencing the deleted promocode is retained.
+
+SOURCE: Pixfizz Promocodes API documentation. Confirmed applicable: #development Slack, Alex + Matjaz, 2026-08-14.
+
+---
 
 ## 14. Retrieval Pointer
 
@@ -748,3 +824,4 @@ Two things follow from § 13's CORS note and from `13_TEMPLATE_BOUNDARIES.md`:
 - 2026-07-04: Documented that `/copy` creates an unsaved project (set `book[saved]=1` on the new ID), and the cross-origin `PUT` CORS-preflight trap (use `POST` + `_method=put`). Source: claude-chat.
 - 2026-07-20: Documented the `fulfillment` param on the theme/project preview endpoint (placeholder-vs-resolution trade-off, not officially documented); added §13a no-fixed-outbound-IP networking note; added §13b reprint order-ID uniqueness (append a letter suffix). Source: support-ticket, fulfillment-integration call, #development.
 - 2026-07-25: Added § 13c Admin Content API — custom type list/read/instance-create, asset upload and list, and the custom-field update endpoints for products, designs (`theme`), and collections (`theme_category`). Marked not publicly announced; documented the genuine `/admin` vs `/v1/admin` prefix inconsistency. Source: internal notes (Matjaz).
+- 2026-08-21: Added full Promocodes / Gift Vouchers API section (§13a) including create, read, update, delete endpoints and gift voucher (reuse_credit) pattern. Source: api-docs + slack-message.
