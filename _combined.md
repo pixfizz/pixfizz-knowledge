@@ -6763,6 +6763,57 @@ FILE: 50_LIQUID_REFERENCE.md
 
 ---
 
+# FORMS
+
+---
+
+## address_create
+
+Creates a new address for the current user.
+
+### Default behaviour
+
+With no options, a successful submission does two things:
+1. Saves the new address to the user's saved addresses.
+2. Sets the new address as the selected address on the current cart.
+
+```liquid
+{% form 'address_create' %}
+  <!-- address fields -->
+  <button type="submit">Save address</button>
+{% endform %}
+```
+
+### Options (added 2026-08-21)
+
+| Option | Default | Effect when set to `false` |
+|---|---|---|
+| `assign_to_user` | `true` | The address is **not** saved to the user's saved addresses. Applied to the current cart only. Use for a one-off delivery address the shopper should not keep. |
+| `assign_to_cart` | `true` | The address is **not** set as the selected address on the current cart. Saved to the address book only. Use when collecting addresses for later, not for the order in progress. |
+
+Both options are independent — set either or both.
+
+### Examples
+
+Save to address book, do not apply to current cart:
+```liquid
+{% form 'address_create', assign_to_cart: false %}
+  <!-- fields -->
+{% endform %}
+```
+
+Apply to cart only, do not save to address book (one-off address):
+```liquid
+{% form 'address_create', assign_to_user: false %}
+  <!-- fields -->
+{% endform %}
+```
+
+> **Note:** Setting both `assign_to_user: false` and `assign_to_cart: false` creates the address
+> but applies it to neither the cart nor the address book — rarely the intended result.
+
+SOURCE: Notion Dashboard 🆕 Update (2026-08-21). Help article: https://help.pixfizz.com/ecommerce/pixfizz-ecommerce/pixfizz-cms/liquid/forms/address_create-form-options
+
 ## Overview
 
 Pixfizz extends [stock Liquid](https://shopify.github.io/liquid/) with Pixfizz-specific objects, filters, and tags.
@@ -8169,6 +8220,7 @@ example markup.
 - 2026-06-15: Added json_parse filter to Pixfizz-extended filters. Added assign_to_user / assign_to_cart optional params to the address_create form. Source: notion-dashboard.
 - 2026-07-07: Documented cart_clear, cart_unset and cart_delete forms in the Cart forms table, plus a clear/unset/delete comparison note. Source: notion-page, slack-message.
 - 2026-07-28: Added file_upload accessor note on ChosenOption (`uploaded_file.url` / `.filename`; `value`, `asset.url`, `thumbnail_url` and the `preview_url` filter do not work), the `thumbnail/{n}` path segment on UploadedFile, and the `cart[custom][field]` write pattern for `cart_update`. Source: claude-chat.
+- 2026-08-21: Added FORMS section with address_create form options (assign_to_user, assign_to_cart). Source: notion-page (Dashboard 🆕 Update).
 
 
 =================================================================
