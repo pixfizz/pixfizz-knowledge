@@ -10970,6 +10970,16 @@ In the Shopify deployment path:
 - When a Shopify order is paid, a webhook fires to Pixfizz, confirming the order. Pixfizz changes the order status to "Confirmed".
 - When an order is fulfilled in Shopify, a second webhook can fire to mark the Pixfizz order as "Shipped".
 
+> **Shopify variant limit — catalog depth constraint:** Shopify enforces a maximum variant count
+> per product. For print businesses with deep size/finish/paper combinations, this restriction
+> can limit the catalog depth achievable on a Shopify storefront. Full Pixfizz deployment
+> avoids this constraint entirely.
+>
+> Use Shopify + Pixfizz for existing Shopify stores adding personalisation. For new builds with
+> deep product catalogs (many size/finish variants), recommend Full Pixfizz.
+
+SOURCE: Fireflies call (Harold's Photo, 2026-08-20).
+
 ### Master Shopify CMS: staging vs production
 
 Internally there are two master Shopify CMS sites: a **staging** master used to develop and test integration code, and a **production** master that live client sites inherit from. Only the actively synced pages/snippets (in practice `shopify/api.js` and `shopify/product`) are kept in step between them. Other pages and snippets on the staging master are likely outdated and should **not** be treated as canonical or copied from — always take known-good code from the production master. Workflow: build/test on staging, then copy the finished code across to production.
@@ -11682,6 +11692,7 @@ Shopify has two customer account systems. The integration approach differs:
 - 2026-07-04: Added §15 gallery auto-open (`openGallery` after `addGalleryCard` in create callback) and §10a Globo variant-limit fallback (core variants or Shopper frontend). Source: claude-chat, Fireflies.
 - 2026-07-11: Added §1 master-CMS staging-vs-production workflow note (only api.js/product kept in sync; do not copy from staging); §9 project-ownership auto-assignment on order sync (unowned project → ordering user); §6 editor `domready` message (wait before posting into the editor iframe); §10 plain-text-editor gotcha for product/variant ID mapping CSVs (Excel corrupts IDs). Source: slack-message (#development, commits 2026-07-05/07), fireflies-call (2026-07-10).
 - 2026-07-20: Noted all Shopify line item properties are now captured into Pixfizz orderline options, and that static-product routing depends on the exact expected property name. Source: #development (commit 2026-07-13), Weekly Tech call.
+- 2026-08-21: Added Shopify max variant limitation note in §1. Source: fireflies-call (Harold's Photo, Aug 20).
 
 
 =================================================================
