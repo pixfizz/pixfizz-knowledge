@@ -9348,7 +9348,19 @@ This reference documents **30 object access patterns** mapping to approximately 
   - Future filtering and production workflows
 
 ---
+- **Snippet-type custom field rendering requires a non-empty product Description**
+  Custom fields of type `snippet` (features, details, options, pricing, production, additional tabs)
+  are silently suppressed on the storefront if the product `description` field is empty — even if
+  the snippet content is fully populated and saved in admin. Simple-type fields (production_time,
+  promotion_badge, shipping flags) are unaffected. The Public toggle has no bearing on this.
 
+  **Fix:** Add any text to the product Description before filling snippet custom field content.
+  If the Description must appear blank to shoppers, use a non-breaking space or invisible character.
+
+  RATIONALE: Silent failure with no admin warning. Repeat signal — #kb-sync message + Fireflies call (Xenia, Aug 18).
+  SOURCE TYPE: slack-message + fireflies-call
+
+  ---
 ## Object Type Reference
 
 ### Product (81 total)
@@ -10134,6 +10146,7 @@ attributes.
 - 2026-07-28: Added Key Notes entries — product tab fields (`details`, `features`, `production`) are snippet-type at Product level and html-type at Collection level; new products start with blank custom field values by design; `manage/custom-fields` is the in-CMS authority for field types and descriptions. Source: claude-chat.
 - 2026-08-14: Added the checkout delivery-speed and generic order flags to the Cart table (`rush`, `urgent`, `option1`, `option2`, `option3`; count 11 → 16), with the no-underscore naming rule, the OrderHub lowercase/whitelist dependency, and the explicit `true`/`false` value convention. Noted `rush_production` as the older single-purpose flag it supersedes. Source: fireflies-call (2026-08-13), claude-chat.
 - 2026-08-11: Corrected the field type list — there is no `html` type; all 18 table rows typed `html` changed to `snippet`, and the Phase 3 type list corrected to text/multitext/boolean/number/asset/snippet. Added Key Notes for what each non-string type returns in Liquid, the `Public` flag controlling non-admin edit rights rather than storefront visibility, and large-content capacity being snippet-type only (text-type caps around 1KB). Added Section — the per-product export archive as a bulk-creation format carrying variant types and values. Source: claude-chat (Shopper v2 verification kit, art-archive build).
+- 2026-08-21: Added snippet-type custom field rendering gotcha (requires non-empty Description). Source: slack-message + fireflies-call.
 
 
 =================================================================
