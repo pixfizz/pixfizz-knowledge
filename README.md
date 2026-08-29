@@ -20,16 +20,20 @@ assistant.
 
 ## What is not here
 
-- Pricing, subscription tiers or commercial terms — sales@pixfizz.com
+- Pricing, subscription tiers or commercial terms — info@pixfizz.com
 - Client-specific configuration, which is unique to each site
 - Internal development standards and agent architecture, maintained separately
 
 ## Elsewhere
 
+- **my.pixfizz.com** — the myPixfizz customer portal: raise and track a support
+  ticket, follow the roadmap, see what's new, work through onboarding tasks, and ask
+  Iris, the Pixfizz AI assistant, a question against this knowledge base
 - **help.pixfizz.com** — customer-facing help articles
 - **videos.pixfizz.com** — video walkthroughs
 - **pixfizz.com** — product information
 
 ## Corrections
 
-Something wrong or missing: support@pixfizz.com
+Something wrong or missing in these files: raise it in the myPixfizz portal at
+**my.pixfizz.com**, or email **support@pixfizz.com**.
