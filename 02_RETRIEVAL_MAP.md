@@ -167,25 +167,17 @@ _Last updated: 2026-05-21_
 ### "Pixfizz structured data / product schema / LocalBusiness schema / review schema / sitemap / product feed for AI visibility?"
 → **81_SEO_AND_GEO_REFERENCE.md** § Part D, then **50_SHOPPER_TEMPLATE_REFERENCE.md** § SEO & Metadata
 
-RATIONALE: The retrieval map routes mobile UX (82/83) but never had an SEO/GEO entry, so the file the map already names (81) was undiscoverable.
-SOURCE: this conversation (webinar prep)
-SOURCE TYPE: claude-chat
-
-### "AI search / GEO / answer engine optimization / how to get cited by AI / AI Overviews / how AI search works?"
-→ **81_SEO_AND_GEO_REFERENCE.md**
-
-### "Pixfizz structured data / product schema / LocalBusiness schema / review schema / sitemap / product feed for AI visibility?"
-→ **81_SEO_AND_GEO_REFERENCE.md** § Part D, then **50_SHOPPER_TEMPLATE_REFERENCE.md** § SEO & Metadata
-
-RATIONALE: The retrieval map routes mobile UX (82/83) but never had an SEO/GEO entry, so the file the map already names (81) was undiscoverable.
-SOURCE: this conversation (webinar prep)
-SOURCE TYPE: claude-chat
 ---
-### "Mobile UX principles / mobile conversion gap / mobile homepage patterns / mobile checkout patterns?"
-→ **82_MOBILE_UX_REFERENCE.md**
+### "Mobile UX principles / mobile conversion gap / mobile homepage patterns / mobile checkout patterns / mobile audit checklist?"
+→ **No dedicated file exists. This is a known gap.** The coverage that does exist is
+scattered: **50_SHOPPER_TEMPLATE_REFERENCE.md** (mobile nav collapse,
+`header/logo-height-mobile`, `variant_columns_mobile`), **17_DESIGN_TOOL.md**
+§ Known Issues — Mobile, and **80_ONBOARDING.md** (review the mobile experience on real
+devices).
 
-### "Mobile UX audit / site review checklist / mobile conversion audit / walkthrough checklist?"
-→ **83_MOBILE_UX_AUDIT.md**
+Earlier versions of this map routed to `82_MOBILE_UX_REFERENCE.md` and
+`83_MOBILE_UX_AUDIT.md`. Neither has ever existed in this repo — the routes were written
+in anticipation of files that were never added.
 
 ---
 
@@ -462,3 +454,4 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 - 2026-07-26: Added 83_AI_IMAGERY_PRODUCTION.md — AI marketing imagery and video production with Higgsfield. Added routing entries for AI imagery and the product-representation rule.
 - 2026-08-14: Audited the 2026-05-21 routing entries against the files they point at. Two pointed at sections that did not exist: Gift Vouchers (now written into 18_ADMIN_NAVIGATION.md § Marketing) and Customer Training and Support Resources (re-pointed to 90_FAQ.md § Section 1). Source: kbsync audit.
 - 2026-08-29: Added 16 routing entries for the 2026-08-29 sync — editor gallery folder theming, generated-CSS specificity, acv2 theming, GA4 defects, the trailing-newline flag failure, `default-delivery-option`, Shopify bulk variant metafields, the photo-prints 414, canvas wrap geometry and ipage zoom, the template-import price validation, translations, the currency switcher, single-value variants, per-order charges on variants, the collections export format, and spin GIF optimisation. Every target section was written in the same sync. Source: kbsync.
+- 2026-08-29: Removed a duplicated SEO/GEO block and three leaked kbsync scaffolding lines (RATIONALE / SOURCE / SOURCE TYPE) that had been pasted verbatim into the published file. Replaced the two dangling mobile UX routes with an honest statement of the gap: `82_MOBILE_UX_REFERENCE.md` and `83_MOBILE_UX_AUDIT.md` have never existed in this repo. Source: kbsync audit.
