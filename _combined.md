@@ -580,6 +580,129 @@ Never instruct a client or developer to create a new snippet directly on
 a child site — it will not exist and the `{% snippet %}` call will return
 blank, silently failing with no error.
 
+## Value Snippets in a CMS Tar Must Be Byte-Exact
+
+**A value snippet written into a CMS tar must match the parent byte for byte,
+including its trailing newline or the absence of one.** Checklist and other value
+snippets on shopper24 carry **no** trailing newline: the body of
+`admin/checklist/search` is exactly `TRUE`, four bytes.
+
+The parent reads them by capture-and-compare, and Liquid's `capture` does not trim.
+A generator that writes `"TRUE\n"` produces a capture of `TRUE\n`, which never
+equals `'TRUE'`, so **every comparison of that flag fails silently and permanently**
+while the tar imports without error and the snippet looks correct in admin.
+
+Interpolated values are unaffected, because a trailing newline in printed output is
+invisible. Only compared values break. **If the brand colours took and the flags did
+not, this is the bug.**
+
+Generator fix — carry the seed's own trailing whitespace rather than deciding:
+
+```python
+seed_tail = seed_body[len(seed_body.rstrip("\r\n")):]
+body = body.rstrip("\r\n") + seed_tail
+```
+
+Any generator that writes CMS snippets should **error**, not warn, when an
+overridden snippet's trailing whitespace differs from the seed's. See
+50_SHOPPER_TEMPLATE_REFERENCE.md §17 for the full signature.
+
+## Archive Emission — Use Psych, Not an Imitation of It
+
+Verified 2026-08-24 against a full Collections → Export All (24 collections, 371
+publish rows, 3,118 lines), reproduced byte for byte by a generator.
+
+The documented nil habit is confirmed live: a nil emits as `key: ` with **one
+trailing space**, an empty string emits `key: ''`, and a mapping or sequence key
+emits `key:` with no space. The distinction survives inside nested maps.
+
+**New, and it changes the advice:** the platform runs a Ruby whose Psych writes that
+trailing space. **Ruby 3.3 does not.** So "just use Ruby" is no longer sufficient on
+its own — a modern Psych needs a post-pass to restore the space, distinguishing a nil
+from a nested structure by whether the following non-blank line is indented deeper
+than the column the key starts at, or is a `- ` sequence item at or beyond it.
+
+**Ruby is still the right emitter, and this corrects the Python approach.** Two
+further Psych habits appear in this export that a Python emitter does not reproduce:
+
+- **Psych quotes ambiguous scalars.** `product_code: '0408-pro'` and
+  `print_theme_code: '0808-cut-print'` are quoted; `4x6-bordered` is not. PyYAML
+  quotes none of them.
+- **Psych folds long double-quoted scalars at different break points**, and without
+  PyYAML's continuation marker.
+
+Measured: a Python emitter with the documented nil fix left **87 differing lines out
+of 3,118** — 50 from folding, 37 from quoting. Ruby's Psych plus the nil post-pass
+produced a **byte-identical** round trip.
+
+Keep the existing discipline of proving the emitter against a real export and
+refusing to run otherwise. It is what caught both of these.
+
+## The Collections Export Format
+
+Fourth member of the archive family alongside the CMS backup, the Custom Type
+instance archive and the per-product archive, and it follows the same
+five-empty-media-directory convention.
+
+```
+./assets/  ./fonts/  ./glb_files/  ./images/  ./pdfs/
+./__theme_categories.yml
+```
+
+gzipped `.tar.gz`, media directories first in the archive, YAML last.
+
+- Export: Manage Products → Collections → Export All.
+- Import: Manage Products → Collections → Import, `enctype: multipart/form-data`,
+  file field `exported_file`, accepts `.gz`.
+
+**Record shapes — the platform's key order, do not reorder.**
+
+- **theme_category** — `id`, `product_id`, `name`, `asset_name`, `description`,
+  `display_name`, `custom`, `linked_assets`, `product_themes`, `static_products`,
+  `translations`. `name` is the URL path segment, `display_name` is the label.
+  `product_id` on the collection itself marks a product-specific collection and was
+  nil on all 24.
+- **product_theme** — a design published against a product — `id`, `product_id`,
+  `print_theme_id`, `order`, `published`, `product_code`, `print_theme_code`.
+- **static_product** — the same minus `print_theme_code`; `print_theme_id` is nil.
+- **linked_assets** — `id`, `thing_type` (`ThemeCategory`), `order`,
+  `mapped_preview`, `glb_blob_hash_key`, `asset` (the filename).
+
+**A populated media directory, first time observed in this family.** Binaries are
+named by **bare numeric asset id, no extension** (`assets/390591`), and the filename
+lives in `__asset_map`, keyed by that id as a quoted string, with **Ruby symbol keys**
+inside:
+
+```yaml
+__asset_map:
+  '390591':
+    :name: Cardstock-Prints.jpg
+    :description: ''
+```
+
+All four maps sit at the **end** of the YAML file, not in separate files; empty ones
+emit `{}`.
+
+**Verified on export only.** Whether the importer creates assets from a populated
+`assets/` directory, or still requires them to pre-exist in Website → Assets as the
+per-product patch documented, is untested. Do not build on it until someone imports
+one.
+
+**What a collections export cannot tell you.** No record carries a site or owner
+field — no `site_id`, no `website_id`, no hostname, no URL anywhere in the archive,
+confirmed by grep across the whole file. A collections export therefore **cannot
+answer whether a product or design is owned by the site or inherited from a parent**.
+It records what is published where, not where the record lives. Go to Products in
+admin (inherited records show but are not editable) or compare exports.
+
+Also unverified: whether a blank `id:` is accepted by the collections importer
+(verified for the per-product importer only); whether IDs are global across sites
+(the gaps in one export point that way, and if it holds, intersecting theme IDs
+between two sites' exports is a definitive inheritance test); how sub-collections are
+expressed (all 24 paths were single-segment yet four collections had
+`sub_collections: true`); and whether re-importing an archive whose collection `name`
+already exists updates in place or duplicates.
+
 ## Changelog
 
 - 2026-03-12: Expanded Dynamic Snippet Rule with `style onload` pattern, placement rule, direct init call requirement, and `{% comment %}` block marker convention.
@@ -588,6 +711,7 @@ blank, silently failing with no error.
 - 2026-04-09: Added Checklist Snippet Creation Rule — parent template must originate all snippets before child sites can override them.
 - 2026-07-28: Added Master Shopper Delivery Rule — never deliver a tar for the parent template site; parent changes ship as paste-ready blocks matching each target file's existing indentation. Source: claude-chat.
 - 2026-08-11: Hardened the CMS Backup Tar Packaging Rule — front matter is a database row and a missing `renderer_type` aborts the import with a generic error naming no file; packaging must be one atomic command with a freshness assertion, because a stale tar imports cleanly and changes nothing; the seed backup is the authority for Liquid vocabulary. Recorded that `asset_files/` transfer and CDN content-hash cache-busting were both ruled out as causes. Added the Custom Type Instance Archive Packaging Rule (gzipped, five empty media directories, four `__*_map` keys, literal block scalar for `page_content`). Source: claude-chat.
+- 2026-08-29: Added the byte-exact value snippet rule for CMS tars — `capture` does not trim, so a trailing newline makes every compared flag fail silently while the tar imports cleanly; includes the generator fix and the instruction to error rather than warn. Added Archive Emission — the platform's Psych writes a trailing space after a nil scalar and Ruby 3.3 does not, so a modern Psych needs a post-pass; Psych also quotes ambiguous scalars and folds long double-quoted scalars differently from PyYAML (measured 87 differing lines in 3,118 for a Python emitter, byte-identical for Psych plus the nil post-pass). Added the Collections export format — archive shape, import path, the four record shapes in platform key order, the bare-numeric-asset-id convention with `__asset_map` Ruby symbol keys, and the fact that a collections export carries no site or owner field and so cannot answer inheritance. Source: claude-chat.
 
 
 =================================================================
@@ -991,6 +1115,56 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 - 10/11/12/30/31 (platform truth — still applies)
 - Shopper and Shopify files are non-authoritative
 
+## Routes added 2026-08-29
+
+### "Style clipart folders / a different image per clipart tag / px-gallery-item / data-gallery-id / the folder icon in the editor?"
+→ **17_DESIGN_TOOL.md** § Editor Gallery Folders — Per-Tag Theming
+
+### "My custom colour is in style/custom.css but the live page ignores it / nav links are the wrong colour / why does !important not work?"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 18 Generated CSS Is Appended After `style/custom.css`
+
+### "Theming the account area / acv2 / the account pages ignore my CSS / the active sidebar item has no highlight?"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 19 Account v2 (`acv2`) Theming
+
+### "GA4 numbers look doubled / purchase fires twice / which Google snippet do I put the measurement id in?"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 20 Analytics — GA4 Tagging Defects on the Parent
+
+### "The tar imported but the homepage / promotion bar / logo position is still the template's?"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 17, *A trailing newline in a value snippet silently breaks every flag*, and **01_CODE_GOVERNANCE_UPDATED.md** § Value Snippets in a CMS Tar Must Be Byte-Exact
+
+### "How do I preselect in-store pickup or delivery on checkout?"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 17, *`default-delivery-option` values are `public` / `private`*
+
+### "Setting pixfizz.product_sku on hundreds of Shopify variants / bulk metafield import?"
+→ **60_SHOPIFY_INTEGRATION.md** § 2 Setting variant metafields in bulk
+
+### "414 Request-URI Too Large when clicking Personalize on a photo prints product?"
+→ **60_SHOPIFY_INTEGRATION.md** § 11
+
+### "Canvas wrap depth / borderwrap / gallery vs mirror vs colour wrap / what is ipage zoom?"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Canvas Wrap Geometry
+
+### "Template import failed with Price can't be blank?"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Template Import — `products[].price` Validates Presence
+
+### "Translations / the t filter / my translation file imported and nothing changed?"
+→ **50_LIQUID_REFERENCE.md** § Translation Keys
+
+### "Currency switcher on the storefront / showing prices in another currency?"
+→ **50_LIQUID_REFERENCE.md** § Display Currency Switching on Shopper 24
+
+### "A variant type with one value renders as a big dark button?"
+→ **22_OPTION_VARIANT_RENDERING.md** § A Single-Value Variant Type Renders as a Selected Button
+
+### "Where does postage or a flat fee go / my postage multiplied by the item count?"
+→ **30_PRICING_ENGINE.md** § Per-Order Charges Must Never Sit on a Variant
+
+### "Collections export format / what a collections export can and cannot tell me about inheritance?"
+→ **01_CODE_GOVERNANCE_UPDATED.md** § The Collections Export Format
+
+### "Spin GIFs are huge / optimising 360 product animations?"
+→ **40_PLAYBOOK_UPDATED.md** § Optimising 360-Degree Product Spin GIFs
+
 ## Changelog
 - 2026-03-13: Added Shopify Integration section and Shopify scope warning.
 - 2026-03-26: Added MyPixfizz section pointing to 70/71/72 files.
@@ -1007,6 +1181,7 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 - 2026-05-21: Added routing entries for automatic discounts, static product importer, inventory tracking, login modal, myPixfizz hub, gift vouchers, infrastructure versions, customer training, communication preferences. Source: Q1 2026 webinar KB sync.
 - 2026-07-26: Added 83_AI_IMAGERY_PRODUCTION.md — AI marketing imagery and video production with Higgsfield. Added routing entries for AI imagery and the product-representation rule.
 - 2026-08-14: Audited the 2026-05-21 routing entries against the files they point at. Two pointed at sections that did not exist: Gift Vouchers (now written into 18_ADMIN_NAVIGATION.md § Marketing) and Customer Training and Support Resources (re-pointed to 90_FAQ.md § Section 1). Source: kbsync audit.
+- 2026-08-29: Added 16 routing entries for the 2026-08-29 sync — editor gallery folder theming, generated-CSS specificity, acv2 theming, GA4 defects, the trailing-newline flag failure, `default-delivery-option`, Shopify bulk variant metafields, the photo-prints 414, canvas wrap geometry and ipage zoom, the template-import price validation, translations, the currency switcher, single-value variants, per-order charges on variants, the collections export format, and spin GIF optimisation. Every target section was written in the same sync. Source: kbsync.
 
 
 =================================================================
@@ -1969,6 +2144,142 @@ photo book products where transparency effects need to vary by option choice.
 
 SOURCE: Fireflies call (Shaun Bowen / Rapid Studio, 2026-08-18). Confirmed live: 2026-08-21.
 
+## Editor Gallery Folders — Per-Tag Theming
+
+Verified 2026-08-25 by live DevTools inspection of an editor Clipart tab.
+
+Gallery folders carry the **tag name** in `data-gallery-id`:
+
+```html
+<div class="px-gallery-items" data-item-size="medium">
+  <div class="px-gallery-item px-gallery" data-gallery-id="Hearts" data-onclick="onGalleryClick">
+    <div class="px-thumbnail">
+      <svg viewBox="0 0 320 320"><path fill="currentColor" ...></svg>
+    </div>
+    <div class="px-caption" data-px-tooltip="Hearts">Hearts</div>
+  </div>
+</div>
+```
+
+Three facts worth having:
+
+- **`data-gallery-id` is the literal tag name.** Every clipart tag folder is
+  individually targetable — `[data-gallery-id="Hearts"]` — with no reliance on
+  child order. This retires the `:nth-child()` / alphabetical-order workaround
+  documented for layout categories.
+- **The stock folder graphic is an inline SVG using `fill="currentColor"`.** It
+  is not a missing thumbnail and there is nothing to set in admin. It recolours
+  from a single `color` declaration on `.px-thumbnail`, which is the cheapest
+  per-tag treatment available.
+- **`.px-caption` also carries the tag** in `data-px-tooltip`, so captions are
+  targetable per tag independently of the tile.
+
+Ancestors: `.px-gallery-panel > .px-gallery-items > .px-gallery-item.px-gallery`.
+`.px-gallery-items` carries `data-item-size` (`medium` observed), which appears to
+be the small/medium/large view toggle — **inferred from the control above the
+grid, not confirmed in the bundle.**
+
+### Replacing the folder glyph with a per-tag image
+
+```css
+/* ===== START: Clipart folder thumbnails ===== */
+.px-gallery-item.px-gallery[data-gallery-id="Hearts"] .px-thumbnail {
+	background-image: url({{ website.assets['clipart-hearts.webp'] | asset_url: 256, format: 'webp' }});
+	background-repeat: no-repeat;
+	background-position: center;
+	background-size: cover;
+}
+
+/* visibility, not display -- the SVG is what gives .px-thumbnail its height,
+   so display:none collapses the tile. */
+.px-gallery-item.px-gallery[data-gallery-id="Hearts"] .px-thumbnail svg {
+	visibility: hidden;
+}
+/* ===== END: Clipart folder thumbnails ===== */
+```
+
+- **Background image, not a `::after` pseudo-element** — the action-button overlay
+  gotcha in this section applies here too.
+- **`background-size: cover` survives the view-size toggle.** Use `contain` for
+  line art or logos that must not crop.
+- **It fails gracefully.** Renaming a tag in admin stops the selector matching and
+  the folder reverts to the stock glyph. Comment the block with the tag names it
+  depends on, because nothing else records the coupling.
+- The `visibility` versus `display` choice is reasoning, not a tested result —
+  worth confirming on a site with a non-square tile.
+
+**Open, and worth closing before using this on a live site:** the Galleries tab
+almost certainly renders folders with the same classes and its own
+`data-gallery-id` values, so a customer photo gallery sharing a name with a
+clipart tag would pick up the clipart styling. Nobody has inspected the Galleries
+tab DOM to confirm whether the two panels are distinguishable by an ancestor
+attribute. If one exists, scope every recipe above to it as standard.
+
+### Two more editor CSS custom properties
+
+Read from the computed rule for `.px-caption` in `editor_bundle.css`:
+
+```css
+.px-gallery-panel .px-gallery-items .px-gallery-item .px-caption {
+	color: var(--neutral-grey-2);
+	height: var(--caption-height);
+	line-height: var(--caption-height);
+}
+```
+
+`--neutral-grey-2` (caption text) and `--caption-height` (caption row height) join
+`--bright-sky-blue` and `--seaweed` in the aliasable set. Caption colour and row
+height are the two things a lab most often wants to change in a gallery panel.
+
+### Asset references — which syntax belongs where
+
+The `@filename@` wrapper is the fallback for the one location that is **not**
+Liquid-rendered, not the house style for all editor CSS.
+
+| Location | Liquid? | Asset reference |
+|---|---|---|
+| `editor.css` page (Full Pixfizz / Shopper) | Yes — CMS page | `asset_url` |
+| `shopify/custom-styles` snippet (Shopify) | Yes — CMS snippet | `asset_url` |
+| Custom CSS field on the Design Tool Configuration | **No** — admin field on the config record | `@filename@` |
+
+**Status: inferred, NOT confirmed.** Two checks close it: paste a Liquid
+`asset_url` call into `editor.css` and confirm the rendered stylesheet at
+`/site/editor.css` carries a resolved URL rather than literal Liquid; and paste
+`@filename@` into the Design Tool Configuration Custom CSS field and confirm it
+resolves for an **image** — the only evidenced use of that syntax is for a font.
+Until both are checked: pick one location and use its own syntax, never mix the
+two in one block.
+
+## Design Theme Layouts — Export Format
+
+Verified 2026-08-26 against two real design-theme exports.
+
+- `layouts[]` is a **sibling** of `templates[]`; layout entries carry
+  `layout: true`.
+- An empty layout is `<page ...></page>` with `tags: []` — that is what admin
+  writes.
+- **`left` and `top` are on every element and are always `0`. They are NOT the
+  position.** `x` / `y` are, and they are **omitted entirely when zero**.
+- Emitted attribute order is `edit height left placeholder top width x y`.
+  Coordinates are **always millimetres**, whatever the definition's `unit`.
+- `edit="true" placeholder="true"` is what makes a frame a customer photo slot.
+- `pages=""` (empty) means the layout is offered on all pages; a value such as
+  `page01,page03` targets it. Never rewrite this attribute on the user's behalf.
+- The tag vocabulary is a fixed list read off the theme: `1 photo`, `2 photos`,
+  `3 photos`, `4 photos`, `5+ photos`. **`5+ photos` is the catch-all** — a
+  16-frame layout carries it and there is no `5 photos` string. Generating a tag
+  string creates a picker group of one.
+
+**Import behaviour.** A design-theme import overwrites by id — verified.
+`__print_product.yml` does **not** remap `layout_id`; import creates new records
+there. Whether a blank or invented **layout** `id:` creates a new record is **not
+verified** (blank `id:` is documented as accepted at template, template-option and
+print-theme level, but nobody has proven it one level down). The workflow that
+sidesteps the unknown: have the site owner create N empty layouts in admin and
+export, so every blank carries a real platform id before the re-import. Also open:
+whether re-importing a design theme whose `code` already exists updates in place
+or duplicates.
+
 ## Changelog
 - 2026-03-30: Created from master platform documentation export.
 - 2026-04-23: Added font licensing rule for editor embedding (digital/print embedding license required, not web font license).
@@ -1980,6 +2291,7 @@ SOURCE: Fireflies call (Shaun Bowen / Rapid Studio, 2026-08-18). Confirmed live:
 - 2026-07-20: Added editor-CSS gotchas — `transform` on `.px-element-icon` breaks the placeholder icon position; layout categories sort alphabetically by default and can be reordered with CSS `order`. Source: slack-message (#development), loom-video.
 - 2026-07-25: Clarified that a design tool configuration is assigned to a Template or a Design (not to a product or category) and that several configurations can run on one site. Added the confirmed seven-style AI restyle launch set (Vintage Film excluded) with per-lab billing and daily limits. Added per-configuration help modal snippets via Trip JS (including mobile fluid-dimension rule for Trip blocks). Added two known issues — colour element substitutions import as black after template export/import, and element substitutions failing on the bulk photo prints interface with white-border symptoms caused by the layout switch resetting the crop (workaround: split print products into with-borders / without-borders categories). Added page border-radius limitation: bleed and margin guides stay square, use page masks. Source: slack-message (#development), fireflies-call, loom-video, claude-chat.
 - 2026-07-31: Documented AI restyle/filter auto-apply on selection (fixes filter loss when going to cart without pressing Apply). Added known issue: AI token usage counted globally instead of per site, fix verified on staging and pending production deploy. Documented that element substitutions now run on all admin previews and embedded inline pages (previously skipped unless `fulfillment=true`). Added known issue: no front/inside page indicator in the mobile card editor. Source: slack-message (#development), support ticket.
+- 2026-08-29: Added Editor Gallery Folders — per-tag theming via `data-gallery-id` (the literal tag name), the `currentColor` inline-SVG folder glyph, the `data-px-tooltip` caption hook, a per-tag thumbnail recipe, and the open question of whether the Galleries tab is distinguishable from Clipart. Added `--neutral-grey-2` and `--caption-height` to the aliasable variable set. Clarified that `@filename@` is the fallback for the non-Liquid Design Tool Configuration Custom CSS field, while `editor.css` and `shopify/custom-styles` are Liquid-rendered and take `asset_url` — marked inferred pending two checks. Added Design Theme Layouts export format (layouts as a sibling of templates, `left`/`top` always 0 with `x`/`y` omitted when zero, mm coordinates, `edit`+`placeholder` photo slots, the fixed tag vocabulary with `5+ photos` as the catch-all) and what is and is not verified about layout import. Source: claude-chat (live editor inspection, photobook layout build).
 
 
 =================================================================
@@ -2660,6 +2972,108 @@ When using multiple fulfillment templates that route to FTP, the folder name in 
 
 ---
 
+## Canvas Wrap Geometry — `borderwrap` and `<ipage> zoom`
+
+Derived 2026-08-22 from real exports and confirmed on three samples.
+
+### `borderwrap` is the mirror-wrap depth
+
+```xml
+<image borderwrap="44.45" width="393.7" height="393.7" .../>
+```
+
+Measured **inward from the image element's own edge, in millimetres**, so
+
+```
+print area = image element - 2 x borderwrap
+```
+
+Confirmed on two exports (15.5 - 2(1.75) = 12; 17 - 2(2.5) = 12).
+
+**This is not a fulfillment transformation.** `fulfillment_transformations` is `[]`
+in both exports — the mirror lives entirely in the layout element.
+
+A canvas is four numbers: print area `W x H`, bleed `b`, mirror depth `m`
+(`m <= b`; the remainder prints white).
+
+| Layout | image element size | position | extra |
+|---|---|---|---|
+| `gallery` | `(W+2m) x (H+2m)` | `(b-m, b-m)` | — |
+| `mirror` | `(W+2m) x (H+2m)` | `(b-m, b-m)` | `borderwrap="m"` |
+| `color` | `W x H` | `(b, b)` | wrap takes the chosen colour |
+
+`design_options[].crop_aspect_ratio` equals the print area and **must be rewritten
+on any size change** — it is the field that silently mis-crops every customer
+upload.
+
+**When asking a lab for wrap depth, expect them to answer with stretcher-bar
+thickness** (3/4 inch, 1 1/2 inch) instead. That is the bar, not the wrapped
+material. Ask again.
+
+### `<ipage> zoom` is derived, and `crop="true"` means cover, not fit
+
+```
+cover(box, X) = max( box_w / X_w , box_h / X_h )
+zoom = ( cover(box, print_area) / cover(box, page) - 1 ) x 100
+```
+
+At `zoom=0` the referenced page is scaled to **cover** the box. `zoom` is the extra
+scale that makes the *print area* cover the box instead, so bleed and wrap fall
+outside and are cropped.
+
+Confirmed on three samples including a 5x7 layflat cover (39.024390243902).
+
+**A simpler-looking form is wrong.** Taking `max` over the two axes of
+`page / print_area` reproduces the square samples by coincidence and gives 37.5 on
+a 16x20 where the answer is 30.
+
+`zoom` does not vary with box size. `left` and `top` are the pan offset and are 0
+whenever the box aspect matches the print-area aspect.
+
+## Template Import — `products[].price` Validates Presence
+
+Verified 2026-08-28 by a real import of `__print_product.yml` (Manage Products →
+Templates → Import):
+
+| Field | Value |
+|---|---|
+| Type | `ActiveRecord::RecordInvalid` |
+| Extra info | `Validation failed: Price can't be blank` |
+
+`products[].price` had been emitted as `''`. **An empty string is not accepted** —
+unlike `products[].image`, where `''` is the fix and `nil` is the failure. The two
+adjacent traps want opposite values:
+
+| Path | `nil` | `''` |
+|---|---|---|
+| `products[].image` | **fails** — `Column 'image' cannot be null` | passes |
+| `products[].price` | untested | **fails** — `Price can't be blank`; `'0'` passes |
+| `products[].variant_types[].price` | passes | — |
+| `products[].variant_types[].variant_values[].price` | — | passes |
+
+**Emit `price: '0'`** on the product row when no formula is wanted. Quoted, per the
+digits-only quoting rule.
+
+**Status: verified 2026-08-29.** The archives were regenerated with `price: '0'`
+and the template import succeeded.
+
+**Generator lesson.** The two-direction archive diff nearly caught this and did
+not, because it asked "nil here, filled there" and the generated file had `''`.
+Widen it to flag any path that is non-blank in every reference and
+**blank-or-empty** in the generated file, treating `nil` and `''` as the same
+condition — then decide which of the two the platform wants, **per path**. They are
+not interchangeable and the accepted value has to be recorded per path, not per
+type.
+
+Two restatements from the same build, both easy to get wrong when resizing by hand:
+
+- Page geometry inside `print_themes[].templates[].data` is **in millimetres
+  regardless of the definition's `unit`**. An inch-unit definition of
+  `width="36" height="24"` pairs with a page XML of `width="914.4" height="609.6"`.
+- **Cut print size naming is landscape-first in the XML.** A template named `8x12"`
+  carries `width="12" height="8"` — the second number is the width. Follow the
+  seed, not the name.
+
 ## Changelog
 - 2026-04-03: Created from platform documentation provided by AdeB. Covers page parameters, safe area, growing spine, and layflat spread.
 - 2026-04-03: Added PDF Layers section — layer attributes, separate-file, separate-page, per-page layer control, filename placeholders.
@@ -2667,6 +3081,8 @@ When using multiple fulfillment templates that route to FTP, the folder name in 
 - 2026-04-03: Added definition attributes, captions, sequential page types, and four annotated product examples (photo prints, canvas, photobook, greeting card).
 - 2026-05-27: Added FTP Fulfillment Behavior section — FTP path prefix behavior (originals/ vs /originals/), _additional_files.json for sending original uploads to FTP, escape_json filter requirement for JSON job tickets, Job Tickets folder naming rule. Source: Fireflies calls, Slack #dev.
 - 2026-06-15: Added Multi-Page Product Page-Count Rules — booklet page count must be divisible by 4; old softcover templates can carry a page-count ghost bug (mitigation: rebuild on a fresh template). Source: slack-kb-sync (booklet rules; softcover bug).
+- 2026-08-29: Added Canvas Wrap Geometry — `borderwrap` is the mirror-wrap depth measured inward from the image element in mm (`print area = element - 2 x borderwrap`), the three canvas wrap layouts fully parameterised from print area / bleed / mirror depth, the `crop_aspect_ratio` rewrite requirement on any size change, and the derivation of `<ipage> zoom` (with the plausible-but-wrong simpler form called out). Added Template Import — `products[].price` validates presence, so `''` aborts the import with `Validation failed: Price can't be blank`; emit `price: '0'`, note this is the opposite of `products[].image`, and widen the archive diff to treat `nil` and `''` as one blank condition recorded per path. Restated mm page geometry regardless of definition unit, and landscape-first cut print naming. Source: claude-chat.
+- 2026-08-29: Confirmed by re-import that `price: '0'` on the products row is accepted — the template import succeeds. Source: claude-chat.
 
 
 =================================================================
@@ -2708,8 +3124,75 @@ Two limitations apply, and both fail silently:
 ## Digital-only
 - No special cart behavior.
 
+## The Cart Fly-Out Preview Block Has Never Rendered for a Custom Tool
+
+Found 2026-08-27. **Live parent bug, not a documentation error.** Affects every
+custom design tool, in the cart fly-out only.
+
+`modals/shopping-cart` assigns the preview code list with an **underscore** and
+tests it with a **hyphen**:
+
+```liquid
+{%- assign flat_preview_codes = 'sticker_preview,gangup_preview,bc_preview,facefan_preview,pu_preview,cvs_preview' | split: ',' -%}
+{%- assign flat-preview-url = '' -%}
+{%- assign flat-preview-class = 'img-fluid' -%}
+{%- for opt in orderline.chosen_template_options -%}
+    {%- if flat-preview-codes contains opt.template_option.code and opt.uploaded_file.url != blank -%}
+```
+
+`flat-preview-codes` is never assigned in this snippet. Liquid has no arithmetic
+operators, so a hyphen is a legal identifier character — `flat-preview-codes` is a
+valid variable name that happens to be nil. `contains` against nil is false for
+every code, `flat-preview-url` stays blank, and **every line falls through to
+`px-project-preview`**, which has nothing to draw for a custom-tool product.
+
+The other two variables in the same block are hyphenated and internally consistent.
+Only the codes list is mismatched.
+
+**Blast radius:** every tool in the list shows an empty preview well in the cart
+fly-out. The cart page itself is fine — it assigns `flat-preview-codes` with a
+hyphen, matching its own read.
+
+**Fix — one character, in `modals/shopping-cart`:** change the **assign** to
+`flat-preview-codes`, not the read. The read is consistent with the two other
+hyphenated variables in the block, so this is the smaller and safer edit.
+
+Verified by extracting the block verbatim and rendering it through a Liquid engine
+before and after, against three orderline shapes: a custom-tool line with an
+uploaded preview code rendered `px-project-preview` (blank) before and an `<img>`
+with the uploaded URL after, and an ordinary project line with no matching code was
+**byte-identical** in both — which is the property that matters for a shared file.
+
+### Two corrections that follow from it
+
+1. **The fly-out snippet path.** Several build specs name it `shopper/cart-flyout`.
+   On this parent it is **`modals/shopping-cart`**.
+2. **The variable spelling is not a reliable identifier.** Those specs record cart
+   and cart fly-out as using `flat-preview-codes` (hyphen) and projects/gallery as
+   using `flat_preview_codes` (underscore). That is wrong here, and the deeper point
+   is that the spelling is **per file and per line**: the `assign` and the
+   `contains` must be read as a pair in the file being edited.
+
+### The method lesson
+
+Every spec that touched these files verified the edit the same way — render before
+and after across many orderline shapes, assert byte-identical output for every shape
+that is not the tool's own. **That test passes on a dead block.** Adding a token to a
+list that is never read is byte-identical for every shape, including the tool's own.
+Four tools were installed through this check and none of them caught it.
+
+**Rule: when extending a preview-code list, assert that the tool's own line now
+renders an `<img>` with the expected URL.** The no-regression assertion is necessary
+and is not sufficient — assert the customer-visible outcome, not the input.
+
+**Second, smaller finding:** `pu_preview` is in the cart and fly-out lists but not in
+`account/v2/projects` or `product/gallery`. Whichever tool owns that code shows a
+thumbnail in the cart and an empty well in saved projects. Worth adding to both
+lists, or confirming it is deliberate.
+
 ## Changelog
 - 2026-07-28: Added hide_from_cart section covering the variant/template-option cart filter and its two silent limitations (editable-cart branch, child orderlines). Source: claude-chat.
+- 2026-08-29: Added the cart fly-out preview block defect — `modals/shopping-cart` assigns `flat_preview_codes` (underscore) and tests `flat-preview-codes` (hyphen), which Liquid accepts as a distinct nil variable, so every custom-tool line falls through to `px-project-preview` and shows an empty preview well; includes the one-character fix, the before/after verification, the correction that the fly-out is `modals/shopping-cart` rather than `shopper/cart-flyout`, the rule that preview-code variable spelling must be read per file as an assign/read pair, and the method lesson that a byte-identical no-regression test passes on a dead block. Source: claude-chat.
 
 
 =================================================================
@@ -3094,9 +3577,88 @@ That’s the set that needs to be “muscle memory” when debugging option rend
 
 ---
 
+## A Single-Value Variant Type Renders as a Selected Button
+
+Found 2026-08-24 on a print product page.
+
+When a Shopper variant type has exactly one value, that value is auto-selected, so
+it picks up the theme's **selected** state:
+
+```css
+.variant-selector label.field-label input:checked + .label-text { background:#3b3b3b; color:#fff; }
+```
+
+The result is a large dark pill that looks like an interactive choice, cannot be
+changed, and is not in the site palette. On a title with four fixed specifications
+(cover paper, content paper, cover finish, binding) that is four stacked blocks of
+roughly 190 px each, which pushed quantity and Add to order below the fold on a
+1512 px viewport.
+
+**This hits any print product whose specification is fixed per SKU, which is most
+web-to-print.**
+
+The markup:
+
+```
+div.select-box
+  div.px-title
+    label                      "Select Cover Paper"
+  div.row
+    div.col-4.col-md-3         one per value
+      label.field-label
+        input                  radio, visually zero-sized
+        div.label-text         "230 gsm"
+```
+
+The value columns are the light-DOM children of `px-option-selector`, whose shadow
+root is only a `<slot>`, so `style/custom.css` reaches them normally. No `::part()`
+needed.
+
+**The fix** — detect the single-value case with `:only-child` and render the group
+as a spec row instead of a button:
+
+```css
+.select-box:has(.row > div:only-child) {
+	display: flex; align-items: baseline; justify-content: space-between;
+	padding: 11px 0; border-bottom: 1px solid var(--brand-line);
+}
+.select-box:has(.row > div:only-child) .label-text,
+.select-box:has(.row > div:only-child) .field-label input:checked + .label-text {
+	background: transparent !important; color: var(--brand-ink) !important;
+	border: 0 !important; border-radius: 0 !important; padding: 0 !important;
+	font-size: 14px !important; font-weight: 600 !important; text-align: right;
+}
+```
+
+Measured: each group drops from about 190 px to 54 px. Two properties worth
+keeping: **it reverts itself** — add a second value and `:only-child` stops
+matching, so the buttons come back with no code change — and **it fails in the
+right direction**, since a browser without `:has()` keeps the old appearance rather
+than a broken one.
+
+**Not fixable in CSS.** The variant type names read "Select Cover Paper". For a
+fixed specification the verb is wrong; rename the variant types in admin. The Add
+to cart label is literally uppercase in the theme markup, not `text-transform`, so
+it cannot be sentence-cased from `style/custom.css`.
+
+## Unset Booleans Export as the String `'false'`
+
+An unset boolean in a YAML export comes back as the **quoted string** `'false'`,
+which Liquid reads as truthy. This affects `hidden`, `read_only` and
+`hide_from_cart` — all of which live **inside** `custom`, not at the top level.
+
+**After importing any option archive, re-check both flags in admin.** An option
+intended as `read_only: false` can import as effectively read-only, and
+`read_only: true` renders a hidden value input plus a read-back chip with no file
+input, so a script-injected upload lands nowhere.
+
+The `'false'` trap bites **string** fields only. A genuine boolean custom field is
+safe with `{% if collection.custom.x %}`.
+
 ## Changelog
 - 2026-06-19: Added section 4.8 `toggle` selector (2-value animated CSS-only switch on `product/px-options`), including the `toggle_hide_labels` bare-switch option, guard/fallback behavior, and primary-colour sourcing. Added cart-context note (7) that toggle is product-page only. Added `toggle` and `toggle_hide_labels` to the recognize-and-document list (8).
 - 2026-07-28: Added 5.2c — option input names differ between the product page (`variants[code]`) and project-edit (`book[options][code]`); scripts must suffix-match and must handle hidden inputs. Source: claude-chat.
+- 2026-08-29: Added the single-value variant type gotcha — one value is auto-selected and inherits the theme's selected-button styling, producing a large fixed pill that costs roughly 190 px per group; includes the markup tree, the `:only-child` CSS fix that reverts itself when a second value is added, and the two things that need an admin change rather than CSS. Added: unset booleans export as the quoted string `'false'` and read truthy in Liquid, affecting `hidden`, `read_only` and `hide_from_cart` inside `custom` — re-check both flags in admin after importing any option archive. Source: claude-chat.
 
 
 =================================================================
@@ -4054,12 +4616,36 @@ If a client asks about Packaging, redirect them to shipping formula configuratio
 RATIONALE: Repeat signal — Loom video in #kb-sync + #development question same week.
 SOURCE TYPE: loom-video + slack-message
 ---
+## Per-Order Charges Must Never Sit on a Variant
+
+A variant price adjustment is **per orderline** and multiplies by orderline
+quantity. A flat per-order amount placed on a variant therefore multiplies by the
+item count — the trap that bit the flyer tool, where postage multiplied by the roll
+count.
+
+- **Per-order charge** (postage, a handling fee, a rush fee): a separate orderline
+  against a dedicated product, or an Extra Fee. Never a variant.
+- **Per-item charge** (a finish, a substrate upgrade): safe on a variant, precisely
+  because orderline quantity is the item count.
+
+### Custom tools: who owns the quantity break
+
+A `number` template option whose pricing formula is `value` makes the entered
+number the price. The division of labour with a custom design tool is fixed:
+
+- **the tool writes a quantity-1 unit figure**
+- **the formula owns quantity breaks**
+
+Writing an already-tiered price double-discounts. Writing a finished total freezes
+the price at add-to-cart, and the cart quantity stepper then stops re-pricing.
+
 ## Changelog
 - 2026-05-19: Added Automatic Discounts section — Liquid-based cart discounts with tiered, user category, and seasonal patterns. Source: Claude chat (webinar prep).
 - 2026-07-03: Added Extra Fees (Liquid-Based Cart Fees) section — fee-side twin of Automatic Discounts (adds instead of subtracts), configured under Shipping → Extra Fees. Includes per-duplicate-orderline surcharge pattern (seen-string + contains idiom); orderline-iteration specifics pending live confirmation. Source: Claude chat.
 - 2026-07-20: Added property-name trap — `cart.promocode` (without `_code`) is nil and silently defeats promo-code guards; always use `cart.promocode_code`. Source: claude-chat.
 - 2026-07-31: Price Variable Bulk Export/Import shipped (2026-07-28) — moved out of Roadmap, now documented as a live feature. Source: slack-message (#development).
 - 2026-08-21: Documented Packaging tab as legacy feature; shipping formulas recommended instead. Source: loom-video + slack-message.
+- 2026-08-29: Added per-order charges must never sit on a variant — a variant adjustment is per orderline and multiplies by orderline quantity, so postage or a flat fee on a variant multiplies by the item count; use a separate orderline or an Extra Fee. Added the custom-tool division of labour for a `number` option priced as `value`: the tool writes a quantity-1 unit figure and the formula owns quantity breaks, since a pre-tiered price double-discounts and a finished total freezes the price at add-to-cart. Source: claude-chat.
 
 
 =================================================================
@@ -5656,6 +6242,66 @@ the cause, and both cost a print.
 
 ------------------------------------------------------------------------
 
+## Optimising 360-Degree Product Spin GIFs
+
+Spin GIFs are the heaviest asset class on a photo or print storefront and are easy
+to miss, because each file looks like "just a product thumbnail". One measured
+sample was **3,131 KB for a 300x300 image** — 72 frames at 0.10 s. A collection page
+loading ten of them at 600x600 pays twice: bytes over the wire, and CPU, because ten
+simultaneously animating GIFs keep the compositor busy the whole time the grid is on
+screen.
+
+Measured on that sample:
+
+| Approach | Result | Saving | Notes |
+|---|---|---|---|
+| `gifsicle -O3` lossless | 3,126 KB | 0% | Already structurally optimal |
+| `-O3 --lossy=80 --colors 128` | 816 KB | 74% | Safe: all 72 frames kept |
+| every 2nd frame + lossy | 408 KB | 87% | 36 frames / 10-degree steps, still smooth |
+| every 3rd frame + lossy | 261 KB | 92% | 24 frames / 15-degree steps |
+| animated WebP (72f) | 280 KB | 91% | Format change |
+| animated WebP (36f) | 176 KB | 94% | Format change |
+| static first frame (WebP) | 4 KB | 99.8% | No animation |
+
+Quality was checked by extracting frame 0 from each and comparing at 3x zoom on a
+smooth background gradient, the usual place lossy GIF banding appears. No visible
+banding even at 92% reduction.
+
+**The trap: dropping frames speeds up the spin.** Frame count and delay are
+independent. Halving the frames without doubling the per-frame delay makes the
+product rotate twice as fast, which reads as a different, cheaper product video.
+Always recompute `new_delay = original_delay x frames_dropped_factor` and verify
+with `gifsicle --info` or PIL that total rotation time matches the original. Note
+`gifsicle -d` does **not** apply when placed alongside frame-selection arguments (it
+warns "useless delay-related frame option") — set the delay in a second pass,
+`gifsicle -b -d20 out.gif`.
+
+**Recommended default:** every 2nd frame plus `--lossy=80 --colors 128`, roughly 87%
+smaller, still a GIF so filenames and product records are untouched.
+
+**The bigger win: do not animate the grid.** A spin belongs on the product page, not
+on a collection tile. Serving a static first frame on the grid and keeping the
+animation on the PDP takes a collection page from tens of MB to a few hundred KB and
+removes the CPU cost entirely. On Pixfizz this is a data-side change (grid preview
+image versus product gallery), not a template one.
+
+**UNCONFIRMED:** whether Pixfizz accepts an animated WebP as a product image, and
+whether the thumbnailer preserves animation for GIF or WebP product images. Confirm
+before recommending the WebP route to a client.
+
+## Recommended Admin Security Hardening
+
+Pattern being deployed across sites as of August 2026. Worth offering on any store
+with more than one admin user.
+
+- **Rename the admin URLs** away from the default paths.
+- **Enforce 2FA** for admin users.
+- **Block admin access via the main storefront domain**, so administration is only
+  reachable on the separate admin host.
+
+Recorded from a client call, **not verified against the admin UI** — confirm the
+exact settings and where they live before walking a client through it.
+
 ## Changelog
 - 2026-03-21: Initial content from platform documentation export.
 - 2026-04-23: Added CSS snippet logs diagnostic note, password reset Liquid deprecation pattern, fulfillment template DPI failure, URL reserved parameter 404 gotcha, Stripe pending-without-payment issue, FTP original files intermittent failure.
@@ -5668,6 +6314,7 @@ the cause, and both cost a print.
 - 2026-07-20: Added Shopper v2 account `date_format` gotcha — `account/v2/orders` and `account/v2/dashboard` miss `| strip` on the date_format capture, causing a format mismatch with order-details. Source: claude-chat.
 - 2026-08-14: Added the rule that shopper-supplied strings rendered on admin pages must be escaped, with the ordered response steps for suspected admin credential compromise (fix injection point, force site-wide logout, then rotate) and the multi-site bulk-password-reset timeout note. Added the rule that editing a confirmed order does not regenerate its production files — force refulfill, deleting the existing generated file first. Added wrapped-canvas mirrored-edge diagnosis (template definition and bleed value, not the renderer). Source: slack-message (#support), fireflies-call (2026-08-11/12).
 - 2026-07-28: Added Collection Filter Drilldown blank-PDP entry — stale or invalid dependent filter values break the drilldown; fix is a three-tier selection cascade in `product/product-details-filter` and `product/details-filter-dual-mode`. Source: claude-chat.
+- 2026-08-29: Added Optimising 360-degree product spin GIFs — measured savings table (lossless gains nothing; lossy plus every-2nd-frame is roughly 87% smaller), the frame-dropping trap that silently speeds up the rotation and how to recompute the delay, and the larger win of serving a static first frame on collection grids. Added Recommended Admin Security Hardening (rename admin URLs, enforce 2FA, block admin via the main domain), flagged as unverified against the admin UI. Source: claude-chat, fireflies-call.
 
 
 =================================================================
@@ -6222,10 +6869,30 @@ for AI crawlers and cosmetically imperfect; and any generated creation bundle
 must not put `.txt`/`.md` in `asset_files/` without verifying the importer path
 separately.
 
-**Image pipeline is WebP-only.** No AVIF support; `format: 'webp'` is the
-ceiling. Do not emit AVIF variants in any `srcset`. *(Pending: AVIF was raised
-as a future capability on the 2026-08-10 technical call. Treat WebP as current
-until it ships.)*
+**Image pipeline: the `format:` filter is WebP-capped; AVIF ships as an
+uploaded asset.** *(Corrected 2026-08-29 — the previous text read "WebP only, no
+AVIF support", which conflated a filter parameter with a format ban.)*
+
+The `asset_url` filter's `format:` parameter accepts `jpeg`, `png` or `webp`
+only. The platform will not **transcode** an asset to AVIF at request time, and
+`format: 'webp'` is an accurate description of that ceiling. It does not follow
+that AVIF cannot be used: pre-encoded AVIF files upload to the asset store and
+serve through `<picture>` normally, and have shipped in production bundles since
+16 August 2026.
+
+Current rule: **AVIF + WebP, delivered through `<picture>`, WebP as the `<img>`
+fallback, no JPEG copies for new imagery.** AVIF must be uploaded pre-encoded as
+its own asset — never ask the pipeline for a format it does not emit.
+
+**AVIF is not automatically smaller.** Against JPEG it wins by 40–65%. Against an
+already-optimised small WebP it has measured **44–70% larger** (one 4,704-byte
+WebP became 7,985 bytes at q62). Keep an AVIF only where it measures smaller than
+its WebP, and record the measurement.
+
+Where a rule is derived from a narrower fact, record the fact rather than the
+generalisation. "The `format:` parameter accepts jpeg/png/webp" is durable; "no
+AVIF support" was an inference that outlived its evidence and stayed quotable for
+three weeks after three shipped builds contradicted it.
 
 **Admin-only custom type instances are platform-hidden**, visible to logged-in
 admins and no one else. This is platform behaviour, not template behaviour, and
@@ -6294,6 +6961,158 @@ reads back as 71.99 in. That is inherent and harmless.
 
 ---
 
+# Canvas Export Requires `crossOrigin = 'anonymous'`
+
+Site assets are served from a **different origin** than the storefront. Any image
+drawn into a canvas that will later be exported must be loaded with
+`img.crossOrigin = 'anonymous'` before `src` is set. Without it the canvas is
+tainted and `canvas.toBlob()` throws `SecurityError`.
+
+The failure is silent until export: the preview looks perfect on screen and no
+file is ever written. This was the single cause of every missing preview in one
+custom design tool across four consumers — the saved-cover card, Saved Projects,
+the cart and the gallery — all of which looked like four separate bugs.
+
+# iOS Safari Canvas Pixel Ceiling — 16,777,216
+
+iOS Safari refuses to allocate a canvas larger than **16,777,216 pixels**
+(width × height). This decides whether a product can be built as a browser-side
+print file at all.
+
+An 11×17 inch panel at 300 dpi is 5100 × 3300 = 16.83 M px. It misses the ceiling
+by 0.3% — it passes every desktop QA run and fails on an iPhone. Run this
+arithmetic as a go/no-go test before choosing the custom-tool archetype over the
+standard XML archetype for any large-format product.
+
+# Writing to the Cart from a Custom Tool
+
+There is no client-side cart API. The write is a form submission.
+
+Render one `{% form 'cart_add_product', product: p, page: 'cart' %}` per product
+with a hidden input for every variant type on that product, **all disabled**. A
+disabled input is not submitted, so enable only the axes whose parent-trigger
+chain the current selection satisfies and leave the rest absent, letting the
+platform apply its own defaults. **Posting empty strings instead clears required
+variants.**
+
+Multi-add is sequential, one navigation per product:
+
+- set the form's `target` to the host page plus `?product_added_to_cart=t`
+- keep the queue in `sessionStorage` so it survives the navigation
+- on return, **confirm `cart.orderlines_total` actually grew before advancing** —
+  do not treat the navigation itself as success
+
+`skip_cart_redirect` on the product is not required if the engine writes `target`
+itself.
+
+Order-level values go to `cart.custom` via `cart_update`. **Unverified:** whether
+a partial `cart_update` post preserves the other cart custom fields or clears
+them. Establish that before relying on more than one.
+
+# Collection Filter Params Are Arrays
+
+The collection filter snippet tests `request.params[<url_name>].size`, so a scalar
+query parameter fails the guard and the page renders **unfiltered, with no error**.
+
+```
+/site/shop/stickers?type=Roll      -> silently ignored
+/site/shop/stickers?type[]=Roll    -> filters
+```
+
+This is a deep-linking trap for every collection carrying `collection_filters`.
+Any campaign URL, email link or nav item that pre-filters a collection must use
+the array form.
+
+# A Snippet's Own `data-*-mount` Default Is a Label, Not Evidence
+
+Mount-hook names written into a snippet's own default are written by whoever built
+the snippet and are never checked against where the snippet is actually called
+from. Trace the customer's route and grep for the hook.
+
+Worked example — the photo-prints flow has two hooks on different routes:
+
+| Page | Renders | Hook available |
+|---|---|---|
+| `/site/photo-prints`, collection-level prints pages | `product/product-details-prints` | `product/custom-prints-code` |
+| `/site/prints?collection=…` (`pages/prints`) | `product/photo-prints` | `product/extra-prints-code` |
+
+`custom-prints-code` sits on the prints **collection landing page**, the one whose
+CTA is ORDER PRINTS. The actual flow — the only page carrying `.px-photo-prints`
+and the `.px-btn-cart` button — is `pages/prints`, and its hook is
+`extra-prints-code`. Anything that has to observe the prints component or its cart
+button belongs on `extra-prints-code`.
+
+# A Closing `</style>` Inside an Inlined CSS Snippet Breaks the Page
+
+Some snippets carry their own CSS in a companion snippet inlined by the markup
+snippet rather than going into `style/custom.css`:
+
+```liquid
+<style>{% snippet 'style/publication-upload' %}</style>
+```
+
+That is the right shape for a self-contained tool — the CSS travels with the
+snippet, is not loaded on pages that do not use it, and a site can still retune it
+from `style/custom.css` by redefining the custom properties.
+
+**The trap:** the HTML parser ends a `<style>` element at the **first literal
+`</style>` in its text**, and does not care that the string is inside a CSS
+comment. So a CSS snippet whose header comment documents how it is included:
+
+```css
+/* Included from account/draft-order as
+   <style>{% snippet 'style/draft-order' %}</style> */
+```
+
+ends the style element on that line. Everything after it is parsed as body
+content, so the rest of the stylesheet renders on the page as visible text and
+none of the CSS applies.
+
+**The rule: a CSS snippet inlined inside a `<style>` element must contain no
+literal `</style>` anywhere, comments included.** The same applies to `</script>`
+inside anything inlined into a script element.
+
+The failure is loud once you look at the page and invisible if you only read the
+file — no import error, no Liquid error, and the snippet content is exactly what
+was written. The signature is a page that appears to begin partway through a CSS
+comment.
+
+# Browser PDF Preflight — Rules That Only Surface on Real Artwork
+
+Established against real InDesign and print-house files after synthetic fixtures
+passed and real files failed on every page.
+
+1. **pdf.js exposes only the CropBox.** `PDFPageProxy.view` is CropBox ∩ MediaBox;
+   there is no TrimBox in the pdf.js public API (checked at 3.11.174). Read boxes
+   with pdf-lib instead:
+   `PDFDocument.load(bytes, { ignoreEncryption: true, updateMetadata: false })`
+   then `getMediaBox` / `getTrimBox` / `getBleedBox`. Cost 0.07 s on a 3.5 MB file,
+   1.2 s on 29.5 MB.
+2. **Never infer trim from page size.** Real exports carry crop marks,
+   registration marks and colour bars *outside* the bleed — measured 5.3–7.4 mm of
+   mark area per edge on top of trim plus 5 mm bleed. Any "page size = trim +
+   bleed" rule rejects real artwork, in code and in customer-facing copy.
+3. **pdf.js needs `cMapUrl` and `cMapPacked: true`** (plus `standardFontDataUrl`),
+   pinned to the same CDN version as the library, or CID fonts with predefined
+   CMaps lose their glyphs in the preview.
+4. **Visual thumbnail fingerprints do not identify pages in a text-heavy book.** A
+   24×32 luminance fingerprint scored 0.99 on synthetic fixtures and picked the
+   wrong page on a real 84-page book. Character trigrams of `getTextContent()`
+   compared by Jaccard got 6/6 at rank 1 (0.79–0.94).
+5. **`pdf-lib copyPages` is trustworthy** — 0 mean absolute pixel difference
+   across 84 pages, with subset CID fonts, the PDF/X OutputIntent, tagged
+   structure, TrimBox and BleedBox all surviving. Caveat: pdf-lib writes a PDF 1.7
+   header, so a PDF/X-1a:2001 file keeps an XMP conformance claim a strict
+   validator will reject.
+
+pdf-lib self-hosts safely as a Pixfizz asset (380 KB, no worker, does not rewrite
+its own script URL to find siblings), unlike pdf.js.
+
+**Verifying a CDN file's SRI hash from a sandbox:** assert HTTP status and byte
+count before trusting any digest. Hashing an empty body returns a value that looks
+exactly like a hash, so a blocked request produces a confident wrong answer.
+
+
 ## Changelog
 
 - 2026-03-12: Added `style onload` Re-injection Pattern section. Updated Dynamic UI Trigger Pattern.
@@ -6309,6 +7128,7 @@ reads back as 71.99 in. That is inherent and harmless.
 - 2026-07-28: Added Custom Tool Dependency Loading — load tool dependencies from the tool's own product snippet, never from `integrations/custom-body-scripts`, which child sites override. Source: claude-chat.
 - 2026-08-05: Added the `position: sticky` stacking-context modal trap, distinct from the containing-block gotchas, with the elementFromPoint confirmation, the `body.modal-open` CSS fix, and the diagnostic-script flaw of gating ancestor checks on `z-index !== auto`. Source: claude-chat.
 - 2026-08-11: Added Measured platform behaviour — `parse_json` is cheap at scale (25 parses of a 20KB payload per render, no measurable TTFB change); redirects capture dotted root paths so `llms.txt` and similar are servable from an asset; the asset uploader is extension-filtered (.txt/.md rejected, .json accepted); WebP is the image-pipeline ceiling with no AVIF (AVIF under discussion, pending). Added the `!= blank` nil trap and the `| default: '' | strip` portable comparison. Source: claude-chat (Shopper v2 verification kit).
+- 2026-08-29: **Corrected the image-pipeline rule** — the `format:` filter is WebP-capped, which is not a format ban; pre-encoded AVIF uploads and serves through `<picture>` and has shipped since 2026-08-16. Current rule is AVIF + WebP with WebP as the `<img>` fallback, keeping AVIF only where it measures smaller. Added: canvas export requires `crossOrigin = 'anonymous'` or `toBlob` throws `SecurityError` after a perfect-looking preview; the iOS Safari 16,777,216-pixel canvas ceiling as a go/no-go test for browser-built print files; writing to the cart from a custom tool (`cart_add_product` per product, disabled inputs as the mechanism, sequential queue in `sessionStorage`, assert `cart.orderlines_total` grew); collection filter params are arrays, so `?type=Roll` silently no-ops; a snippet's own `data-*-mount` default is a label rather than evidence, with the two photo-prints routes; a literal `</style>` inside an inlined CSS snippet ends the element early and dumps the stylesheet onto the page; and five browser PDF preflight rules (pdf.js exposes only the CropBox, never infer trim from page size, cMap config, text-trigram page matching, `pdf-lib copyPages` fidelity). Source: claude-chat.
 
 
 =================================================================
@@ -6804,6 +7624,21 @@ unless the old values are mapped across.
 
 ---
 
+## Kiosk and Online Are Separate Catalogues
+
+Confirmed pattern as of August 2026, across more than one lab.
+
+- **Kiosk and online sales need separate products and separate pricing.** Do not
+  try to serve one catalogue to both. Walk-in pricing, available sizes and the
+  product set a customer can navigate on a touchscreen are all different from the
+  web store's.
+- **Location-specific order routing runs through OrderHub.** Orders placed at a
+  given kiosk route to that location's queue.
+
+Recorded from client calls; the routing behaviour is consistent with the Locations
+model documented above, but the kiosk-to-location binding itself has **not been
+verified by reading configuration**.
+
 ## Changelog
 - 2026-05-21: Created. Content sourced from OrderHub help modal articles (orderhub.pixfizz.com). Covers: Jobs, custom statuses, Production Board, Processes, Locations, PDF Layout Studio, PrintNode, Film Scans, OHD, EasyPost, POS category filter, Pixfizz category assignment, Email/SMS/RCS notifications.
 - 2026-06-15: Added pickup-location opening hours and Google Maps link fields (surfaced in the store pickup UI at checkout). Source: slack-kb-sync (client call).
@@ -6813,6 +7648,7 @@ unless the old values are mapped across.
 - 2026-07-31: Added known issue — film scan folders reported stuck in the OHD watch folder (repeat issue type, root cause/fix not yet confirmed). Source: support ticket #18341 (pending confirmation).
 - 2026-08-11: Added the custom field naming rule — any new custom field that OrderHub must read has to be lowercase, and whitelisted in OrderHub before it will route. Source: fireflies-call (2026-08-07).
 - 2026-08-14: Corrected the order-level boolean slot count from four to five (`rush`, `urgent`, `option1`, `option2`, `option3`) and documented the no-underscore naming rule, the rush/urgent mutual exclusivity, the unresolved label-ownership question, and the Extra Fee re-point trap when migrating off a single-string rush field. Source: fireflies-call (2026-08-13), slack-message (#development).
+- 2026-08-29: Added Kiosk and Online Are Separate Catalogues — separate products and pricing for kiosk versus web, with location-specific order routing through OrderHub; the kiosk-to-location binding is not yet verified by reading configuration. Source: fireflies-call (2x repeat signal).
 
 
 =================================================================
@@ -8279,12 +9115,198 @@ This is the recommended way to deduplicate repeated block regions in checkout
 templates. See `50_SHOPPER_TEMPLATE_REFERENCE.md` for the detailed pattern and
 example markup.
 
+## Translation Keys — How the `t` Filter Actually Behaves
+
+Established 2026-08-24 by comparing a real shopper24 translations export against a
+full scan of the template corpus, then confirmed against a live import.
+
+### 1. The key is the source string, downcased
+
+```liquid
+{{ 'Saved Projects' | t: ns: 'account' }}
+```
+
+stores and looks up the key **`saved projects`**. Every one of the 346 keys in a
+real shopper24 export is lowercase, without exception.
+
+- **Two source strings differing only in case are the same key.** `'Contact Us'`
+  and `'Contact us'` collide — harmless when the translation is the same, a silent
+  overwrite when it is not.
+- A translation file written with capitalised keys **matches nothing**. It imports
+  cleanly and does nothing, the same failure shape as a trailing newline on a
+  checklist value.
+- When matching an external glossary onto Shopper keys, **match on the downcased
+  English**. Doing so on one migration took the hit rate from 39 keys to 228.
+
+### 2. `en` is an optional override, not the key
+
+Fill the `en` column only where the displayed English differs from the key itself:
+
+| namespace | key | `en` |
+|---|---|---|
+| `account` | `email` | `Email Address` |
+| `general` | `proceed to payment` | `Proceed to Payment >>` |
+| `general` | `january [month]` | `January` |
+| `countries` | `finland` | `Suomi` |
+
+Note `january [month]` — a bracketed disambiguator in the key that never reaches
+the screen. That is the house pattern for two senses of one word.
+
+### 3. An export is not the full key set — scan the corpus
+
+One shopper24 export carried **346 keys across 9 namespaces**. Scanning 1,324
+files (snippets, pages, layouts) for `| t: ns:` found **578 keys across 16
+namespaces**; the union is **856 keys across 19 namespaces**. 510 keys used in code
+were absent from the export, so nothing could translate them.
+
+Nine namespaces used in code appeared nowhere in the export: `admin`, `faq`,
+`home`, `image-adjust-tool`, `nav`, `photo-prints`, `products`, `upload`,
+`upload-dialog`.
+
+**A translations export tells you what has been touched, never what exists.**
+
+Regex that catches the real variants (quoting, trailing filters, whitespace
+control):
+
+```python
+LIT = re.compile(r"""\{\{-?\s*(?P<q>['\"])(?P<src>(?:(?!(?P=q)).)*)(?P=q)\s*\|\s*t\b(?P<rest>[^}]*)\}\}""", re.S)
+NS  = re.compile(r"""ns:\s*(['\"])(?P<ns>(?:(?!\1).)*)\1""")
+```
+
+### 4. A key absent from Liquid is not necessarily dead
+
+The scan only sees Liquid. `editor` (208 keys) belongs to the design tool, a
+separate client-side app; `countries` / `country` are platform-rendered. **Never
+prune a namespace on scan evidence alone.**
+
+### 5. Two namespaces are catalogue-driven
+
+```liquid
+{{ orderline.product.name | t: ns: 'products' }}
+{{ option.variant.name    | t: ns: 'variants' }}
+```
+
+`products` and `variants` are keyed by product, collection, design, option and
+variant **names from the catalogue**. No code scan can enumerate them — the key set
+only exists once the products do. Translate these last, by exporting the namespace
+back out once the site has been browsed.
+
+### 6. The import reads the namespace from the file, and two columns are enough
+
+Confirmed by importing a hand-built file into a live admin.
+
+- A file may carry **only the columns you care about**. `ar` + `en` imports fine;
+  the other language columns need not be present and their existing values are not
+  wiped.
+- The **namespace comes from the file's top-level key**, not from the namespace
+  selected on the Translations screen. So **one file can carry every namespace** —
+  there is no need to split per namespace.
+- Empty is written as `''`, and Ruby's Psych parses the file identically to PyYAML,
+  so a PyYAML `safe_dump` is safe to hand to the importer.
+- Leave `en` blank unless you want an override. With `en` empty the platform falls
+  back to the literal in the template, so English rendering is unchanged.
+
+### 7. `request.locale` is the language test in Liquid
+
+```liquid
+{% if request.locale == 'ar' %} ... {% else %} ... {% endif %}
+```
+
+Use it for long-form prose — terms, privacy, anything with apostrophes and markup —
+rather than a second Custom Type instance per language, which doubles the page
+count and the maintenance. Long-form copy does not belong in the string table.
+
+### 8. Bidi authoring trap
+
+An Arabic string containing a Latin or numeric run renders correctly in an editor
+while being stored in the wrong logical order. A phone number typed inside an
+Arabic sentence came out reversed in the file. **Check with codepoints, never by
+eye** — a `+` appearing after a digit is the tell. Also assert placeholder parity
+(every `{{count}}` / `{{size}}` in the key must survive into the translation).
+
+### 9. Audit inherited translations before trusting them
+
+Matching a legacy table onto Shopper keys fills a lot of cells quickly and quietly
+imports bad content. On one table, 42 of 228 auto-matched strings were wrong —
+`total` translated as "price", `error` translated as an order-status sentence,
+`layer` and `layouts` sharing one word, `redo` sharing the word for `duplicate`,
+unedited placeholders left in English, and the thousands separator used where the
+sentence comma belongs. **Duplicated translations across two different English keys
+is the fastest tell.**
+
+## Display Currency Switching on Shopper 24
+
+Established 2026-08-24 by diagnosing a switcher that loaded, stored its selection,
+repainted its own control, and converted nothing.
+
+### 1. There is no class hook on prices
+
+Prices render through the `currency` filter into whatever markup the surrounding
+component happens to use. From the shopper24 corpus, by frequency:
+`<span class="ml-auto">` (25), `<span class="ml-auto font-size-xs">` (14),
+`<span class="ml-auto font-size-sm">` (12), styled `<td>` in email templates (9),
+`<span class="text-muted font-size-xs">` (7), bare `<span>` (5), plus bare `<s>`,
+`<b>`, `<strong>` and `<div>`. **On a product card the price is a bare `<span>`
+with no class at all.** A selector list will always miss one.
+
+> Signature: the switcher script is on the page, `localStorage` holds the
+> selection, the control repaints — and no price changes. No console error,
+> because `querySelectorAll` matched zero elements and the loop never ran.
+
+### 2. Find prices by format, wrap once, then work off the attribute
+
+Learn the format by rendering one known number through the platform rather than
+assuming a delimiter, separator or unit placement:
+
+```liquid
+var BASE_CODE    = "{{ website.currency_code | escape_json }}";
+var BASE_SIGN    = "{{ website.currency_sign | escape_json }}";
+var FORMAT_PROBE = "{{ 1234.5 | currency | escape_json }}";
+```
+
+Build a regex from that, walk text nodes with a `TreeWalker`, and wrap each match
+once in `<span data-price data-base="14.40" data-original="$14.40">`. Everything
+downstream reads the attribute, which is exact and idempotent — reconverting can
+never compound, and switching back to the store currency restores the original
+string byte for byte. Skip `SCRIPT`, `STYLE`, `TEXTAREA`, `INPUT`, `SELECT`,
+`OPTION`, `IFRAME`, `SVG`, and any subtree already wrapped.
+
+### 3. Wrapping is itself a mutation — disconnect the observer during the pass
+
+The cart flyout, quick view and load-more inject prices after load, so a
+`MutationObserver` is needed. But the wrap-and-rewrite pass mutates the DOM, so the
+observer must `disconnect()` for the duration of its own callback and
+re-`observe()` afterwards. Without that the first conversion feeds itself and the
+callback never settles.
+
+### 4. The store currency is whatever the platform says, not what the brand implies
+
+A brand's Shopper site can be configured in a currency the brand's country does not
+use. Read the base from `website.currency_code`, convert relative to it
+(`amount * target.rate / base.rate`), and **refuse to convert at all** when the base
+is absent from the rate table. Leaving prices exactly as the platform rendered them
+is better than deriving them from a guessed base.
+
+Conversion is **display-only** in every case. Checkout, invoices and fulfilment stay
+in the website currency set in Website → Config → Currency Formatting. Changing what
+the customer is charged is that setting, not a switcher.
+
+### 5. The tell when debugging one of these
+
+```js
+document.querySelectorAll("[data-base]").length   // 0 = the pass ran and found nothing
+```
+
+If the script is present and that count is zero, the problem is element-finding —
+not the conversion arithmetic and not the control.
+
 ## Changelog
 - 2026-06-01: Noted Shopify IDs live in chosen_variants. Source: claude-chat.
 - 2026-06-15: Added json_parse filter to Pixfizz-extended filters. Added assign_to_user / assign_to_cart optional params to the address_create form. Source: notion-dashboard.
 - 2026-07-07: Documented cart_clear, cart_unset and cart_delete forms in the Cart forms table, plus a clear/unset/delete comparison note. Source: notion-page, slack-message.
 - 2026-07-28: Added file_upload accessor note on ChosenOption (`uploaded_file.url` / `.filename`; `value`, `asset.url`, `thumbnail_url` and the `preview_url` filter do not work), the `thumbnail/{n}` path segment on UploadedFile, and the `cart[custom][field]` write pattern for `cart_update`. Source: claude-chat.
 - 2026-08-21: Added FORMS section with address_create form options (assign_to_user, assign_to_cart). Source: notion-page (Dashboard 🆕 Update).
+- 2026-08-29: Added Translation Keys — the `t` filter key is the source string downcased (so case-only variants collide and a capitalised key file matches nothing), `en` is an optional override, an export is not the full key set (346 exported vs 578 in code, union 856), keys absent from Liquid are not dead, `products`/`variants` are catalogue-driven, the importer takes the namespace from the file's top-level key so one file can carry all of them, `request.locale` is the language test, plus the bidi logical-order trap and the auto-match audit. Added Display Currency Switching — there is no class hook on prices, so find them by rendered format and wrap once into a data attribute; disconnect the MutationObserver during its own pass; read the base from `website.currency_code` and refuse to convert on an unknown base; conversion is display-only. Source: claude-chat.
 
 
 =================================================================
@@ -8652,7 +9674,7 @@ frequently pre-existing rather than introduced.
 | `clean-checkout` | `TRUE` = suppress nav links (logo + cart only) |
 | `guest-checkout` | `TRUE` = allow guest checkout (default: `TRUE`) |
 | `disable-delivery` | `TRUE` = disable delivery option |
-| `default-delivery-option` | Sets default delivery method |
+| `default-delivery-option` | Preselects a delivery method on `/site/checkout`. Accepted values are **`public`** (in-store pickup), **`private`** (deliver to my address) and `none` (nothing preselected, the parent default) — see §17 |
 | `display-shipping-options` | `TRUE` = show shipping options |
 | `disable-user-registration` | `TRUE` = prevent new registrations |
 | `checkout-disclaimer` | `TRUE` = show checkout disclaimer text |
@@ -8988,7 +10010,18 @@ with Matjaz.
 - **Email project previews:** Always include `share: orderline.project.share_code` in the preview URL.
 - **Font changes:** Set `admin/checklist/font-body` to `lato`, `open-sans`, `avenir`, or `custom`. For `custom`, populate `style/custom-body-font` with the font-family string.
 - **Shared snippets:** If a snippet is used across multiple client sites, follow the Shared Snippet Contract Rule in `01_CODE_GOVERNANCE.md` — do not remove existing variables, IDs, or JS hooks.
-- **Custom home page content:** Place home page content in the snippet `website/homepage`. This snippet is only rendered when the **"Custom snippet (website/homepage) for home page"** checkbox is ticked in Custom Admin → Storefront Settings. Both the snippet and the checkbox are required — neither works without the other.
+- **Custom home page content:** Place home page content in the snippet `website/homepage`. It is gated on the value snippet `admin/checklist/custom-home-page`, which `pages/__home` reads as:
+
+  ```liquid
+  {%- capture home-page-custom %}{% snippet 'admin/checklist/custom-home-page' %}{% endcapture -%}
+  {% if home-page-custom == 'TRUE' %}
+  ```
+
+  **There is no `| strip` on that capture**, so the snippet body must be byte-exact: `'TRUE\n'` is not `'TRUE'` and the else branch silently serves the seed demo homepage. Every single-line value snippet in the shopper24 seed ends without a newline. See §17, *A trailing newline in a value snippet silently breaks every flag*.
+
+  **PENDING CONFIRMATION — two records conflict.** A 2026-08-24 diagnosis recorded a Custom Admin → Storefront Settings checkbox as also required and not settable from a tar; a 2026-08-27 reading of the parent source found the checklist snippet to be the only gate, with the earlier symptom fully explained by the trailing newline. Until this is settled on a live site, ship the snippet byte-exact **and** check the Storefront Settings toggle after import.
+
+  **Diagnosis.** Load the homepage and look for the wrapper class the custom homepage emits. Wrapper absent while `style/custom.css` tokens resolve and header and footer are branded = the tar imported and the gate is off. Wrapper absent and theme tokens unresolved = the tar did not import. Wrapper present with stale content = caching or a different snippet.
 
 ## 14. Creating Pages on Child Sites
 
@@ -9149,7 +10182,7 @@ The sidebar is defined in a shared snippet. When adding new pages, update the si
 
 ## 16. Kiosk Touchscreen Mode
 
-**Status:** Partially implemented. Login gate, idle screen, and cart/checkout overlays not yet built. Parked as of May 2026.
+**Status:** Partially implemented. Login gate and cart/checkout overlays not yet built. **Amended 2026-08-29:** `kiosk/idle-screen` now exists on the parent (see the defect note in §17) — the "idle screen not yet implemented" line below is stale for the snippet itself, though the idle timer JS that triggers it is still outstanding. Verify against the parent before quoting this status.
 
 Kiosk mode is a checklist-gated feature designed for in-store photo lab kiosks. When enabled, it transforms the Shopper storefront into a touch-friendly, simplified UI for two primary use cases: ordering photo prints and submitting film processing orders.
 
@@ -9337,6 +10370,263 @@ has) still holds, but the inverse does not — a snippet **absent** from the chi
 well exist on the parent and be perfectly legal to override for the first time. Confirm from
 the parent admin rather than treating absence as proof it does not exist.
 
+### Parent defects that silently disable a setting (2026-08-26)
+
+1. **`font-body` is matched lowercase only.** `html.head` loads the Google Fonts link when
+   `admin/checklist/font-body` is exactly `lato`. `pages/setup/storefront` writes `lato` /
+   `open-sans`, but **`pages/manage/branding` writes `Lato` / `Open Sans` with capitals**, so
+   setting the body font from the branding page does nothing.
+2. **The kiosk idle-screen logo test is inverted.** `kiosk/idle-screen` tests
+   `has_logo != blank`, but the parent ships `update-website-logo` = `FALSE`, and
+   `'FALSE' != blank` is true — so the idle screen renders `header/logo` on every site that
+   explicitly said it has no logo. The correct test is `has_logo == 'TRUE'`.
+3. **`admin/checklist/admin/checklist/kiosk-picker-idle-seconds` exists** as a double-prefixed
+   snippet path, a creation typo. `kiosk/style` also has a doubled `}` closing the token block.
+
+### A trailing newline in a value snippet silently breaks every flag (2026-08-24)
+
+**A value snippet written into a CMS tar must be byte-exact against the parent, including its
+trailing newline or the absence of one.** Checklist and other value snippets on shopper24 carry
+**no trailing newline**: the body of `admin/checklist/search` is exactly `TRUE`, four bytes.
+
+The parent reads them by capture-and-compare, and `capture` does not trim. A generator that
+writes `"TRUE\n"` produces a capture of `TRUE\n`, `TRUE\n == 'TRUE'` is false, and **every
+comparison of that flag fails, silently, forever.**
+
+The signature sends you the wrong way: the tar imports with no error, the snippets are present
+in admin at the right paths with the right descriptions and values that look correct on screen,
+the logo and theme colours and contact details are all visibly right — and the homepage, the
+promotion bar and the logo position are all still the parent template's. The natural reading is
+"checklist flags do not import". They import perfectly; they just never match.
+
+**The tell:** interpolated values are unaffected, because a trailing newline in printed output
+is invisible. Only compared values break. So if the brand colours took and the flags did not,
+this is the bug, every time.
+
+Anything read through `{% capture %}` and tested with `==` is affected — in practice the whole
+of `admin/checklist/*`, and any `style/*` or `website/*` value used in a conditional rather
+than emitted. When unsure, assume compared and write it byte-exact. The one-line generator fix
+is to carry the seed's own trailing whitespace:
+
+```python
+seed_tail = seed_body[len(seed_body.rstrip("\r\n")):]
+body = body.rstrip("\r\n") + seed_tail
+```
+
+Two companions found in the same session:
+
+- **Which navigation style renders is an admin setting a tar cannot read or set.** Overriding
+  one `navigation/style*` and writing "confirm the style" into a checklist has produced a
+  wrong-navigation first delivery repeatedly. Override **every** navigation style the parent
+  ships, and put anything that sits in the header beside the nav — currency picker, language
+  switcher — into all of them too.
+- **`admin/checklist/no-index` ships `TRUE` on the parent.** Any live storefront needs it set
+  to `FALSE`. Nothing on the page shows it.
+- **Build stamps.** Every structural override should carry
+  `<!-- <slug>-build <date> :: <snippet name> -->` as its first body line. It survives into the
+  rendered page and turns "is this surface mine or the parent's?" into a view-source check, and
+  it names which navigation style is actually rendering.
+
+### `default-delivery-option` values are `public` / `private` (2026-08-24)
+
+`admin/checklist/default-delivery-option` controls which delivery method is preselected on
+`/site/checkout`.
+
+| Value | Effect |
+|---|---|
+| `public` | Preselects **In-store pickup** |
+| `private` | Preselects **Deliver to my address** |
+| `none` | Nothing preselected — the shopper must choose (parent default) |
+
+The naming is **address type, not delivery type**: a public address is a store or pickup
+location owned by the site, a private address is the customer's own. Anyone guessing from the
+checkout UI would try `pickup` / `delivery` and get silent no-ops, because the radios carry ids
+`checkoutPickup` / `checkoutDelivery` and `value="on"`.
+
+Proved by `account/v2/order-details`
+(`{% if order.address.is_public %}Pickup Address{% else %}Shipping Address{% endif %}`) and by
+`checkout/shipping-options`, which renders shipping services only
+`{% unless cart.address.is_public %}`.
+
+**No Liquid snippet in the shopper24 tree consumes this key** — the platform's own checkout
+page reads it, like the `/site/cart` shell. It cannot be traced by grepping snippets. The
+parent ships it as `none` with an **empty Description**, which is why the value set is
+undiscoverable from the CMS; any site override should carry a Description listing the accepted
+values.
+
+Two traps: the trailing-newline rule above applies, and the importer is wipe-and-replace, so
+setting this in admin and later importing a CMS bundle that does not carry the override
+silently reverts it to `none`. Related keys: `pickup-in-store` (`TRUE` enables the pickup
+option at all), `disable-delivery`, `display-shipping-options`,
+`dont-require-pickup-contact-details`. Setting a default does not remove the other option.
+
+Sites migrated to the r3w settings architecture read this through `shopper/config` and the
+`shopper_settings` Custom Type delta rather than the checklist snippet — same values, different
+storage.
+
+
+## 18. Generated CSS Is Appended After `style/custom.css`
+
+`/site/custom.css` is not just the `style/custom.css` snippet. Shopper serves one stylesheet
+containing that snippet **followed by** rules it generates from the `style/color-*` value
+snippets. The generated rules carry `!important` and use three-class selectors. Confirmed in
+the live DOM, all from the same sheet, in this order:
+
+| Order | Selector | Value | Source |
+|---|---|---|---|
+| 1 | `a` | site token | the snippet |
+| 2 | `.navbar .nav-link` | site token `!important` | the snippet |
+| 3 | `.brand-nav-cta .nav-link` | `#ffffff !important` | the snippet |
+| 4 | `a` | generated colour | generated |
+| 5 | `.navbar-light .navbar-nav .nav-link` | generated colour `!important` | generated, from `style/color-font` |
+
+Rule 5 is `(0,3,0)` with `!important` and comes last, so it beats rules 2 and 3, which are
+`(0,2,0)`. **Adding `!important` to a two-class selector does nothing about this** — the
+generated rule already has it and wins on specificity.
+
+**The rule: any nav colour set in `style/custom.css` must out-specify
+`.navbar-light .navbar-nav .nav-link`.** Scope under `.navbar-light .navbar-nav` to reach
+`(0,4,0)`:
+
+```css
+.navbar-light .navbar-nav .nav-link { color: var(--brand-ink) !important; }
+.navbar-light .navbar-nav .brand-nav-cta .nav-link { color: #ffffff !important; background-color: var(--brand-accent) !important; }
+```
+
+Observed cost of getting this wrong: a nav CTA rendering the generated font colour on the
+brand background at a contrast ratio of **2.28:1**, live and unnoticed for six days. After the
+specificity fix, 5.88:1.
+
+Assume the same applies to anything else the platform generates from a value snippet. Before
+assuming a custom colour has landed, read the computed style off the live element rather than
+the snippet. Thirty-second diagnostic in the console on the live page:
+
+```js
+const el = document.querySelector('.brand-nav-cta .nav-link');
+Array.from(document.styleSheets).flatMap(ss => { try { return Array.from(ss.cssRules) } catch(e) { return [] } })
+  .filter(r => r.selectorText && r.style && r.style.color && el.matches(r.selectorText))
+  .map(r => [r.selectorText, r.style.color, r.style.getPropertyPriority('color')]);
+```
+
+The last matching rule with the highest specificity wins. Reading the snippet source will not
+tell you this, because the snippet is only half of the served file.
+
+Related, same cause: `theme.min.css` carries
+`.navbar-light .navbar-nav .nav-link { text-transform: capitalize }` at higher specificity, so
+a nav label written in sentence case renders title-cased unless the override matches that
+specificity.
+
+---
+
+## 19. Account v2 (`acv2`) Theming
+
+Applies to any Shopper site running the v2 account area (`admin/checklist/account-v2-*`).
+
+The account area is its own token-driven design system. It does **not** use Bootstrap card or
+list markup; it renders a bespoke `acv2-*` class system from
+`account/v2/{sidebar,dashboard,orders,projects,carts,galleries,addresses,info,dates,calendars,order-details,empty-state}`.
+Its CSS is generated into `/site/custom.css` **after** the site's own `style/custom.css`
+snippet (§18), so equal-specificity overrides lose. Site CSS must out-specify:
+
+- tokens: `div.acv2 { … }` `(0,1,1)` beats their `.acv2` `(0,1,0)`
+- components: `div.acv2 .acv2-card` `(0,2,1)` beats `.acv2-card` `(0,1,0)`
+- stateful: `div.acv2 .acv2-sidebar__item.is-active` `(0,3,1)` beats `(0,2,0)`
+
+**One rule retokenises the whole area.** The platform block defines `--acv2-accent`,
+`--acv2-accent-soft`, `--acv2-text`, `--acv2-text-muted`, `--acv2-bg-page`, `--acv2-bg-card`,
+`--acv2-border`, `--acv2-radius`, `--acv2-radius-lg`, `--acv2-shadow`, `--acv2-shadow-sm` on
+`.acv2`. `--acv2-accent` and `--acv2-text` are generated from `style/color-primary` and
+`style/color-secondary`, so brand colour and ink already inherit; usually only the surface
+tokens need restating. Stock defaults that clash with most brand systems:
+`--acv2-bg-page: #f5f6f8`, `--acv2-bg-card: rgba(255,255,255,0.55)` with
+`backdrop-filter: blur(14px)` (a glass look), `--acv2-radius-lg: 18px`. Glass must be removed
+separately — `backdrop-filter` is a property, not a token:
+`div.acv2 .acv2-card, div.acv2 .acv2-sidebar { backdrop-filter: none; }`
+
+**Platform defect — `--acv2-accent-soft` is malformed.** The generator builds it by appending
+an alpha suffix to the primary colour. Because the `style/color-primary` value snippet body
+ends with a newline, the emitted token is literally `#RRGGBB\r\n1a` — an invalid colour. On
+every site whose colour snippet ends with a newline (likely all of them) the stock active-nav
+tint (`.acv2-sidebar__item.is-active`) and `.acv2-pill--primary` background both resolve to
+transparent. It reads as "the active nav item has no highlight" rather than as an error. The
+fix belongs in the generator (trim the value before concatenation); the site-side workaround is
+to define the active state yourself.
+
+**Buttons.** The theme emits generated button colours as
+`.btn-dark { background-color: … !important; border-color: … !important }` and the same for
+`.btn-primary`, so selector weight alone will not override them — those two need `!important`
+too. `.btn-outline-secondary` and `.btn-light` carry no `!important` and override normally.
+`btn-dark` does double duty in the account markup: `<a class="btn btn-dark">` is navigation and
+`<button type="submit" class="btn btn-dark">` is the page's primary action. Split them by
+element selector rather than restyling both.
+
+**Inline styles in the parent snippets.** `account/v2/dashboard` writes `border-radius: 12px`,
+`background: #f5f6f8` and `background: #eee` inline on the project thumbnail and gallery tile
+wrappers. Only an attribute selector plus `!important` reaches them:
+`div.acv2 [style*="border-radius: 12px"] { border-radius: 4px !important; }`
+
+**The stock dashboard types the user's name out.** `.acv2-typing` sets `max-width: 0` and
+reveals the name via the `acv2Type` keyframes with a blinking caret. Disabling it requires
+resetting the width too — `animation: none` alone leaves `max-width: 0` and the name
+disappears: `div.acv2 .acv2-typing { max-width: none; animation: none; border-right: 0; }`
+
+**Testing gotcha — transitions mask computed values.** `.acv2-sidebar__item` and `.btn` both
+transition `background-color`. Injecting or mutating CSS on a live page and reading
+`getComputedStyle` immediately returns the transition's **start** value, which looks exactly
+like "my rule lost the cascade" and persists long enough to fool a delayed re-read. Even inline
+`!important` appears to fail, because transitions sit above `!important` in the cascade.
+Reliable check: append a **fresh** element carrying the target classes and read its computed
+style — new elements get initial style computation with no transition, which is the page-load
+case you are trying to predict.
+
+**Copy, not CSS.** The stock account strings are consumer photo-lab voice and come through
+`{{ '…' | t: ns: 'account' }}`. On a B2B or trade site they read wrong and no amount of CSS
+fixes them. Whether they can be retargeted through the translations mechanism rather than by
+overriding the parent snippets is **UNCONFIRMED** — do not promise it.
+
+---
+
+## 20. Analytics — GA4 Tagging Defects on the Parent
+
+Audited 2026-08-22 against the shopper24 parent. All of these are parent-level and affect every
+child site unless overridden.
+
+**`view_item` is double-counted on a GTM site.** Shopper ships two tagging paths and both fire:
+an inline `gtag("event","view_item",{…})` call, and a
+`dataLayer.push({event:"view_item", ecommerce:{…}})`. On a site with a GTM container GA4
+receives `view_item` twice per product-page view — once with a numeric Google taxonomy category
+code and once with the readable category. Any product-view count or view-to-cart rate is
+inflated roughly 2×. The three snippets carrying the duplicate are `product/product-details`,
+`product/product-details-filter` and `product/details-filter-dual-mode`: each already renders
+`product/design-now`, which owns the dataLayer push, **and** also ends with
+`{% snippet 'integrations/google/event/view-item' %}`. `product/product-details-fullpage` is
+already correct.
+
+**Photo-prints pages emit no ecommerce event at all.**
+`product/product-details-prints` does not render `product/design-now`, so its only `view_item`
+is the gtag include — dead on any GTM site.
+
+**`purchase` re-fires on refresh.** It is pushed unconditionally on render on `thank-you`,
+`payment_success` and `confirmedorder`. A refresh re-fires with the same `transaction_id` and
+GA4 counts it as new revenue. All three also fall back to
+`user.orders | where: 'status', 'C' | first` when `order` is unset.
+
+**Design products never joined item-level funnels.** `pages/editor-scripts.js` sent `item_id`
+as `theme.code:product.code` — a different SKU from every other event. The theme belongs in
+`item_variant`.
+
+**`integrations/google/gtag` is orphaned.** Nothing includes it, yet its Description reads
+*"Enter in your Analytics account id — replacing 'ABCDE12345' below"*. Editing it does nothing.
+**The snippet that works is `website/gtag`.** The same applies to
+`integrations/google/event/add-to-cart`, `…/begin-checkout` and `…/purchase`; keep only
+`…/view-item` as the no-GTM fallback.
+
+**Free funnel step.** GA4 enhanced measurement fires `form_start` with
+`form_id=project_create` when a shopper launches the design tool — a "started designing" step
+with no tagging work.
+
+---
+
 ## Changelog
 - 2026-03-14: Added website/homepage snippet pattern and Custom Admin checkbox requirement to Section 13.
 - 2026-03-19: Added how to create pages with Custom Types to Section 14.
@@ -9349,6 +10639,7 @@ the parent admin rather than treating absence as proof it does not exist.
 - 2026-07-20: Added kiosk captcha per-subdomain note — captcha config does not carry from the main storefront to the kiosk subdomain and must be set on the kiosk site. Source: support-ticket.
 - 2026-08-05: Corrected `page_path` to store the full slash-joined path at levels 2 and 3, not only the final segment, and corrected the constraint that wrongly stated level 1 only. Added Head-level dependencies must repeat the lookup, covering the `html.head` before `page.content` render order, the paste-ready head lookup block, the `!= blank` guard, and the per-page noindex pattern via a boolean `hide_from_index` custom field. Source: claude-chat.
 - 2026-08-11: Added Value-bearing checklists to Section 5 — many `admin/checklist/*` keys hold interpolated values, and overwriting one with a boolean takes every page down; includes the known value-bearing key list, the case-sensitivity and `| strip` capture rules, and the `custom-X-page` flag against an empty target snippet. Added three Known Gotchas: the Add to Cart button carries no `type` attribute; reading the product price from JavaScript (`px-product-price`, the `regular_pricing` strikethrough trap, observer placement, and `unit-price="true"` instead of JS division); and a child's CMS backup can hold a stale inherited copy of a parent snippet. Source: claude-chat.
+- 2026-08-29: Added §18 generated CSS is appended after `style/custom.css` (nav colour overrides must out-specify `.navbar-light .navbar-nav .nav-link`, with the console diagnostic and the `text-transform: capitalize` companion). Added §19 Account v2 theming — specificity ladder, token list, the malformed `--acv2-accent-soft` platform defect, `!important` on `.btn-dark`/`.btn-primary`, inline styles in the parent dashboard, the typing animation, and the transition-masks-computed-values testing gotcha. Added §20 GA4 tagging defects on the parent — duplicate `view_item`, photo-prints emitting nothing, `purchase` re-firing on refresh, the `item_id` mismatch for design products, and the orphaned `integrations/google/gtag`. Added §17 gotchas: the trailing-newline value-snippet rule with its signature and generator fix, the `default-delivery-option` `public`/`private` value set, and three parent defects (lowercase-only `font-body`, inverted kiosk idle-screen logo test, double-prefixed checklist path). Corrected the custom home page gate to the `admin/checklist/custom-home-page` capture with no `| strip`, flagged pending on whether the Storefront Settings checkbox is also required. Amended the §16 kiosk status. Source: claude-chat.
 
 
 =================================================================
@@ -10268,6 +11559,19 @@ attributes.
 
 ---
 
+## Fields Seen Live But Absent From This Reference
+
+Recorded so the next person does not conclude they do not exist. **Unconfirmed —
+each needs a one-object test before being relied on.**
+
+| Object | Field | Seen | Status |
+|---|---|---|---|
+| Collection | `unpublished` | 2026-08-26, in a live collection's `custom` hash | **Unconfirmed** whether the Shopper `/site/shop` index respects it. Not the same as `blog_unpublished` or `service_unpublish`, both of which are listed above. |
+
+This one matters because Shopper generates its shop index from **all** collections,
+so a private or corporate collection is publicly listed by default unless something
+hides it. Test on one collection before promising it to a client.
+
 ## Changelog
 - 2026-06-01: Added Collection field sub_collections_position (subcollection render order). Source: chat/slack/call.
 - 2026-06-30: Added hide_from_search boolean (Product + Design) — excludes a product/design from the storefront search flyout. Deployed platform-wide on Shopper. Source: claude-chat, slack-message (#development).
@@ -10278,6 +11582,7 @@ attributes.
 - 2026-08-14: Added the checkout delivery-speed and generic order flags to the Cart table (`rush`, `urgent`, `option1`, `option2`, `option3`; count 11 → 16), with the no-underscore naming rule, the OrderHub lowercase/whitelist dependency, and the explicit `true`/`false` value convention. Noted `rush_production` as the older single-purpose flag it supersedes. Source: fireflies-call (2026-08-13), claude-chat.
 - 2026-08-11: Corrected the field type list — there is no `html` type; all 18 table rows typed `html` changed to `snippet`, and the Phase 3 type list corrected to text/multitext/boolean/number/asset/snippet. Added Key Notes for what each non-string type returns in Liquid, the `Public` flag controlling non-admin edit rights rather than storefront visibility, and large-content capacity being snippet-type only (text-type caps around 1KB). Added Section — the per-product export archive as a bulk-creation format carrying variant types and values. Source: claude-chat (Shopper v2 verification kit, art-archive build).
 - 2026-08-21: Added snippet-type custom field rendering gotcha (requires non-empty Description). Source: slack-message + fireflies-call.
+- 2026-08-29: Added Fields Seen Live But Absent From This Reference — `unpublished` observed in a live Collection `custom` hash, distinct from `blog_unpublished` and `service_unpublish`, with the open question of whether the Shopper shop index respects it (Shopper lists all collections by default). Source: claude-chat.
 
 
 =================================================================
@@ -10941,9 +12246,24 @@ Fully documented in `50_SHOPPER_TEMPLATE_REFERENCE.md` Section 4. Each snippet c
 
 ---
 
+## Annotations — Snippets Whose Row Does Not Tell the Whole Story
+
+Added 2026-08-29 from live diagnosis. These correct or qualify rows above.
+
+| Snippet | Annotation |
+|---|---|
+| `integrations/google/gtag` | **Orphaned — nothing includes it.** Its Description invites you to enter an Analytics account id, and editing it does nothing. The snippet that works is `website/gtag`. The same applies to `integrations/google/event/add-to-cart`, `.../begin-checkout` and `.../purchase`; keep only `.../view-item` as a no-GTM fallback. |
+| `modals/shopping-cart` | This is the **cart fly-out**. Specs that name the fly-out as `shopper/cart-flyout` are wrong for this parent. It carries the custom-tool preview-code list, and as of 2026-08-27 that list was assigned as `flat_preview_codes` (underscore) and read as `flat-preview-codes` (hyphen), so it was never consulted — see 20_SHOPPER_CART_RULES.md. |
+| `product/custom-prints-code` | Mount hook on the prints **collection landing page** (`/site/photo-prints` and collection-level prints pages, rendering `product/product-details-prints`). Not the flow itself. |
+| `product/extra-prints-code` | Mount hook on `pages/prints` (`/site/prints?collection=...`), which renders `product/photo-prints` — the only page carrying `.px-photo-prints` and the `.px-btn-cart` button. Anything observing the prints component or its cart button belongs here. |
+| `product/product-details-prints` | Does **not** render `product/design-now`, so photo-prints pages emit no `dataLayer` ecommerce event — see 50_SHOPPER_TEMPLATE_REFERENCE.md §20. |
+| `kiosk/idle-screen` | Tests `has_logo != blank`, but the parent ships `update-website-logo` = `FALSE` and `'FALSE' != blank` is true, so the idle screen renders `header/logo` on sites that said they have none. Correct test is `has_logo == 'TRUE'`. |
+| `admin/checklist/admin/checklist/kiosk-picker-idle-seconds` | A double-prefixed snippet path, created in error. Not a real setting. |
+
 ## Changelog
 
 - 2026-05-27: Created from full CMS backup of `shopper24.pixfizz.com`. 926 snippets inventoried across 23 namespaces.
+- 2026-08-29: Added an Annotations section correcting or qualifying seven rows — `integrations/google/gtag` and three sibling event snippets are orphaned (use `website/gtag`); `modals/shopping-cart` is the cart fly-out, not `shopper/cart-flyout`, and carried a never-consulted preview-code list; the two photo-prints mount hooks sit on different routes; `product/product-details-prints` emits no dataLayer event; the kiosk idle-screen logo test is inverted; and a double-prefixed checklist path exists in error. Source: claude-chat.
 
 
 =================================================================
@@ -11017,6 +12337,48 @@ Internally there are two master Shopify CMS sites: a **staging** master used to 
 ### SKU Precedence Rule
 
 For products WITH Shopify variations: the SKU **must** be set on the variant metafield. The product-level SKU is the fallback only.
+
+### Setting variant metafields in bulk
+
+Shopify's native product CSV export/import carries **product metafields only**. Shopify
+documents this directly: variant metafields are not supported for product CSV import/export.
+Confirmed against a real export of a 106-variant product — 22 columns matching
+`product.metafields.*`, **zero** matching `variant.metafields.*`. There is no column to fill
+in and no header Shopify will read back.
+
+Because of the precedence rule above, every multi-variant Pixfizz product hits this wall.
+
+| Route | Bulk? | Notes |
+|---|---|---|
+| Native product CSV | **No** | Product metafields only. Dead end for `product_sku` on a varianted product. |
+| Shopify variant bulk editor | Partly | Admin → product → select variants → Edit, then add a column for the variant metafield. Free, no app, but manual cell entry — fine for a dozen variants, painful at a hundred. |
+| Matrixify | **Yes** | Exports and re-imports variant metafields. The route for any real catalogue. |
+
+Matrixify column header format, which differs from the product-level convention:
+
+```
+Variant Metafield: <namespace>.<key> [<type>]
+```
+
+e.g. `Variant Metafield: pixfizz.product_sku [single_line_text_field]`. Product metafields use
+`Metafield: ` with no `Variant` prefix, and the type in brackets is part of the header.
+
+**Matching without variant IDs.** A native Shopify export carries no variant IDs, and on
+Pixfizz-linked products `Variant SKU` is typically blank because the Pixfizz SKU lives in the
+metafield. Matrixify matches on `Handle` + `Option1/2/3 Value`, which is sufficient — verify
+that combination is unique across the rows first. Set `Command: UPDATE` and
+`Variant Command: UPDATE` so a mismatch fails loudly instead of creating variants. The sheet
+must be named `Products`; other sheets are ignored, so notes can travel in the same file.
+
+**Building the column mechanically.** When the Pixfizz collection export is to hand,
+`__theme_categories.yml` carries `print_theme_code` and `product_code` for every product
+theme, and the SKU is `print_theme_code:product_code`. Match on the size token to the Shopify
+Size option and the whole column can be built and asserted rather than typed.
+
+**Expect a length mismatch.** The Pixfizz collection and the Shopify variant list are usually
+not the same length — on one canvas product, 103 Pixfizz codes against 106 Shopify variants,
+because three sizes had one depth and not the other. That gap is invisible until the columns
+are aligned, and it is a real catalogue gap rather than a data error.
 
 ---
 
@@ -11440,6 +12802,67 @@ Some Shopify stores use a third-party options app such as **Globo Product Option
 ### Customer receives duplicate order emails
 When a store runs Shopify alongside Pixfizz, both systems can send order notifications, so the customer receives two of each. Disable or blank out the redundant Pixfizz email templates for the lifecycle events Shopify already covers, so only one system notifies the customer.
 
+### `414 Request-URI Too Large` when launching a `photo-prints` product
+
+The Personalize / Order Prints button renders nginx's `414 Request-URI Too Large` inside the
+Pixfizz modal instead of the photo prints flow.
+
+**Cause.** `pixfizz-launch-product-handler.liquid` builds `pixfizz_sku_map` and
+`pixfizz_addons_map` in Liquid, one entry **per Shopify variant, unconditionally**, and the
+`photo-prints` branch serialises both into the query string of
+`https://<pixfizz-host>/site/shopify/photo-prints?…&shopify_sku_map=…&shopify_addons_map=…`.
+On a variant-heavy product the request line exceeds nginx's default
+`large_client_header_buffers` size (8 KB) and nginx rejects it before Rails sees it.
+
+The addons map is emitted for every variant even when the product has no addon products at
+all. With no addons each entry serialises to `{"page_addon":null,"option_addons":{}}` — 38
+bytes of nothing, per variant.
+
+Measured on a 116-variant photo-prints product (2026-08-28), verified by intercepting
+`Pixfizz.Shopify.openModal` on the live page:
+
+| Item | Value |
+|---|---|
+| Shopify variants | 116 |
+| Unique Pixfizz SKUs in `shopify_sku_map` | 58 |
+| `shopify_sku_map`, URL-encoded | 8,025 chars |
+| `shopify_addons_map`, URL-encoded | 9,979 chars — all 116 entries empty |
+| Full modal URL | **18,159 chars** |
+| Same URL with `shopify_addons_map={}` | **8,186 chars — loads correctly** |
+
+55% of the URL was the empty addons map. Encoded cost is roughly **69 bytes per variant** for
+the SKU map alone, so after filtering the addons map the request line sat 28 bytes under the
+8 KB ceiling: **one additional variant breaks it again.** Treat the snippet fix as a launch
+enabler, not a fix.
+
+**Fixes, in order.**
+
+1. **Platform.** Stop passing the maps in the query string — POST them into the modal iframe,
+   hand off via `sessionStorage`, or resolve the SKU map server-side from
+   `shopify_product_id`. A cheaper interim: invert `shopify_sku_map` to be keyed by SKU with
+   an array of variant ids (58 keys instead of 116, roughly 40% smaller), which needs a
+   matching read change on the CMS side.
+2. **Infrastructure.** Raise `large_client_header_buffers` on the Pixfizz host (e.g. `4 32k`).
+   The 414 body identifies nginx as the terminating server, so there is no CDN in front also
+   capping the URL.
+3. **Snippet.** Filter empty entries out of `pixfizz_addons_map` before serialising, in the
+   `photo-prints` branch only. Two edits inside `{%- if integration_type == 'photo-prints' -%}`:
+   build a `pixfizz_addons_map_used` object containing only entries with a non-empty
+   `page_addon` or a non-empty `option_addons`, and pass that to `JSON.stringify` instead. The
+   parameter is always sent — `{}` when nothing qualifies — so the CMS page never sees a
+   missing key. Leave the `else` branch alone: it dereferences
+   `pixfizz_addons_map[selected_variant_id].page_addon` and would throw on a filtered map, so
+   `editor`, `options-to-editor` and `options-to-cart` must keep the full map.
+4. **Catalogue shape.** Variants resolving to half as many unique Pixfizz SKUs means one
+   Shopify option axis duplicates every SKU without changing the Pixfizz product. Moving that
+   axis into Pixfizz halves the map.
+
+This is a second, lower ceiling on the same axis as the Shopify variant-count constraint in
+§1 — the integration hits a URL-length wall well before Shopify's own variant limit.
+
+**Not verified:** add-to-cart, cart preview, quantity lock and order sync with the filtered
+map. Exercise the flow through to cart before shipping the snippet change.
+
 ---
 
 ## 12. Retrieval Pointer
@@ -11678,6 +13101,16 @@ Shopify has two customer account systems. The integration approach differs:
 
 ---
 
+## 18. Storefront UX — Add to cart vs direct checkout
+
+A Shopify + Pixfizz store can send the shopper straight from personalization to checkout, or
+back to the cart. **Prefer add-to-cart.** Direct checkout works for a single-item purchase and
+actively obstructs a multi-item order, which is the common shape on a photo or print store —
+the shopper has to complete a checkout per item. Reserve direct checkout for single-product
+stores or a deliberate one-item funnel.
+
+Not verified in a controlled test; recorded as the current recommendation.
+
 ## Changelog
 - 2026-03-13: Initial version. Compiled from public docs + working cart page (Dawn, inline_asset_content variant).
 - 2026-03-21: Added Dawn button innerHTML overwrite troubleshooting entry (§11).
@@ -11693,6 +13126,7 @@ Shopify has two customer account systems. The integration approach differs:
 - 2026-07-11: Added §1 master-CMS staging-vs-production workflow note (only api.js/product kept in sync; do not copy from staging); §9 project-ownership auto-assignment on order sync (unowned project → ordering user); §6 editor `domready` message (wait before posting into the editor iframe); §10 plain-text-editor gotcha for product/variant ID mapping CSVs (Excel corrupts IDs). Source: slack-message (#development, commits 2026-07-05/07), fireflies-call (2026-07-10).
 - 2026-07-20: Noted all Shopify line item properties are now captured into Pixfizz orderline options, and that static-product routing depends on the exact expected property name. Source: #development (commit 2026-07-13), Weekly Tech call.
 - 2026-08-21: Added Shopify max variant limitation note in §1. Source: fireflies-call (Harold's Photo, Aug 20).
+- 2026-08-29: Added §2 guidance on setting variant metafields in bulk (native product CSV carries product metafields only; use the variant bulk editor or Matrixify, with the `Variant Metafield: ns.key [type]` header and Handle + Option matching). Added §11 troubleshooting entry for `414 Request-URI Too Large` on `photo-prints` launches, with the measured URL breakdown, the empty-addons-map cause, and the four fixes in order. Added §18 add-to-cart vs direct checkout recommendation. Source: claude-chat (Shopify photo-prints launch diagnosis, canvas variant SKU linking), fireflies-call.
 
 
 =================================================================
@@ -13176,8 +14610,21 @@ MyPixfizz is **operationally connected** to the Pixfizz platform but is a separa
 
 ---
 
+## Credential Storage — One Store for Pixfizz Admin Access
+
+Design rule established 2026-08-25.
+
+**`brand_api_credentials` is the single store for Pixfizz admin access.** A new
+connector asks the customer for a login **only** when
+`brand_api_credentials.credential_vault_id` is null, and when it does ask it writes
+at brand level via `customer_set_brand_api_credentials`.
+
+Per-connector credentials are an override, never the default path. Anything that
+prompts for a Pixfizz login it could have inherited is a bug in the connector.
+
 ## Changelog
 - 2026-03-26: Initial version. Compiled from Lovable project summary.
+- 2026-08-29: Added Credential Storage — `brand_api_credentials` is the single store for Pixfizz admin access; a connector prompts for a login only when `credential_vault_id` is null and writes at brand level via `customer_set_brand_api_credentials`, with per-connector credentials as an override rather than the default. Source: claude-chat.
 
 
 =================================================================
@@ -14808,8 +16255,42 @@ Weekly win/goal items per user.
 
 ---
 
+## Two Postgres / Supabase Rules That Cost a Month of Silent Breakage
+
+Established 2026-08-25 while fixing a wizard that had been unusable since 22 July.
+
+### 1. An RLS policy on table X must never call a helper that re-reads table X
+
+`INSERT … RETURNING` cannot see its own row. A `STABLE SECURITY DEFINER` function
+that re-reads the target table returns false, the `RETURNING` clause is refused,
+and **Postgres reports it as a WITH CHECK violation**:
+
+```
+new row violates row-level security policy for table "review_domains"
+```
+
+That message points at the INSERT policy, which is innocent. The SELECT-side policy
+is the one at fault.
+
+- **Express the policy against the row's own columns.**
+- **Isolate it** by running the insert with and without `RETURNING` inside a
+  rolled-back transaction. If it succeeds without `RETURNING`, this is the bug.
+- Policies on *other* tables that reference X are fine, because X's row already
+  exists by then.
+
+### 2. Any column PostgREST upserts on needs a **non-partial** unique index
+
+Postgres will not accept a partial unique index as an `ON CONFLICT` arbiter unless
+the statement repeats the predicate, and PostgREST's `{ onConflict: "brand_id" }`
+emits a plain `ON CONFLICT (brand_id)`:
+
+```
+42P10: there is no unique or exclusion constraint matching the ON CONFLICT specification
+```
+
 ## Changelog
 - 2026-03-26: Full schema populated from Lovable export. 88 tables documented.
+- 2026-08-29: Added two Postgres/Supabase rules — an RLS policy on a table must not call a helper that re-reads that same table, because `INSERT … RETURNING` cannot see its own row and Postgres misreports the failure as a WITH CHECK violation on the innocent INSERT policy (isolate by running the insert without `RETURNING` in a rolled-back transaction); and any column PostgREST upserts on needs a non-partial unique index, or `onConflict` fails with `42P10`. Source: claude-chat.
 
 
 =================================================================
@@ -15316,6 +16797,30 @@ Review and customize all active templates before launch — default content refe
 
 ---
 
+## Post-Import Checks a Tar Cannot Cover
+
+A CMS tar imports snippets. It cannot set anything that lives outside the snippet
+tree, and the failures are silent — the site looks imported and behaves like the
+seed. Check these by hand after every import, on the live site:
+
+1. **`admin/checklist/no-index` ships `TRUE` on the parent.** Any live storefront
+   needs it set to `FALSE`. Nothing on the page shows it.
+2. **The custom home page.** Load the site root and confirm the custom homepage
+   renders rather than the seed one, by asserting the wrapper class the homepage
+   emits is in the DOM. See 50_SHOPPER_TEMPLATE_REFERENCE.md § 14 and § 17.
+3. **The navigation style.** Which `navigation/style*` renders is an admin setting
+   a tar cannot read or set. Override every style the parent ships, then view-source
+   the live header to confirm which one is actually rendering.
+4. **`default-delivery-option`** and the other checkout preselects, if the site
+   overrides them — the importer is wipe-and-replace, so a later bundle that does not
+   carry the override silently reverts it to the parent value.
+5. **Every value snippet's trailing whitespace**, if the bundle was generated rather
+   than exported. See 01_CODE_GOVERNANCE_UPDATED.md.
+
+**A local render verifies the file, not the site.** Rendering a snippet through a
+Liquid engine and screenshotting it says nothing about a live storefront. Load the
+live URL and assert the expected DOM before reporting an import as done.
+
 ## Changelog
 - 2026-03-30: Created from master platform documentation export.
 - 2026-04-23: Added content completeness (descriptions) pre-launch checklist item.
@@ -15324,6 +16829,7 @@ Review and customize all active templates before launch — default content refe
 - 2026-05-21: Major rewrite. Added all deployment paths (Custom API, Marketplace/Etsy). Added "Preparing for Onboarding" customer preparation section. Added Full Pixfizz Custom path. Expanded phase sequences with blockers. Merged content from onboarding skill. Added pre-launch handoff checklist. Added vertical-specific notes.
 - 2026-05-27: Photo Labs vertical notes: added kiosk mode setup procedure (CNAME, checklist keys, pay-in-store config), OHD single-location install rule, film 120/220 as separate products, same-day JS cutoff pattern. Phase 2: added static product CSV importer note (manage/tools/product-importer). Phase 3: added SendGrid deliverability and DNS authentication note. Pre-launch checklist: added email delivery DNS check. Custom API Phase 2: added external user warning (_uid creates non-login users; OrderHub operators must use /v1/users). Source: Fireflies calls, Slack #dev, support tickets.
 - 2026-08-05: Added the custom domain and SSL sequence to Phase 1 (CNAME to hosting.pixfizz.com, register under Settings > General > Domain Hosting, up to 48 hours propagation, SSL requested manually after DNS confirms, roughly 40 minutes to issue). Confirms SSL is not auto-provisioned. Source: fireflies-call.
+- 2026-08-29: Added Post-Import Checks a Tar Cannot Cover — `no-index` ships `TRUE` on the parent and must be set to `FALSE` on a live store; assert the custom homepage wrapper class on the live root; confirm which navigation style actually renders because a tar cannot read or set that admin value; re-check checkout preselects after any wipe-and-replace import; and verify value-snippet trailing whitespace on generated bundles. Restated that a local render verifies the file and not the site. Source: claude-chat.
 
 
 =================================================================
