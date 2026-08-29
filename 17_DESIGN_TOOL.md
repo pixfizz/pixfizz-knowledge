@@ -311,6 +311,8 @@ Workaround for a genuinely rounded page appearance: use **page masks** rather th
 
 On mobile, the card editor gives no clear indication of which page (e.g. front vs. inside) is currently being edited — the same view is clear on desktop. This has been reported via support ticket and is not yet resolved; no fix has been confirmed as of 2026-07-31. Source: support ticket #18343.
 
+**Update 2026-08-20:** a CSS-level workaround now exists — a persistent bottom page strip, in § Mobile Editor CSS below. The stock prev/next hints are decorative and cannot be turned into navigation from CSS. The underlying platform fix is still outstanding.
+
 ## Element Substitutions — Opacity Control
 
 Element opacity can be controlled through element substitutions, enabling opacity values to be
@@ -455,6 +457,181 @@ export, so every blank carries a real platform id before the re-import. Also ope
 whether re-importing a design theme whose `code` already exists updates in place
 or duplicates.
 
+## Mobile Editor CSS
+
+Verified 2026-08-20 by live inspection of a Shopify + Pixfizz client's editor plus
+on-device testing. Relates to support ticket #18343.
+
+### The mobile editor is a separate template, not a responsive desktop layout
+
+`editor_bundle.js`:
+
+```
+this.store.ui.editor_mode === "mobile"
+	? this.mobile_mode_template()
+	: this.desktop_mode_template()
+```
+
+Two entirely different component trees. Consequences:
+
+- **Mode is not width-driven.** Two `@media` rules exist in roughly 139 KB of editor
+  CSS. Loading the editor at a 390 px viewport on desktop still renders
+  `px-desktop-mode` — detection is device and touch, not a breakpoint. **You cannot
+  reproduce mobile mode by narrowing a window.**
+- **To reach mobile mode on desktop**, run `editor.store.ui.setEditorMode('mobile')`
+  in the console. This is the only reliable way to develop or test mobile editor CSS
+  without a device.
+- The editor URL returns a ~5.5 KB shell; everything is client-rendered, so fetching
+  the HTML tells you nothing about the DOM.
+
+Class map:
+
+| Desktop (`px-desktop-mode`) | Mobile (`px-mobile-mode`) |
+|---|---|
+| `.px-main-area` grid `"page-display" "page-navigation"`, rows `1fr 148px` | `.px-main-area` grid `"header" "pages" "mobile-toolbar"` |
+| `.px-page-display` | `.px-mobile-page-display` |
+| `.px-page-navigation > .px-page-sets` (bottom thumb strip) | `.px-mobile-page-list > .px-page-sets` (full-screen project list) |
+| `.px-page-prev` / `.px-page-next` — real buttons, `data-enabled`, `goToNextSet` | `.px-prev-set-hint` / `.px-next-set-hint` — decorative only |
+| — | `.px-mobile-toolbar` |
+
+**`.px-page-navigation`, `.px-page-display`, `.px-page-prev` and `.px-page-next` do not
+exist in the mobile DOM.** CSS written against them to "fix mobile" is dead code.
+`.px-page-sets` does exist, but inside `.px-mobile-page-list` — the project overview
+screen, not a strip.
+
+Stock mobile navigation is: tap a page in the project list, swipe left and right
+between pages, tap **Project** to go back.
+
+### `setDimensions()` caches its measurement — the trap
+
+`setDimensions()` measures the `.px-mobile-page-list` box into component state, and
+`pageSetScale` derives from that cache. It drives **two** things: the rendered size of
+the page thumbnails, and an **inline `width` written onto `.px-page-captions`**.
+
+**It re-runs on mount and on window resize only — never when CSS changes the box.** The
+list mounts in the full-height project view, so the cached scale is permanently
+"full-screen page". Any CSS that shrinks the list into a strip therefore inherits a
+stale scale: thumbnails render at full-screen page size and burst out of the strip, and
+each caption set carries an inline width of roughly 330 px so the strip scrolls
+horizontally.
+
+Rotating the device fires a resize, `setDimensions()` re-runs against the strip, and it
+snaps into place — the observed "wrong until I rotate, then perfect" symptom.
+
+> **Rule: when CSS resizes any container the mobile editor measures, pin the child
+> sizes in CSS too. Fixing only the thumbnails or only the captions looks worse than
+> fixing neither.** Pinning also makes the result rotation-proof, because CSS beats the
+> cached scale either way.
+
+### Recipe — persistent bottom page strip on mobile
+
+Verified on device. Goes in the Design Tool Configuration Custom CSS field, the
+`shopify/custom-styles` snippet, or the `editor.css` page — storefront
+`style/custom.css` does not reach the editor.
+
+Scope everything with `:has(.px-mobile-page-display[data-expanded="true"])` so it
+applies only while a page is open. Without that guard, tapping **Project** leaves a
+blank `pages` row with the strip stranded below. `:has()` is safe here — the bundle
+already ships `.px-mobile-mode:has([data-active-tab="project->cut-print-quantities"])`.
+
+```css
+/* ===== START: Mobile editor page strip ===== */
+.px-editor.px-mobile-mode .px-main-area:has(.px-mobile-page-display[data-expanded="true"]) {
+	grid-template-areas: "header" "pages" "page-strip" "mobile-toolbar";
+	grid-template-rows:
+		calc(var(--header-height-mobile) + var(--subheader-height-mobile))
+		calc(var(--page-area-height-mobile) - 96px)
+		96px
+		var(--toolbar-height-mobile);
+}
+
+.px-editor.px-mobile-mode .px-main-area:has(.px-mobile-page-display[data-expanded="true"]) .px-mobile-page-list {
+	grid-area: page-strip;
+	overflow-x: auto;
+	overflow-y: hidden;
+	background: #fff;
+	border-top: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.px-editor.px-mobile-mode .px-main-area:has(.px-mobile-page-display[data-expanded="true"]) .px-mobile-page-list .px-page-sets {
+	display: flex;
+	align-items: center;
+	justify-content: safe center;
+	min-width: 100%;
+	width: max-content;
+	height: 96px;
+}
+
+.px-editor.px-mobile-mode .px-main-area:has(.px-mobile-page-display[data-expanded="true"]) .px-mobile-page-list .px-page-set {
+	flex: 0 0 auto;
+	padding: 4px 8px;
+}
+
+/* 1 of 2 — overrides the stale thumbnail scale. Without this the strip renders at
+   full-screen page size until the device is rotated. */
+.px-editor.px-mobile-mode .px-main-area:has(.px-mobile-page-display[data-expanded="true"]) .px-mobile-page-list .px-page-thumbs .px-page-wrapper .px-page {
+	width: auto !important;
+	height: 58px !important;
+}
+
+/* 2 of 2 — overrides the inline caption width written from the same stale scale.
+   Without this each set is ~330px wide and the strip scrolls. */
+.px-editor.px-mobile-mode .px-main-area:has(.px-mobile-page-display[data-expanded="true"]) .px-mobile-page-list .px-page-captions {
+	width: auto !important;
+	height: 16px !important;
+	line-height: 16px !important;
+	font-size: 10px !important;
+	margin: 2px auto 0 !important;
+}
+
+.px-editor.px-mobile-mode .px-main-area:has(.px-mobile-page-display[data-expanded="true"]) .px-mobile-page-list .px-page-caption {
+	flex: 0 1 auto !important;
+	max-width: 76px;
+	padding: 0 3px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+/* ===== END: Mobile editor page strip ===== */
+```
+
+**Optional hardening, UNVERIFIED.** Only needed if a customer rotates while a page is
+open: that fires a resize, the cache becomes strip-sized, and the project overview
+afterwards shows tiny thumbnails. Pin the project view the same way, sized to the
+viewport rather than the cache, using `width: 100%` and `height: auto` on the SVG so
+the aspect ratio comes from its `viewBox`.
+
+### The prev/next hints are decorative — do not sell them as buttons
+
+`.px-prev-set-hint` and `.px-next-set-hint` ship at `opacity: 0` with `z-index: -1`.
+`prevSetArrowStyle` / `nextSetArrowStyle` write an inline `opacity` only while a swipe
+is in progress, gated on `canGoToPreviousSet` / `canGoToNextSet`; at rest the inline
+style is empty, so nothing shows.
+
+They can be forced visible with `opacity`, `z-index` and `!important` — the
+`!important` is needed because of that inline style — but:
+
+- they are `<div>` wrappers around an SVG with **no click handler**; tapping does
+  nothing, confirmed by raising `z-index` and clicking;
+- they carry **no enabled/disabled attribute**, so a blanket override shows an arrow on
+  the first and last page too.
+
+Do not propose them as a navigation fix. They are a swipe hint at best.
+
+### Recommended platform changes
+
+Two changes would retire this whole workaround:
+
+1. **Re-measure on element resize, not just window resize.** A `ResizeObserver` on
+   `.px-mobile-page-list` in place of the current mount-plus-window-resize trigger makes
+   `pageSetScale` correct at all times and lets any lab restyle the mobile editor
+   without fighting a stale cache. This is the root cause of the rotate-to-fix
+   behaviour.
+2. **Make the prev/next hints real controls.** They are already most of the way there:
+   a persistent state gated on the existing `canGoToPreviousSet` / `canGoToNextSet`
+   plus a click handler onto `goToPreviousSet` / `goToNextSet` closes #18343 for every
+   lab at once.
+
 ## Changelog
 - 2026-03-30: Created from master platform documentation export.
 - 2026-04-23: Added font licensing rule for editor embedding (digital/print embedding license required, not web font license).
@@ -467,3 +644,4 @@ or duplicates.
 - 2026-07-25: Clarified that a design tool configuration is assigned to a Template or a Design (not to a product or category) and that several configurations can run on one site. Added the confirmed seven-style AI restyle launch set (Vintage Film excluded) with per-lab billing and daily limits. Added per-configuration help modal snippets via Trip JS (including mobile fluid-dimension rule for Trip blocks). Added two known issues — colour element substitutions import as black after template export/import, and element substitutions failing on the bulk photo prints interface with white-border symptoms caused by the layout switch resetting the crop (workaround: split print products into with-borders / without-borders categories). Added page border-radius limitation: bleed and margin guides stay square, use page masks. Source: slack-message (#development), fireflies-call, loom-video, claude-chat.
 - 2026-07-31: Documented AI restyle/filter auto-apply on selection (fixes filter loss when going to cart without pressing Apply). Added known issue: AI token usage counted globally instead of per site, fix verified on staging and pending production deploy. Documented that element substitutions now run on all admin previews and embedded inline pages (previously skipped unless `fulfillment=true`). Added known issue: no front/inside page indicator in the mobile card editor. Source: slack-message (#development), support ticket.
 - 2026-08-29: Added Editor Gallery Folders — per-tag theming via `data-gallery-id` (the literal tag name), the `currentColor` inline-SVG folder glyph, the `data-px-tooltip` caption hook, a per-tag thumbnail recipe, and the open question of whether the Galleries tab is distinguishable from Clipart. Added `--neutral-grey-2` and `--caption-height` to the aliasable variable set. Clarified that `@filename@` is the fallback for the non-Liquid Design Tool Configuration Custom CSS field, while `editor.css` and `shopify/custom-styles` are Liquid-rendered and take `asset_url` — marked inferred pending two checks. Added Design Theme Layouts export format (layouts as a sibling of templates, `left`/`top` always 0 with `x`/`y` omitted when zero, mm coordinates, `edit`+`placeholder` photo slots, the fixed tag vocabulary with `5+ photos` as the catch-all) and what is and is not verified about layout import. Source: claude-chat (live editor inspection, photobook layout build).
+- 2026-08-29: Added Mobile Editor CSS — the mobile editor is a separate template chosen by device and touch detection rather than a breakpoint (so it cannot be reproduced by narrowing a window; use `editor.store.ui.setEditorMode('mobile')`), the desktop/mobile class map, the cached `setDimensions()` measurement that makes any CSS resize of the page list render at a stale scale until the device is rotated, a verified persistent-bottom-page-strip recipe, why the prev/next hints are decorative, and the two platform changes that would retire the workaround. Cross-referenced from the Known Issues — Mobile entry for #18343. Source: claude-chat, live editor inspection, on-device testing.

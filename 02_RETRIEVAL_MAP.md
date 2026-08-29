@@ -123,16 +123,16 @@ _Last updated: 2026-05-21_
 → **14_GLOSSARY.md**
 
 ### "Troubleshooting mindset + common pitfalls?"
-→ **40_PLAYBOOK.md**
+→ **40_PLAYBOOK_UPDATED.md**
 
 ### "How do I regenerate a production file? / Delete before regeneration / production file already exists?"
-→ **40_PLAYBOOK.md** § Production File Regeneration
+→ **40_PLAYBOOK_UPDATED.md** § Production File Regeneration
 
 ### "Font rendering issues / Tofu rectangles in editor / embedded font error in PDF / Transfonter?"
-→ **40_PLAYBOOK.md** § Font Stability
+→ **40_PLAYBOOK_UPDATED.md** § Font Stability
 
 ### "Code formatting / boundaries / full-block replacement / conventions?"
-→ **01_CODE_GOVERNANCE.md**
+→ **01_CODE_GOVERNANCE_UPDATED.md**
 
 ### "Liquid object properties / filters / tags (what properties exist on cart, orderline, product, user, etc.)?"
 → **50_LIQUID_REFERENCE.md**
@@ -169,15 +169,24 @@ _Last updated: 2026-05-21_
 
 ---
 ### "Mobile UX principles / mobile conversion gap / mobile homepage patterns / mobile checkout patterns / mobile audit checklist?"
-→ **No dedicated file exists. This is a known gap.** The coverage that does exist is
-scattered: **50_SHOPPER_TEMPLATE_REFERENCE.md** (mobile nav collapse,
-`header/logo-height-mobile`, `variant_columns_mobile`), **17_DESIGN_TOOL.md**
-§ Known Issues — Mobile, and **80_ONBOARDING.md** (review the mobile experience on real
-devices).
+→ **82_MOBILE_UX_REFERENCE.md**
 
-Earlier versions of this map routed to `82_MOBILE_UX_REFERENCE.md` and
-`83_MOBILE_UX_AUDIT.md`. Neither has ever existed in this repo — the routes were written
-in anticipation of files that were never added.
+### "Which mobile is this — storefront, design tool, or kiosk?"
+→ **82_MOBILE_UX_REFERENCE.md** § 1. They are three different surfaces and a design does not carry between them.
+
+### "Mobile editor page navigation / show page thumbnails on mobile / px-mobile-page-list / the editor looks wrong until I rotate the phone?"
+→ **17_DESIGN_TOOL.md** § Mobile Editor CSS
+
+### "Logo too big on mobile / variant options wrong width on a phone?"
+→ **82_MOBILE_UX_REFERENCE.md** § 2 (`header/logo-height-mobile`, `variant_columns_mobile`)
+
+_Note: `83_MOBILE_UX_AUDIT.md` was routed here from before 2026-05-21 and never existed. The audit checklist lives in **82_MOBILE_UX_REFERENCE.md** § 6; 83 is AI imagery production._
+
+### "Cross-cutting implementation patterns / style onload re-injection / once-per-load guard / canvas and form patterns / skip cart redirect / collection filters / measured platform behaviour?"
+→ **41_IMPLEMENTATION_PATTERNS_UPDATED.md**
+
+### "Which snippet renders this / what is the snippet called / does the parent ship a snippet for X?"
+→ **52_SNIPPET_INVENTORY.md**
 
 ---
 
@@ -455,3 +464,5 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 - 2026-08-14: Audited the 2026-05-21 routing entries against the files they point at. Two pointed at sections that did not exist: Gift Vouchers (now written into 18_ADMIN_NAVIGATION.md § Marketing) and Customer Training and Support Resources (re-pointed to 90_FAQ.md § Section 1). Source: kbsync audit.
 - 2026-08-29: Added 16 routing entries for the 2026-08-29 sync — editor gallery folder theming, generated-CSS specificity, acv2 theming, GA4 defects, the trailing-newline flag failure, `default-delivery-option`, Shopify bulk variant metafields, the photo-prints 414, canvas wrap geometry and ipage zoom, the template-import price validation, translations, the currency switcher, single-value variants, per-order charges on variants, the collections export format, and spin GIF optimisation. Every target section was written in the same sync. Source: kbsync.
 - 2026-08-29: Removed a duplicated SEO/GEO block and three leaked kbsync scaffolding lines (RATIONALE / SOURCE / SOURCE TYPE) that had been pasted verbatim into the published file. Replaced the two dangling mobile UX routes with an honest statement of the gap: `82_MOBILE_UX_REFERENCE.md` and `83_MOBILE_UX_AUDIT.md` have never existed in this repo. Source: kbsync audit.
+- 2026-08-29: `82_MOBILE_UX_REFERENCE.md` now exists, so the mobile routes point at a real file. Added routes for the three-mobile-surfaces distinction, the mobile editor CSS section in 17, and the two mobile-specific checklist keys. Recorded that the audit checklist lives in 82 § 6 rather than in an 83 file. Source: kbsync.
+- 2026-08-29: Audited every filename this map points at against the repo. Corrected `40_PLAYBOOK.md` (3 routes) and `01_CODE_GOVERNANCE.md` (1 route) to their real `_UPDATED` filenames. Added the two files the map had never routed to at all, `41_IMPLEMENTATION_PATTERNS_UPDATED.md` and `52_SNIPPET_INVENTORY.md`. Every route now resolves. Source: kbsync audit.
