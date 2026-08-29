@@ -655,6 +655,21 @@ Fully documented in `50_SHOPPER_TEMPLATE_REFERENCE.md` Section 4. Each snippet c
 
 ---
 
+## Annotations — Snippets Whose Row Does Not Tell the Whole Story
+
+Added 2026-08-29 from live diagnosis. These correct or qualify rows above.
+
+| Snippet | Annotation |
+|---|---|
+| `integrations/google/gtag` | **Orphaned — nothing includes it.** Its Description invites you to enter an Analytics account id, and editing it does nothing. The snippet that works is `website/gtag`. The same applies to `integrations/google/event/add-to-cart`, `.../begin-checkout` and `.../purchase`; keep only `.../view-item` as a no-GTM fallback. |
+| `modals/shopping-cart` | This is the **cart fly-out**. Specs that name the fly-out as `shopper/cart-flyout` are wrong for this parent. It carries the custom-tool preview-code list, and as of 2026-08-27 that list was assigned as `flat_preview_codes` (underscore) and read as `flat-preview-codes` (hyphen), so it was never consulted — see 20_SHOPPER_CART_RULES.md. |
+| `product/custom-prints-code` | Mount hook on the prints **collection landing page** (`/site/photo-prints` and collection-level prints pages, rendering `product/product-details-prints`). Not the flow itself. |
+| `product/extra-prints-code` | Mount hook on `pages/prints` (`/site/prints?collection=...`), which renders `product/photo-prints` — the only page carrying `.px-photo-prints` and the `.px-btn-cart` button. Anything observing the prints component or its cart button belongs here. |
+| `product/product-details-prints` | Does **not** render `product/design-now`, so photo-prints pages emit no `dataLayer` ecommerce event — see 50_SHOPPER_TEMPLATE_REFERENCE.md §20. |
+| `kiosk/idle-screen` | Tests `has_logo != blank`, but the parent ships `update-website-logo` = `FALSE` and `'FALSE' != blank` is true, so the idle screen renders `header/logo` on sites that said they have none. Correct test is `has_logo == 'TRUE'`. |
+| `admin/checklist/admin/checklist/kiosk-picker-idle-seconds` | A double-prefixed snippet path, created in error. Not a real setting. |
+
 ## Changelog
 
 - 2026-05-27: Created from full CMS backup of `shopper24.pixfizz.com`. 926 snippets inventoried across 23 namespaces.
+- 2026-08-29: Added an Annotations section correcting or qualifying seven rows — `integrations/google/gtag` and three sibling event snippets are orphaned (use `website/gtag`); `modals/shopping-cart` is the cart fly-out, not `shopper/cart-flyout`, and carried a never-consulted preview-code list; the two photo-prints mount hooks sit on different routes; `product/product-details-prints` emits no dataLayer event; the kiosk idle-screen logo test is inverted; and a double-prefixed checklist path exists in error. Source: claude-chat.

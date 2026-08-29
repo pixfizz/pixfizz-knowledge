@@ -393,9 +393,33 @@ If a client asks about Packaging, redirect them to shipping formula configuratio
 RATIONALE: Repeat signal — Loom video in #kb-sync + #development question same week.
 SOURCE TYPE: loom-video + slack-message
 ---
+## Per-Order Charges Must Never Sit on a Variant
+
+A variant price adjustment is **per orderline** and multiplies by orderline
+quantity. A flat per-order amount placed on a variant therefore multiplies by the
+item count — the trap that bit the flyer tool, where postage multiplied by the roll
+count.
+
+- **Per-order charge** (postage, a handling fee, a rush fee): a separate orderline
+  against a dedicated product, or an Extra Fee. Never a variant.
+- **Per-item charge** (a finish, a substrate upgrade): safe on a variant, precisely
+  because orderline quantity is the item count.
+
+### Custom tools: who owns the quantity break
+
+A `number` template option whose pricing formula is `value` makes the entered
+number the price. The division of labour with a custom design tool is fixed:
+
+- **the tool writes a quantity-1 unit figure**
+- **the formula owns quantity breaks**
+
+Writing an already-tiered price double-discounts. Writing a finished total freezes
+the price at add-to-cart, and the cart quantity stepper then stops re-pricing.
+
 ## Changelog
 - 2026-05-19: Added Automatic Discounts section — Liquid-based cart discounts with tiered, user category, and seasonal patterns. Source: Claude chat (webinar prep).
 - 2026-07-03: Added Extra Fees (Liquid-Based Cart Fees) section — fee-side twin of Automatic Discounts (adds instead of subtracts), configured under Shipping → Extra Fees. Includes per-duplicate-orderline surcharge pattern (seen-string + contains idiom); orderline-iteration specifics pending live confirmation. Source: Claude chat.
 - 2026-07-20: Added property-name trap — `cart.promocode` (without `_code`) is nil and silently defeats promo-code guards; always use `cart.promocode_code`. Source: claude-chat.
 - 2026-07-31: Price Variable Bulk Export/Import shipped (2026-07-28) — moved out of Roadmap, now documented as a live feature. Source: slack-message (#development).
 - 2026-08-21: Documented Packaging tab as legacy feature; shipping formulas recommended instead. Source: loom-video + slack-message.
+- 2026-08-29: Added per-order charges must never sit on a variant — a variant adjustment is per orderline and multiplies by orderline quantity, so postage or a flat fee on a variant multiplies by the item count; use a separate orderline or an Extra Fee. Added the custom-tool division of labour for a `number` option priced as `value`: the tool writes a quantity-1 unit figure and the formula owns quantity breaks, since a pre-tiered price double-discounts and a finished total freezes the price at add-to-cart. Source: claude-chat.

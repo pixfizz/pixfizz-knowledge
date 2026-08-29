@@ -498,6 +498,30 @@ Review and customize all active templates before launch — default content refe
 
 ---
 
+## Post-Import Checks a Tar Cannot Cover
+
+A CMS tar imports snippets. It cannot set anything that lives outside the snippet
+tree, and the failures are silent — the site looks imported and behaves like the
+seed. Check these by hand after every import, on the live site:
+
+1. **`admin/checklist/no-index` ships `TRUE` on the parent.** Any live storefront
+   needs it set to `FALSE`. Nothing on the page shows it.
+2. **The custom home page.** Load the site root and confirm the custom homepage
+   renders rather than the seed one, by asserting the wrapper class the homepage
+   emits is in the DOM. See 50_SHOPPER_TEMPLATE_REFERENCE.md § 14 and § 17.
+3. **The navigation style.** Which `navigation/style*` renders is an admin setting
+   a tar cannot read or set. Override every style the parent ships, then view-source
+   the live header to confirm which one is actually rendering.
+4. **`default-delivery-option`** and the other checkout preselects, if the site
+   overrides them — the importer is wipe-and-replace, so a later bundle that does not
+   carry the override silently reverts it to the parent value.
+5. **Every value snippet's trailing whitespace**, if the bundle was generated rather
+   than exported. See 01_CODE_GOVERNANCE_UPDATED.md.
+
+**A local render verifies the file, not the site.** Rendering a snippet through a
+Liquid engine and screenshotting it says nothing about a live storefront. Load the
+live URL and assert the expected DOM before reporting an import as done.
+
 ## Changelog
 - 2026-03-30: Created from master platform documentation export.
 - 2026-04-23: Added content completeness (descriptions) pre-launch checklist item.
@@ -506,3 +530,4 @@ Review and customize all active templates before launch — default content refe
 - 2026-05-21: Major rewrite. Added all deployment paths (Custom API, Marketplace/Etsy). Added "Preparing for Onboarding" customer preparation section. Added Full Pixfizz Custom path. Expanded phase sequences with blockers. Merged content from onboarding skill. Added pre-launch handoff checklist. Added vertical-specific notes.
 - 2026-05-27: Photo Labs vertical notes: added kiosk mode setup procedure (CNAME, checklist keys, pay-in-store config), OHD single-location install rule, film 120/220 as separate products, same-day JS cutoff pattern. Phase 2: added static product CSV importer note (manage/tools/product-importer). Phase 3: added SendGrid deliverability and DNS authentication note. Pre-launch checklist: added email delivery DNS check. Custom API Phase 2: added external user warning (_uid creates non-login users; OrderHub operators must use /v1/users). Source: Fireflies calls, Slack #dev, support tickets.
 - 2026-08-05: Added the custom domain and SSL sequence to Phase 1 (CNAME to hosting.pixfizz.com, register under Settings > General > Domain Hosting, up to 48 hours propagation, SSL requested manually after DNS confirms, roughly 40 minutes to issue). Confirms SSL is not auto-provisioned. Source: fireflies-call.
+- 2026-08-29: Added Post-Import Checks a Tar Cannot Cover — `no-index` ships `TRUE` on the parent and must be set to `FALSE` on a live store; assert the custom homepage wrapper class on the live root; confirm which navigation style actually renders because a tar cannot read or set that admin value; re-check checkout preselects after any wipe-and-replace import; and verify value-snippet trailing whitespace on generated bundles. Restated that a local render verifies the file and not the site. Source: claude-chat.

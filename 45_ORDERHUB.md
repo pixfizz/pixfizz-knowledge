@@ -487,6 +487,21 @@ unless the old values are mapped across.
 
 ---
 
+## Kiosk and Online Are Separate Catalogues
+
+Confirmed pattern as of August 2026, across more than one lab.
+
+- **Kiosk and online sales need separate products and separate pricing.** Do not
+  try to serve one catalogue to both. Walk-in pricing, available sizes and the
+  product set a customer can navigate on a touchscreen are all different from the
+  web store's.
+- **Location-specific order routing runs through OrderHub.** Orders placed at a
+  given kiosk route to that location's queue.
+
+Recorded from client calls; the routing behaviour is consistent with the Locations
+model documented above, but the kiosk-to-location binding itself has **not been
+verified by reading configuration**.
+
 ## Changelog
 - 2026-05-21: Created. Content sourced from OrderHub help modal articles (orderhub.pixfizz.com). Covers: Jobs, custom statuses, Production Board, Processes, Locations, PDF Layout Studio, PrintNode, Film Scans, OHD, EasyPost, POS category filter, Pixfizz category assignment, Email/SMS/RCS notifications.
 - 2026-06-15: Added pickup-location opening hours and Google Maps link fields (surfaced in the store pickup UI at checkout). Source: slack-kb-sync (client call).
@@ -496,3 +511,4 @@ unless the old values are mapped across.
 - 2026-07-31: Added known issue — film scan folders reported stuck in the OHD watch folder (repeat issue type, root cause/fix not yet confirmed). Source: support ticket #18341 (pending confirmation).
 - 2026-08-11: Added the custom field naming rule — any new custom field that OrderHub must read has to be lowercase, and whitelisted in OrderHub before it will route. Source: fireflies-call (2026-08-07).
 - 2026-08-14: Corrected the order-level boolean slot count from four to five (`rush`, `urgent`, `option1`, `option2`, `option3`) and documented the no-underscore naming rule, the rush/urgent mutual exclusivity, the unresolved label-ownership question, and the Extra Fee re-point trap when migrating off a single-string rush field. Source: fireflies-call (2026-08-13), slack-message (#development).
+- 2026-08-29: Added Kiosk and Online Are Separate Catalogues — separate products and pricing for kiosk versus web, with location-specific order routing through OrderHub; the kiosk-to-location binding is not yet verified by reading configuration. Source: fireflies-call (2x repeat signal).

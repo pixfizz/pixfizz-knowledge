@@ -1458,9 +1458,195 @@ This is the recommended way to deduplicate repeated block regions in checkout
 templates. See `50_SHOPPER_TEMPLATE_REFERENCE.md` for the detailed pattern and
 example markup.
 
+## Translation Keys — How the `t` Filter Actually Behaves
+
+Established 2026-08-24 by comparing a real shopper24 translations export against a
+full scan of the template corpus, then confirmed against a live import.
+
+### 1. The key is the source string, downcased
+
+```liquid
+{{ 'Saved Projects' | t: ns: 'account' }}
+```
+
+stores and looks up the key **`saved projects`**. Every one of the 346 keys in a
+real shopper24 export is lowercase, without exception.
+
+- **Two source strings differing only in case are the same key.** `'Contact Us'`
+  and `'Contact us'` collide — harmless when the translation is the same, a silent
+  overwrite when it is not.
+- A translation file written with capitalised keys **matches nothing**. It imports
+  cleanly and does nothing, the same failure shape as a trailing newline on a
+  checklist value.
+- When matching an external glossary onto Shopper keys, **match on the downcased
+  English**. Doing so on one migration took the hit rate from 39 keys to 228.
+
+### 2. `en` is an optional override, not the key
+
+Fill the `en` column only where the displayed English differs from the key itself:
+
+| namespace | key | `en` |
+|---|---|---|
+| `account` | `email` | `Email Address` |
+| `general` | `proceed to payment` | `Proceed to Payment >>` |
+| `general` | `january [month]` | `January` |
+| `countries` | `finland` | `Suomi` |
+
+Note `january [month]` — a bracketed disambiguator in the key that never reaches
+the screen. That is the house pattern for two senses of one word.
+
+### 3. An export is not the full key set — scan the corpus
+
+One shopper24 export carried **346 keys across 9 namespaces**. Scanning 1,324
+files (snippets, pages, layouts) for `| t: ns:` found **578 keys across 16
+namespaces**; the union is **856 keys across 19 namespaces**. 510 keys used in code
+were absent from the export, so nothing could translate them.
+
+Nine namespaces used in code appeared nowhere in the export: `admin`, `faq`,
+`home`, `image-adjust-tool`, `nav`, `photo-prints`, `products`, `upload`,
+`upload-dialog`.
+
+**A translations export tells you what has been touched, never what exists.**
+
+Regex that catches the real variants (quoting, trailing filters, whitespace
+control):
+
+```python
+LIT = re.compile(r"""\{\{-?\s*(?P<q>['\"])(?P<src>(?:(?!(?P=q)).)*)(?P=q)\s*\|\s*t\b(?P<rest>[^}]*)\}\}""", re.S)
+NS  = re.compile(r"""ns:\s*(['\"])(?P<ns>(?:(?!\1).)*)\1""")
+```
+
+### 4. A key absent from Liquid is not necessarily dead
+
+The scan only sees Liquid. `editor` (208 keys) belongs to the design tool, a
+separate client-side app; `countries` / `country` are platform-rendered. **Never
+prune a namespace on scan evidence alone.**
+
+### 5. Two namespaces are catalogue-driven
+
+```liquid
+{{ orderline.product.name | t: ns: 'products' }}
+{{ option.variant.name    | t: ns: 'variants' }}
+```
+
+`products` and `variants` are keyed by product, collection, design, option and
+variant **names from the catalogue**. No code scan can enumerate them — the key set
+only exists once the products do. Translate these last, by exporting the namespace
+back out once the site has been browsed.
+
+### 6. The import reads the namespace from the file, and two columns are enough
+
+Confirmed by importing a hand-built file into a live admin.
+
+- A file may carry **only the columns you care about**. `ar` + `en` imports fine;
+  the other language columns need not be present and their existing values are not
+  wiped.
+- The **namespace comes from the file's top-level key**, not from the namespace
+  selected on the Translations screen. So **one file can carry every namespace** —
+  there is no need to split per namespace.
+- Empty is written as `''`, and Ruby's Psych parses the file identically to PyYAML,
+  so a PyYAML `safe_dump` is safe to hand to the importer.
+- Leave `en` blank unless you want an override. With `en` empty the platform falls
+  back to the literal in the template, so English rendering is unchanged.
+
+### 7. `request.locale` is the language test in Liquid
+
+```liquid
+{% if request.locale == 'ar' %} ... {% else %} ... {% endif %}
+```
+
+Use it for long-form prose — terms, privacy, anything with apostrophes and markup —
+rather than a second Custom Type instance per language, which doubles the page
+count and the maintenance. Long-form copy does not belong in the string table.
+
+### 8. Bidi authoring trap
+
+An Arabic string containing a Latin or numeric run renders correctly in an editor
+while being stored in the wrong logical order. A phone number typed inside an
+Arabic sentence came out reversed in the file. **Check with codepoints, never by
+eye** — a `+` appearing after a digit is the tell. Also assert placeholder parity
+(every `{{count}}` / `{{size}}` in the key must survive into the translation).
+
+### 9. Audit inherited translations before trusting them
+
+Matching a legacy table onto Shopper keys fills a lot of cells quickly and quietly
+imports bad content. On one table, 42 of 228 auto-matched strings were wrong —
+`total` translated as "price", `error` translated as an order-status sentence,
+`layer` and `layouts` sharing one word, `redo` sharing the word for `duplicate`,
+unedited placeholders left in English, and the thousands separator used where the
+sentence comma belongs. **Duplicated translations across two different English keys
+is the fastest tell.**
+
+## Display Currency Switching on Shopper 24
+
+Established 2026-08-24 by diagnosing a switcher that loaded, stored its selection,
+repainted its own control, and converted nothing.
+
+### 1. There is no class hook on prices
+
+Prices render through the `currency` filter into whatever markup the surrounding
+component happens to use. From the shopper24 corpus, by frequency:
+`<span class="ml-auto">` (25), `<span class="ml-auto font-size-xs">` (14),
+`<span class="ml-auto font-size-sm">` (12), styled `<td>` in email templates (9),
+`<span class="text-muted font-size-xs">` (7), bare `<span>` (5), plus bare `<s>`,
+`<b>`, `<strong>` and `<div>`. **On a product card the price is a bare `<span>`
+with no class at all.** A selector list will always miss one.
+
+> Signature: the switcher script is on the page, `localStorage` holds the
+> selection, the control repaints — and no price changes. No console error,
+> because `querySelectorAll` matched zero elements and the loop never ran.
+
+### 2. Find prices by format, wrap once, then work off the attribute
+
+Learn the format by rendering one known number through the platform rather than
+assuming a delimiter, separator or unit placement:
+
+```liquid
+var BASE_CODE    = "{{ website.currency_code | escape_json }}";
+var BASE_SIGN    = "{{ website.currency_sign | escape_json }}";
+var FORMAT_PROBE = "{{ 1234.5 | currency | escape_json }}";
+```
+
+Build a regex from that, walk text nodes with a `TreeWalker`, and wrap each match
+once in `<span data-price data-base="14.40" data-original="$14.40">`. Everything
+downstream reads the attribute, which is exact and idempotent — reconverting can
+never compound, and switching back to the store currency restores the original
+string byte for byte. Skip `SCRIPT`, `STYLE`, `TEXTAREA`, `INPUT`, `SELECT`,
+`OPTION`, `IFRAME`, `SVG`, and any subtree already wrapped.
+
+### 3. Wrapping is itself a mutation — disconnect the observer during the pass
+
+The cart flyout, quick view and load-more inject prices after load, so a
+`MutationObserver` is needed. But the wrap-and-rewrite pass mutates the DOM, so the
+observer must `disconnect()` for the duration of its own callback and
+re-`observe()` afterwards. Without that the first conversion feeds itself and the
+callback never settles.
+
+### 4. The store currency is whatever the platform says, not what the brand implies
+
+A brand's Shopper site can be configured in a currency the brand's country does not
+use. Read the base from `website.currency_code`, convert relative to it
+(`amount * target.rate / base.rate`), and **refuse to convert at all** when the base
+is absent from the rate table. Leaving prices exactly as the platform rendered them
+is better than deriving them from a guessed base.
+
+Conversion is **display-only** in every case. Checkout, invoices and fulfilment stay
+in the website currency set in Website → Config → Currency Formatting. Changing what
+the customer is charged is that setting, not a switcher.
+
+### 5. The tell when debugging one of these
+
+```js
+document.querySelectorAll("[data-base]").length   // 0 = the pass ran and found nothing
+```
+
+If the script is present and that count is zero, the problem is element-finding —
+not the conversion arithmetic and not the control.
+
 ## Changelog
 - 2026-06-01: Noted Shopify IDs live in chosen_variants. Source: claude-chat.
 - 2026-06-15: Added json_parse filter to Pixfizz-extended filters. Added assign_to_user / assign_to_cart optional params to the address_create form. Source: notion-dashboard.
 - 2026-07-07: Documented cart_clear, cart_unset and cart_delete forms in the Cart forms table, plus a clear/unset/delete comparison note. Source: notion-page, slack-message.
 - 2026-07-28: Added file_upload accessor note on ChosenOption (`uploaded_file.url` / `.filename`; `value`, `asset.url`, `thumbnail_url` and the `preview_url` filter do not work), the `thumbnail/{n}` path segment on UploadedFile, and the `cart[custom][field]` write pattern for `cart_update`. Source: claude-chat.
 - 2026-08-21: Added FORMS section with address_create form options (assign_to_user, assign_to_cart). Source: notion-page (Dashboard 🆕 Update).
+- 2026-08-29: Added Translation Keys — the `t` filter key is the source string downcased (so case-only variants collide and a capitalised key file matches nothing), `en` is an optional override, an export is not the full key set (346 exported vs 578 in code, union 856), keys absent from Liquid are not dead, `products`/`variants` are catalogue-driven, the importer takes the namespace from the file's top-level key so one file can carry all of them, `request.locale` is the language test, plus the bidi logical-order trap and the auto-match audit. Added Display Currency Switching — there is no class hook on prices, so find them by rendered format and wrap once into a data attribute; disconnect the MutationObserver during its own pass; read the base from `website.currency_code` and refuse to convert on an unknown base; conversion is display-only. Source: claude-chat.

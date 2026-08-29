@@ -319,6 +319,142 @@ photo book products where transparency effects need to vary by option choice.
 
 SOURCE: Fireflies call (Shaun Bowen / Rapid Studio, 2026-08-18). Confirmed live: 2026-08-21.
 
+## Editor Gallery Folders — Per-Tag Theming
+
+Verified 2026-08-25 by live DevTools inspection of an editor Clipart tab.
+
+Gallery folders carry the **tag name** in `data-gallery-id`:
+
+```html
+<div class="px-gallery-items" data-item-size="medium">
+  <div class="px-gallery-item px-gallery" data-gallery-id="Hearts" data-onclick="onGalleryClick">
+    <div class="px-thumbnail">
+      <svg viewBox="0 0 320 320"><path fill="currentColor" ...></svg>
+    </div>
+    <div class="px-caption" data-px-tooltip="Hearts">Hearts</div>
+  </div>
+</div>
+```
+
+Three facts worth having:
+
+- **`data-gallery-id` is the literal tag name.** Every clipart tag folder is
+  individually targetable — `[data-gallery-id="Hearts"]` — with no reliance on
+  child order. This retires the `:nth-child()` / alphabetical-order workaround
+  documented for layout categories.
+- **The stock folder graphic is an inline SVG using `fill="currentColor"`.** It
+  is not a missing thumbnail and there is nothing to set in admin. It recolours
+  from a single `color` declaration on `.px-thumbnail`, which is the cheapest
+  per-tag treatment available.
+- **`.px-caption` also carries the tag** in `data-px-tooltip`, so captions are
+  targetable per tag independently of the tile.
+
+Ancestors: `.px-gallery-panel > .px-gallery-items > .px-gallery-item.px-gallery`.
+`.px-gallery-items` carries `data-item-size` (`medium` observed), which appears to
+be the small/medium/large view toggle — **inferred from the control above the
+grid, not confirmed in the bundle.**
+
+### Replacing the folder glyph with a per-tag image
+
+```css
+/* ===== START: Clipart folder thumbnails ===== */
+.px-gallery-item.px-gallery[data-gallery-id="Hearts"] .px-thumbnail {
+	background-image: url({{ website.assets['clipart-hearts.webp'] | asset_url: 256, format: 'webp' }});
+	background-repeat: no-repeat;
+	background-position: center;
+	background-size: cover;
+}
+
+/* visibility, not display -- the SVG is what gives .px-thumbnail its height,
+   so display:none collapses the tile. */
+.px-gallery-item.px-gallery[data-gallery-id="Hearts"] .px-thumbnail svg {
+	visibility: hidden;
+}
+/* ===== END: Clipart folder thumbnails ===== */
+```
+
+- **Background image, not a `::after` pseudo-element** — the action-button overlay
+  gotcha in this section applies here too.
+- **`background-size: cover` survives the view-size toggle.** Use `contain` for
+  line art or logos that must not crop.
+- **It fails gracefully.** Renaming a tag in admin stops the selector matching and
+  the folder reverts to the stock glyph. Comment the block with the tag names it
+  depends on, because nothing else records the coupling.
+- The `visibility` versus `display` choice is reasoning, not a tested result —
+  worth confirming on a site with a non-square tile.
+
+**Open, and worth closing before using this on a live site:** the Galleries tab
+almost certainly renders folders with the same classes and its own
+`data-gallery-id` values, so a customer photo gallery sharing a name with a
+clipart tag would pick up the clipart styling. Nobody has inspected the Galleries
+tab DOM to confirm whether the two panels are distinguishable by an ancestor
+attribute. If one exists, scope every recipe above to it as standard.
+
+### Two more editor CSS custom properties
+
+Read from the computed rule for `.px-caption` in `editor_bundle.css`:
+
+```css
+.px-gallery-panel .px-gallery-items .px-gallery-item .px-caption {
+	color: var(--neutral-grey-2);
+	height: var(--caption-height);
+	line-height: var(--caption-height);
+}
+```
+
+`--neutral-grey-2` (caption text) and `--caption-height` (caption row height) join
+`--bright-sky-blue` and `--seaweed` in the aliasable set. Caption colour and row
+height are the two things a lab most often wants to change in a gallery panel.
+
+### Asset references — which syntax belongs where
+
+The `@filename@` wrapper is the fallback for the one location that is **not**
+Liquid-rendered, not the house style for all editor CSS.
+
+| Location | Liquid? | Asset reference |
+|---|---|---|
+| `editor.css` page (Full Pixfizz / Shopper) | Yes — CMS page | `asset_url` |
+| `shopify/custom-styles` snippet (Shopify) | Yes — CMS snippet | `asset_url` |
+| Custom CSS field on the Design Tool Configuration | **No** — admin field on the config record | `@filename@` |
+
+**Status: inferred, NOT confirmed.** Two checks close it: paste a Liquid
+`asset_url` call into `editor.css` and confirm the rendered stylesheet at
+`/site/editor.css` carries a resolved URL rather than literal Liquid; and paste
+`@filename@` into the Design Tool Configuration Custom CSS field and confirm it
+resolves for an **image** — the only evidenced use of that syntax is for a font.
+Until both are checked: pick one location and use its own syntax, never mix the
+two in one block.
+
+## Design Theme Layouts — Export Format
+
+Verified 2026-08-26 against two real design-theme exports.
+
+- `layouts[]` is a **sibling** of `templates[]`; layout entries carry
+  `layout: true`.
+- An empty layout is `<page ...></page>` with `tags: []` — that is what admin
+  writes.
+- **`left` and `top` are on every element and are always `0`. They are NOT the
+  position.** `x` / `y` are, and they are **omitted entirely when zero**.
+- Emitted attribute order is `edit height left placeholder top width x y`.
+  Coordinates are **always millimetres**, whatever the definition's `unit`.
+- `edit="true" placeholder="true"` is what makes a frame a customer photo slot.
+- `pages=""` (empty) means the layout is offered on all pages; a value such as
+  `page01,page03` targets it. Never rewrite this attribute on the user's behalf.
+- The tag vocabulary is a fixed list read off the theme: `1 photo`, `2 photos`,
+  `3 photos`, `4 photos`, `5+ photos`. **`5+ photos` is the catch-all** — a
+  16-frame layout carries it and there is no `5 photos` string. Generating a tag
+  string creates a picker group of one.
+
+**Import behaviour.** A design-theme import overwrites by id — verified.
+`__print_product.yml` does **not** remap `layout_id`; import creates new records
+there. Whether a blank or invented **layout** `id:` creates a new record is **not
+verified** (blank `id:` is documented as accepted at template, template-option and
+print-theme level, but nobody has proven it one level down). The workflow that
+sidesteps the unknown: have the site owner create N empty layouts in admin and
+export, so every blank carries a real platform id before the re-import. Also open:
+whether re-importing a design theme whose `code` already exists updates in place
+or duplicates.
+
 ## Changelog
 - 2026-03-30: Created from master platform documentation export.
 - 2026-04-23: Added font licensing rule for editor embedding (digital/print embedding license required, not web font license).
@@ -330,3 +466,4 @@ SOURCE: Fireflies call (Shaun Bowen / Rapid Studio, 2026-08-18). Confirmed live:
 - 2026-07-20: Added editor-CSS gotchas — `transform` on `.px-element-icon` breaks the placeholder icon position; layout categories sort alphabetically by default and can be reordered with CSS `order`. Source: slack-message (#development), loom-video.
 - 2026-07-25: Clarified that a design tool configuration is assigned to a Template or a Design (not to a product or category) and that several configurations can run on one site. Added the confirmed seven-style AI restyle launch set (Vintage Film excluded) with per-lab billing and daily limits. Added per-configuration help modal snippets via Trip JS (including mobile fluid-dimension rule for Trip blocks). Added two known issues — colour element substitutions import as black after template export/import, and element substitutions failing on the bulk photo prints interface with white-border symptoms caused by the layout switch resetting the crop (workaround: split print products into with-borders / without-borders categories). Added page border-radius limitation: bleed and margin guides stay square, use page masks. Source: slack-message (#development), fireflies-call, loom-video, claude-chat.
 - 2026-07-31: Documented AI restyle/filter auto-apply on selection (fixes filter loss when going to cart without pressing Apply). Added known issue: AI token usage counted globally instead of per site, fix verified on staging and pending production deploy. Documented that element substitutions now run on all admin previews and embedded inline pages (previously skipped unless `fulfillment=true`). Added known issue: no front/inside page indicator in the mobile card editor. Source: slack-message (#development), support ticket.
+- 2026-08-29: Added Editor Gallery Folders — per-tag theming via `data-gallery-id` (the literal tag name), the `currentColor` inline-SVG folder glyph, the `data-px-tooltip` caption hook, a per-tag thumbnail recipe, and the open question of whether the Galleries tab is distinguishable from Clipart. Added `--neutral-grey-2` and `--caption-height` to the aliasable variable set. Clarified that `@filename@` is the fallback for the non-Liquid Design Tool Configuration Custom CSS field, while `editor.css` and `shopify/custom-styles` are Liquid-rendered and take `asset_url` — marked inferred pending two checks. Added Design Theme Layouts export format (layouts as a sibling of templates, `left`/`top` always 0 with `x`/`y` omitted when zero, mm coordinates, `edit`+`placeholder` photo slots, the fixed tag vocabulary with `5+ photos` as the catch-all) and what is and is not verified about layout import. Source: claude-chat (live editor inspection, photobook layout build).

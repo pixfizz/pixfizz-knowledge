@@ -359,7 +359,7 @@ frequently pre-existing rather than introduced.
 | `clean-checkout` | `TRUE` = suppress nav links (logo + cart only) |
 | `guest-checkout` | `TRUE` = allow guest checkout (default: `TRUE`) |
 | `disable-delivery` | `TRUE` = disable delivery option |
-| `default-delivery-option` | Sets default delivery method |
+| `default-delivery-option` | Preselects a delivery method on `/site/checkout`. Accepted values are **`public`** (in-store pickup), **`private`** (deliver to my address) and `none` (nothing preselected, the parent default) — see §17 |
 | `display-shipping-options` | `TRUE` = show shipping options |
 | `disable-user-registration` | `TRUE` = prevent new registrations |
 | `checkout-disclaimer` | `TRUE` = show checkout disclaimer text |
@@ -695,7 +695,18 @@ with Matjaz.
 - **Email project previews:** Always include `share: orderline.project.share_code` in the preview URL.
 - **Font changes:** Set `admin/checklist/font-body` to `lato`, `open-sans`, `avenir`, or `custom`. For `custom`, populate `style/custom-body-font` with the font-family string.
 - **Shared snippets:** If a snippet is used across multiple client sites, follow the Shared Snippet Contract Rule in `01_CODE_GOVERNANCE.md` — do not remove existing variables, IDs, or JS hooks.
-- **Custom home page content:** Place home page content in the snippet `website/homepage`. This snippet is only rendered when the **"Custom snippet (website/homepage) for home page"** checkbox is ticked in Custom Admin → Storefront Settings. Both the snippet and the checkbox are required — neither works without the other.
+- **Custom home page content:** Place home page content in the snippet `website/homepage`. It is gated on the value snippet `admin/checklist/custom-home-page`, which `pages/__home` reads as:
+
+  ```liquid
+  {%- capture home-page-custom %}{% snippet 'admin/checklist/custom-home-page' %}{% endcapture -%}
+  {% if home-page-custom == 'TRUE' %}
+  ```
+
+  **There is no `| strip` on that capture**, so the snippet body must be byte-exact: `'TRUE\n'` is not `'TRUE'` and the else branch silently serves the seed demo homepage. Every single-line value snippet in the shopper24 seed ends without a newline. See §17, *A trailing newline in a value snippet silently breaks every flag*.
+
+  **PENDING CONFIRMATION — two records conflict.** A 2026-08-24 diagnosis recorded a Custom Admin → Storefront Settings checkbox as also required and not settable from a tar; a 2026-08-27 reading of the parent source found the checklist snippet to be the only gate, with the earlier symptom fully explained by the trailing newline. Until this is settled on a live site, ship the snippet byte-exact **and** check the Storefront Settings toggle after import.
+
+  **Diagnosis.** Load the homepage and look for the wrapper class the custom homepage emits. Wrapper absent while `style/custom.css` tokens resolve and header and footer are branded = the tar imported and the gate is off. Wrapper absent and theme tokens unresolved = the tar did not import. Wrapper present with stale content = caching or a different snippet.
 
 ## 14. Creating Pages on Child Sites
 
@@ -856,7 +867,7 @@ The sidebar is defined in a shared snippet. When adding new pages, update the si
 
 ## 16. Kiosk Touchscreen Mode
 
-**Status:** Partially implemented. Login gate, idle screen, and cart/checkout overlays not yet built. Parked as of May 2026.
+**Status:** Partially implemented. Login gate and cart/checkout overlays not yet built. **Amended 2026-08-29:** `kiosk/idle-screen` now exists on the parent (see the defect note in §17) — the "idle screen not yet implemented" line below is stale for the snippet itself, though the idle timer JS that triggers it is still outstanding. Verify against the parent before quoting this status.
 
 Kiosk mode is a checklist-gated feature designed for in-store photo lab kiosks. When enabled, it transforms the Shopper storefront into a touch-friendly, simplified UI for two primary use cases: ordering photo prints and submitting film processing orders.
 
@@ -1044,6 +1055,263 @@ has) still holds, but the inverse does not — a snippet **absent** from the chi
 well exist on the parent and be perfectly legal to override for the first time. Confirm from
 the parent admin rather than treating absence as proof it does not exist.
 
+### Parent defects that silently disable a setting (2026-08-26)
+
+1. **`font-body` is matched lowercase only.** `html.head` loads the Google Fonts link when
+   `admin/checklist/font-body` is exactly `lato`. `pages/setup/storefront` writes `lato` /
+   `open-sans`, but **`pages/manage/branding` writes `Lato` / `Open Sans` with capitals**, so
+   setting the body font from the branding page does nothing.
+2. **The kiosk idle-screen logo test is inverted.** `kiosk/idle-screen` tests
+   `has_logo != blank`, but the parent ships `update-website-logo` = `FALSE`, and
+   `'FALSE' != blank` is true — so the idle screen renders `header/logo` on every site that
+   explicitly said it has no logo. The correct test is `has_logo == 'TRUE'`.
+3. **`admin/checklist/admin/checklist/kiosk-picker-idle-seconds` exists** as a double-prefixed
+   snippet path, a creation typo. `kiosk/style` also has a doubled `}` closing the token block.
+
+### A trailing newline in a value snippet silently breaks every flag (2026-08-24)
+
+**A value snippet written into a CMS tar must be byte-exact against the parent, including its
+trailing newline or the absence of one.** Checklist and other value snippets on shopper24 carry
+**no trailing newline**: the body of `admin/checklist/search` is exactly `TRUE`, four bytes.
+
+The parent reads them by capture-and-compare, and `capture` does not trim. A generator that
+writes `"TRUE\n"` produces a capture of `TRUE\n`, `TRUE\n == 'TRUE'` is false, and **every
+comparison of that flag fails, silently, forever.**
+
+The signature sends you the wrong way: the tar imports with no error, the snippets are present
+in admin at the right paths with the right descriptions and values that look correct on screen,
+the logo and theme colours and contact details are all visibly right — and the homepage, the
+promotion bar and the logo position are all still the parent template's. The natural reading is
+"checklist flags do not import". They import perfectly; they just never match.
+
+**The tell:** interpolated values are unaffected, because a trailing newline in printed output
+is invisible. Only compared values break. So if the brand colours took and the flags did not,
+this is the bug, every time.
+
+Anything read through `{% capture %}` and tested with `==` is affected — in practice the whole
+of `admin/checklist/*`, and any `style/*` or `website/*` value used in a conditional rather
+than emitted. When unsure, assume compared and write it byte-exact. The one-line generator fix
+is to carry the seed's own trailing whitespace:
+
+```python
+seed_tail = seed_body[len(seed_body.rstrip("\r\n")):]
+body = body.rstrip("\r\n") + seed_tail
+```
+
+Two companions found in the same session:
+
+- **Which navigation style renders is an admin setting a tar cannot read or set.** Overriding
+  one `navigation/style*` and writing "confirm the style" into a checklist has produced a
+  wrong-navigation first delivery repeatedly. Override **every** navigation style the parent
+  ships, and put anything that sits in the header beside the nav — currency picker, language
+  switcher — into all of them too.
+- **`admin/checklist/no-index` ships `TRUE` on the parent.** Any live storefront needs it set
+  to `FALSE`. Nothing on the page shows it.
+- **Build stamps.** Every structural override should carry
+  `<!-- <slug>-build <date> :: <snippet name> -->` as its first body line. It survives into the
+  rendered page and turns "is this surface mine or the parent's?" into a view-source check, and
+  it names which navigation style is actually rendering.
+
+### `default-delivery-option` values are `public` / `private` (2026-08-24)
+
+`admin/checklist/default-delivery-option` controls which delivery method is preselected on
+`/site/checkout`.
+
+| Value | Effect |
+|---|---|
+| `public` | Preselects **In-store pickup** |
+| `private` | Preselects **Deliver to my address** |
+| `none` | Nothing preselected — the shopper must choose (parent default) |
+
+The naming is **address type, not delivery type**: a public address is a store or pickup
+location owned by the site, a private address is the customer's own. Anyone guessing from the
+checkout UI would try `pickup` / `delivery` and get silent no-ops, because the radios carry ids
+`checkoutPickup` / `checkoutDelivery` and `value="on"`.
+
+Proved by `account/v2/order-details`
+(`{% if order.address.is_public %}Pickup Address{% else %}Shipping Address{% endif %}`) and by
+`checkout/shipping-options`, which renders shipping services only
+`{% unless cart.address.is_public %}`.
+
+**No Liquid snippet in the shopper24 tree consumes this key** — the platform's own checkout
+page reads it, like the `/site/cart` shell. It cannot be traced by grepping snippets. The
+parent ships it as `none` with an **empty Description**, which is why the value set is
+undiscoverable from the CMS; any site override should carry a Description listing the accepted
+values.
+
+Two traps: the trailing-newline rule above applies, and the importer is wipe-and-replace, so
+setting this in admin and later importing a CMS bundle that does not carry the override
+silently reverts it to `none`. Related keys: `pickup-in-store` (`TRUE` enables the pickup
+option at all), `disable-delivery`, `display-shipping-options`,
+`dont-require-pickup-contact-details`. Setting a default does not remove the other option.
+
+Sites migrated to the r3w settings architecture read this through `shopper/config` and the
+`shopper_settings` Custom Type delta rather than the checklist snippet — same values, different
+storage.
+
+
+## 18. Generated CSS Is Appended After `style/custom.css`
+
+`/site/custom.css` is not just the `style/custom.css` snippet. Shopper serves one stylesheet
+containing that snippet **followed by** rules it generates from the `style/color-*` value
+snippets. The generated rules carry `!important` and use three-class selectors. Confirmed in
+the live DOM, all from the same sheet, in this order:
+
+| Order | Selector | Value | Source |
+|---|---|---|---|
+| 1 | `a` | site token | the snippet |
+| 2 | `.navbar .nav-link` | site token `!important` | the snippet |
+| 3 | `.brand-nav-cta .nav-link` | `#ffffff !important` | the snippet |
+| 4 | `a` | generated colour | generated |
+| 5 | `.navbar-light .navbar-nav .nav-link` | generated colour `!important` | generated, from `style/color-font` |
+
+Rule 5 is `(0,3,0)` with `!important` and comes last, so it beats rules 2 and 3, which are
+`(0,2,0)`. **Adding `!important` to a two-class selector does nothing about this** — the
+generated rule already has it and wins on specificity.
+
+**The rule: any nav colour set in `style/custom.css` must out-specify
+`.navbar-light .navbar-nav .nav-link`.** Scope under `.navbar-light .navbar-nav` to reach
+`(0,4,0)`:
+
+```css
+.navbar-light .navbar-nav .nav-link { color: var(--brand-ink) !important; }
+.navbar-light .navbar-nav .brand-nav-cta .nav-link { color: #ffffff !important; background-color: var(--brand-accent) !important; }
+```
+
+Observed cost of getting this wrong: a nav CTA rendering the generated font colour on the
+brand background at a contrast ratio of **2.28:1**, live and unnoticed for six days. After the
+specificity fix, 5.88:1.
+
+Assume the same applies to anything else the platform generates from a value snippet. Before
+assuming a custom colour has landed, read the computed style off the live element rather than
+the snippet. Thirty-second diagnostic in the console on the live page:
+
+```js
+const el = document.querySelector('.brand-nav-cta .nav-link');
+Array.from(document.styleSheets).flatMap(ss => { try { return Array.from(ss.cssRules) } catch(e) { return [] } })
+  .filter(r => r.selectorText && r.style && r.style.color && el.matches(r.selectorText))
+  .map(r => [r.selectorText, r.style.color, r.style.getPropertyPriority('color')]);
+```
+
+The last matching rule with the highest specificity wins. Reading the snippet source will not
+tell you this, because the snippet is only half of the served file.
+
+Related, same cause: `theme.min.css` carries
+`.navbar-light .navbar-nav .nav-link { text-transform: capitalize }` at higher specificity, so
+a nav label written in sentence case renders title-cased unless the override matches that
+specificity.
+
+---
+
+## 19. Account v2 (`acv2`) Theming
+
+Applies to any Shopper site running the v2 account area (`admin/checklist/account-v2-*`).
+
+The account area is its own token-driven design system. It does **not** use Bootstrap card or
+list markup; it renders a bespoke `acv2-*` class system from
+`account/v2/{sidebar,dashboard,orders,projects,carts,galleries,addresses,info,dates,calendars,order-details,empty-state}`.
+Its CSS is generated into `/site/custom.css` **after** the site's own `style/custom.css`
+snippet (§18), so equal-specificity overrides lose. Site CSS must out-specify:
+
+- tokens: `div.acv2 { … }` `(0,1,1)` beats their `.acv2` `(0,1,0)`
+- components: `div.acv2 .acv2-card` `(0,2,1)` beats `.acv2-card` `(0,1,0)`
+- stateful: `div.acv2 .acv2-sidebar__item.is-active` `(0,3,1)` beats `(0,2,0)`
+
+**One rule retokenises the whole area.** The platform block defines `--acv2-accent`,
+`--acv2-accent-soft`, `--acv2-text`, `--acv2-text-muted`, `--acv2-bg-page`, `--acv2-bg-card`,
+`--acv2-border`, `--acv2-radius`, `--acv2-radius-lg`, `--acv2-shadow`, `--acv2-shadow-sm` on
+`.acv2`. `--acv2-accent` and `--acv2-text` are generated from `style/color-primary` and
+`style/color-secondary`, so brand colour and ink already inherit; usually only the surface
+tokens need restating. Stock defaults that clash with most brand systems:
+`--acv2-bg-page: #f5f6f8`, `--acv2-bg-card: rgba(255,255,255,0.55)` with
+`backdrop-filter: blur(14px)` (a glass look), `--acv2-radius-lg: 18px`. Glass must be removed
+separately — `backdrop-filter` is a property, not a token:
+`div.acv2 .acv2-card, div.acv2 .acv2-sidebar { backdrop-filter: none; }`
+
+**Platform defect — `--acv2-accent-soft` is malformed.** The generator builds it by appending
+an alpha suffix to the primary colour. Because the `style/color-primary` value snippet body
+ends with a newline, the emitted token is literally `#RRGGBB\r\n1a` — an invalid colour. On
+every site whose colour snippet ends with a newline (likely all of them) the stock active-nav
+tint (`.acv2-sidebar__item.is-active`) and `.acv2-pill--primary` background both resolve to
+transparent. It reads as "the active nav item has no highlight" rather than as an error. The
+fix belongs in the generator (trim the value before concatenation); the site-side workaround is
+to define the active state yourself.
+
+**Buttons.** The theme emits generated button colours as
+`.btn-dark { background-color: … !important; border-color: … !important }` and the same for
+`.btn-primary`, so selector weight alone will not override them — those two need `!important`
+too. `.btn-outline-secondary` and `.btn-light` carry no `!important` and override normally.
+`btn-dark` does double duty in the account markup: `<a class="btn btn-dark">` is navigation and
+`<button type="submit" class="btn btn-dark">` is the page's primary action. Split them by
+element selector rather than restyling both.
+
+**Inline styles in the parent snippets.** `account/v2/dashboard` writes `border-radius: 12px`,
+`background: #f5f6f8` and `background: #eee` inline on the project thumbnail and gallery tile
+wrappers. Only an attribute selector plus `!important` reaches them:
+`div.acv2 [style*="border-radius: 12px"] { border-radius: 4px !important; }`
+
+**The stock dashboard types the user's name out.** `.acv2-typing` sets `max-width: 0` and
+reveals the name via the `acv2Type` keyframes with a blinking caret. Disabling it requires
+resetting the width too — `animation: none` alone leaves `max-width: 0` and the name
+disappears: `div.acv2 .acv2-typing { max-width: none; animation: none; border-right: 0; }`
+
+**Testing gotcha — transitions mask computed values.** `.acv2-sidebar__item` and `.btn` both
+transition `background-color`. Injecting or mutating CSS on a live page and reading
+`getComputedStyle` immediately returns the transition's **start** value, which looks exactly
+like "my rule lost the cascade" and persists long enough to fool a delayed re-read. Even inline
+`!important` appears to fail, because transitions sit above `!important` in the cascade.
+Reliable check: append a **fresh** element carrying the target classes and read its computed
+style — new elements get initial style computation with no transition, which is the page-load
+case you are trying to predict.
+
+**Copy, not CSS.** The stock account strings are consumer photo-lab voice and come through
+`{{ '…' | t: ns: 'account' }}`. On a B2B or trade site they read wrong and no amount of CSS
+fixes them. Whether they can be retargeted through the translations mechanism rather than by
+overriding the parent snippets is **UNCONFIRMED** — do not promise it.
+
+---
+
+## 20. Analytics — GA4 Tagging Defects on the Parent
+
+Audited 2026-08-22 against the shopper24 parent. All of these are parent-level and affect every
+child site unless overridden.
+
+**`view_item` is double-counted on a GTM site.** Shopper ships two tagging paths and both fire:
+an inline `gtag("event","view_item",{…})` call, and a
+`dataLayer.push({event:"view_item", ecommerce:{…}})`. On a site with a GTM container GA4
+receives `view_item` twice per product-page view — once with a numeric Google taxonomy category
+code and once with the readable category. Any product-view count or view-to-cart rate is
+inflated roughly 2×. The three snippets carrying the duplicate are `product/product-details`,
+`product/product-details-filter` and `product/details-filter-dual-mode`: each already renders
+`product/design-now`, which owns the dataLayer push, **and** also ends with
+`{% snippet 'integrations/google/event/view-item' %}`. `product/product-details-fullpage` is
+already correct.
+
+**Photo-prints pages emit no ecommerce event at all.**
+`product/product-details-prints` does not render `product/design-now`, so its only `view_item`
+is the gtag include — dead on any GTM site.
+
+**`purchase` re-fires on refresh.** It is pushed unconditionally on render on `thank-you`,
+`payment_success` and `confirmedorder`. A refresh re-fires with the same `transaction_id` and
+GA4 counts it as new revenue. All three also fall back to
+`user.orders | where: 'status', 'C' | first` when `order` is unset.
+
+**Design products never joined item-level funnels.** `pages/editor-scripts.js` sent `item_id`
+as `theme.code:product.code` — a different SKU from every other event. The theme belongs in
+`item_variant`.
+
+**`integrations/google/gtag` is orphaned.** Nothing includes it, yet its Description reads
+*"Enter in your Analytics account id — replacing 'ABCDE12345' below"*. Editing it does nothing.
+**The snippet that works is `website/gtag`.** The same applies to
+`integrations/google/event/add-to-cart`, `…/begin-checkout` and `…/purchase`; keep only
+`…/view-item` as the no-GTM fallback.
+
+**Free funnel step.** GA4 enhanced measurement fires `form_start` with
+`form_id=project_create` when a shopper launches the design tool — a "started designing" step
+with no tagging work.
+
+---
+
 ## Changelog
 - 2026-03-14: Added website/homepage snippet pattern and Custom Admin checkbox requirement to Section 13.
 - 2026-03-19: Added how to create pages with Custom Types to Section 14.
@@ -1056,3 +1324,4 @@ the parent admin rather than treating absence as proof it does not exist.
 - 2026-07-20: Added kiosk captcha per-subdomain note — captcha config does not carry from the main storefront to the kiosk subdomain and must be set on the kiosk site. Source: support-ticket.
 - 2026-08-05: Corrected `page_path` to store the full slash-joined path at levels 2 and 3, not only the final segment, and corrected the constraint that wrongly stated level 1 only. Added Head-level dependencies must repeat the lookup, covering the `html.head` before `page.content` render order, the paste-ready head lookup block, the `!= blank` guard, and the per-page noindex pattern via a boolean `hide_from_index` custom field. Source: claude-chat.
 - 2026-08-11: Added Value-bearing checklists to Section 5 — many `admin/checklist/*` keys hold interpolated values, and overwriting one with a boolean takes every page down; includes the known value-bearing key list, the case-sensitivity and `| strip` capture rules, and the `custom-X-page` flag against an empty target snippet. Added three Known Gotchas: the Add to Cart button carries no `type` attribute; reading the product price from JavaScript (`px-product-price`, the `regular_pricing` strikethrough trap, observer placement, and `unit-price="true"` instead of JS division); and a child's CMS backup can hold a stale inherited copy of a parent snippet. Source: claude-chat.
+- 2026-08-29: Added §18 generated CSS is appended after `style/custom.css` (nav colour overrides must out-specify `.navbar-light .navbar-nav .nav-link`, with the console diagnostic and the `text-transform: capitalize` companion). Added §19 Account v2 theming — specificity ladder, token list, the malformed `--acv2-accent-soft` platform defect, `!important` on `.btn-dark`/`.btn-primary`, inline styles in the parent dashboard, the typing animation, and the transition-masks-computed-values testing gotcha. Added §20 GA4 tagging defects on the parent — duplicate `view_item`, photo-prints emitting nothing, `purchase` re-firing on refresh, the `item_id` mismatch for design products, and the orphaned `integrations/google/gtag`. Added §17 gotchas: the trailing-newline value-snippet rule with its signature and generator fix, the `default-delivery-option` `public`/`private` value set, and three parent defects (lowercase-only `font-body`, inverted kiosk idle-screen logo test, double-prefixed checklist path). Corrected the custom home page gate to the `admin/checklist/custom-home-page` capture with no `| strip`, flagged pending on whether the Storefront Settings checkbox is also required. Amended the §16 kiosk status. Source: claude-chat.

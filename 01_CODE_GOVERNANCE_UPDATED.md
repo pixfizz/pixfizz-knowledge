@@ -340,6 +340,129 @@ Never instruct a client or developer to create a new snippet directly on
 a child site — it will not exist and the `{% snippet %}` call will return
 blank, silently failing with no error.
 
+## Value Snippets in a CMS Tar Must Be Byte-Exact
+
+**A value snippet written into a CMS tar must match the parent byte for byte,
+including its trailing newline or the absence of one.** Checklist and other value
+snippets on shopper24 carry **no** trailing newline: the body of
+`admin/checklist/search` is exactly `TRUE`, four bytes.
+
+The parent reads them by capture-and-compare, and Liquid's `capture` does not trim.
+A generator that writes `"TRUE\n"` produces a capture of `TRUE\n`, which never
+equals `'TRUE'`, so **every comparison of that flag fails silently and permanently**
+while the tar imports without error and the snippet looks correct in admin.
+
+Interpolated values are unaffected, because a trailing newline in printed output is
+invisible. Only compared values break. **If the brand colours took and the flags did
+not, this is the bug.**
+
+Generator fix — carry the seed's own trailing whitespace rather than deciding:
+
+```python
+seed_tail = seed_body[len(seed_body.rstrip("\r\n")):]
+body = body.rstrip("\r\n") + seed_tail
+```
+
+Any generator that writes CMS snippets should **error**, not warn, when an
+overridden snippet's trailing whitespace differs from the seed's. See
+50_SHOPPER_TEMPLATE_REFERENCE.md §17 for the full signature.
+
+## Archive Emission — Use Psych, Not an Imitation of It
+
+Verified 2026-08-24 against a full Collections → Export All (24 collections, 371
+publish rows, 3,118 lines), reproduced byte for byte by a generator.
+
+The documented nil habit is confirmed live: a nil emits as `key: ` with **one
+trailing space**, an empty string emits `key: ''`, and a mapping or sequence key
+emits `key:` with no space. The distinction survives inside nested maps.
+
+**New, and it changes the advice:** the platform runs a Ruby whose Psych writes that
+trailing space. **Ruby 3.3 does not.** So "just use Ruby" is no longer sufficient on
+its own — a modern Psych needs a post-pass to restore the space, distinguishing a nil
+from a nested structure by whether the following non-blank line is indented deeper
+than the column the key starts at, or is a `- ` sequence item at or beyond it.
+
+**Ruby is still the right emitter, and this corrects the Python approach.** Two
+further Psych habits appear in this export that a Python emitter does not reproduce:
+
+- **Psych quotes ambiguous scalars.** `product_code: '0408-pro'` and
+  `print_theme_code: '0808-cut-print'` are quoted; `4x6-bordered` is not. PyYAML
+  quotes none of them.
+- **Psych folds long double-quoted scalars at different break points**, and without
+  PyYAML's continuation marker.
+
+Measured: a Python emitter with the documented nil fix left **87 differing lines out
+of 3,118** — 50 from folding, 37 from quoting. Ruby's Psych plus the nil post-pass
+produced a **byte-identical** round trip.
+
+Keep the existing discipline of proving the emitter against a real export and
+refusing to run otherwise. It is what caught both of these.
+
+## The Collections Export Format
+
+Fourth member of the archive family alongside the CMS backup, the Custom Type
+instance archive and the per-product archive, and it follows the same
+five-empty-media-directory convention.
+
+```
+./assets/  ./fonts/  ./glb_files/  ./images/  ./pdfs/
+./__theme_categories.yml
+```
+
+gzipped `.tar.gz`, media directories first in the archive, YAML last.
+
+- Export: Manage Products → Collections → Export All.
+- Import: Manage Products → Collections → Import, `enctype: multipart/form-data`,
+  file field `exported_file`, accepts `.gz`.
+
+**Record shapes — the platform's key order, do not reorder.**
+
+- **theme_category** — `id`, `product_id`, `name`, `asset_name`, `description`,
+  `display_name`, `custom`, `linked_assets`, `product_themes`, `static_products`,
+  `translations`. `name` is the URL path segment, `display_name` is the label.
+  `product_id` on the collection itself marks a product-specific collection and was
+  nil on all 24.
+- **product_theme** — a design published against a product — `id`, `product_id`,
+  `print_theme_id`, `order`, `published`, `product_code`, `print_theme_code`.
+- **static_product** — the same minus `print_theme_code`; `print_theme_id` is nil.
+- **linked_assets** — `id`, `thing_type` (`ThemeCategory`), `order`,
+  `mapped_preview`, `glb_blob_hash_key`, `asset` (the filename).
+
+**A populated media directory, first time observed in this family.** Binaries are
+named by **bare numeric asset id, no extension** (`assets/390591`), and the filename
+lives in `__asset_map`, keyed by that id as a quoted string, with **Ruby symbol keys**
+inside:
+
+```yaml
+__asset_map:
+  '390591':
+    :name: Cardstock-Prints.jpg
+    :description: ''
+```
+
+All four maps sit at the **end** of the YAML file, not in separate files; empty ones
+emit `{}`.
+
+**Verified on export only.** Whether the importer creates assets from a populated
+`assets/` directory, or still requires them to pre-exist in Website → Assets as the
+per-product patch documented, is untested. Do not build on it until someone imports
+one.
+
+**What a collections export cannot tell you.** No record carries a site or owner
+field — no `site_id`, no `website_id`, no hostname, no URL anywhere in the archive,
+confirmed by grep across the whole file. A collections export therefore **cannot
+answer whether a product or design is owned by the site or inherited from a parent**.
+It records what is published where, not where the record lives. Go to Products in
+admin (inherited records show but are not editable) or compare exports.
+
+Also unverified: whether a blank `id:` is accepted by the collections importer
+(verified for the per-product importer only); whether IDs are global across sites
+(the gaps in one export point that way, and if it holds, intersecting theme IDs
+between two sites' exports is a definitive inheritance test); how sub-collections are
+expressed (all 24 paths were single-segment yet four collections had
+`sub_collections: true`); and whether re-importing an archive whose collection `name`
+already exists updates in place or duplicates.
+
 ## Changelog
 
 - 2026-03-12: Expanded Dynamic Snippet Rule with `style onload` pattern, placement rule, direct init call requirement, and `{% comment %}` block marker convention.
@@ -348,3 +471,4 @@ blank, silently failing with no error.
 - 2026-04-09: Added Checklist Snippet Creation Rule — parent template must originate all snippets before child sites can override them.
 - 2026-07-28: Added Master Shopper Delivery Rule — never deliver a tar for the parent template site; parent changes ship as paste-ready blocks matching each target file's existing indentation. Source: claude-chat.
 - 2026-08-11: Hardened the CMS Backup Tar Packaging Rule — front matter is a database row and a missing `renderer_type` aborts the import with a generic error naming no file; packaging must be one atomic command with a freshness assertion, because a stale tar imports cleanly and changes nothing; the seed backup is the authority for Liquid vocabulary. Recorded that `asset_files/` transfer and CDN content-hash cache-busting were both ruled out as causes. Added the Custom Type Instance Archive Packaging Rule (gzipped, five empty media directories, four `__*_map` keys, literal block scalar for `page_content`). Source: claude-chat.
+- 2026-08-29: Added the byte-exact value snippet rule for CMS tars — `capture` does not trim, so a trailing newline makes every compared flag fail silently while the tar imports cleanly; includes the generator fix and the instruction to error rather than warn. Added Archive Emission — the platform's Psych writes a trailing space after a nil scalar and Ruby 3.3 does not, so a modern Psych needs a post-pass; Psych also quotes ambiguous scalars and folds long double-quoted scalars differently from PyYAML (measured 87 differing lines in 3,118 for a Python emitter, byte-identical for Psych plus the nil post-pass). Added the Collections export format — archive shape, import path, the four record shapes in platform key order, the bare-numeric-asset-id convention with `__asset_map` Ruby symbol keys, and the fact that a collections export carries no site or owner field and so cannot answer inheritance. Source: claude-chat.

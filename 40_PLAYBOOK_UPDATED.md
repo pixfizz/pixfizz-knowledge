@@ -529,6 +529,66 @@ the cause, and both cost a print.
 
 ------------------------------------------------------------------------
 
+## Optimising 360-Degree Product Spin GIFs
+
+Spin GIFs are the heaviest asset class on a photo or print storefront and are easy
+to miss, because each file looks like "just a product thumbnail". One measured
+sample was **3,131 KB for a 300x300 image** — 72 frames at 0.10 s. A collection page
+loading ten of them at 600x600 pays twice: bytes over the wire, and CPU, because ten
+simultaneously animating GIFs keep the compositor busy the whole time the grid is on
+screen.
+
+Measured on that sample:
+
+| Approach | Result | Saving | Notes |
+|---|---|---|---|
+| `gifsicle -O3` lossless | 3,126 KB | 0% | Already structurally optimal |
+| `-O3 --lossy=80 --colors 128` | 816 KB | 74% | Safe: all 72 frames kept |
+| every 2nd frame + lossy | 408 KB | 87% | 36 frames / 10-degree steps, still smooth |
+| every 3rd frame + lossy | 261 KB | 92% | 24 frames / 15-degree steps |
+| animated WebP (72f) | 280 KB | 91% | Format change |
+| animated WebP (36f) | 176 KB | 94% | Format change |
+| static first frame (WebP) | 4 KB | 99.8% | No animation |
+
+Quality was checked by extracting frame 0 from each and comparing at 3x zoom on a
+smooth background gradient, the usual place lossy GIF banding appears. No visible
+banding even at 92% reduction.
+
+**The trap: dropping frames speeds up the spin.** Frame count and delay are
+independent. Halving the frames without doubling the per-frame delay makes the
+product rotate twice as fast, which reads as a different, cheaper product video.
+Always recompute `new_delay = original_delay x frames_dropped_factor` and verify
+with `gifsicle --info` or PIL that total rotation time matches the original. Note
+`gifsicle -d` does **not** apply when placed alongside frame-selection arguments (it
+warns "useless delay-related frame option") — set the delay in a second pass,
+`gifsicle -b -d20 out.gif`.
+
+**Recommended default:** every 2nd frame plus `--lossy=80 --colors 128`, roughly 87%
+smaller, still a GIF so filenames and product records are untouched.
+
+**The bigger win: do not animate the grid.** A spin belongs on the product page, not
+on a collection tile. Serving a static first frame on the grid and keeping the
+animation on the PDP takes a collection page from tens of MB to a few hundred KB and
+removes the CPU cost entirely. On Pixfizz this is a data-side change (grid preview
+image versus product gallery), not a template one.
+
+**UNCONFIRMED:** whether Pixfizz accepts an animated WebP as a product image, and
+whether the thumbnailer preserves animation for GIF or WebP product images. Confirm
+before recommending the WebP route to a client.
+
+## Recommended Admin Security Hardening
+
+Pattern being deployed across sites as of August 2026. Worth offering on any store
+with more than one admin user.
+
+- **Rename the admin URLs** away from the default paths.
+- **Enforce 2FA** for admin users.
+- **Block admin access via the main storefront domain**, so administration is only
+  reachable on the separate admin host.
+
+Recorded from a client call, **not verified against the admin UI** — confirm the
+exact settings and where they live before walking a client through it.
+
 ## Changelog
 - 2026-03-21: Initial content from platform documentation export.
 - 2026-04-23: Added CSS snippet logs diagnostic note, password reset Liquid deprecation pattern, fulfillment template DPI failure, URL reserved parameter 404 gotcha, Stripe pending-without-payment issue, FTP original files intermittent failure.
@@ -541,3 +601,4 @@ the cause, and both cost a print.
 - 2026-07-20: Added Shopper v2 account `date_format` gotcha — `account/v2/orders` and `account/v2/dashboard` miss `| strip` on the date_format capture, causing a format mismatch with order-details. Source: claude-chat.
 - 2026-08-14: Added the rule that shopper-supplied strings rendered on admin pages must be escaped, with the ordered response steps for suspected admin credential compromise (fix injection point, force site-wide logout, then rotate) and the multi-site bulk-password-reset timeout note. Added the rule that editing a confirmed order does not regenerate its production files — force refulfill, deleting the existing generated file first. Added wrapped-canvas mirrored-edge diagnosis (template definition and bleed value, not the renderer). Source: slack-message (#support), fireflies-call (2026-08-11/12).
 - 2026-07-28: Added Collection Filter Drilldown blank-PDP entry — stale or invalid dependent filter values break the drilldown; fix is a three-tier selection cascade in `product/product-details-filter` and `product/details-filter-dual-mode`. Source: claude-chat.
+- 2026-08-29: Added Optimising 360-degree product spin GIFs — measured savings table (lossless gains nothing; lossy plus every-2nd-frame is roughly 87% smaller), the frame-dropping trap that silently speeds up the rotation and how to recompute the delay, and the larger win of serving a static first frame on collection grids. Added Recommended Admin Security Hardening (rename admin URLs, enforce 2FA, block admin via the main domain), flagged as unverified against the admin UI. Source: claude-chat, fireflies-call.

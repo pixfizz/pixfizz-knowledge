@@ -911,6 +911,19 @@ attributes.
 
 ---
 
+## Fields Seen Live But Absent From This Reference
+
+Recorded so the next person does not conclude they do not exist. **Unconfirmed —
+each needs a one-object test before being relied on.**
+
+| Object | Field | Seen | Status |
+|---|---|---|---|
+| Collection | `unpublished` | 2026-08-26, in a live collection's `custom` hash | **Unconfirmed** whether the Shopper `/site/shop` index respects it. Not the same as `blog_unpublished` or `service_unpublish`, both of which are listed above. |
+
+This one matters because Shopper generates its shop index from **all** collections,
+so a private or corporate collection is publicly listed by default unless something
+hides it. Test on one collection before promising it to a client.
+
 ## Changelog
 - 2026-06-01: Added Collection field sub_collections_position (subcollection render order). Source: chat/slack/call.
 - 2026-06-30: Added hide_from_search boolean (Product + Design) — excludes a product/design from the storefront search flyout. Deployed platform-wide on Shopper. Source: claude-chat, slack-message (#development).
@@ -921,3 +934,4 @@ attributes.
 - 2026-08-14: Added the checkout delivery-speed and generic order flags to the Cart table (`rush`, `urgent`, `option1`, `option2`, `option3`; count 11 → 16), with the no-underscore naming rule, the OrderHub lowercase/whitelist dependency, and the explicit `true`/`false` value convention. Noted `rush_production` as the older single-purpose flag it supersedes. Source: fireflies-call (2026-08-13), claude-chat.
 - 2026-08-11: Corrected the field type list — there is no `html` type; all 18 table rows typed `html` changed to `snippet`, and the Phase 3 type list corrected to text/multitext/boolean/number/asset/snippet. Added Key Notes for what each non-string type returns in Liquid, the `Public` flag controlling non-admin edit rights rather than storefront visibility, and large-content capacity being snippet-type only (text-type caps around 1KB). Added Section — the per-product export archive as a bulk-creation format carrying variant types and values. Source: claude-chat (Shopper v2 verification kit, art-archive build).
 - 2026-08-21: Added snippet-type custom field rendering gotcha (requires non-empty Description). Source: slack-message + fireflies-call.
+- 2026-08-29: Added Fields Seen Live But Absent From This Reference — `unpublished` observed in a live Collection `custom` hash, distinct from `blog_unpublished` and `service_unpublish`, with the open question of whether the Shopper shop index respects it (Shopper lists all collections by default). Source: claude-chat.

@@ -421,6 +421,108 @@ When using multiple fulfillment templates that route to FTP, the folder name in 
 
 ---
 
+## Canvas Wrap Geometry — `borderwrap` and `<ipage> zoom`
+
+Derived 2026-08-22 from real exports and confirmed on three samples.
+
+### `borderwrap` is the mirror-wrap depth
+
+```xml
+<image borderwrap="44.45" width="393.7" height="393.7" .../>
+```
+
+Measured **inward from the image element's own edge, in millimetres**, so
+
+```
+print area = image element - 2 x borderwrap
+```
+
+Confirmed on two exports (15.5 - 2(1.75) = 12; 17 - 2(2.5) = 12).
+
+**This is not a fulfillment transformation.** `fulfillment_transformations` is `[]`
+in both exports — the mirror lives entirely in the layout element.
+
+A canvas is four numbers: print area `W x H`, bleed `b`, mirror depth `m`
+(`m <= b`; the remainder prints white).
+
+| Layout | image element size | position | extra |
+|---|---|---|---|
+| `gallery` | `(W+2m) x (H+2m)` | `(b-m, b-m)` | — |
+| `mirror` | `(W+2m) x (H+2m)` | `(b-m, b-m)` | `borderwrap="m"` |
+| `color` | `W x H` | `(b, b)` | wrap takes the chosen colour |
+
+`design_options[].crop_aspect_ratio` equals the print area and **must be rewritten
+on any size change** — it is the field that silently mis-crops every customer
+upload.
+
+**When asking a lab for wrap depth, expect them to answer with stretcher-bar
+thickness** (3/4 inch, 1 1/2 inch) instead. That is the bar, not the wrapped
+material. Ask again.
+
+### `<ipage> zoom` is derived, and `crop="true"` means cover, not fit
+
+```
+cover(box, X) = max( box_w / X_w , box_h / X_h )
+zoom = ( cover(box, print_area) / cover(box, page) - 1 ) x 100
+```
+
+At `zoom=0` the referenced page is scaled to **cover** the box. `zoom` is the extra
+scale that makes the *print area* cover the box instead, so bleed and wrap fall
+outside and are cropped.
+
+Confirmed on three samples including a 5x7 layflat cover (39.024390243902).
+
+**A simpler-looking form is wrong.** Taking `max` over the two axes of
+`page / print_area` reproduces the square samples by coincidence and gives 37.5 on
+a 16x20 where the answer is 30.
+
+`zoom` does not vary with box size. `left` and `top` are the pan offset and are 0
+whenever the box aspect matches the print-area aspect.
+
+## Template Import — `products[].price` Validates Presence
+
+Verified 2026-08-28 by a real import of `__print_product.yml` (Manage Products →
+Templates → Import):
+
+| Field | Value |
+|---|---|
+| Type | `ActiveRecord::RecordInvalid` |
+| Extra info | `Validation failed: Price can't be blank` |
+
+`products[].price` had been emitted as `''`. **An empty string is not accepted** —
+unlike `products[].image`, where `''` is the fix and `nil` is the failure. The two
+adjacent traps want opposite values:
+
+| Path | `nil` | `''` |
+|---|---|---|
+| `products[].image` | **fails** — `Column 'image' cannot be null` | passes |
+| `products[].price` | untested | **fails** — `Price can't be blank`; `'0'` passes |
+| `products[].variant_types[].price` | passes | — |
+| `products[].variant_types[].variant_values[].price` | — | passes |
+
+**Emit `price: '0'`** on the product row when no formula is wanted. Quoted, per the
+digits-only quoting rule.
+
+**Status: verified 2026-08-29.** The archives were regenerated with `price: '0'`
+and the template import succeeded.
+
+**Generator lesson.** The two-direction archive diff nearly caught this and did
+not, because it asked "nil here, filled there" and the generated file had `''`.
+Widen it to flag any path that is non-blank in every reference and
+**blank-or-empty** in the generated file, treating `nil` and `''` as the same
+condition — then decide which of the two the platform wants, **per path**. They are
+not interchangeable and the accepted value has to be recorded per path, not per
+type.
+
+Two restatements from the same build, both easy to get wrong when resizing by hand:
+
+- Page geometry inside `print_themes[].templates[].data` is **in millimetres
+  regardless of the definition's `unit`**. An inch-unit definition of
+  `width="36" height="24"` pairs with a page XML of `width="914.4" height="609.6"`.
+- **Cut print size naming is landscape-first in the XML.** A template named `8x12"`
+  carries `width="12" height="8"` — the second number is the width. Follow the
+  seed, not the name.
+
 ## Changelog
 - 2026-04-03: Created from platform documentation provided by AdeB. Covers page parameters, safe area, growing spine, and layflat spread.
 - 2026-04-03: Added PDF Layers section — layer attributes, separate-file, separate-page, per-page layer control, filename placeholders.
@@ -428,3 +530,5 @@ When using multiple fulfillment templates that route to FTP, the folder name in 
 - 2026-04-03: Added definition attributes, captions, sequential page types, and four annotated product examples (photo prints, canvas, photobook, greeting card).
 - 2026-05-27: Added FTP Fulfillment Behavior section — FTP path prefix behavior (originals/ vs /originals/), _additional_files.json for sending original uploads to FTP, escape_json filter requirement for JSON job tickets, Job Tickets folder naming rule. Source: Fireflies calls, Slack #dev.
 - 2026-06-15: Added Multi-Page Product Page-Count Rules — booklet page count must be divisible by 4; old softcover templates can carry a page-count ghost bug (mitigation: rebuild on a fresh template). Source: slack-kb-sync (booklet rules; softcover bug).
+- 2026-08-29: Added Canvas Wrap Geometry — `borderwrap` is the mirror-wrap depth measured inward from the image element in mm (`print area = element - 2 x borderwrap`), the three canvas wrap layouts fully parameterised from print area / bleed / mirror depth, the `crop_aspect_ratio` rewrite requirement on any size change, and the derivation of `<ipage> zoom` (with the plausible-but-wrong simpler form called out). Added Template Import — `products[].price` validates presence, so `''` aborts the import with `Validation failed: Price can't be blank`; emit `price: '0'`, note this is the opposite of `products[].image`, and widen the archive diff to treat `nil` and `''` as one blank condition recorded per path. Restated mm page geometry regardless of definition unit, and landscape-first cut print naming. Source: claude-chat.
+- 2026-08-29: Confirmed by re-import that `price: '0'` on the products row is accepted — the template import succeeds. Source: claude-chat.

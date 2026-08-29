@@ -1482,5 +1482,39 @@ Weekly win/goal items per user.
 
 ---
 
+## Two Postgres / Supabase Rules That Cost a Month of Silent Breakage
+
+Established 2026-08-25 while fixing a wizard that had been unusable since 22 July.
+
+### 1. An RLS policy on table X must never call a helper that re-reads table X
+
+`INSERT … RETURNING` cannot see its own row. A `STABLE SECURITY DEFINER` function
+that re-reads the target table returns false, the `RETURNING` clause is refused,
+and **Postgres reports it as a WITH CHECK violation**:
+
+```
+new row violates row-level security policy for table "review_domains"
+```
+
+That message points at the INSERT policy, which is innocent. The SELECT-side policy
+is the one at fault.
+
+- **Express the policy against the row's own columns.**
+- **Isolate it** by running the insert with and without `RETURNING` inside a
+  rolled-back transaction. If it succeeds without `RETURNING`, this is the bug.
+- Policies on *other* tables that reference X are fine, because X's row already
+  exists by then.
+
+### 2. Any column PostgREST upserts on needs a **non-partial** unique index
+
+Postgres will not accept a partial unique index as an `ON CONFLICT` arbiter unless
+the statement repeats the predicate, and PostgREST's `{ onConflict: "brand_id" }`
+emits a plain `ON CONFLICT (brand_id)`:
+
+```
+42P10: there is no unique or exclusion constraint matching the ON CONFLICT specification
+```
+
 ## Changelog
 - 2026-03-26: Full schema populated from Lovable export. 88 tables documented.
+- 2026-08-29: Added two Postgres/Supabase rules — an RLS policy on a table must not call a helper that re-reads that same table, because `INSERT … RETURNING` cannot see its own row and Postgres misreports the failure as a WITH CHECK violation on the innocent INSERT policy (isolate by running the insert without `RETURNING` in a rolled-back transaction); and any column PostgREST upserts on needs a non-partial unique index, or `onConflict` fails with `42P10`. Source: claude-chat.

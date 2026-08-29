@@ -277,6 +277,85 @@ That’s the set that needs to be “muscle memory” when debugging option rend
 
 ---
 
+## A Single-Value Variant Type Renders as a Selected Button
+
+Found 2026-08-24 on a print product page.
+
+When a Shopper variant type has exactly one value, that value is auto-selected, so
+it picks up the theme's **selected** state:
+
+```css
+.variant-selector label.field-label input:checked + .label-text { background:#3b3b3b; color:#fff; }
+```
+
+The result is a large dark pill that looks like an interactive choice, cannot be
+changed, and is not in the site palette. On a title with four fixed specifications
+(cover paper, content paper, cover finish, binding) that is four stacked blocks of
+roughly 190 px each, which pushed quantity and Add to order below the fold on a
+1512 px viewport.
+
+**This hits any print product whose specification is fixed per SKU, which is most
+web-to-print.**
+
+The markup:
+
+```
+div.select-box
+  div.px-title
+    label                      "Select Cover Paper"
+  div.row
+    div.col-4.col-md-3         one per value
+      label.field-label
+        input                  radio, visually zero-sized
+        div.label-text         "230 gsm"
+```
+
+The value columns are the light-DOM children of `px-option-selector`, whose shadow
+root is only a `<slot>`, so `style/custom.css` reaches them normally. No `::part()`
+needed.
+
+**The fix** — detect the single-value case with `:only-child` and render the group
+as a spec row instead of a button:
+
+```css
+.select-box:has(.row > div:only-child) {
+	display: flex; align-items: baseline; justify-content: space-between;
+	padding: 11px 0; border-bottom: 1px solid var(--brand-line);
+}
+.select-box:has(.row > div:only-child) .label-text,
+.select-box:has(.row > div:only-child) .field-label input:checked + .label-text {
+	background: transparent !important; color: var(--brand-ink) !important;
+	border: 0 !important; border-radius: 0 !important; padding: 0 !important;
+	font-size: 14px !important; font-weight: 600 !important; text-align: right;
+}
+```
+
+Measured: each group drops from about 190 px to 54 px. Two properties worth
+keeping: **it reverts itself** — add a second value and `:only-child` stops
+matching, so the buttons come back with no code change — and **it fails in the
+right direction**, since a browser without `:has()` keeps the old appearance rather
+than a broken one.
+
+**Not fixable in CSS.** The variant type names read "Select Cover Paper". For a
+fixed specification the verb is wrong; rename the variant types in admin. The Add
+to cart label is literally uppercase in the theme markup, not `text-transform`, so
+it cannot be sentence-cased from `style/custom.css`.
+
+## Unset Booleans Export as the String `'false'`
+
+An unset boolean in a YAML export comes back as the **quoted string** `'false'`,
+which Liquid reads as truthy. This affects `hidden`, `read_only` and
+`hide_from_cart` — all of which live **inside** `custom`, not at the top level.
+
+**After importing any option archive, re-check both flags in admin.** An option
+intended as `read_only: false` can import as effectively read-only, and
+`read_only: true` renders a hidden value input plus a read-back chip with no file
+input, so a script-injected upload lands nowhere.
+
+The `'false'` trap bites **string** fields only. A genuine boolean custom field is
+safe with `{% if collection.custom.x %}`.
+
 ## Changelog
 - 2026-06-19: Added section 4.8 `toggle` selector (2-value animated CSS-only switch on `product/px-options`), including the `toggle_hide_labels` bare-switch option, guard/fallback behavior, and primary-colour sourcing. Added cart-context note (7) that toggle is product-page only. Added `toggle` and `toggle_hide_labels` to the recognize-and-document list (8).
 - 2026-07-28: Added 5.2c — option input names differ between the product page (`variants[code]`) and project-edit (`book[options][code]`); scripts must suffix-match and must handle hidden inputs. Source: claude-chat.
+- 2026-08-29: Added the single-value variant type gotcha — one value is auto-selected and inherits the theme's selected-button styling, producing a large fixed pill that costs roughly 190 px per group; includes the markup tree, the `:only-child` CSS fix that reverts itself when a second value is added, and the two things that need an admin change rather than CSS. Added: unset booleans export as the quoted string `'false'` and read truthy in Liquid, affecting `hidden`, `read_only` and `hide_from_cart` inside `custom` — re-check both flags in admin after importing any option archive. Source: claude-chat.

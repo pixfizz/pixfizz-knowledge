@@ -104,5 +104,18 @@ MyPixfizz is **operationally connected** to the Pixfizz platform but is a separa
 
 ---
 
+## Credential Storage — One Store for Pixfizz Admin Access
+
+Design rule established 2026-08-25.
+
+**`brand_api_credentials` is the single store for Pixfizz admin access.** A new
+connector asks the customer for a login **only** when
+`brand_api_credentials.credential_vault_id` is null, and when it does ask it writes
+at brand level via `customer_set_brand_api_credentials`.
+
+Per-connector credentials are an override, never the default path. Anything that
+prompts for a Pixfizz login it could have inherited is a bug in the connector.
+
 ## Changelog
 - 2026-03-26: Initial version. Compiled from Lovable project summary.
+- 2026-08-29: Added Credential Storage — `brand_api_credentials` is the single store for Pixfizz admin access; a connector prompts for a login only when `credential_vault_id` is null and writes at brand level via `customer_set_brand_api_credentials`, with per-connector credentials as an override rather than the default. Source: claude-chat.

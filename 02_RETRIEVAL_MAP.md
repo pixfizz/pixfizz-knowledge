@@ -395,6 +395,56 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 - 10/11/12/30/31 (platform truth — still applies)
 - Shopper and Shopify files are non-authoritative
 
+## Routes added 2026-08-29
+
+### "Style clipart folders / a different image per clipart tag / px-gallery-item / data-gallery-id / the folder icon in the editor?"
+→ **17_DESIGN_TOOL.md** § Editor Gallery Folders — Per-Tag Theming
+
+### "My custom colour is in style/custom.css but the live page ignores it / nav links are the wrong colour / why does !important not work?"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 18 Generated CSS Is Appended After `style/custom.css`
+
+### "Theming the account area / acv2 / the account pages ignore my CSS / the active sidebar item has no highlight?"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 19 Account v2 (`acv2`) Theming
+
+### "GA4 numbers look doubled / purchase fires twice / which Google snippet do I put the measurement id in?"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 20 Analytics — GA4 Tagging Defects on the Parent
+
+### "The tar imported but the homepage / promotion bar / logo position is still the template's?"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 17, *A trailing newline in a value snippet silently breaks every flag*, and **01_CODE_GOVERNANCE_UPDATED.md** § Value Snippets in a CMS Tar Must Be Byte-Exact
+
+### "How do I preselect in-store pickup or delivery on checkout?"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 17, *`default-delivery-option` values are `public` / `private`*
+
+### "Setting pixfizz.product_sku on hundreds of Shopify variants / bulk metafield import?"
+→ **60_SHOPIFY_INTEGRATION.md** § 2 Setting variant metafields in bulk
+
+### "414 Request-URI Too Large when clicking Personalize on a photo prints product?"
+→ **60_SHOPIFY_INTEGRATION.md** § 11
+
+### "Canvas wrap depth / borderwrap / gallery vs mirror vs colour wrap / what is ipage zoom?"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Canvas Wrap Geometry
+
+### "Template import failed with Price can't be blank?"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Template Import — `products[].price` Validates Presence
+
+### "Translations / the t filter / my translation file imported and nothing changed?"
+→ **50_LIQUID_REFERENCE.md** § Translation Keys
+
+### "Currency switcher on the storefront / showing prices in another currency?"
+→ **50_LIQUID_REFERENCE.md** § Display Currency Switching on Shopper 24
+
+### "A variant type with one value renders as a big dark button?"
+→ **22_OPTION_VARIANT_RENDERING.md** § A Single-Value Variant Type Renders as a Selected Button
+
+### "Where does postage or a flat fee go / my postage multiplied by the item count?"
+→ **30_PRICING_ENGINE.md** § Per-Order Charges Must Never Sit on a Variant
+
+### "Collections export format / what a collections export can and cannot tell me about inheritance?"
+→ **01_CODE_GOVERNANCE_UPDATED.md** § The Collections Export Format
+
+### "Spin GIFs are huge / optimising 360 product animations?"
+→ **40_PLAYBOOK_UPDATED.md** § Optimising 360-Degree Product Spin GIFs
+
 ## Changelog
 - 2026-03-13: Added Shopify Integration section and Shopify scope warning.
 - 2026-03-26: Added MyPixfizz section pointing to 70/71/72 files.
@@ -411,3 +461,4 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 - 2026-05-21: Added routing entries for automatic discounts, static product importer, inventory tracking, login modal, myPixfizz hub, gift vouchers, infrastructure versions, customer training, communication preferences. Source: Q1 2026 webinar KB sync.
 - 2026-07-26: Added 83_AI_IMAGERY_PRODUCTION.md — AI marketing imagery and video production with Higgsfield. Added routing entries for AI imagery and the product-representation rule.
 - 2026-08-14: Audited the 2026-05-21 routing entries against the files they point at. Two pointed at sections that did not exist: Gift Vouchers (now written into 18_ADMIN_NAVIGATION.md § Marketing) and Customer Training and Support Resources (re-pointed to 90_FAQ.md § Section 1). Source: kbsync audit.
+- 2026-08-29: Added 16 routing entries for the 2026-08-29 sync — editor gallery folder theming, generated-CSS specificity, acv2 theming, GA4 defects, the trailing-newline flag failure, `default-delivery-option`, Shopify bulk variant metafields, the photo-prints 414, canvas wrap geometry and ipage zoom, the template-import price validation, translations, the currency switcher, single-value variants, per-order charges on variants, the collections export format, and spin GIF optimisation. Every target section was written in the same sync. Source: kbsync.

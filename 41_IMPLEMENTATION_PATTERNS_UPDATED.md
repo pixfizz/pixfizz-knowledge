@@ -546,10 +546,30 @@ for AI crawlers and cosmetically imperfect; and any generated creation bundle
 must not put `.txt`/`.md` in `asset_files/` without verifying the importer path
 separately.
 
-**Image pipeline is WebP-only.** No AVIF support; `format: 'webp'` is the
-ceiling. Do not emit AVIF variants in any `srcset`. *(Pending: AVIF was raised
-as a future capability on the 2026-08-10 technical call. Treat WebP as current
-until it ships.)*
+**Image pipeline: the `format:` filter is WebP-capped; AVIF ships as an
+uploaded asset.** *(Corrected 2026-08-29 — the previous text read "WebP only, no
+AVIF support", which conflated a filter parameter with a format ban.)*
+
+The `asset_url` filter's `format:` parameter accepts `jpeg`, `png` or `webp`
+only. The platform will not **transcode** an asset to AVIF at request time, and
+`format: 'webp'` is an accurate description of that ceiling. It does not follow
+that AVIF cannot be used: pre-encoded AVIF files upload to the asset store and
+serve through `<picture>` normally, and have shipped in production bundles since
+16 August 2026.
+
+Current rule: **AVIF + WebP, delivered through `<picture>`, WebP as the `<img>`
+fallback, no JPEG copies for new imagery.** AVIF must be uploaded pre-encoded as
+its own asset — never ask the pipeline for a format it does not emit.
+
+**AVIF is not automatically smaller.** Against JPEG it wins by 40–65%. Against an
+already-optimised small WebP it has measured **44–70% larger** (one 4,704-byte
+WebP became 7,985 bytes at q62). Keep an AVIF only where it measures smaller than
+its WebP, and record the measurement.
+
+Where a rule is derived from a narrower fact, record the fact rather than the
+generalisation. "The `format:` parameter accepts jpeg/png/webp" is durable; "no
+AVIF support" was an inference that outlived its evidence and stayed quotable for
+three weeks after three shipped builds contradicted it.
 
 **Admin-only custom type instances are platform-hidden**, visible to logged-in
 admins and no one else. This is platform behaviour, not template behaviour, and
@@ -618,6 +638,158 @@ reads back as 71.99 in. That is inherent and harmless.
 
 ---
 
+# Canvas Export Requires `crossOrigin = 'anonymous'`
+
+Site assets are served from a **different origin** than the storefront. Any image
+drawn into a canvas that will later be exported must be loaded with
+`img.crossOrigin = 'anonymous'` before `src` is set. Without it the canvas is
+tainted and `canvas.toBlob()` throws `SecurityError`.
+
+The failure is silent until export: the preview looks perfect on screen and no
+file is ever written. This was the single cause of every missing preview in one
+custom design tool across four consumers — the saved-cover card, Saved Projects,
+the cart and the gallery — all of which looked like four separate bugs.
+
+# iOS Safari Canvas Pixel Ceiling — 16,777,216
+
+iOS Safari refuses to allocate a canvas larger than **16,777,216 pixels**
+(width × height). This decides whether a product can be built as a browser-side
+print file at all.
+
+An 11×17 inch panel at 300 dpi is 5100 × 3300 = 16.83 M px. It misses the ceiling
+by 0.3% — it passes every desktop QA run and fails on an iPhone. Run this
+arithmetic as a go/no-go test before choosing the custom-tool archetype over the
+standard XML archetype for any large-format product.
+
+# Writing to the Cart from a Custom Tool
+
+There is no client-side cart API. The write is a form submission.
+
+Render one `{% form 'cart_add_product', product: p, page: 'cart' %}` per product
+with a hidden input for every variant type on that product, **all disabled**. A
+disabled input is not submitted, so enable only the axes whose parent-trigger
+chain the current selection satisfies and leave the rest absent, letting the
+platform apply its own defaults. **Posting empty strings instead clears required
+variants.**
+
+Multi-add is sequential, one navigation per product:
+
+- set the form's `target` to the host page plus `?product_added_to_cart=t`
+- keep the queue in `sessionStorage` so it survives the navigation
+- on return, **confirm `cart.orderlines_total` actually grew before advancing** —
+  do not treat the navigation itself as success
+
+`skip_cart_redirect` on the product is not required if the engine writes `target`
+itself.
+
+Order-level values go to `cart.custom` via `cart_update`. **Unverified:** whether
+a partial `cart_update` post preserves the other cart custom fields or clears
+them. Establish that before relying on more than one.
+
+# Collection Filter Params Are Arrays
+
+The collection filter snippet tests `request.params[<url_name>].size`, so a scalar
+query parameter fails the guard and the page renders **unfiltered, with no error**.
+
+```
+/site/shop/stickers?type=Roll      -> silently ignored
+/site/shop/stickers?type[]=Roll    -> filters
+```
+
+This is a deep-linking trap for every collection carrying `collection_filters`.
+Any campaign URL, email link or nav item that pre-filters a collection must use
+the array form.
+
+# A Snippet's Own `data-*-mount` Default Is a Label, Not Evidence
+
+Mount-hook names written into a snippet's own default are written by whoever built
+the snippet and are never checked against where the snippet is actually called
+from. Trace the customer's route and grep for the hook.
+
+Worked example — the photo-prints flow has two hooks on different routes:
+
+| Page | Renders | Hook available |
+|---|---|---|
+| `/site/photo-prints`, collection-level prints pages | `product/product-details-prints` | `product/custom-prints-code` |
+| `/site/prints?collection=…` (`pages/prints`) | `product/photo-prints` | `product/extra-prints-code` |
+
+`custom-prints-code` sits on the prints **collection landing page**, the one whose
+CTA is ORDER PRINTS. The actual flow — the only page carrying `.px-photo-prints`
+and the `.px-btn-cart` button — is `pages/prints`, and its hook is
+`extra-prints-code`. Anything that has to observe the prints component or its cart
+button belongs on `extra-prints-code`.
+
+# A Closing `</style>` Inside an Inlined CSS Snippet Breaks the Page
+
+Some snippets carry their own CSS in a companion snippet inlined by the markup
+snippet rather than going into `style/custom.css`:
+
+```liquid
+<style>{% snippet 'style/publication-upload' %}</style>
+```
+
+That is the right shape for a self-contained tool — the CSS travels with the
+snippet, is not loaded on pages that do not use it, and a site can still retune it
+from `style/custom.css` by redefining the custom properties.
+
+**The trap:** the HTML parser ends a `<style>` element at the **first literal
+`</style>` in its text**, and does not care that the string is inside a CSS
+comment. So a CSS snippet whose header comment documents how it is included:
+
+```css
+/* Included from account/draft-order as
+   <style>{% snippet 'style/draft-order' %}</style> */
+```
+
+ends the style element on that line. Everything after it is parsed as body
+content, so the rest of the stylesheet renders on the page as visible text and
+none of the CSS applies.
+
+**The rule: a CSS snippet inlined inside a `<style>` element must contain no
+literal `</style>` anywhere, comments included.** The same applies to `</script>`
+inside anything inlined into a script element.
+
+The failure is loud once you look at the page and invisible if you only read the
+file — no import error, no Liquid error, and the snippet content is exactly what
+was written. The signature is a page that appears to begin partway through a CSS
+comment.
+
+# Browser PDF Preflight — Rules That Only Surface on Real Artwork
+
+Established against real InDesign and print-house files after synthetic fixtures
+passed and real files failed on every page.
+
+1. **pdf.js exposes only the CropBox.** `PDFPageProxy.view` is CropBox ∩ MediaBox;
+   there is no TrimBox in the pdf.js public API (checked at 3.11.174). Read boxes
+   with pdf-lib instead:
+   `PDFDocument.load(bytes, { ignoreEncryption: true, updateMetadata: false })`
+   then `getMediaBox` / `getTrimBox` / `getBleedBox`. Cost 0.07 s on a 3.5 MB file,
+   1.2 s on 29.5 MB.
+2. **Never infer trim from page size.** Real exports carry crop marks,
+   registration marks and colour bars *outside* the bleed — measured 5.3–7.4 mm of
+   mark area per edge on top of trim plus 5 mm bleed. Any "page size = trim +
+   bleed" rule rejects real artwork, in code and in customer-facing copy.
+3. **pdf.js needs `cMapUrl` and `cMapPacked: true`** (plus `standardFontDataUrl`),
+   pinned to the same CDN version as the library, or CID fonts with predefined
+   CMaps lose their glyphs in the preview.
+4. **Visual thumbnail fingerprints do not identify pages in a text-heavy book.** A
+   24×32 luminance fingerprint scored 0.99 on synthetic fixtures and picked the
+   wrong page on a real 84-page book. Character trigrams of `getTextContent()`
+   compared by Jaccard got 6/6 at rank 1 (0.79–0.94).
+5. **`pdf-lib copyPages` is trustworthy** — 0 mean absolute pixel difference
+   across 84 pages, with subset CID fonts, the PDF/X OutputIntent, tagged
+   structure, TrimBox and BleedBox all surviving. Caveat: pdf-lib writes a PDF 1.7
+   header, so a PDF/X-1a:2001 file keeps an XMP conformance claim a strict
+   validator will reject.
+
+pdf-lib self-hosts safely as a Pixfizz asset (380 KB, no worker, does not rewrite
+its own script URL to find siblings), unlike pdf.js.
+
+**Verifying a CDN file's SRI hash from a sandbox:** assert HTTP status and byte
+count before trusting any digest. Hashing an empty body returns a value that looks
+exactly like a hash, so a blocked request produces a confident wrong answer.
+
+
 ## Changelog
 
 - 2026-03-12: Added `style onload` Re-injection Pattern section. Updated Dynamic UI Trigger Pattern.
@@ -633,3 +805,4 @@ reads back as 71.99 in. That is inherent and harmless.
 - 2026-07-28: Added Custom Tool Dependency Loading — load tool dependencies from the tool's own product snippet, never from `integrations/custom-body-scripts`, which child sites override. Source: claude-chat.
 - 2026-08-05: Added the `position: sticky` stacking-context modal trap, distinct from the containing-block gotchas, with the elementFromPoint confirmation, the `body.modal-open` CSS fix, and the diagnostic-script flaw of gating ancestor checks on `z-index !== auto`. Source: claude-chat.
 - 2026-08-11: Added Measured platform behaviour — `parse_json` is cheap at scale (25 parses of a 20KB payload per render, no measurable TTFB change); redirects capture dotted root paths so `llms.txt` and similar are servable from an asset; the asset uploader is extension-filtered (.txt/.md rejected, .json accepted); WebP is the image-pipeline ceiling with no AVIF (AVIF under discussion, pending). Added the `!= blank` nil trap and the `| default: '' | strip` portable comparison. Source: claude-chat (Shopper v2 verification kit).
+- 2026-08-29: **Corrected the image-pipeline rule** — the `format:` filter is WebP-capped, which is not a format ban; pre-encoded AVIF uploads and serves through `<picture>` and has shipped since 2026-08-16. Current rule is AVIF + WebP with WebP as the `<img>` fallback, keeping AVIF only where it measures smaller. Added: canvas export requires `crossOrigin = 'anonymous'` or `toBlob` throws `SecurityError` after a perfect-looking preview; the iOS Safari 16,777,216-pixel canvas ceiling as a go/no-go test for browser-built print files; writing to the cart from a custom tool (`cart_add_product` per product, disabled inputs as the mechanism, sequential queue in `sessionStorage`, assert `cart.orderlines_total` grew); collection filter params are arrays, so `?type=Roll` silently no-ops; a snippet's own `data-*-mount` default is a label rather than evidence, with the two photo-prints routes; a literal `</style>` inside an inlined CSS snippet ends the element early and dumps the stylesheet onto the page; and five browser PDF preflight rules (pdf.js exposes only the CropBox, never infer trim from page size, cMap config, text-trigram page matching, `pdf-lib copyPages` fidelity). Source: claude-chat.

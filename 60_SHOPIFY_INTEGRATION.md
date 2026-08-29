@@ -66,6 +66,48 @@ Internally there are two master Shopify CMS sites: a **staging** master used to 
 
 For products WITH Shopify variations: the SKU **must** be set on the variant metafield. The product-level SKU is the fallback only.
 
+### Setting variant metafields in bulk
+
+Shopify's native product CSV export/import carries **product metafields only**. Shopify
+documents this directly: variant metafields are not supported for product CSV import/export.
+Confirmed against a real export of a 106-variant product — 22 columns matching
+`product.metafields.*`, **zero** matching `variant.metafields.*`. There is no column to fill
+in and no header Shopify will read back.
+
+Because of the precedence rule above, every multi-variant Pixfizz product hits this wall.
+
+| Route | Bulk? | Notes |
+|---|---|---|
+| Native product CSV | **No** | Product metafields only. Dead end for `product_sku` on a varianted product. |
+| Shopify variant bulk editor | Partly | Admin → product → select variants → Edit, then add a column for the variant metafield. Free, no app, but manual cell entry — fine for a dozen variants, painful at a hundred. |
+| Matrixify | **Yes** | Exports and re-imports variant metafields. The route for any real catalogue. |
+
+Matrixify column header format, which differs from the product-level convention:
+
+```
+Variant Metafield: <namespace>.<key> [<type>]
+```
+
+e.g. `Variant Metafield: pixfizz.product_sku [single_line_text_field]`. Product metafields use
+`Metafield: ` with no `Variant` prefix, and the type in brackets is part of the header.
+
+**Matching without variant IDs.** A native Shopify export carries no variant IDs, and on
+Pixfizz-linked products `Variant SKU` is typically blank because the Pixfizz SKU lives in the
+metafield. Matrixify matches on `Handle` + `Option1/2/3 Value`, which is sufficient — verify
+that combination is unique across the rows first. Set `Command: UPDATE` and
+`Variant Command: UPDATE` so a mismatch fails loudly instead of creating variants. The sheet
+must be named `Products`; other sheets are ignored, so notes can travel in the same file.
+
+**Building the column mechanically.** When the Pixfizz collection export is to hand,
+`__theme_categories.yml` carries `print_theme_code` and `product_code` for every product
+theme, and the SKU is `print_theme_code:product_code`. Match on the size token to the Shopify
+Size option and the whole column can be built and asserted rather than typed.
+
+**Expect a length mismatch.** The Pixfizz collection and the Shopify variant list are usually
+not the same length — on one canvas product, 103 Pixfizz codes against 106 Shopify variants,
+because three sizes had one depth and not the other. That gap is invisible until the columns
+are aligned, and it is a real catalogue gap rather than a data error.
+
 ---
 
 ## 3. Integration Types
@@ -488,6 +530,67 @@ Some Shopify stores use a third-party options app such as **Globo Product Option
 ### Customer receives duplicate order emails
 When a store runs Shopify alongside Pixfizz, both systems can send order notifications, so the customer receives two of each. Disable or blank out the redundant Pixfizz email templates for the lifecycle events Shopify already covers, so only one system notifies the customer.
 
+### `414 Request-URI Too Large` when launching a `photo-prints` product
+
+The Personalize / Order Prints button renders nginx's `414 Request-URI Too Large` inside the
+Pixfizz modal instead of the photo prints flow.
+
+**Cause.** `pixfizz-launch-product-handler.liquid` builds `pixfizz_sku_map` and
+`pixfizz_addons_map` in Liquid, one entry **per Shopify variant, unconditionally**, and the
+`photo-prints` branch serialises both into the query string of
+`https://<pixfizz-host>/site/shopify/photo-prints?…&shopify_sku_map=…&shopify_addons_map=…`.
+On a variant-heavy product the request line exceeds nginx's default
+`large_client_header_buffers` size (8 KB) and nginx rejects it before Rails sees it.
+
+The addons map is emitted for every variant even when the product has no addon products at
+all. With no addons each entry serialises to `{"page_addon":null,"option_addons":{}}` — 38
+bytes of nothing, per variant.
+
+Measured on a 116-variant photo-prints product (2026-08-28), verified by intercepting
+`Pixfizz.Shopify.openModal` on the live page:
+
+| Item | Value |
+|---|---|
+| Shopify variants | 116 |
+| Unique Pixfizz SKUs in `shopify_sku_map` | 58 |
+| `shopify_sku_map`, URL-encoded | 8,025 chars |
+| `shopify_addons_map`, URL-encoded | 9,979 chars — all 116 entries empty |
+| Full modal URL | **18,159 chars** |
+| Same URL with `shopify_addons_map={}` | **8,186 chars — loads correctly** |
+
+55% of the URL was the empty addons map. Encoded cost is roughly **69 bytes per variant** for
+the SKU map alone, so after filtering the addons map the request line sat 28 bytes under the
+8 KB ceiling: **one additional variant breaks it again.** Treat the snippet fix as a launch
+enabler, not a fix.
+
+**Fixes, in order.**
+
+1. **Platform.** Stop passing the maps in the query string — POST them into the modal iframe,
+   hand off via `sessionStorage`, or resolve the SKU map server-side from
+   `shopify_product_id`. A cheaper interim: invert `shopify_sku_map` to be keyed by SKU with
+   an array of variant ids (58 keys instead of 116, roughly 40% smaller), which needs a
+   matching read change on the CMS side.
+2. **Infrastructure.** Raise `large_client_header_buffers` on the Pixfizz host (e.g. `4 32k`).
+   The 414 body identifies nginx as the terminating server, so there is no CDN in front also
+   capping the URL.
+3. **Snippet.** Filter empty entries out of `pixfizz_addons_map` before serialising, in the
+   `photo-prints` branch only. Two edits inside `{%- if integration_type == 'photo-prints' -%}`:
+   build a `pixfizz_addons_map_used` object containing only entries with a non-empty
+   `page_addon` or a non-empty `option_addons`, and pass that to `JSON.stringify` instead. The
+   parameter is always sent — `{}` when nothing qualifies — so the CMS page never sees a
+   missing key. Leave the `else` branch alone: it dereferences
+   `pixfizz_addons_map[selected_variant_id].page_addon` and would throw on a filtered map, so
+   `editor`, `options-to-editor` and `options-to-cart` must keep the full map.
+4. **Catalogue shape.** Variants resolving to half as many unique Pixfizz SKUs means one
+   Shopify option axis duplicates every SKU without changing the Pixfizz product. Moving that
+   axis into Pixfizz halves the map.
+
+This is a second, lower ceiling on the same axis as the Shopify variant-count constraint in
+§1 — the integration hits a URL-length wall well before Shopify's own variant limit.
+
+**Not verified:** add-to-cart, cart preview, quantity lock and order sync with the filtered
+map. Exercise the flow through to cart before shipping the snippet change.
+
 ---
 
 ## 12. Retrieval Pointer
@@ -726,6 +829,16 @@ Shopify has two customer account systems. The integration approach differs:
 
 ---
 
+## 18. Storefront UX — Add to cart vs direct checkout
+
+A Shopify + Pixfizz store can send the shopper straight from personalization to checkout, or
+back to the cart. **Prefer add-to-cart.** Direct checkout works for a single-item purchase and
+actively obstructs a multi-item order, which is the common shape on a photo or print store —
+the shopper has to complete a checkout per item. Reserve direct checkout for single-product
+stores or a deliberate one-item funnel.
+
+Not verified in a controlled test; recorded as the current recommendation.
+
 ## Changelog
 - 2026-03-13: Initial version. Compiled from public docs + working cart page (Dawn, inline_asset_content variant).
 - 2026-03-21: Added Dawn button innerHTML overwrite troubleshooting entry (§11).
@@ -741,3 +854,4 @@ Shopify has two customer account systems. The integration approach differs:
 - 2026-07-11: Added §1 master-CMS staging-vs-production workflow note (only api.js/product kept in sync; do not copy from staging); §9 project-ownership auto-assignment on order sync (unowned project → ordering user); §6 editor `domready` message (wait before posting into the editor iframe); §10 plain-text-editor gotcha for product/variant ID mapping CSVs (Excel corrupts IDs). Source: slack-message (#development, commits 2026-07-05/07), fireflies-call (2026-07-10).
 - 2026-07-20: Noted all Shopify line item properties are now captured into Pixfizz orderline options, and that static-product routing depends on the exact expected property name. Source: #development (commit 2026-07-13), Weekly Tech call.
 - 2026-08-21: Added Shopify max variant limitation note in §1. Source: fireflies-call (Harold's Photo, Aug 20).
+- 2026-08-29: Added §2 guidance on setting variant metafields in bulk (native product CSV carries product metafields only; use the variant bulk editor or Matrixify, with the `Variant Metafield: ns.key [type]` header and Handle + Option matching). Added §11 troubleshooting entry for `414 Request-URI Too Large` on `photo-prints` launches, with the measured URL breakdown, the empty-addons-map cause, and the four fixes in order. Added §18 add-to-cart vs direct checkout recommendation. Source: claude-chat (Shopify photo-prints launch diagnosis, canvas variant SKU linking), fireflies-call.
