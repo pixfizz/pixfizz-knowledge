@@ -2,7 +2,7 @@
 
 **Authority Scope:** OrderHub operational configuration, Jobs, Production Board, Processes, Locations, integrations, and notifications. For the core Pixfizz order lifecycle see `32_ORDER_LIFECYCLE.md`.
 
-_Last updated: 2026-07-31_
+_Last updated: 2026-09-09_
 
 ---
 
@@ -255,6 +255,21 @@ Film scan folders have been reported not moving out of the OHD watch folder (dis
 
 ---
 
+## Files Left on the Pixfizz FTP Drop Are Auto-Deleted After a Week
+
+Files placed on the Pixfizz FTP drop are **automatically deleted after a week**. Confirmed by
+the core developer, 2026-09-09; stated, not independently verified by watching a file expire.
+
+The consequence is a simpler multi-location workflow than the one labs usually build. A
+process that has to reach several locations can **copy the files to all of them and leave
+them there**, rather than retrieve-and-delete to keep the drop clean. Nothing has to sweep
+the drop, and a location that collects late still finds its files inside the window.
+
+Do not use the drop as storage: a week is the whole retention. Anything that must outlive
+that belongs in the order record or in the lab's own storage.
+
+---
+
 ## EasyPost Shipping Integration
 
 EasyPost provides shipping label generation within OrderHub.
@@ -387,6 +402,17 @@ Sent directly via **Twilio REST API**. Each organisation uses its own Twilio cre
 
 **Prerequisites:** Twilio account with active phone number; Account SID, Auth Token, and From Number entered in Notify settings.
 
+**Twilio registration also requires three policy pages, specified in OrderHub, carrying
+prescribed text.** Terms and conditions is one of the three. The lab specifies the three
+pages in OrderHub, then runs a **validation step** that confirms the submission to the
+Twilio API will be accepted before it is sent.
+
+- **Not verified end to end** — the validation step itself is untested, and no lab has been
+  taken through the whole sequence to a working number in a session we can cite.
+- Expect to do the customer-side part with the lab rather than handing it over: labs
+  generally cannot complete it unaided. Budget time for it in onboarding rather than
+  treating it as a self-service step.
+
 **RCS:** Toggle available to enable RCS messaging. Falls back to standard SMS automatically if the recipient's device doesn't support RCS.
 
 ### Template Placeholders
@@ -487,6 +513,56 @@ unless the old values are mapped across.
 
 ---
 
+## Print-on-Demand Routing to a Parent Lab's OrderHub
+
+When a child site outsources part of an order to a parent lab, the split is not what most
+people assume.
+
+- **The whole order goes to the child site's own fulfillment.** Only the **outsourced items**
+  reach the parent lab's OrderHub.
+- **Price is looked up, not passed.** The parent looks the line up **by product code and
+  variant code against the parent lab's own site** and takes the parent's **wholesale**
+  value. Nothing about the price travels from the child's order.
+- **A code mismatch does not reject the order — it inserts a zero price.** That zero then
+  flows straight into the parent's automatic wholesale invoicing, so the failure surfaces as
+  an invoice that is short, not as an error anybody sees at order time.
+- **The product feed carries nothing from the template**, so a template-level variant cannot
+  be resolved by this route at all.
+
+Stated on a client call and consistent across two labs; not independently verified by
+reading source.
+
+**Where the mismatch comes from.** The product code on a child site is auto-populated from
+the template code when the template is selected on Publish Products, and it **remains
+editable by the child admin** — see `18_ADMIN_NAVIGATION.md`. An edit there is invisible on
+the child and fatal on the parent.
+
+**Practical check:** before the first outsourced order, list the child's product and variant
+codes for the outsourced lines and diff them against the parent lab's. After go-live, treat
+any zero-value wholesale line as a code mismatch until proven otherwise. For the order
+states either side of this see `32_ORDER_LIFECYCLE.md`.
+
+A "POD SKU" custom property populated from the template code has been discussed as the fix.
+**It is not built. Do not document it as existing.**
+
+---
+
+## No Template Import Endpoint, and Price Variables Are Not in the API
+
+Two current limits worth knowing before designing a bulk workflow:
+
+- **There is no template import endpoint.** Bulk-generated template tar files are imported
+  **one at a time through admin**. Large-file handling and progress tracking are the named
+  blockers on building one. Stated by the core developer, not independently verified.
+- **Price variables are not reachable via the API** at all, read or write. A read/write API
+  for them is on the task list and **is not built** — not a roadmap commitment. Stated by the
+  core developer, 2026-09-09.
+
+Anything that needs either of these has to route through admin by hand. See
+`61_PIXFIZZ_API.md` for what the API does cover.
+
+---
+
 ## Kiosk and Online Are Separate Catalogues
 
 Confirmed pattern as of August 2026, across more than one lab.
@@ -497,6 +573,10 @@ Confirmed pattern as of August 2026, across more than one lab.
   web store's.
 - **Location-specific order routing runs through OrderHub.** Orders placed at a
   given kiosk route to that location's queue.
+- A **Windows kiosk helper application** exists and is **not yet released**. It is pre-1.0
+  and not distributable, so it is not documented here and must not be offered to a lab.
+  Kiosk storefront configuration is unaffected by it — see `80_ONBOARDING.md` for the
+  storefront-side prerequisites.
 
 Recorded from client calls; the routing behaviour is consistent with the Locations
 model documented above, but the kiosk-to-location binding itself has **not been
@@ -511,4 +591,5 @@ verified by reading configuration**.
 - 2026-07-31: Added known issue — film scan folders reported stuck in the OHD watch folder (repeat issue type, root cause/fix not yet confirmed). Source: support ticket #18341 (pending confirmation).
 - 2026-08-11: Added the custom field naming rule — any new custom field that OrderHub must read has to be lowercase, and whitelisted in OrderHub before it will route. Source: fireflies-call (2026-08-07).
 - 2026-08-14: Corrected the order-level boolean slot count from four to five (`rush`, `urgent`, `option1`, `option2`, `option3`) and documented the no-underscore naming rule, the rush/urgent mutual exclusivity, the unresolved label-ownership question, and the Extra Fee re-point trap when migrating off a single-string rush field. Source: fireflies-call (2026-08-13), slack-message (#development).
+- 2026-09-09: Added that files left on the Pixfizz FTP drop are auto-deleted after a week, so a multi-location workflow can copy and leave rather than retrieve-and-delete. Added Print-on-Demand Routing to a Parent Lab's OrderHub — whole order to the child's own fulfillment, outsourced items only to the parent, price looked up by product and variant code against the parent's site at the parent's wholesale value, a mismatch inserting a zero price into automatic wholesale invoicing, and the product feed carrying nothing from the template. Added the Twilio prerequisite of three prescribed policy pages plus a validation step, marked not verified end to end. Added that there is no template import endpoint and that price variables are not reachable via the API. Noted that a Windows kiosk helper application exists and is not yet released. Source: fireflies-call, slack-message.
 - 2026-08-29: Added Kiosk and Online Are Separate Catalogues — separate products and pricing for kiosk versus web, with location-specific order routing through OrderHub; the kiosk-to-location binding is not yet verified by reading configuration. Source: fireflies-call (2x repeat signal).

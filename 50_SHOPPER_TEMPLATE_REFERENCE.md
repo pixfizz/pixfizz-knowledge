@@ -2,7 +2,7 @@
 
 **Authority Scope:** Structural anatomy of the Shopper parent template — layouts, navigation, snippets, theming, CSS delivery, and admin checklist system. Derived from a full CMS backup scan (2026-03-12).
 
-_Last updated: 2026-06-01_
+_Last updated: 2026-09-09_
 
 ---
 
@@ -908,6 +908,38 @@ All kiosk CSS is scoped under `.kiosk-touchscreen` so it has zero impact when th
 5. Start Over + idle timer JS
 6. Custom admin section for kiosk settings
 
+### Kiosk mode is not touchscreen mode — the minimum key set (2026-09-09)
+
+`kiosk-touchscreen-mode` is the **UI** switch documented above. `kiosk-mode-enabled` is the
+**mode** switch, and a lab can run one without the other. The minimum a site needs for kiosk
+mode itself:
+
+| Checklist key | Value |
+|---|---|
+| `kiosk-mode-enabled` | `TRUE` |
+| `kiosk-mode-domain` | the exact host the kiosk points at |
+| `kiosk-remove-captcha` | `TRUE` — **must be set on the kiosk subdomain specifically, it does not carry over** (see §5) |
+| `kiosk-pay-in-store-only` | `TRUE` only where pay-in-store should be kiosk-only |
+
+`helpers/is-kiosk-mode` compares `request.host` against the **single** value in
+`kiosk-mode-domain`. There is one kiosk domain; individual terminals are distinguished by
+`?terminal=N` on the URL. For per-order terminal attribution add `kiosk-terminal-enabled` /
+`kiosk-terminal-ids` and the `kiosk/terminal-capture` snippet.
+
+**`is-kiosk-mode` fails silently on any host mismatch.** It renders nothing and every feature
+gated on it goes dark, which presents as "the feature never appears". Check `kiosk-mode-domain`
+against the actual host **before anything else** when a kiosk-gated feature is missing.
+
+**Design tokens are defined on `.kiosk-touchscreen`, not on kiosk mode.** `--k-accent`,
+`--k-radius-lg` and the rest of the kiosk token block are **declared inside `kiosk/style`
+scoped to `.kiosk-touchscreen`**. A feature gated on **kiosk mode** rather than touchscreen
+mode therefore resolves none of them, and ships an unstyled panel with dead custom properties
+onto a live checkout. Any such feature must carry its own self-sufficient token block and, if
+it wants the kiosk look where touchscreen mode is on, remap onto the kiosk tokens under
+`.kiosk-touchscreen .<its-own-class>`.
+
+*Verified by reading source — shopper24 CMS backup 2026-09-09.*
+
 ---
 
 ## 17. Known Gotchas
@@ -1029,6 +1061,69 @@ click is swallowed and the customer stays on the product page with no error show
   number. When `display_each_pricing: true` is set on the product, the page already renders
   the platform's own per-unit figure in a second `px-product-price` instance carrying
   `unit-price="true"` — read that.
+
+### Hide, don't replace, a computed price (2026-09-09)
+
+Extends the price-reading entry above. The four reading traps — read the `px-product-price`
+custom element directly, fall back to its `initial` attribute then to a `.product-price`
+scrape, strip `<s>` and `<del>` from any scrape because `product/product-details` renders the
+struck regular price alongside the sale price when `regular_pricing` is set (verified: a $29.00
+product reporting as $45.00), and take per-unit price from the second instance carrying
+`unit-price="true"`, which needs `display_each_pricing: true` **on the product** — are all
+recorded above and are unchanged. What follows is the writing side.
+
+**Leave `px-product-price` in the DOM and merely hide it** with an inline style, once a figure
+has been computed successfully, restoring it whenever the total quantity is zero. If the added
+code ever throws, the platform's own figure is still on screen and the button looks untouched.
+Select the **in-button instance specifically** —
+`.add-to-cart-button px-product-price:not([unit-price])` — so a `display_each_pricing` unit-price
+instance is left alone.
+
+Compute from Liquid-supplied numbers (`data-value-price` on each input, `{{ product.price |
+plus: 0 }}` as the base), never by parsing the component's rendered text.
+
+**Any duplicated price arithmetic drifts, and the drift conditions belong next to the code.**
+The figure becomes wrong the moment the product gains any of:
+
+- a quantity break or tiered pricing ladder on the base price
+- a second option carrying a price
+- `regular_pricing` strike-through discounts
+- a Ruby pricing formula doing anything other than a flat per-unit rate
+
+For a flat base plus per-value adders it is exact. Beyond that, pull it. Same warning as the
+"do not divide total by quantity" rule above, and it applies with equal force.
+*Verified live on a child site (adult sizes billed at $17 against a $15 base while the button
+read $15 — a display fault only, the cart was correct), 2026-08-20.*
+
+### Gallery arrows and driving the platform gallery (2026-09-09)
+
+**Stock Shopper hides the gallery arrows until hover, which on touch means never.** That is why
+a second image goes unnoticed on mobile. An always-visible override is correct, but **scope it**
+— `:has(.px-item + .px-item)` — so single-image galleries keep the clean look.
+
+**Do not reach into the gallery's IIFE.** `product/gallery/standard` ends in an IIFE that owns
+scroll, snap, arrows and `data-selected-idx`, and exposes nothing. To move the gallery from
+outside, **dispatch a click on its own thumbnail**: the gallery binds its click handler to the
+gallery **element** rather than the navigation div, specifically so it survives fragment
+reloads, so a bubbling click drives it through its own code path.
+
+Keep external buttons in step with a `MutationObserver` on `data-selected-idx`, which also
+covers the customer swiping or using the arrows.
+
+**The auto-switch pattern (a value carrying a preview-face marker moving the gallery on
+selection) is not verified live** — written and render-tested offline, nothing loaded on a live
+Shopper URL.
+
+### Editor locale needs editor-namespace translations imported (2026-09-09)
+
+Passing the locale in the theme `setup()` call and enabling the language under
+**Settings → Translations** does **not** translate the editor. Editor translations live in the
+**`editor` namespace**, which is not populated by enabling a language: they must be **exported
+from a site that already has them and imported here**.
+
+Admin path: `/admin/translations?namespace=editor&locales[]=<iso>`
+
+*Stated by the core developer, not independently verified.*
 
 ### A child's CMS backup can hold a stale copy of a parent snippet (2026-08-10)
 **Status:** Confirmed on a live child site.
@@ -1310,6 +1405,209 @@ as `theme.code:product.code` — a different SKU from every other event. The the
 `form_id=project_create` when a shopper launches the design tool — a "started designing" step
 with no tagging work.
 
+### The technical standard: GTM only (decided 2026-09-02)
+
+**Set the GTM container ID. Leave `website/gtag` blank.** Both fields sit in
+**Setup and Manage → Integrations**.
+
+| Field | Checklist key / snippet | Standard value |
+|---|---|---|
+| Google Tag Manager | `setup-google-tag-manager` → renders `integrations/google/tag-manager` | `GTM-XXXXXXX` |
+| Google Analytics 4 tag ID | `website/gtag` | **blank** |
+
+Why, in order:
+
+- **The gtag path cannot carry the funnel.** Only `view_item` is wired through `gtag()`.
+  `add_to_cart`, `begin_checkout` and `purchase` exist as gtag snippets but are **orphaned**
+  (see the entry above). A `website/gtag`-only site gets page views and product views and
+  nothing past them.
+- **The dataLayer path is complete** — `view_item`, `add_to_cart`, `view_cart`,
+  `begin_checkout`, `purchase` all push.
+- **Both fields set is roughly 2× double counting**, which is the duplicate `view_item`
+  recorded above.
+- **Google Ads conversion tracking has no Shopper preset** and must go through GTM anyway.
+  Search Console also verifies through the container with nothing pasted into the theme.
+
+**The half-a-chain trap, and it is the first thing to check on any "analytics is connected but
+I see nothing" report:** a container on the site is only **half** the chain. If the container
+carries no GA4 event tags listening for those five events, GA4 shows traffic and **no revenue**.
+The container ID being present in the page proves nothing about whether anything is being
+recorded.
+
+Related: when a site arrives with an unidentified tag, read the live page to find which
+container is loading and which measurement ID that container carries **before creating
+anything**. A new property created next to a working one is the expensive mistake, not a week
+of lost history.
+
+*Verified by live inspection of a client storefront, 2026-09-02.*
+
+### Cross-reference: `purchase` is also sent server-side on myPixfizz brands
+
+On brands wired to myPixfizz, `purchase` is **additionally** sent server-side through the GA4
+Measurement Protocol from the Pixfizz order webhook. See `70_MYPIXFIZZ_OVERVIEW.md` and
+`85_GA4_SERVER_SIDE_PURCHASE.md`.
+
+**Consequence for this file:** on those brands, leaving `purchase` in the GTM eCommerce trigger
+regex **double-counts revenue**. Check the container's trigger regex before trusting any
+revenue figure from a myPixfizz-wired brand.
+
+**Missing `_ga` cookie — a storefront fault that looks like a server-side one.** When the
+storefront never captured a `_ga` cookie, the server-side function invents a `client_id`
+(`pixfizz-<order_id>`) and omits `session_id` entirely. Those purchases land in GA4 as
+**Direct / (not set)**. Revenue still counts; attribution does not.
+
+The root cause is a **broken storefront analytics bootstrap** — no gtag stub, no dataLayer
+push, so GA4 never initialises and there is no cookie to read. **Fixing the storefront snippet
+fixes that brand's attribution, and nothing server-side can.** One client lab in the window had
+18 of 19 purchases in this state.
+
+*Verified by query against the myPixfizz database, 2026-09-02.*
+
+---
+
+## 21. Parent-Safe Changes to Shopper 24
+
+The shopper24 parent drives every lab. Everything in this section exists because a change there
+is a change to ~50 storefronts at once.
+
+### 21.1 `collection_filters` has two syntaxes
+
+**This was a KB gap and it cost most of an afternoon.** Recorded here so it does not cost
+another one.
+
+| Consumer | Page | Fields |
+|---|---|---|
+| `collection/collection-filters` | the standard shop page | **three** fields |
+| `product/details-filter-dual-mode` | a collection using `pdp_layout` | **five** fields |
+
+The five-field form is:
+
+```
+label | url_name | filter_attribute | default_value | snippet_args
+```
+
+`snippet_args` is a set of `key: value` pairs joined by pipes, and is consumed by
+`product/filter-controls`. With `asset_images: true` the **field value must be an asset
+filename, not a label**.
+
+Using the three-field form where the five-field form is expected fails in the way filter
+configuration always fails — quietly, with the control rendering and doing nothing.
+*Verified live on a client PDP, 2026-09-08.*
+
+### 21.2 A free-form arguments string is an opt-in that needs no code and no deploy
+
+Parent snippets that take a free-form arguments string **parse it at the top into named
+values**. `product/filter-controls` does exactly this, and the string comes from **admin data**,
+not from a snippet body. So **adding a new argument name is an opt-in that needs no code change
+and no deploy** on any site that does not use it — the sites that do not pass it are, by
+construction, unchanged.
+
+Three properties make such a change parent-safe, and each has to be **proven rather than
+asserted**:
+
+1. **Opt-in, not opt-out.** Grep the corpus to confirm the new flag string appears **nowhere**
+   before shipping. If it already appears anywhere, it is not an opt-in.
+2. **Degrade to byte-identical output.** Render the current parent against the patched parent
+   across fixtures covering every branch, and assert a marker per fixture proving it reached
+   the branch it names. (A harness that passes everything while every fixture silently falls
+   through one branch is the normal first result — the marker assertions exist because of it.)
+3. **Preserve parallel-array alignment.** Where the parser builds parallel arrays, push the new
+   array **outside** the conditional, so an entry exists for every row whether or not the new
+   argument was supplied.
+
+**Unverified and it decides the design:** whether `{% snippet %}` passes **only** its named
+arguments, or whether the callee inherits caller scope. If arguments are isolated, a generic
+argument name is safe; if scope is inherited, every new name must be namespaced against
+collisions with whatever the caller happens to have assigned. A two-minute test on baseline
+settles it: assign a distinctively named variable in a caller, render a snippet that does not
+declare it, and see whether it resolves. **Namespace until proven otherwise.**
+
+### 21.3 The admin action is **Override Snippet** — not copy, fork or duplicate
+
+The action that creates a site-level version of a parent snippet is called **Override
+Snippet**. Use that exact name in any instruction; the others send people looking for a control
+that is not there.
+
+Two consequences to state **every time** an override is instructed:
+
+- **An override pins that snippet.** The site stops inheriting parent changes to it, silently
+  and for good. Every later parent fix to that snippet — filter fixes, accessibility work, new
+  card fields, SEO corrections — stops arriving, with nothing in any diff to notice.
+- **A promotion to the parent is only finished when the override is removed.** Moving a change
+  up to the parent while leaving the child override in place means the child is still running
+  the old copy and the parent version is never exercised.
+
+Prefer **not to override at all** where the change is presentational — scoped CSS on a wrapper
+does the job without freezing hundreds of lines of parent logic (see §17).
+
+### 21.4 Everything ported into the parent ships gated, off by default
+
+*"Shopper is being used by many sites. So let's make very safe upgrades that are always gated
+behind an option we can turn on."*
+
+Any change ported into the shopper24 parent ships **behind an option that is off by default**,
+because the parent drives every lab. A child that changes nothing must render byte-identical
+output.
+
+The working method for deciding what to promote: hand over **three backups side by side** — the
+current shopper24 parent CMS backup, the site's own Shopper CMS backup, and the non-Shopper
+custom CMS backup where the upgrade was developed — diff the individual snippets, then propose
+what to promote.
+
+Note the mechanics that make the gate real: the flag snippet is created **on the parent** with
+the off value and **Allow Override** ticked, then overridden `TRUE` on the child. See
+`52_SNIPPET_INVENTORY.md`, *Creating a new snippet*.
+
+### 21.5 A child that overrides `pages/custom.css` wholesale inherits no parent CSS
+
+Any child site that overrides `pages/custom.css` wholesale **will not inherit** CSS blocks added
+to the parent's copy, and needs them pasted into its own file. Check before promising a child
+that a parent CSS change will reach it — a child with no `pages/` directory in its backup
+inherits the parent file and is fine.
+
+The parent `pages/custom.css` already calls `{% snippet %}`, so it **is Liquid-rendered** and
+can carry gated blocks, not just static CSS. *Verified by reading source — shopper24 CMS
+backup, 2026-09-08.*
+
+### 21.6 A site-level checklist key set on the parent moves for every child
+
+A key that is **site level** belongs on the **child site** or on the **product**, not on
+shopper24, unless the value is genuinely the house default.
+
+Observed consequence: a bleed key left empty on the parent meant artwork built to one bleed was
+checked at another. Because that check is **warn level rather than fail level**, it generated
+noise on valid files rather than rejecting them — which is probably why it went unnoticed for
+weeks. A key that silently mis-checks is worse than one that is obviously off.
+
+---
+
+## 22. SEO Defects Found and Fixed at Parent Level (2026-09)
+
+Recorded as a list because every one of them is **generic** — they were parent-level, so they
+applied to every child site, and the same classes recur on any new template work.
+
+- **Paginated listings were invisible to crawlers.** Paginated product and static listings —
+  pages 2 and beyond — were being missed by every search-engine tool. Fixed on the parent.
+- **A footer link hard-coded to `http://` multiplied into hundreds of phantom broken pages**,
+  one per originating page. A single wrong scheme in a sitewide component scales with the page
+  count.
+- **The Google reviews widget ships without structured-data markup.** It renders, and it is
+  correctly connected, but it is **never picked up as a rich snippet** because there is no
+  markup for a crawler to read. Existing Google Reviews help articles predate this finding and
+  are now incomplete.
+- **Snippet headings used `h3` with no `h1`.** A hidden `h1` was added.
+- **Preview modules and pop-up design tools are not recognised as product imagery** by
+  crawlers, so the page reads as having **no images at all**. Remedy: ship two or three static
+  images alongside any preview module.
+- **Sitemap and robots.txt must be explicitly enabled.** They are not on by default. Shopper
+  admin also carries AI-search settings that expose descriptions and summaries to AI
+  assistants.
+- **Legacy kiosk landing pages get crawled and scored as broken.** A split-screen film page
+  with no menu links was indexed anyway. Anything reachable is crawlable regardless of whether
+  it is linked.
+
+*Stated from a working session, not independently verified against a live crawl.*
+
 ---
 
 ## Changelog
@@ -1325,3 +1623,4 @@ with no tagging work.
 - 2026-08-05: Corrected `page_path` to store the full slash-joined path at levels 2 and 3, not only the final segment, and corrected the constraint that wrongly stated level 1 only. Added Head-level dependencies must repeat the lookup, covering the `html.head` before `page.content` render order, the paste-ready head lookup block, the `!= blank` guard, and the per-page noindex pattern via a boolean `hide_from_index` custom field. Source: claude-chat.
 - 2026-08-11: Added Value-bearing checklists to Section 5 — many `admin/checklist/*` keys hold interpolated values, and overwriting one with a boolean takes every page down; includes the known value-bearing key list, the case-sensitivity and `| strip` capture rules, and the `custom-X-page` flag against an empty target snippet. Added three Known Gotchas: the Add to Cart button carries no `type` attribute; reading the product price from JavaScript (`px-product-price`, the `regular_pricing` strikethrough trap, observer placement, and `unit-price="true"` instead of JS division); and a child's CMS backup can hold a stale inherited copy of a parent snippet. Source: claude-chat.
 - 2026-08-29: Added §18 generated CSS is appended after `style/custom.css` (nav colour overrides must out-specify `.navbar-light .navbar-nav .nav-link`, with the console diagnostic and the `text-transform: capitalize` companion). Added §19 Account v2 theming — specificity ladder, token list, the malformed `--acv2-accent-soft` platform defect, `!important` on `.btn-dark`/`.btn-primary`, inline styles in the parent dashboard, the typing animation, and the transition-masks-computed-values testing gotcha. Added §20 GA4 tagging defects on the parent — duplicate `view_item`, photo-prints emitting nothing, `purchase` re-firing on refresh, the `item_id` mismatch for design products, and the orphaned `integrations/google/gtag`. Added §17 gotchas: the trailing-newline value-snippet rule with its signature and generator fix, the `default-delivery-option` `public`/`private` value set, and three parent defects (lowercase-only `font-body`, inverted kiosk idle-screen logo test, double-prefixed checklist path). Corrected the custom home page gate to the `admin/checklist/custom-home-page` capture with no `| strip`, flagged pending on whether the Storefront Settings checkbox is also required. Amended the §16 kiosk status. Source: claude-chat.
+- 2026-09-09: Added §21 Parent-Safe Changes to Shopper 24 — the two `collection_filters` syntaxes (three fields for `collection/collection-filters`, five for `pdp_layout` via `product/details-filter-dual-mode`, with `snippet_args` consumed by `product/filter-controls` and `asset_images: true` requiring an asset filename); a free-form arguments string is an opt-in needing no code and no deploy, with the three properties that must be proven and the unverified `{% snippet %}` scope question; the admin action is Override Snippet, an override pins the snippet, and a promotion is unfinished until the override is removed; every parent port ships gated and off by default; a child overriding `pages/custom.css` wholesale inherits no parent CSS blocks, and the parent file is Liquid-rendered; a site-level checklist key set on the parent moves for every child. Added §22 SEO defects fixed at parent level. Added to §20 the GTM-only technical standard (`setup-google-tag-manager` set, `website/gtag` blank, both set is ~2x double counting, only `view_item` wired through gtag, Google Ads has no preset), the half-a-chain trap as the first check on any "connected but I see nothing" report, and the cross-reference to the myPixfizz server-side `purchase` pipeline including the double-count risk from leaving `purchase` in the GTM trigger regex and the missing `_ga` cookie landing purchases as Direct / (not set). Added to §16 the minimum kiosk-mode key set, the silent host-mismatch failure of `helpers/is-kiosk-mode`, and the fact that kiosk design tokens are defined on `.kiosk-touchscreen` inside `kiosk/style`. Added §17 gotchas: hide-don't-replace for a computed price with its drift conditions; always-visible gallery arrows and driving the platform gallery by dispatching a click on its own thumbnail; editor locale needs `editor`-namespace translations exported and imported. Source: claude-chat, slack-message, fireflies-call.

@@ -2,7 +2,7 @@
 
 **Authority Scope:** XML template page parameters, filters, and production output behaviour. Platform-level — not Shopper-specific.
 
-_Last updated: 2026-05-27_
+_Last updated: 2026-09-09_
 
 ---
 
@@ -523,6 +523,229 @@ Two restatements from the same build, both easy to get wrong when resizing by ha
   carries `width="12" height="8"` — the second number is the width. Follow the
   seed, not the name.
 
+## Page Count and `minimum-dpi` Are Definition-Level Decisions
+
+**Photobook page count lives on the first line of the template definition, not on the
+product.** Minimum pages, maximum pages and the starting page count are all attributes of
+`<definition>` (`min`, `max`, `pages` — see the attribute table above). The starting count
+normally equals the minimum. There is no product setting that changes any of them: to change
+a book's page range you edit the definition, not the product attribute.
+
+_Verified by reading source (live definitions) and stated on a client call, 2026-09-09._
+
+**Set `minimum-dpi` to the product's real floor, not a reflex 300.** `minimum-dpi` drives the
+image quality warning, so a value that does not match the product's actual production
+tolerance produces warnings nobody can act on. On a document-copy product — a copy shop
+reprinting customer documents rather than doing press work — 150 is the right floor; a 300
+gate would reject most of what the shop actually prints and blocks nothing worth blocking.
+Press-ready products (business cards, flyers) legitimately sit at 300.
+
+_Stated, not independently verified — the 150 floor is a build decision, not a measured
+platform threshold._
+
+---
+
+## Sets With No Fulfillment Output
+
+`fulfillment="false"` on a `<set>` excludes that set from production artwork generation (see
+the Set Parameters table). The case worth stating explicitly is the one where **every** set
+in a definition carries it:
+
+```xml
+<definition unit="inch" dpi="300" output="pdf" minimum-dpi="300">
+	<set fulfillment="false" preview="true">
+		<page type="design" bleed="0.125" margin="0.125" width="3.75" height="2.25"/>
+	</set>
+</definition>
+```
+
+**The platform renders no production file at all for a product shaped like this.** Nothing is
+broken — it is the correct shape for a product whose print file is produced by a custom
+browser tool rather than by the editor — but it means anything that tool produces has to
+reach production through `_additional_files.json`. If that template is missing or does not
+carry the tool's output option, the orderline delivers nothing to production and no error is
+raised anywhere. Cross-reference `31_FULFILLMENT_ENGINE.md`.
+
+_Verified by reading source (live definition plus the fulfillment templates on the same
+site), 2026-09-09._
+
+Note the sheet convention in that definition: **sheet size = trim + bleed per edge.** The
+page above is a 3.50 x 2.00 in trim with 0.125 in of bleed on all four edges, written as
+`width="3.75" height="2.25"`. The `bleed` attribute is the guide shown in the editor; it does
+not add to the output size (see the parameter table).
+
+### Two-sided output is one file
+
+Both sides of a two-sided product share an `output-name`, so they group into a single PDF.
+A double-sided card therefore writes a **2-page PDF into the single print option** — there is
+no second output option per side, and adding one would only create another file to exclude
+from the fulfillment package.
+
+**Not verified — no double-sided order has been put through the normalised path.** Worth one
+test order on a double-sided product before it meets a customer.
+
+---
+
+## Preview Sets — Layers, Scene Scale and Plate Placement
+
+The standard preview-set pattern is a hidden set carrying a `type="preview"` page, with the
+production page in a separate plain set:
+
+```xml
+<set preview="true" fulfillment="false" editor="false">
+	<page type="preview" width="10" height="10" />
+</set>
+<set>
+	<page type="print" margin="0" width="8" height="10" />
+</set>
+```
+
+The room scene therefore never reaches production; production receives the plain print page.
+
+### Layer roles in a real preview definition
+
+Read from a live framed-print definition:
+
+| Layer | Asset | Role |
+|---|---|---|
+| background | room photograph, 2500 x 2500 | The scene |
+| `grid` | measurement overlay, `visibility="off"` | QA aid only — never shown, never fulfilled |
+| `shadows` | semi-opaque tint plate, `z="1"` | Scene lighting, drawn over the placed art |
+
+**The `shadows` plate is scene shadow, not the artwork's own.** The `ipage` carries its own
+`shadow_opacity`, `shadow_ox`, `shadow_oy` and `shadow_stdev` (e.g. `0.5`, `1.27`, `1.27`,
+`1.27`), so the placed art casts its own drop shadow whether or not a shadow plate is
+present. A replacement scene generated with flat diffuse light needs no companion shadow
+plate.
+
+_Verified by reading source (layout definition of a live template)._
+
+### A template page can reference a WebP asset directly
+
+`src="db:<id>"` on a page image resolves a WebP asset — the platform already renders WebP
+from template data. _Verified by reading source, not by render._
+
+### Preview scene scale is derivable from the ipage
+
+The preview page's `ipage` width in mm, against the trim it represents in inches, gives
+mm-per-inch, and everything else follows:
+
+```
+mm_per_inch     = ipage_width_mm / trim_inches
+scene_width_in  = page_width_mm / mm_per_inch
+pixels_per_inch = background_px / scene_width_in
+```
+
+Worked example from a live 20 x 30 in preview: `57.996202993793 / 20 = 2.899810` mm per inch;
+`254 / 2.899810 = 87.592` in of scene; `2500 / 87.592 = 28.5414` px per inch.
+
+Every size in a range then places by formula against that one scale:
+
+```
+w_mm = inches x mm_per_inch
+x_mm = page_centre_mm - w_mm / 2
+y_mm = (bottom_px x page_mm / image_px) - h_mm
+```
+
+The consequence worth having: **a whole size range can be a bottom-aligned centre crop of one
+master plate**, expressed in the template XML as a background `width` plus `x` / `y` offset.
+No second image, no per-size plate. Preview crops become data rather than assets.
+
+_Verified by measurement, and by re-rendering previews from each generated archive's own XML._
+
+### Plate aspect must be preserved when placing an image into a page rect
+
+Placing a plate of one aspect into a rect of another **stretches it**, and — worse — any rect
+measured in plate pixels changes shape on the way into page space, so nested geometry lands
+wrong even where the distortion itself is not obvious. Derive the rect from the plate's own
+aspect and recentre:
+
+```
+H = <rect height in mm>
+W = H * (plate_px_w / plate_px_h)
+X = page_centre_mm - W / 2
+```
+
+Measured case: a 1650 x 2100 plate (aspect 0.7857) placed into a 185.74 x 219.87 mm rect
+(aspect 0.8447) drew about 7.5% too wide.
+
+_Verified by measurement on the regenerated archives._
+
+### A preview page's background image element name is what colour substitution binds to
+
+On a two-sided product with per-side previews, the **name of the background image element**
+on each preview page is what a colour substitution resolves against. A back-preview page
+whose background element carried the front's name painted a front image onto the back
+preview. Renaming the element fixed it with no new imagery generated and no change to the
+substitution bindings.
+
+_Verified live (fault reproduced and cleared on the live product), 2026-09-08._
+
+---
+
+## Editing an Exported Template Definition — Attribute Order Is Alphabetical
+
+**Attribute order in a Pixfizz template export is alphabetical, not authored order.** Never
+anchor a regex on one attribute in order to reach another. Match the tag, then edit inside
+it.
+
+The failure is silent. Substitutions shaped like this:
+
+```
+<ipage[^>]*template="print"[^>]*height="..."
+```
+
+require `template` to appear before `height`. The exporter writes attributes alphabetically,
+so `height` sits ahead of `template` and the substitution matches nothing. In the case that
+established this, **three of four attribute writes were dropped** and the preview came out
+badly misplaced, with no error from the generator and valid XML in the output.
+
+The order-independent shape is: match the tag, rewrite each attribute inside the matched text
+wherever it sits, and append the attribute if it is absent.
+
+**Every write must be followed by a read-back assertion** on each attribute — re-parse the
+generated archive and compare the values. Nothing else catches this class of miss.
+
+_Verified by reading source and by re-parsing the regenerated archives, 2026-09-08._
+
+---
+
+## Seed Archives — Audit Before Cloning Across a Size Range
+
+A seed template exported from a live product carries stale and size-specific leftovers.
+Cloning it across a size range multiplies every one of them. Check for all of the following
+before generating:
+
+- **Hardcoded per-size coordinates on the print page.** Decorative or hardware images placed
+  at absolute x/y computed for the seed's page size must be recomputed per size, or dropped.
+- **Stale preview pages** whose `ipage` geometry describes a different product — e.g. a
+  square `ipage` and a scale caption from a square product carried forward onto a 2:3 one.
+  Carry it or drop it, but never treat it as a source of truth.
+- **"Zoom" preview pages that are not a true multiple of their base.** One measured case was
+  2% under a true 1.5x — placed by eye. Regenerate from the derived scale rather than scaling
+  the seed's numbers.
+- **Accordion / `details` copy inherited from the wrong product**, and the markup faults
+  inside it. Three named faults found in one seed, all of which would have been inherited
+  into every clone: a stray `</div>` closing the accordion early so the last card sat outside
+  it, a duplicated `heading*` id, and two duplicated `collapse*` ids.
+
+_Verified by reading source (seed archive) and by parsing every generated archive._
+
+---
+
+## Open Platform Question — `fulfillment` on Layers
+
+Logged 2026-08-24 and **not implemented**. Recorded here only so it is not re-proposed as an
+existing capability:
+
+> Possible to add a `fulfillment=false` parameter on **layers** in XML, alongside
+> `visibility=on/off/fulfillment/editor` and split-pdf?
+
+Today, layer-level control is `visibility` plus `separate-file` / `separate-page` as
+documented above. There is no layer-level `fulfillment` attribute. Do not document one.
+
+---
+
 ## Changelog
 - 2026-04-03: Created from platform documentation provided by AdeB. Covers page parameters, safe area, growing spine, and layflat spread.
 - 2026-04-03: Added PDF Layers section — layer attributes, separate-file, separate-page, per-page layer control, filename placeholders.
@@ -532,3 +755,4 @@ Two restatements from the same build, both easy to get wrong when resizing by ha
 - 2026-06-15: Added Multi-Page Product Page-Count Rules — booklet page count must be divisible by 4; old softcover templates can carry a page-count ghost bug (mitigation: rebuild on a fresh template). Source: slack-kb-sync (booklet rules; softcover bug).
 - 2026-08-29: Added Canvas Wrap Geometry — `borderwrap` is the mirror-wrap depth measured inward from the image element in mm (`print area = element - 2 x borderwrap`), the three canvas wrap layouts fully parameterised from print area / bleed / mirror depth, the `crop_aspect_ratio` rewrite requirement on any size change, and the derivation of `<ipage> zoom` (with the plausible-but-wrong simpler form called out). Added Template Import — `products[].price` validates presence, so `''` aborts the import with `Validation failed: Price can't be blank`; emit `price: '0'`, note this is the opposite of `products[].image`, and widen the archive diff to treat `nil` and `''` as one blank condition recorded per path. Restated mm page geometry regardless of definition unit, and landscape-first cut print naming. Source: claude-chat.
 - 2026-08-29: Confirmed by re-import that `price: '0'` on the products row is accepted — the template import succeeds. Source: claude-chat.
+- 2026-09-09: Added that photobook page count (min, max, starting) lives on the first line of the template definition and is not a product setting, and that `minimum-dpi` should be the product's real floor rather than a reflex 300. Added the all-sets-`fulfillment="false"` case — the platform renders no production file, so a tool's output must travel via `_additional_files.json` — with a real definition, the sheet = trim + bleed per edge convention, and two-sided output as one file via a shared `output-name` (not verified). Added Preview Sets — layer roles read from a live definition, the `ipage`'s own drop-shadow attributes, WebP via `src="db:<id>"`, the derivation of scene scale and per-size placement from the ipage so a whole range is one master plate plus offsets, plate-aspect preservation when placing into a page rect, and the background image element name as what colour substitution binds to. Added that attribute order in a template export is alphabetical, so a regex anchored on one attribute to reach another silently matches nothing — match the tag, edit inside it, read back every write. Added the seed-archive audit before cloning across a size range. Recorded the layer-level `fulfillment` parameter as an open, not-implemented platform question. Source: claude-chat, fireflies-call, notion-dashboard.

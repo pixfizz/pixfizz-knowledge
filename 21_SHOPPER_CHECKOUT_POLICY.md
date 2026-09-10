@@ -2,7 +2,7 @@
 
 **Authority Scope:** Checkout engine logic only.
 
-_Last updated: 2026-06-26_
+_Last updated: 2026-09-09_
 
 ---
 
@@ -86,8 +86,45 @@ The payment-method radio selector only renders when **more than one** method is 
 
 **Renaming a payment method label.** Payment method display labels (e.g. "Cash on Delivery") are set via the admin **Translations** system, not a dedicated config field. To rename a method - for example "Cash on Delivery" to "In House Billing" - edit the translation string for that label. See `18_ADMIN_NAVIGATION.md` section Built-in Translation Support.
 
+## Extra fees and the VAT tax base — real defect
+
+**Applies to VAT sites only.** Verified by reading source (`pages/checkout`, Shopper parent
+backup of 2026-09-09, lines 447-451).
+
+Every Extra Fee carries a **Taxable** checkbox in Main Admin -> Shipping -> Extra Fees, set
+per fee and per site (see `30_PRICING_ENGINE.md`). The Shopper checkout page ignores it.
+
+```liquid
+{% assign total_fees = 0 %}
+{% for fee in cart.extra_fees %}
+	{% assign total_fees = total_fees | plus: fee.amount %}
+{% endfor %}
+{% assign taxable_total = cart.orderlines_total | plus: total_fees %}
+```
+
+This sums **every** extra fee into the tax base with no reference to the per-fee Taxable
+checkbox — and it could not honour the checkbox if it tried: the template is only handed
+`fee.name`, `fee.amount` and `fee.code`. There is no `fee.taxable` to test.
+
+**Scope.** The block sits inside the `vat-active == 'TRUE'` branch. **US sales-tax sites are
+unaffected** — they display the platform's `cart.tax` directly rather than computing a taxable
+total in the template.
+
+**Contained fix:** exclude the specific fee by its `code` while accumulating `total_fees`.
+`fee.code` is available, so this needs no platform change. It is per-fee rather than general,
+which is the trade for keeping the edit small on a page shared by every child site.
+
+**Open question, one live test settles it — not verified:** whether the Taxable checkbox
+reaches `cart.tax` server-side on a US sales-tax site. Reading the template cannot answer it,
+because that calculation is server-side. Put a non-taxable fee on a test cart on a US site and
+confirm `cart.tax` does not move.
+
+Until that is answered: do not enable a fee that must not be taxed on a VAT site, and do not
+tell a client the checkbox changes what the shopper sees at checkout.
+
 ## Changelog
 - 2026-02-26: Initial checkout policy content.
 - 2026-04-23: Added tax model note (US-style vs European VAT, postal code CSV, automatic discount workaround). Added guest checkout configurable fields note.
 - 2026-06-01: Added tax CSV format and matching specificity. Source: claude-chat/help-article.
 - 2026-06-26: Added payment method selection (URL param priority, then first entry in checkout/available-payment-methods; radio only renders for 2+ methods) and label renaming via Translations. Source: claude-chat/fireflies-call.
+- 2026-09-09: Added the extra-fee VAT tax base defect — `pages/checkout` sums every extra fee into `taxable_total` with no reference to the per-fee Taxable checkbox, and the template is only given `fee.name`, `fee.amount` and `fee.code` so there is no `fee.taxable` to test; contained fix is exclusion by fee code, the block is inside the `vat-active == 'TRUE'` branch so US sales-tax sites are unaffected, and whether the checkbox reaches `cart.tax` server-side on a US site is still open. Source: claude-chat.

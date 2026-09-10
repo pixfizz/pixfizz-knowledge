@@ -3,7 +3,7 @@
 **Authority Scope:** Formatting and delivery rules for all CSS, JS,
 Liquid, and HTML.
 
-*Last updated: 2026-03-12*
+*Last updated: 2026-09-09*
 
 ------------------------------------------------------------------------
 
@@ -43,6 +43,11 @@ Scale the format of code changes to the size of the edit:
 -   **Larger changes** (structural changes, new sections, multiple modifications across a block): provide the full updated block for copy/paste.
 
 Never default to full blocks for minor edits — it forces unnecessary manual review of unchanged code.
+
+-   **Any instruction that names a checklist or value snippet must name the parent site
+    first and the child second, and must state the parent's off value.** An instruction that
+    names only the child is not a shorter version of the right instruction — it is an
+    instruction that silently does nothing. See the Checklist Snippet Creation Rule below.
 
 ------------------------------------------------------------------------
 
@@ -340,6 +345,48 @@ Never instruct a client or developer to create a new snippet directly on
 a child site — it will not exist and the `{% snippet %}` call will return
 blank, silently failing with no error.
 
+### Parent first, stated at the point of use
+
+The rule above is about the platform. This is the same rule in the form it has to be
+**written into an instruction**, which is where it actually gets broken.
+
+| Step | Site | Body |
+|---|---|---|
+| 1 | **Parent template** | Create the snippet. Body = the **off** value, normally `FALSE`. Tick **Allow Override**. |
+| 2 | **Child site** | Override the same path. Body = `TRUE`. |
+
+- **Without Allow Override ticked on the parent, step 2 is impossible and the flag is dead.**
+  There is no second route to it and no error to say so.
+- **`FALSE` on the parent is what keeps every other child unchanged.** The parent value is
+  the value every child that never overrides it will read.
+- **A net-new snippet pasted into a child appears to save, then resolves blank forever**,
+  with no error anywhere. Nothing in admin distinguishes it from a snippet that is working.
+
+**This rule already existed in three files and was still missed.** The gap was not coverage —
+it was that none of the three stated the rule **at the point of use**. The place it gets
+broken is when writing *deployment instructions*, not when writing Liquid, so it has to be
+stated where instructions are written, which is here. Verified by reading source (the failure
+was reproduced and corrected in a live build, 2026-09-01).
+
+### Byte-exactness applies at the point of use too
+
+Checklist bodies are **byte-exact and carry no trailing newline**. `capture` does not trim, so
+a body saved as `TRUE\n` never equals `'TRUE'`, and the flag **fails silently and
+permanently while looking correct in admin**. This applies to a body typed into admin exactly
+as it applies to one written by a generator — see *Value Snippets in a CMS Tar Must Be
+Byte-Exact* below for the full signature and the generator fix.
+
+### A site-level key set on the parent moves for every child
+
+A site-level checklist key is read by every child that does not override it. **Setting one on
+the parent changes behaviour on every site inheriting from it**, which is almost never what a
+single site's requirement calls for.
+
+So a site-level key belongs **on the child, or on the product**, unless the value is genuinely
+the house default for every site. Ask which of the two it is before writing the instruction,
+and say so in the instruction. Verified by reading source (a parent-level tool setting found
+governing every child, 2026-09-09).
+
 ## Value Snippets in a CMS Tar Must Be Byte-Exact
 
 **A value snippet written into a CMS tar must match the parent byte for byte,
@@ -463,6 +510,174 @@ expressed (all 24 paths were single-segment yet four collections had
 `sub_collections: true`); and whether re-importing an archive whose collection `name`
 already exists updates in place or duplicates.
 
+## Never Hand-Author an Export Archive
+
+**Every export is seeded from a working site.** Where a corrected archive is needed, the
+corrected archive already exists — it is what a correctly configured site would export. Export
+it, diff it against what is wanted, prune, and ship that. Do not type one.
+
+The same rule covers anything displayed *beside* an archive. **A generated preview must be
+generated from the archive at build time.** A hand-written preview beside a generated file
+drifts, and it drifts invisibly: the file is right and the description of it is wrong, so
+whoever reads the description is misled by something that looks authoritative.
+
+Observed instance: a distribution page listed, for one object, eleven field names that appear
+nowhere in the archive it serves, and a count badge that was off by one against another. The
+preview had been hand-written from a documentation table rather than read from the file.
+Verified by reading source, 2026-09-09.
+
+## Never Re-Import to Update
+
+**A re-import of a corrected archive creates a suffixed duplicate. It does not update the
+original.** There is no upsert.
+
+**The suffix lands on the code as well as the name.** That is what makes this a governance
+rule rather than a housekeeping annoyance: any Liquid, collection path, fulfillment rule or
+integration that references the original code now references a code that the duplicate does
+not carry, and the reference resolves outside the tar where nothing can detect the break.
+
+**A correction means deleting the old object first, then importing.** In that order, checked,
+on a site where a mistake is affordable. See `16_PRODUCT_HIERARCHY.md` and
+`51_CUSTOM_FIELDS_REFERENCE.md` for the per-object behaviour and for what is still untested.
+
+## A Product Rename Must Never Trigger a Code Rename
+
+Renaming a product, a collection or a design is a **display change**. The code namespace stays
+exactly as it is, **and must**.
+
+**The last namespace rename took a site's home page down.** That is the whole argument. Codes
+are referenced by Liquid, by collection paths, by fulfillment templates and by external
+systems, none of which are visible from inside the object being renamed.
+
+**This is the one way to make a free decision expensive.** A rename that touches only display
+names costs nothing; the same rename carried into the code namespace can take a storefront
+down, and the two look identical in the admin screen where the decision gets made.
+
+This aligns with the standing rule against bulk-renaming any string that references platform
+data — Custom Type names, custom field names, option, variant and product codes, and
+collection paths. Those resolve outside anything a diff can see.
+
+## A Snippet Description Is a Real Column, Never Blank
+
+Every snippet ships with its **Description** alongside its path and content. It is a real
+column in the admin, not a comment, and it is never left blank and never left for someone else
+to invent.
+
+- One line, sentence case, full stop.
+- State what the snippet does.
+- **For a value-bearing checklist key, list every accepted value and mark the default**,
+  matching token case exactly.
+
+Concrete instance, and it is why this is restated here: in a set of six checklist keys shipped
+together, **five carried full Descriptions and the sixth shipped blank**. That is a defect in
+its own right — an unlabelled key in a labelled set reads as an internal or deprecated one,
+and the next person either leaves it alone or guesses at its values. Verified by reading
+source, 2026-09-09.
+
+## Customer-Visible Strings in a Parent-Level Tool Must Come From a Snippet
+
+A tool that lives on a parent and serves more than one storefront **must read every
+customer-visible partner, printer or supplier name from a snippet**, the same way its numeric
+settings already do.
+
+Three such strings were found burned into a parent-level tool's source, all of them reaching
+the screen, at the point that tool was about to serve a second storefront. Verified by reading
+source, 2026-09-09.
+
+The rule is not only about embarrassment. A hard-coded name is a per-client value in a shared
+file, so the second client's deployment cannot be a configuration change — it becomes an edit
+to a file every other site inherits, which is precisely the change the parent-first and
+gated-upgrade rules exist to prevent.
+
+## Verification
+
+Three formulations, in ascending order of how much they prove. The strongest is the only one
+that has ever caught everything.
+
+1. **A local render verifies the file, not the site.** Rendering a snippet through a Liquid
+   engine and screenshotting it says nothing about a live storefront. Load the live URL and
+   assert the expected DOM before reporting anything as done.
+2. **A save proves the validator accepts the string, not that the engine prices it.** A price
+   formula that saves has passed a syntax check and nothing else. Runtime behaviour needs a
+   cart.
+3. **Place one real order end to end before handing over.** **Every defect found on this
+   platform so far survived every check short of that** — validator, local render, live DOM
+   assertion, admin screenshot. One order exercises pricing, options, fulfillment file
+   generation, notification and the order record in the only combination that matters.
+
+Label every claim with which of these it rests on, or as not verified.
+
+## A Byte-Identical Render Harness Needs Marker Assertions
+
+A harness that renders two versions of a file and compares the output **proves nothing on its
+own**. The first version of one such harness passed every fixture as byte-identical while
+**every fixture was silently falling through to the same branch** — the comparison was true,
+and it was true about nothing.
+
+The four-step method:
+
+1. **Confirm each anchor occurs exactly once, by script**, before editing anything. An anchor
+   that appears twice patches in the wrong place; one that appears zero times patches nowhere,
+   and both can still produce identical renders.
+2. **Render the current parent against the patched parent across fixtures covering every
+   branch.** One fixture per branch, not one fixture that happens to work.
+3. **Assert a per-fixture marker proving the intended branch was reached.** This is the step
+   that was missing. Without it, identical output is equally consistent with the patch being
+   correct and with the patch never executing.
+4. **Assert div balance on any new markup.** An unbalanced container renders visibly wrong on
+   the site and is invisible in a diff of the block that introduced it.
+
+## Publication Gate — Anything Published to a Public Repo
+
+Everything in a public repo is public the moment it is pushed. Run this before every push, and
+treat it as a gate rather than a review.
+
+**Grep for, at minimum:**
+
+- internal channel names
+- internal repo names
+- internal documentation paths
+- the internal baseline test host
+- any `*.pixfizz.com` subdomain that is not a genuinely public one
+
+```bash
+# expect zero hits for internal identifiers, and only public hosts in the second list
+grep -rniE "<internal channel|repo|doc-path patterns>" . --exclude-dir=.git
+grep -rnoE '[a-z0-9-]+\.pixfizz\.com' . --exclude-dir=.git | sort -u
+```
+
+**Then read the diff by eye for company names.** A grep will not catch a name it has never
+seen, and a customer name is exactly the class of string nobody has written a pattern for.
+
+**Never publish:** named customers or customer site URLs (use `yoursite.pixfizz.com`),
+internal identifiers, commercial information of any kind — pricing, tiers, packaging, margin,
+contract terms — unreleased platform behaviour, or the source of tools that are sold or
+licensed.
+
+**Always fine:** platform behaviour a customer can observe in their own admin, patterns that
+stop them breaking their own site, and anything already published on the public help site.
+
+## Required Closing Step for Every Knowledge Base Sync (MANDATORY)
+
+**Every sync ends by verifying that every route in `02_RETRIEVAL_MAP.md` resolves to a file
+that exists.** Not the sync that touched the retrieval map — every sync, including the ones
+that did not go near it, because a file renamed anywhere breaks a route recorded elsewhere.
+
+```bash
+grep -oE '[0-9]{2}_[A-Z0-9_]+\.md' 02_RETRIEVAL_MAP.md | sort -u \
+  | while read f; do [ -f "$f" ] || echo "MISSING: $f"; done
+```
+
+**Why this one file gets its own step.** A retrieval map is the one file whose errors are
+invisible from inside itself. It reads as complete precisely when it is lying: a route to a
+file that no longer exists looks exactly like a route to one that does, and the failure only
+surfaces later, as a reader concluding the knowledge base has no answer on a subject it
+covers fully.
+
+It is also demonstrably not self-correcting. **Two dangling routes sat in it for three
+months**, because the audit that would have caught them was not run. The check above takes a
+second; the alternative is trusting that nobody renamed anything.
+
 ## Changelog
 
 - 2026-03-12: Expanded Dynamic Snippet Rule with `style onload` pattern, placement rule, direct init call requirement, and `{% comment %}` block marker convention.
@@ -471,4 +686,5 @@ already exists updates in place or duplicates.
 - 2026-04-09: Added Checklist Snippet Creation Rule — parent template must originate all snippets before child sites can override them.
 - 2026-07-28: Added Master Shopper Delivery Rule — never deliver a tar for the parent template site; parent changes ship as paste-ready blocks matching each target file's existing indentation. Source: claude-chat.
 - 2026-08-11: Hardened the CMS Backup Tar Packaging Rule — front matter is a database row and a missing `renderer_type` aborts the import with a generic error naming no file; packaging must be one atomic command with a freshness assertion, because a stale tar imports cleanly and changes nothing; the seed backup is the authority for Liquid vocabulary. Recorded that `asset_files/` transfer and CDN content-hash cache-busting were both ruled out as causes. Added the Custom Type Instance Archive Packaging Rule (gzipped, five empty media directories, four `__*_map` keys, literal block scalar for `page_content`). Source: claude-chat.
+- 2026-09-09: Stated the parent-first snippet rule at the point of use — create on the parent with the off value and Allow Override ticked, then override on the child — with the governance requirement that any instruction naming a checklist or value snippet must name the parent first, the child second, and the parent's off value, and the note that the rule already existed in three files and was still missed. Added that checklist bodies are byte-exact at the point of use and that a site-level key set on the parent moves for every child. Added: never hand-author an export archive and generate any preview from the archive at build time; never re-import to update, because a re-import creates a suffixed duplicate and the suffix lands on the code; a product rename must never trigger a code rename; a snippet Description is a real column and never blank, with the blank-in-a-set-of-six instance; customer-visible partner and printer names in a parent-level tool must come from a snippet; the three verification formulations, ending in placing one real order end to end; the four-step marker-assertion method for a byte-identical render harness; the publication gate for a public repo; and a mandatory closing step for every knowledge base sync verifying that every route in `02_RETRIEVAL_MAP.md` resolves. Source: claude-chat, fireflies-call, slack-message.
 - 2026-08-29: Added the byte-exact value snippet rule for CMS tars — `capture` does not trim, so a trailing newline makes every compared flag fail silently while the tar imports cleanly; includes the generator fix and the instruction to error rather than warn. Added Archive Emission — the platform's Psych writes a trailing space after a nil scalar and Ruby 3.3 does not, so a modern Psych needs a post-pass; Psych also quotes ambiguous scalars and folds long double-quoted scalars differently from PyYAML (measured 87 differing lines in 3,118 for a Python emitter, byte-identical for Psych plus the nil post-pass). Added the Collections export format — archive shape, import path, the four record shapes in platform key order, the bare-numeric-asset-id convention with `__asset_map` Ruby symbol keys, and the fact that a collections export carries no site or owner field and so cannot answer inheritance. Source: claude-chat.

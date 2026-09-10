@@ -2,7 +2,7 @@
 
 **Authority Scope:** Design Tool Configurations, feature toggles, and customer-facing editor behavior.
 
-_Last updated: 2026-07-31_
+_Last updated: 2026-09-09_
 
 ---
 
@@ -632,6 +632,325 @@ Two changes would retire this whole workaround:
    plus a click handler onto `goToPreviousSet` / `goToNextSet` closes #18343 for every
    lab at once.
 
+## Custom Design Tools — Browser-Side Rules
+
+Everything above this heading describes the platform Design Tool. This section covers
+**custom design tools**: browser-based tools that mount on a Shopper product page, take a
+customer file, and write a print file and its supporting records onto the orderline
+(Sticker Designer, Gang Up, Business Cards, Cover Studio and the upload-and-price tools built
+on the same shape). The rules here are platform-level unless stated otherwise — they follow
+from how the CMS re-renders pages, and from how pdf.js and pdf-lib behave in a browser.
+
+---
+
+### A dialog reparented to `<body>` survives an AJAX partial re-render, and wins
+
+**Platform-level.** Affects every custom design tool that reparents its modal on a page the
+CMS re-renders.
+
+**Reparenting is necessary and correct.** A `filter`, `transform` or `will-change` on any
+ancestor creates a containing block and traps a `position: fixed` dialog under the backdrop.
+That is not a z-index problem and no z-index fixes it; moving the dialog to `<body>` does.
+Every tool on this platform does it.
+
+**The consequence nobody had drawn.** A filter control on the product page re-renders a
+container over AJAX — typically the innerHTML of `<main>` — and injects a fresh tool root
+carrying the new product's data attributes. That part works. But the reparented modal is
+**outside** the container being re-rendered, so the swap cannot remove it. Two modals with
+the same id now exist, and **both `getElementById` and Bootstrap's `data-target` resolve to
+the first in document order — the stale one.** They accumulate, one per filter change.
+
+Symptom as the shopper experiences it: change the product size, press the button, and the
+tool opens built for the size they just changed away from. Refreshing the page clears it.
+
+**The rule.** A tool that reparents its dialog to `<body>` has taken ownership of a node the
+CMS can no longer see. **It must remove its own previous instance on every boot.**
+
+Three parts of the fix, each load-bearing:
+
+1. **Presence of an uninitialised root is the re-render signal.** Query for a tool root that
+   does not yet carry the tool's own ready flag. No flags to maintain, no MutationObserver,
+   no coupling to the CMS's AJAX. On first load nothing is detached yet, so the sweep is a
+   no-op. Tag each modal on reparent (e.g. `data-<tool>-detached`) so the sweep can find them,
+   and skip any detached node that contains the fresh root.
+2. **Removing a modal Bootstrap thinks is open leaks the backdrop and the scroll lock**,
+   because the teardown never runs on an element that no longer exists. After the sweep, and
+   only when no `.modal.show` remains, clear the `modal-open` body class, remove the
+   scroll-lock padding on `<body>`, and remove any orphaned `.modal-backdrop`.
+3. **Select the uninitialised root, not by id.** With duplicates present the id resolves to
+   the stale one, which is the whole bug. Have `init()` likewise resolve its own modal by
+   walking up from the root rather than by id.
+
+Nothing changes in the parent filter snippet. It drives every lab; the tool has to survive
+what it does, not the reverse.
+
+**The verification lesson.** A correct boot log is not evidence the shopper is looking at the
+new instance — throughout this fault the tool booted, initialised and resolved the new size
+correctly while the button opened the old board. The assertion that catches it is **which
+element `data-target` resolves to, and what that one rendered**. Two further details worth
+copying into any such test: lift the mount block out of the `.liquid` by regex rather than
+retyping it, so the test cannot pass against a mount block that no longer ships; and perform
+**two** size changes, because the failure compounds (two modals, then three) and a
+single-change test understates it.
+
+_Verified by reading source and verified live on the affected site, 2026-08-30. The same
+reparenting pattern is used by the other tools; **not verified** on them — worth ten minutes
+each: open a product page with an AJAX filter, change it, count
+`document.querySelectorAll('.modal[id]')`._
+
+---
+
+### pdf.js detaches the buffer it is handed
+
+pdf.js takes ownership of the `ArrayBuffer` passed to `getDocument` and **detaches it**. A
+second `getDocument` call on the same buffer throws, and in a tool that surfaces as a generic
+"something went wrong" plus a blank proof — nothing points at the buffer.
+
+Pass a fresh copy to every call:
+
+```js
+var data = (buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer)).slice();
+```
+
+Worth a regression test asserting that no two `getDocument` calls share a buffer.
+
+_Verified by test (the guard is in shipped tool code), 2026-09-08._
+
+---
+
+### pdf.js and pdf-lib do not read the same page box
+
+On any PDF where **CropBox differs from MediaBox**, pdf.js measures the CropBox and pdf-lib
+places the MediaBox. Measured proof, built deliberately:
+
+```
+PDF authored with MediaBox 360 x 252 pt, CropBox 342 x 234 pt
+
+pdf-lib embedPdf drawable size -> 360 x 252     (MediaBox)
+pdf.js  getViewport({scale:1}) -> 342 x 234     (CropBox)
+```
+
+**Consequence.** A press-ready export — which is what CropBox-at-trim, MediaBox-at-bleed
+looks like coming out of InDesign — measures as trim-sized in preflight and triggers a false
+"no bleed" warning on a file that has perfectly good bleed. Any tool that measures with one
+library and writes with the other is placing a page it did not measure.
+
+Guessing at MediaBox from the raw bytes is worse than leaving it. **The clean fix is to
+render the review image from the built print PDF itself** rather than re-deriving it from the
+source file. The review screen carries the acknowledgement click, so it above all should show
+the actual file rather than a reconstruction of it. That retires the whole class of defect
+rather than one instance.
+
+_Verified by test (measured on a purpose-built PDF), 2026-09-09._
+
+---
+
+### Browser preflight — what can and cannot be concluded
+
+Reliable in the browser:
+
+| Check | Notes |
+|---|---|
+| Page count | Reliable. Where it drives price it is mandatory |
+| Page size, per page | Reliable. Report a mismatch against the product size as a **warning** |
+| Mixed page sizes within one PDF | Reliable, and worth surfacing — common in scanned documents |
+| Rotation | Reliable |
+| Embedded raster resolution | Reliable |
+| Per-page colour vs greyscale | Detectable by rasterizing at low DPI (~24) and sampling |
+
+**Not detectable via pdf.js: colour space / CMYK.** pdf.js normalizes every fill to RGB and
+content streams are usually compressed. **Report it as _unchecked_, never as "RGB".** If a
+signal is genuinely needed, detect a PDF/X output intent instead.
+
+Three companion rules:
+
+- **Warn, do not block.** Every serious competitor warns and lets the customer proceed after
+  an explicit acknowledgement. Make blocking a **per-site setting, off by default**.
+- **A check that cannot conclude returns `true` or `null`, never `false`.** Never fail a
+  customer's file on an inconclusive test.
+- **The acknowledgement click is where liability transfers — record it**, with a timestamp,
+  in the tool's own state option on the orderline.
+
+_Verified by reading source (pdf.js behaviour) and by build, 2026-09-08._
+
+#### `.docx` page count cannot be determined in the browser
+
+Page breaks in a word-processor document are a **rendering result, not a document property**.
+There is no honest way to read a page count from a `.docx` in the browser. Three positions,
+all defensible:
+
+1. **Accept the file and ask the customer to declare the count**, showing it as declared
+   rather than detected, and marking the source as `declared` in the tool's state record.
+2. **Accept and convert server-side** to PDF, then detect. Platform work.
+3. **PDF only.**
+
+**Never silently guess.** Half the document-print market runs on declared counts and every
+operator that does has to publish a reconciliation warning; declaring it explicitly is what
+makes that safe.
+
+_Stated, not independently verified — position 1 is the recommendation, not a measured
+platform behaviour._
+
+#### If every hard failure comes from one check, disabling that check disables blocking
+
+Worth asking as a design-audit question of any preflight implementation: **which findings can
+produce a hard fail?** In one shipped tool every `fail`-severity finding in the whole file was
+a page-count finding, so on a product with no page count configured the tool could not
+produce a hard fail at all — and the site's `block-on-fail` setting, which read as `TRUE`,
+had nothing to act on. Nothing was wrong with the behaviour; what was wrong was that nobody
+knew blocking was inert.
+
+_Verified by reading source, 2026-09-09._
+
+---
+
+### Coordinate systems — proof and pointer versus engine and writer
+
+**The proof canvas and the pointer are canvas space** — origin top-left, y down. **The
+placement engine and pdf-lib are page space** — origin bottom-left, y up.
+
+Convert **at the engine boundary**, with a single flip function that is its own inverse, and
+**pin the sign convention with a test**: drag the artwork up on screen, the engine must report
+more lost off the top. Two flips scattered through the code is how a proof ends up mirroring
+the customer's drag.
+
+A manual placement rect must be **post-rotation**, with rotation decided **once**, at
+preflight, and passed to the engine rather than re-derived.
+
+_Verified by test (geometry suite against the real engine), 2026-09-09._
+
+---
+
+### One placement, decided once, consumed by every surface
+
+Four surfaces draw the artwork: the **proof canvas**, the **cart thumbnail**, the **review
+image** and the **print writer**. All four must render from a single resolved placement. Where
+only the print writer knows the placement, the customer and the press see different things —
+measured case: the customer saw their file pinned at native size over the sheet with most of
+the design greyed out as off-cut, while the press received the whole design scaled to fill.
+Neither party saw what the other had.
+
+Solve the placement at preflight time, hold it on state, and have every surface render from
+it. A deterministic solver may be called twice rather than caching a result — the proof runs
+long before a print file exists — provided both calls are fed the same numbers.
+
+**This explicitly corrects an earlier position.** An earlier decision held that "preflight and
+proof behaviour should not fork on the output mode; only the file written to the print option
+should." **That is wrong.** The proof's job is to show what will print, and what prints now
+differs by mode, so **the proof must fork on the output mode**: a normalised mode draws the
+placed result, while a passthrough mode keeps the own-size-plus-off-cut view, because under
+passthrough that view is the truth.
+
+_Verified live (fault observed on a real order) and verified by test (both call sites solve
+to an identical rect across 7 fixtures x 5 modes), 2026-09-09._
+
+---
+
+### Warning copy must match the output mode
+
+Copy written for a passthrough tool becomes false under normalised output, and it then sits
+directly above a canvas showing the file placed correctly — the panel contradicting the
+picture.
+
+> "Your file is 5 x 3.5 in. This product needs 3.75 x 2.25 in including bleed."
+
+That is right for a passthrough tool, where the customer's file **is** the print file and only
+they can fix it. Under normalised output it should state what the tool will do and what it
+costs — scaled to fill, roughly this much trimmed off the edges, the preview shows exactly
+this — and reserve "needs fixing" for content landing outside the safe zone **after**
+placement.
+
+Two severity rules that fall out of this:
+
+- **Amber only when the crop reaches past the bleed and into the product.** A crop the size of
+  the bleed **is** the bleed. Colouring it as a defect trains people to ignore the panel.
+- **Resolution must be judged at the placed size, not the file's own size.** A file reading
+  "154 dpi at print size" against its own dimensions can print at 205 dpi once placed. Judge
+  it after placement and say so in the copy.
+
+Keep the acknowledgement checkbox on warnings. The liability transfer is worth keeping; the
+false alarm is not.
+
+_Verified by test (copy generated from the solver across fixtures); **not verified** on a live
+page as of 2026-09-09._
+
+---
+
+### Browser PDF dependency pinning
+
+For any tool loading PDF libraries in the browser:
+
+- **pdf.js and pdf-lib from cdnjs**, each **pinned to an exact version** and carrying an **SRI
+  hash**.
+- The **worker URL and the cMap URL pinned to the same pdf.js version** as the library itself.
+- The **pdf-lib pin kept aligned across tools** on the same site, so two tools on one page
+  cannot disagree about which build is loaded.
+
+Reference implementation in the wild: pdf.js 3.11.174 and pdf-lib 1.17.1, both from cdnjs,
+both SRI-pinned, worker and cMap on the same pdf.js version.
+
+See also `41_IMPLEMENTATION_PATTERNS_UPDATED.md` § Browser PDF Preflight for what those
+libraries can and cannot read, and for the SRI-verification caveat.
+
+_Verified by reading source, 2026-09-09._
+
+---
+
+### Build and install rules for a custom tool
+
+Carried from shipped builds. Each of these has cost time at least once.
+
+- **Resolve per-product configuration in the browser, not in Liquid.** A snippet mounted
+  through a template option's `custom_script` may have no `product` in scope at all, and every
+  Liquid fallback built on it then returns nil without error. **Emit source markers alongside
+  every resolved value and emit `data-product-seen`**, and ask for that diagnostic line first
+  when a tool misbehaves. A live tool reporting `productSeen: "false"` is working only because
+  the site-level fallbacks happen to be right; a per-product override would be dropped
+  silently.
+- **DPI is read from the XML definition, never hardcoded.** A tool shipping a hardcoded target
+  DPI in its asset is a large part of why one lab's output came out soft.
+- **Never write a local alert.** Consume the shared notify layer — do not copy it, wrap it or
+  reimplement it.
+- **Never load a shared asset from inside a tool's boot block.** One parse error takes down
+  the shared layer and points the symptom at the wrong file. Load the shared layer separately.
+- **Load the tool's own dependencies from the product snippet**, not from a widely-overridden
+  layout include, and inject with a `data-<tool>-src` marker so a re-render cannot
+  double-load. See `41_IMPLEMENTATION_PATTERNS_UPDATED.md` § Custom Tool Dependency Loading.
+- **Create the two shared custom fields before the template import.** Definitions do not
+  inherit, and values written without a definition are silently dropped — presenting as "the
+  tool is broken" with nothing to point at.
+- **Measure the print file on a real order** — format, colour mode, alpha, pixel dimensions,
+  embedded DPI. **None of them are visible in a proof.**
+- **Place one real order end to end before handing over. Every defect found on this platform
+  so far survived every check short of that.**
+
+_Verified by build and by live order, 2026-09-08 / 2026-09-09._
+
+---
+
+### "Generic by design" and "someone forgot to fill the fields in" are different states
+
+A tool must degrade cleanly when its specification fields are absent — no page count
+configured, no trim size configured, no hard fail possible. That is correct behaviour and it
+is what makes one tool serve both a tightly specified product and a generic upload product.
+
+**But absence must not be inferred as misconfiguration.** A tool that raises
+
+> "This title has no page count or trim size configured, so preflight can only report what it
+> finds. Ask <partner> to complete the title setup."
+
+is telling a customer their product is broken, on a product that is deliberately generic.
+Distinguish the two states with an **explicit opt-out flag** — a boolean product custom field
+or a site checklist key — not by inferring from absence. Then the flagged state swaps the
+banner for a neutral line and leaves every other behaviour alone.
+
+**One thing must change and it is copy, not logic.** The degrade path already works; only the
+message is wrong.
+
+_Verified by reading source, 2026-09-09._
+
+---
+
 ## Changelog
 - 2026-03-30: Created from master platform documentation export.
 - 2026-04-23: Added font licensing rule for editor embedding (digital/print embedding license required, not web font license).
@@ -645,3 +964,4 @@ Two changes would retire this whole workaround:
 - 2026-07-31: Documented AI restyle/filter auto-apply on selection (fixes filter loss when going to cart without pressing Apply). Added known issue: AI token usage counted globally instead of per site, fix verified on staging and pending production deploy. Documented that element substitutions now run on all admin previews and embedded inline pages (previously skipped unless `fulfillment=true`). Added known issue: no front/inside page indicator in the mobile card editor. Source: slack-message (#development), support ticket.
 - 2026-08-29: Added Editor Gallery Folders — per-tag theming via `data-gallery-id` (the literal tag name), the `currentColor` inline-SVG folder glyph, the `data-px-tooltip` caption hook, a per-tag thumbnail recipe, and the open question of whether the Galleries tab is distinguishable from Clipart. Added `--neutral-grey-2` and `--caption-height` to the aliasable variable set. Clarified that `@filename@` is the fallback for the non-Liquid Design Tool Configuration Custom CSS field, while `editor.css` and `shopify/custom-styles` are Liquid-rendered and take `asset_url` — marked inferred pending two checks. Added Design Theme Layouts export format (layouts as a sibling of templates, `left`/`top` always 0 with `x`/`y` omitted when zero, mm coordinates, `edit`+`placeholder` photo slots, the fixed tag vocabulary with `5+ photos` as the catch-all) and what is and is not verified about layout import. Source: claude-chat (live editor inspection, photobook layout build).
 - 2026-08-29: Added Mobile Editor CSS — the mobile editor is a separate template chosen by device and touch detection rather than a breakpoint (so it cannot be reproduced by narrowing a window; use `editor.store.ui.setEditorMode('mobile')`), the desktop/mobile class map, the cached `setDimensions()` measurement that makes any CSS resize of the page list render at a stale scale until the device is rotated, a verified persistent-bottom-page-strip recipe, why the prev/next hints are decorative, and the two platform changes that would retire the workaround. Cross-referenced from the Known Issues — Mobile entry for #18343. Source: claude-chat, live editor inspection, on-device testing.
+- 2026-09-09: Added Custom Design Tools — Browser-Side Rules. A dialog reparented to `<body>` survives an AJAX partial re-render and wins document-order resolution, so a tool that reparents must sweep its own previous instance on every boot (with the backdrop and scroll-lock cleanup, the uninitialised-root selector, and the verification lesson that a correct boot log proves nothing). pdf.js detaches the buffer it is handed, with the copy guard. pdf.js and pdf-lib do not read the same page box — measured CropBox versus MediaBox proof, the false no-bleed consequence, and rendering the review image from the built print PDF as the clean fix. Browser preflight — what is reliable, that colour space/CMYK is not detectable via pdf.js and must be reported unchecked, warn-do-not-block, a check that cannot conclude returns true or null, the acknowledgement click as liability transfer, `.docx` page count as undeterminable in the browser, and the audit question of whether one check carries every hard failure. The canvas-space versus page-space coordinate rule with a single self-inverse flip and a pinned sign convention. One placement decided once and consumed by proof, cart thumbnail, review image and print writer — explicitly correcting the earlier decision that the proof should not fork on output mode. Warning copy must match the output mode, with the amber-only-past-the-bleed and judge-resolution-at-placed-size rules. Browser PDF dependency pinning. Build and install rules for a custom tool, ending in placing one real order end to end. And that generic-by-design must be an explicit opt-out flag rather than inferred absence. Source: claude-chat, fireflies-call.

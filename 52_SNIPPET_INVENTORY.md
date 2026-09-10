@@ -4,7 +4,7 @@
 
 _Source: CMS backup 2026-05-27. Total: 926 snippets across 23 namespaces._
 
-_Last updated: 2026-05-27_
+_Last updated: 2026-09-09_
 
 ---
 
@@ -13,7 +13,42 @@ _Last updated: 2026-05-27_
 - To find a snippet by what it does: scan the namespace that matches (e.g. collection page issue → `collection/`, cart issue → `checkout/`).
 - To identify which snippet renders a specific piece of UI: check the rendering chain notes at the top of each namespace section.
 - To override a snippet on a child site: the snippet must exist on the parent (this list). Child sites can only override existing parent snippets — they cannot create new ones.
+- **A new snippet cannot be created on a child site.** See *Creating a New Snippet* below.
 - Snippet paths use `/` notation. In the CMS filesystem, `/` is stored as `__` (e.g. `collection/banner` → `collection__banner`).
+
+---
+
+## Creating a New Snippet — Parent First, Always
+
+Added 2026-09-09. This restates and expands the line above, because the rule is written in
+three other files and still gets broken — the place it gets broken is when writing
+**deployment instructions**, not when writing Liquid.
+
+**A net-new snippet pasted into a child site appears to save, then resolves blank forever,
+with no error anywhere.** Nothing in admin says it will not work.
+
+| Step | Site | Body |
+|---|---|---|
+| 1 | **shopper24 (parent)** | Create the snippet. Body = the **off** value, normally `FALSE`. Tick **Allow Override**. |
+| 2 | child | **Override** the same path. Body = `TRUE`. |
+
+**Without Allow Override ticked on the parent, step 2 is impossible and the flag is dead.**
+`FALSE` on the parent is what keeps every other child unchanged.
+`admin/checklist/kiosk-terminal-enabled` is the live precedent.
+
+Any instruction that names a checklist or value snippet must **name the parent site first and
+the child second, and state the parent's off value.** See `01_CODE_GOVERNANCE_UPDATED.md`
+(Checklist Snippet Creation Rule) and `13_TEMPLATE_BOUNDARIES.md`.
+
+**Bodies are byte-exact.** A checklist body carries **no trailing newline** — see
+`50_SHOPPER_TEMPLATE_REFERENCE.md` §17 and `50_LIQUID_REFERENCE.md`.
+
+**Every new snippet ships with its Description.** Description is a real column, never blank and
+never left for someone else to invent — one line, sentence case, full stop, and for a
+value-bearing key it lists every accepted value and marks the default, matching token case
+exactly. The concrete instance this window: **one key in a set of six shipped with a blank
+Description while its five neighbours carried full ones**, which is a defect in its own right,
+not a tidiness point.
 
 ---
 
@@ -346,6 +381,7 @@ Not listed individually — 182 SVG icons. Browse the namespace or search by ico
 | `integrations/google/event/purchase` | GA4 purchase event |
 | `integrations/google/event/view-item` | GA4 view-item event |
 | `integrations/google/gtag` | Google Analytics tag (measurement ID) |
+| `integrations/google/product-page-rating-widget` | Google rating widget rendered on the product page. *Added 2026-09-09; not in the 2026-05-27 backup scan.* |
 | `integrations/google/rating-widget` | Google rating widget (small) |
 | `integrations/google/reviews-widget` | Google reviews widget (full) |
 | `integrations/google/tag-manager` | GTM container ID |
@@ -371,6 +407,8 @@ Not listed individually — 182 SVG icons. Browse the namespace or search by ico
 |---|---|
 | `kiosk/home` | Kiosk home screen (product tiles) |
 | `kiosk/idle-screen` | Kiosk idle/attractor screen |
+| `kiosk/style` | Kiosk CSS, including the `--k-*` design tokens. Tokens are **declared on `.kiosk-touchscreen`**, so kiosk-mode-only features resolve none of them. *Added 2026-09-09; not in the 2026-05-27 backup scan.* |
+| `kiosk/terminal-capture` | Captures `?terminal=N` for per-order terminal attribution. Needs `kiosk-terminal-enabled` / `kiosk-terminal-ids`. *Added 2026-09-09; not in the 2026-05-27 backup scan.* |
 | `kiosk/top-rail` | Kiosk top navigation rail |
 
 ---
@@ -463,6 +501,7 @@ Standalone card components. **Not used by the main collection grid** (which rend
 
 | Snippet | Description |
 |---|---|
+| `product/additional-each-pricing` | Quantity tier price table on the product page, from the product custom fields `quantity_price_table` and `quantity_unit_label`; gated on `admin/checklist/tier-price-table` and silent unless both are set. Called from `product/design-now` immediately after `{% endform %}`. *Added 2026-09-09; the row was absent from the 2026-05-27 backup scan.* |
 | `product/approve-selection-checkbox` | Photo selection approval checkbox |
 | `product/badges` | Product badge rendering |
 | `product/breadcrumb-schema` | Breadcrumb structured data |
@@ -496,6 +535,7 @@ Standalone card components. **Not used by the main collection grid** (which rend
 | `product/pricing-prefix` | Pricing prefix text ("Starting at", "From") |
 | `product/production-time` | Production time display |
 | `product/production_time` | Production time display (alternate) |
+| `product/px-notify-boot` | Boots the shared px-notify notification layer. Called **separately**, never from inside a custom tool's boot block — one parse error there takes down the shared layer and points the symptom at the wrong file. *Added 2026-09-09; not in the 2026-05-27 backup scan.* |
 | `product/px-option` | Option/variant renderer (dropdowns & radio buttons) |
 | `product/px-option-cart` | Option/variant renderer for cart context |
 | `product/px-option-selector` | Cart option selector (editable variants) |
@@ -669,7 +709,36 @@ Added 2026-08-29 from live diagnosis. These correct or qualify rows above.
 | `kiosk/idle-screen` | Tests `has_logo != blank`, but the parent ships `update-website-logo` = `FALSE` and `'FALSE' != blank` is true, so the idle screen renders `header/logo` on sites that said they have none. Correct test is `has_logo == 'TRUE'`. |
 | `admin/checklist/admin/checklist/kiosk-picker-idle-seconds` | A double-prefixed snippet path, created in error. Not a real setting. |
 
+Added 2026-09-09. These expand rows whose one-line description understates what the snippet does.
+
+| Snippet | Annotation |
+|---|---|
+| `product/inventory` | The **stock badge** under the price. Tiers: `<= 0` Out of stock · `1–5` **"Only X left"** · `6–20` Limited stock available · `> 20` In stock. Included from `product/product-details` and `product/product-details-filter`. Styled in `pages/custom.css` as `.px-stock-badge` with a pulse animation on the low tier. *Verified by reading source, shopper24 backup 2026-09-03.* |
+| `product/design-now` | Also **the stock gate.** Disables Add to Cart, Design Now, Customize More and Buy Now when `tracks_inventory` is set and `current_inventory <= 0`, folding into the existing `product.custom.sold_out` path rather than replacing it. Sets `window.pxInventoryOutOfStock`, which both quick-quantity blocks read, so JS cannot re-enable the buttons. Also calls `product/additional-each-pricing` immediately after `{% endform %}`. *Verified by reading source, shopper24 backup 2026-09-03.* |
+| `product/details-filter-dual-mode` | Consumes the **five-field** `collection_filters` syntax (`label \| url_name \| filter_attribute \| default_value \| snippet_args`), where the standard shop page's `collection/collection-filters` takes three. See `50_SHOPPER_TEMPLATE_REFERENCE.md` §21.1. Also carries a duplicate `view_item` — see §20 of the same file. |
+| `product/filter-controls` | Consumes `snippet_args` from `collection_filters` as `key: value` pairs joined by pipes, parsed at the top of the snippet into named values. Because the string is **admin data**, adding a new argument name is an opt-in that needs no code change and no deploy — see `50_SHOPPER_TEMPLATE_REFERENCE.md` §21.2 for the three properties that make such a change parent-safe. With `asset_images: true` the field value must be an **asset filename**, not a label. |
+| `helpers/is-kiosk-mode` | Compares `request.host` against the **single** value in `admin/checklist/kiosk-mode-domain`, and **fails silently on any mismatch** — every feature gated on it goes dark and presents as "the feature never appears". Check the domain against the host before anything else. One kiosk domain; terminals are distinguished by `?terminal=N`. |
+| `integrations/google/tag-manager` | Rendered by the checklist key `setup-google-tag-manager`. **This is the standard tagging path** — set the container ID here and leave `website/gtag` blank. Both set is roughly 2x double counting. See `50_SHOPPER_TEMPLATE_REFERENCE.md` §20. |
+| `integrations/google/reviews-widget`, `integrations/google/rating-widget`, `integrations/google/product-page-rating-widget` | The widgets render and connect correctly but ship **without structured-data markup**, so they are never picked up as a rich snippet. Switched on by the checklist keys `activate-google-reviews-ai-widget-domain` and `google-reviews-ai-widget-domain`, plus `google-review-link`. |
+| `product/additional-each-pricing` | Its Description column shipped **blank** and was filled in on 2026-09-01. The table it renders is a **hand-maintained mirror** of the product's Ruby pricing formula and nothing enforces that they agree — one wrong-numbers-on-screen incident already came from a table generated against a different product's formula. Any change to a tiered product's formula must be mirrored into `quantity_price_table` in the same sitting. |
+
+---
+
+## Known Parent Defects
+
+Added 2026-09-09. Defects in the shopper24 parent itself, so they reach every child site that
+does not override the snippet. Listed here rather than in the tables above because each one is
+a live fault, not a description.
+
+| Snippet | Defect |
+|---|---|
+| `product/details-filter-dual-mode` | **Never calls `product/inventory`.** Any collection using `pdp_layout` therefore silently loses the stock badge and the "Only N left" urgency. A child can work around it by calling the snippet from `product/custom-scripts`; the proper fix is a parent edit. *Verified live on a client PDP, 2026-09-08.* |
+| `kiosk/style` | Carries a **stray `}`** immediately after the design-token block's closing brace. Browsers discard it during error recovery; some minifiers do not. Still present in the 2026-09-09 backup. *Verified by reading source.* |
+| Shopper parent contact snippet | Ships a **placeholder phone number that is a real person's number.** Re-applying or redesigning a site **reverts a client's corrected number back to it**, so this recurs on every rebuild rather than being fixed once. |
+| Parent-level custom tools | A parent tool serving multiple storefronts had **three customer-visible partner names burned into its strings**. A parent tool must read **every customer-visible name from a snippet**, the way its numeric settings already do — burning one in makes the tool undeployable to a second storefront without an edit. *Verified by reading source, 2026-09-09.* |
+
 ## Changelog
 
 - 2026-05-27: Created from full CMS backup of `shopper24.pixfizz.com`. 926 snippets inventoried across 23 namespaces.
 - 2026-08-29: Added an Annotations section correcting or qualifying seven rows — `integrations/google/gtag` and three sibling event snippets are orphaned (use `website/gtag`); `modals/shopping-cart` is the cart fly-out, not `shopper/cart-flyout`, and carried a never-consulted preview-code list; the two photo-prints mount hooks sit on different routes; `product/product-details-prints` emits no dataLayer event; the kiosk idle-screen logo test is inverted; and a double-prefixed checklist path exists in error. Source: claude-chat.
+- 2026-09-09: Added a *Creating a New Snippet* section — a net-new snippet cannot be created on a child site, it is created on the parent with the off value and Allow Override ticked and then overridden `TRUE` on the child, and a snippet Description is a real column that is never blank. Added rows for `product/additional-each-pricing`, `product/px-notify-boot`, `integrations/google/product-page-rating-widget`, `kiosk/style` and `kiosk/terminal-capture`. Added a second Annotations block expanding `product/inventory` (stock badge tiers and its two include sites), `product/design-now` (the stock gate and `window.pxInventoryOutOfStock`), `product/details-filter-dual-mode` and `product/filter-controls` (the five-field `collection_filters` syntax and `snippet_args`), `helpers/is-kiosk-mode` (silent host-mismatch failure), `integrations/google/tag-manager` (the GTM-only standard) and the three Google reviews widgets (no structured-data markup). Added a Known Parent Defects section — `product/details-filter-dual-mode` never calls `product/inventory`, `kiosk/style` carries a stray `}`, the parent ships a placeholder phone number that is a real person's number and reverts a client's correction on every rebuild, and a parent-level tool had customer-visible partner names burned into its strings. Source: claude-chat, fireflies-call.

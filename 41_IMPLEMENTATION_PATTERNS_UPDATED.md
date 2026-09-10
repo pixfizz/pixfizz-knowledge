@@ -3,7 +3,7 @@
 **Authority Scope:** Reusable architectural patterns for Pixfizz
 storefronts.
 
-*Last updated: 2026-06-30*
+*Last updated: 2026-09-09*
 
 ------------------------------------------------------------------------
 
@@ -790,6 +790,298 @@ count before trusting any digest. Hashing an empty body returns a value that loo
 exactly like a hash, so a blocked request produces a confident wrong answer.
 
 
+# Adding a Capability to a Shared Parent Snippet Without Touching Any Site
+
+Parent snippets are shared by every lab on the Shopper parent. The instinct when adding a
+capability is to build it as an **Override Snippet** on a child and promote it later, but a
+straight promotion makes the new behaviour unconditional: every lab pays for it, and any lab
+whose markup or data differs gets a surprise.
+
+**Several parent snippets already receive a free-form arguments string, parsed at the top of
+the snippet into named values.** For example:
+
+```liquid
+{% assign args_array = args | split: '|' %}
+{% for keyval in args_array %}
+	{% assign splat = keyval | split: ':' %}
+	...
+	{% case arg_name %}
+	{% when 'control_type' %} ...
+	{% when 'prompt' %} ...
+```
+
+That string comes from **admin data**. So the opt-in already has a delivery mechanism that
+needs no code and no deploy: **a new argument name.**
+
+**Three properties make such a change parent-safe, and all three need proving, not
+asserting:**
+
+1. **Opt-in, not opt-out.** Gate the new work on a flag no existing data carries. **Grep the
+   corpus to confirm the string appears nowhere** before shipping.
+2. **Degrade to byte-identical output.** The unflagged path must emit the same *bytes*, not
+   merely look the same. An `{% unless x == blank %}` around the new markup usually does it,
+   provided the variable is genuinely absent rather than empty-but-present.
+3. **Preserve parallel-array alignment.** Where the caller builds several arrays in step and
+   indexes them together later, **push the new array outside the conditional**. Push inside it
+   and a collection with a mix of flagged and unflagged items silently shifts every other
+   array's indices — the labels stop matching the options, and nothing errors.
+
+**Proof standard.** The load-bearing assertion is the **negative** one:
+
+> Save the rendered HTML of an unflagged page on another site, apply the change, save it
+> again, diff. **Expect zero lines.**
+
+Against a **live URL** — a local render verifies the file, not the site. The positive test
+proves the feature; only the negative test proves it is free. Where parallel arrays are
+involved, add a third assertion: one flagged and one unflagged item on the *same* page, with
+every control still highlighting its correct current value.
+
+**Open, not verified:** whether a snippet callee sees the caller's local variables. If
+`{% snippet %}` passes only its named arguments, a plain argument name is fine; if snippets
+inherit caller scope, any caller with a same-named local leaks into the callee and the
+argument must be namespaced. Two-minute test: `{% assign zzz_probe = 'LEAK' %}` before the
+call, `{{ zzz_probe }}` inside the callee. It governs every future parent argument.
+
+Related vocabulary: the admin action that creates a site-level version of a parent snippet is
+**Override Snippet** — not copy, fork or duplicate. An override **pins** that snippet: the
+site stops inheriting parent changes to it, silently and permanently. So a promotion to the
+parent is only finished when the override is **removed**; leave it and the site keeps running
+the old code while everyone believes it is on the new.
+
+_Verified by reading source (parent snippets) and by test; the scope question is **not
+verified**._
+
+------------------------------------------------------------------------
+
+# The Custom-Tool Install Order on a New Site
+
+Four steps, in this order. **A wrong order gives no useful error — the tool simply does not
+appear.**
+
+1. **Template-option custom field schema first.** Export it from a site that already has the
+   tool and import it into the target site. This is what creates `custom_script` as a custom
+   field **on template options**. Custom field definitions do not inherit from the parent, and
+   nothing else works until this exists. Note that "the `custom_script` custom field
+   definition" does not match anything a person sees in admin — say "the template-option
+   custom field schema export".
+2. **Template options** — the tool's own `<prefix>_*` options, imported per template.
+3. **Product custom field definitions** for the tool's product-level configuration.
+4. **Values** — checklist keys at site level, custom field values per product.
+
+Two rules for step 2, both learned by nearly breaking a live site:
+
+- **Never re-import a template-options export from another site unchanged.** Such an export
+  carries every option on the source template, not just the tool's. Codes that exist on both
+  sites with different values — paper, finish, binding — are silently replaced with the source
+  site's values. Strip the export to the options actually being added, and check `order` for
+  collisions with the target's existing options.
+- **Blank ids in an options import create new records.** Confirmed in practice; a keep-ids
+  fallback was not needed.
+
+Cross-reference `51_CUSTOM_FIELDS_REFERENCE.md`.
+
+_Verified by test (performed on a live site install), 2026-09-09._
+
+------------------------------------------------------------------------
+
+# Feature Flag for a Parent Snippet That Must Stay Inert on Most Children
+
+A parent snippet that only a handful of children should ever run gates in **two** stages, and
+the order matters:
+
+1. **A per-site data condition first.** Read the product or site data the feature needs; if it
+   is blank, emit nothing and **return before the snippet lookup**. Non-participating sites —
+   which is most of them — then never even pay for the lookup.
+2. **A checklist switch, defaulting off.** Read it with an **empty fallback** and require an
+   exact `TRUE`.
+
+```liquid
+{%- assign px_table = product.custom.quantity_price_table | default: '' | strip -%}
+{%- if px_table == '' -%}{%- else -%}
+	{%- capture px_flag %}{% snippet 'admin/checklist/tier-price-table', fallback_content: '' %}{% endcapture -%}
+	{%- assign px_flag = px_flag | strip | upcase -%}
+	{%- if px_flag == 'TRUE' -%}
+		... the feature ...
+	{%- endif -%}
+{%- endif -%}
+```
+
+Two details that make it work in practice:
+
+- **`| strip` the capture.** Checklist bodies on the parent carry no trailing newline and
+  `capture` does not trim, so a body saved as `TRUE\n` never equals `'TRUE'` — the flag then
+  fails silently and permanently while looking correct in admin.
+- **The checklist snippet is created on the parent**, body `FALSE`, with **Allow Override**
+  ticked; the child overrides it to `TRUE`. A net-new snippet pasted into a child appears to
+  save and then resolves blank forever. This rule already exists in
+  `01_CODE_GOVERNANCE_UPDATED.md` and `13_TEMPLATE_BOUNDARIES.md`; it is repeated here because
+  the place it gets broken is when writing **deployment instructions**, not when writing
+  Liquid.
+
+_Verified by test (7 cases through python-liquid, five of which assert zero bytes) and
+verified live, 2026-09-01._
+
+------------------------------------------------------------------------
+
+# A Byte-Identical Render Harness Needs Marker Assertions Or It Proves Nothing
+
+The first version of one such harness **passed every fixture as identical while every fixture
+was silently falling through to the same branch.** The comparison was real; the coverage was
+zero.
+
+Method that works:
+
+1. **Confirm each find-anchor occurs exactly once**, by script, in the current parent file
+   before patching.
+2. **Render the current parent against the patched parent** across fixtures covering **every**
+   branch of the snippet — one fixture per branch, not one per feature.
+3. **Assert a per-fixture marker proving the intended branch was reached.** Without this the
+   harness is measuring nothing.
+4. **Assert div balance** on any new markup, and that every input value is rendered exactly
+   once.
+
+Two traps this catches that reading does not:
+
+- A condition testing the wrong key **silently dropped ungrouped values while still rendering
+  the grouping bands** — an option visible on the product and impossible to order, with no
+  error anywhere.
+- **Filters are not allowed in an `{% if %}` condition.** `{% if x | strip == 'TRUE' %}` is a
+  **syntax error**, not a silent no-op, and on a parent snippet that is every child's product
+  page down at once. Assign first, then compare. The render test refuses to parse it; reading
+  it does not.
+
+Related whitespace rule: a `capture` for such a flag is **appended to the end of an existing
+line**, not placed on its own line. On its own line — even with `{%- -%}` — it shifts the
+leading whitespace of every rendered item on every child site. Appended, it emits nothing.
+
+## python-liquid treats an undefined key as `!= blank`
+
+The platform (Ruby Liquid) treats nil as blank; python-liquid does not. Any harness built on
+python-liquid will therefore diverge from the platform on `{% if x.y != blank %}` for keys the
+fixture does not define.
+
+**Control for it rather than working around it:** render the new branch **beside an existing
+untouched branch of the same shape**, and show that both diverge identically. That
+demonstrates a harness artefact rather than a behaviour difference. See also `!= blank` is not
+portable, above.
+
+_Verified by test, 2026-09-08._
+
+------------------------------------------------------------------------
+
+# Progress UI Must Live in the Panel the Customer Is Looking At
+
+A progress bar rendered inside step 1's panel shows nothing during work started from step 2.
+The customer sees a disabled button for several seconds and reads it as a hang. A second bar
+in the step 2 footer, sharing the same CSS, fixes it without touching the stylesheet.
+
+**Yield a frame before any blocking synchronous step, or the bar is decoration.** Precede
+each heavy call with `requestAnimationFrame` plus a zero timeout so the new percentage paints
+before the main thread blocks.
+
+**Prefer named phase labels to an invented smooth percentage.** "Merging pages", "Writing
+file" is honest; a percentage interpolated to look smooth is not, and it is the thing that
+makes a stall look like a crash.
+
+_Verified by build and verified live, 2026-09-09._
+
+------------------------------------------------------------------------
+
+# A Visually-Hidden Radio Must Use `opacity: 0`, Never `display: none`
+
+A `display: none` radio **cannot be focused**, so native validation fails silently: the form
+refuses to submit, no message appears, and nothing is logged to the console. The customer
+presses the button and nothing happens.
+
+Hide the input with `opacity: 0` (plus `position: absolute` and zero size as needed) and let
+the label carry the visual state. The input stays focusable, native `required` still reports,
+and the browser can scroll to it.
+
+_Verified by test, 2026-09-08._
+
+------------------------------------------------------------------------
+
+# No-JavaScript Is a Defence Against AJAX Re-Injection
+
+Every JS-driven picker on this platform has hit some version of the re-injection problem: the
+CMS re-renders a container, the handlers are gone or doubled, and state is lost or stale.
+
+Where the interaction can be expressed natively, it removes the failure mode entirely rather
+than defending against it:
+
+- **native radios** instead of a click-driven selection model;
+- **native `<details>` / `<summary>`** instead of a Bootstrap collapse or tab set;
+- **native `required`** instead of a JS gate;
+- **server-rendered state from `cart.custom.*`** instead of state held in page memory.
+
+Reach for the `style onload` re-injection pattern above when the interaction genuinely needs
+JavaScript. Reach for native markup first.
+
+_Verified by build; the individual failures it avoids are each verified live elsewhere in this
+file._
+
+------------------------------------------------------------------------
+
+# Preview Canvas — View Anchoring, Bleed Legibility, and Sizing
+
+Three faults found live on one tool's preview canvas, all of which read to the customer as
+"the control is broken" rather than as a drawing bug.
+
+**View anchoring.** A view computed as the **union of the artwork and the sheet** follows the
+artwork: drag right, the artwork's left edge moves right, the view's left edge moves with it,
+and on screen the artwork stays still while the product slides the other way. The drag reads
+as a mirrored control, in both axes. **Pin the view to the sheet plus a fixed overhang band**
+(e.g. 0.2 x the shorter sheet edge) and do not let it depend on the artwork rect at all.
+Artwork past the band is simply off canvas. Where the tool is in a passthrough mode and
+nothing moves, the union view is correct and should be kept — a wrong-sized file must be shown
+whole.
+
+**Bleed legibility.** Shading only the region past the sheet leaves the bleed strip — the part
+that prints and is then guillotined — at full brightness, and on a design with its own inner
+border the customer cannot tell which rectangle is the cut. **Shade the region past the sheet
+as "does not print", and shade *and hatch* the bleed strip**, using the prepress diagonal-hatch
+convention for "trimmed", with a legend key for both. A related bug caught by the same pixel
+probe: a path-tracing helper that calls `beginPath()` discards a rect added before it, so the
+shading lands on the whole product instead of the strip.
+
+**Canvas sizing.** A canvas sized on **width alone** ignores the stage height, and at most
+aspect ratios the height is what binds — so widening the column changes nothing. **Measure
+both dimensions, subtract the stage's real padding** via `getComputedStyle` (a hardcoded pixel
+value is wrong at the breakpoint where the padding changes), and scale to whichever dimension
+runs out first. **Repaint on debounced resize and on `shown.bs.modal`**: a hidden modal reports
+a zero box, so any paint that runs before the modal is shown gets the fallback size and keeps
+it. Measured effect of fixing both: 520 x 352 to 709 x 480, 1.86x the drawn area.
+
+**Assert direction and pixels in the test, not just state.** A smoke test that only asserted
+"Reset became enabled after a drag" passed throughout the mirrored-view fault. Probe the
+rendered pixels: after an upward drag the artwork's top edge must move up, the canvas must not
+change size, and at a zoom above cover scale a rightward drag must move it right.
+
+_Verified live (measured on the live page) and verified by test, 2026-09-09._
+
+------------------------------------------------------------------------
+
+# Verifying Which Version of a Parent Asset Is Actually Live
+
+**Do not trust a delivery record.** A version recorded as delivered on the parent was not on
+the parent, and the data-loss bug it fixed was live for two weeks. Nobody had checked.
+
+Two checks, and the second is the one that decides:
+
+1. **Read the version declaration in the CMS backup** and **hash-compare** the asset against
+   the build kit. A backup pulled today plus `sha1` on both files settles what is deployed.
+2. **Confirm by the absence of the new symbol**, not by the version string alone. A version
+   string is one line and can be bumped by hand or reverted independently of the code; a symbol
+   the new build introduced either exists in the file or does not. Grep for it.
+
+Where the two disagree, believe the symbol.
+
+_Verified by reading source (backup pulled the same day, sha1 compared against the local build
+kit), 2026-09-09._
+
+------------------------------------------------------------------------
+
+
 ## Changelog
 
 - 2026-03-12: Added `style onload` Re-injection Pattern section. Updated Dynamic UI Trigger Pattern.
@@ -806,3 +1098,4 @@ exactly like a hash, so a blocked request produces a confident wrong answer.
 - 2026-08-05: Added the `position: sticky` stacking-context modal trap, distinct from the containing-block gotchas, with the elementFromPoint confirmation, the `body.modal-open` CSS fix, and the diagnostic-script flaw of gating ancestor checks on `z-index !== auto`. Source: claude-chat.
 - 2026-08-11: Added Measured platform behaviour — `parse_json` is cheap at scale (25 parses of a 20KB payload per render, no measurable TTFB change); redirects capture dotted root paths so `llms.txt` and similar are servable from an asset; the asset uploader is extension-filtered (.txt/.md rejected, .json accepted); WebP is the image-pipeline ceiling with no AVIF (AVIF under discussion, pending). Added the `!= blank` nil trap and the `| default: '' | strip` portable comparison. Source: claude-chat (Shopper v2 verification kit).
 - 2026-08-29: **Corrected the image-pipeline rule** — the `format:` filter is WebP-capped, which is not a format ban; pre-encoded AVIF uploads and serves through `<picture>` and has shipped since 2026-08-16. Current rule is AVIF + WebP with WebP as the `<img>` fallback, keeping AVIF only where it measures smaller. Added: canvas export requires `crossOrigin = 'anonymous'` or `toBlob` throws `SecurityError` after a perfect-looking preview; the iOS Safari 16,777,216-pixel canvas ceiling as a go/no-go test for browser-built print files; writing to the cart from a custom tool (`cart_add_product` per product, disabled inputs as the mechanism, sequential queue in `sessionStorage`, assert `cart.orderlines_total` grew); collection filter params are arrays, so `?type=Roll` silently no-ops; a snippet's own `data-*-mount` default is a label rather than evidence, with the two photo-prints routes; a literal `</style>` inside an inlined CSS snippet ends the element early and dumps the stylesheet onto the page; and five browser PDF preflight rules (pdf.js exposes only the CropBox, never infer trim from page size, cMap config, text-trigram page matching, `pdf-lib copyPages` fidelity). Source: claude-chat.
+- 2026-09-09: Added adding a capability to a shared parent snippet without touching any site — the free-form arguments string as an admin-data opt-in, the three properties that make it parent-safe (opt-in proven by grep, byte-identical degradation, parallel-array alignment preserved by pushing outside the conditional), the negative-diff proof standard against a live URL, the unresolved snippet-scope question, and Override Snippet vocabulary with the pinning consequence. Added the four-step custom-tool install order on a new site, the no-useful-error failure, and the two options-import traps; cross-referenced 51_CUSTOM_FIELDS_REFERENCE.md. Added the two-stage feature-flag pattern for a parent snippet that must stay inert on most children — data condition first, then a checklist switch defaulting off, read with an empty fallback and stripped before an exact TRUE comparison, created on the parent with Allow Override. Added that a byte-identical render harness needs per-fixture marker assertions or it proves nothing, with the silently-dropped-values and filter-in-an-if traps and the capture whitespace rule, plus python-liquid treating an undefined key as != blank and how to control for it. Added that progress UI must live in the panel the customer is looking at and must yield a frame before a blocking step. Added that a visually-hidden radio must use opacity 0, never display none. Added no-JavaScript as a defence against AJAX re-injection. Added preview canvas view anchoring, bleed legibility and canvas sizing, with the direction-and-pixel test assertions. Added how to verify which version of a parent asset is actually live — hash-compare against the build kit and confirm by the absence of the new symbol, not the version string. Source: claude-chat, fireflies-call.

@@ -1,6 +1,6 @@
 # Pixfizz Shopper v2 Custom Fields Master Reference
 
-**Last Updated:** 2026-06-30
+**Last Updated:** 2026-09-09
 
 ---
 
@@ -111,6 +111,50 @@ This reference documents **30 object access patterns** mapping to approximately 
 
 - **Field type can differ by object for the same field name**: the product tab fields `details`, `features` and `production` render as markup at the Collection level but not at the Product level. Tab content authored as HTML belongs on the Collection, not on the individual product export.
 
+- **A custom field definition archive contains no object-type key.** Verified by reading
+source, 9 September 2026. Every `custom_fields_*.tar.gz` contains exactly one member,
+`./__custom_field_definitions.yml`, and the YAML is a flat `custom_field_definitions:`
+list of `id` / `field_name` / `field_type` / `public` / `description`. There is no
+object-type key anywhere in the file. **The object a definition lands on is decided
+entirely by where in admin the import is run**, not by the archive, so one archive
+imported at two object types creates the fields on both. That is a hazard and a tool in
+equal measure.
+
+- **Template options carry custom fields too, and they are a separate object.**
+`custom_script` — the field that mounts a custom design tool onto an option — is a
+custom field on the **template option**, not on the product and not on the design.
+Registering it on Product does not create it on Option. Like every other definition it
+does not inherit from the Shopper parent, so a child site that has never run a custom
+tool does not have it. This is the single most likely cause of "the tool does not
+appear" on a new site. Verified by reading source, 9 September 2026.
+
+- **Install order for a custom design tool on a new site.** Getting this wrong produces
+a tool that never renders, with nothing in the console and nothing in admin to point at:
+
+  1. **Template-option custom field definitions** — exported from a site that already
+     runs the tool. Nothing below works until this exists.
+  2. **The tool's template options** — per template.
+  3. **Product custom field definitions** — the tool's per-product settings.
+  4. **Values** — site checklist keys first, then per-product field values.
+
+  Steps 1 and 3 are both reached as "custom fields" in admin, but they are different
+  object types and different imports. The wording that causes the confusion is calling
+  step 1 "the `custom_script` custom field definition"; in admin it is a template-option
+  custom field schema.
+
+- **Order and Cart are the same custom-field object.** Verified by reading source, 9
+September 2026. The Order archive carries `cart_option`, `first_name`, `last_name`,
+`kiosk_mode` and the `rush*` flags, all of which are read from Liquid as `cart.custom.*`.
+There is no separate Cart archive and none is needed. The two tables below are two access
+patterns on one object, not two objects.
+
+- **Some fields are platform-consumed only and never appear in Liquid.** `lab_printer`,
+`lab_size`, `oversize` and `quantity_from_variants` on Product, plus `ga_client_id` and
+`ga_session_id` on Order, which are written server-side for GA4. **Do not prune a field
+because a grep of the Liquid tree says it is unused** — the tree shows what the template
+*reads*, which is not the same set as what the platform and fulfillment consume. Verified
+by query against a parent template tree, 9 September 2026.
+
 - **New products start with blank custom field values**: field *definitions* exist on the site, but values default to blank (and boolean fields to false) on every newly created product. An export showing empty custom fields is expected behaviour, not a failed export.
 
 - **`manage/custom-fields` is the in-CMS field authority**: the CMS carries a maintained reference page listing every custom field with its object type, field type and description, including fields that are missing from import tars. Where a field's type or purpose is ambiguous, that page outranks any export file.
@@ -189,6 +233,8 @@ This reference documents **30 object access patterns** mapping to approximately 
 | promotion | snippet | Campaign promotional message displayed on product |
 | promotion_badge | text | Badge text: 'On Sale', 'Best Seller', etc. |
 | promotion_message | text | Custom promotional message |
+| quantity_price_table | text | Comma-separated `<qty>:<unit_price>` pairs, quantities ascending. Blank means no table is rendered. Rendered by the parent snippet `product/additional-each-pricing`; malformed pairs are skipped rather than rendered |
+| quantity_unit_label | text | Unit suffix appended to every quantity label on the product page, e.g. `sheets`. Blank leaves current behavior unchanged. Rendered by the parent snippet `product/additional-each-pricing` |
 | regular_pricing | text | Regular price displayed with strikethrough + SALE badge |
 | remove_live_preview_img_schema | boolean | Exclude live preview image from schema.org markup |
 | select_date | boolean | Show month/year selection on product page |
@@ -348,6 +394,12 @@ Reserved for platform-level features, production routing, and future functionali
 | url_path | string | Primary custom URL slug |
 | url_slug | string | Fallback URL slug when url_path not set |
 
+**`cart_edit_url` set to `project-edit` must be a design custom field, not a product
+one.** Verified by reading source. Without it on the design, the cart's Edit button opens
+the standard design tool, which cannot open a project created by a custom design tool.
+The customer gets an empty or broken editor rather than their own configuration.
+
+
 ---
 
 ### Post (36 fields across groups)
@@ -449,6 +501,16 @@ Post is a single CMS object type with context-dependent field naming. Fields are
 | template_option | object | Template option metadata (accessed via option.template_option) |
 | type | text | Option type (select, checkbox, radio, etc.) |
 | variant | object | Variant data (accessed via option.variant) |
+
+**Never set `read_only` on anything a tool writes.** Verified by reading source. A
+`read_only` option renders a display chip plus a hidden input, so a script that expects a
+live control finds nothing to drive and every write silently no-ops. The symptom is a
+tool that appears to work and an orderline with empty options. Use `hidden: true` with
+`read_only: false` for an option the tool owns.
+
+`custom_script` — the field that mounts a custom design tool onto an option — is a
+custom field on **this** object, not on Product or Design. See Key Notes.
+
 
 ---
 
@@ -892,10 +954,33 @@ as the Custom Type instance archive):
   product contains only the boolean schema fields at `false`. Absence is not an
   error and is not the same as an empty string.
 
-**Untested — flag before relying on:** whether re-importing an archive whose
-`code` already exists updates in place or creates a duplicate; whether
-`linked_assets` drives the Preview Images panel; whether `image:` accepts a bare
-filename the way an asset-type field does.
+**Re-importing an archive whose `code` already exists creates a duplicate product and
+assigns new IDs. It does not update.** Verified from platform experience, 6 September
+2026 — this closes what this file previously flagged as untested. Product, variant-type
+and variant-value IDs all change on the new object.
+
+The blank-`id:` behaviour above is therefore not an id-reservation convenience. It is the
+whole mechanism: **the archive format is create-only. There is no upsert on `code`.**
+
+**The archive is a seeding format, not a management format.** It remains the right tool
+for standing up a new site's catalogue, generating a size ladder that would otherwise be
+hand-built per product, and site rebuilds. It must **never** be used to push a change to
+a live catalogue: the original product stays in place alongside the duplicate, anything
+resolving by ID now points at the wrong one, and the storefront shows both products.
+
+Three consequences to carry forward:
+
+1. **Bulk price editing cannot go through the archive.** Any interface that edits prices
+   on an existing catalogue has to write through the admin API per object, not by
+   regenerating and re-importing an archive.
+2. **Site-rebuild runs are one-shot.** Re-running a rebuild bundle against a site that
+   already has the products is a duplication event, not an idempotent refresh.
+3. **Whether the Static Product Importer CSV upserts on `handle`/`sku` is not
+   verified — pending confirmation.** Do not assume it behaves differently just because
+   it is a different format.
+
+**Still untested — flag before relying on:** whether `linked_assets` drives the Preview
+Images panel; whether `image:` accepts a bare filename the way an asset-type field does.
 
 **If generating the YAML, reproduce Ruby Psych's whitespace exactly.** Psych
 writes a nil as `key: ` (key, colon, one **trailing space**) and a mapping or
@@ -908,6 +993,93 @@ assertion has nothing to assert against.
 (`8x10`, `16 x 20 in`, `50 x 70 cm`) so size-aware storefront features can read
 them off the platform's own rendered controls rather than needing injected data
 attributes.
+
+---
+
+## The Standalone `__template_options.yml` Archive
+
+**Verified live, 9 September 2026** — blank `id:` accepted and new records created on two
+separate templates on one site, first attempt, no error. This is the export produced from
+a template's options alone, not the whole `__print_product.yml`. Archive shape is the
+usual one: `./__template_options.yml` plus the five empty media directories.
+
+**Two traps when reusing an options export taken from another site.**
+
+- **It carries every option on that template, not just the ones you want.** Paper,
+  binding and finish options travel with the tool's own options. Where the target site
+  has options with the **same codes and different values** — the normal case, since
+  these codes are conventional — importing as exported replaces the target's options
+  with the source site's, silently. Option codes resolve outside the archive, so nothing
+  downstream detects it. **Strip the archive to the options you are actually adding.**
+- **`order` collides.** Check what the target template already uses and number the
+  additions above it. An export written for a template whose tool options sat at 1 to 6
+  will fight a target whose own options occupy 1 to 4.
+
+**Still untested — flag before relying on:** whether re-importing an archive whose option
+`code` already exists updates in place or duplicates. Avoided rather than answered, both
+times it has come up. Ten minutes on a test site settles it, and it blocks nothing until
+someone tries it in anger.
+
+---
+
+## Prefer an Existing Snippet-Type Custom Field Over a New Snippet
+
+A new snippet has to be created on the Shopper parent, where it becomes every lab's
+default. A custom field value is site data. **Where content needs to reach the product
+page, use a snippet-type product custom field that already renders there rather than
+creating a snippet.**
+
+Snippet-type product custom fields that already render on the PDP: `pricing`, `details`,
+`features`, `options`, `production`, `product_footer`. A snippet-type field returns the
+**rendered** snippet and holds 20,000+ characters byte-clean (see Key Notes).
+
+**Caveat, already recorded above and repeated here because it decides the choice:**
+`details`, `features` and `production` render as markup at **Collection** level but not
+at **Product** level. `pricing`'s behavior at product level is **not verified — pending
+confirmation**; confirm it on one product before committing a price-break table or any
+other markup to it. Fallback ladder if it does not render: product-level field →
+collection-level field → parent snippet.
+
+---
+
+## This Reference's Counts Are Stale — Regenerate, Do Not Patch
+
+**Verified by query, 9 September 2026**, against a parent template tree and the served
+custom field definition archives.
+
+The Product count recorded in this file as **81** reads **207** on the parent template.
+**121 of those 207 are custom design tool fields**, by prefix:
+
+| Prefix | Count |
+|---|---|
+| `framing_` | 22 |
+| `facefan_` | 19 |
+| `bc_` | 17 |
+| `gangup_` | 16 |
+| `pu_` | 13 |
+| `flyer_` | 12 |
+| `sticker_` | 11 |
+| `cut_` (shared) | 5 |
+| `dsn_` | 3 |
+| shared `tool_config`, `tool_pricing` | 2 |
+
+The **non-tool** fields missing from this reference are enumerable and small:
+
+| Object | Missing from this file |
+|---|---|
+| Product | `cover_dimensions`, `hide_from_index`, `options_layout`, `quantity_price_table`, `quantity_unit_label`, `size_unit`, `spreads_as_pages`, `subheader` |
+| Design | `hide_from_index`, `hide_from_search`, `subheader` |
+| Option | `hide_pricing` |
+| Order | `purchase_order`, `school`, `year` |
+| Address | `hide_address` |
+
+Several of those rows have since been added to the tables above; the list is kept whole
+so the gap can be checked against a fresh export rather than against memory.
+
+**Do not try to fix the counts by hand.** This file should be regenerated from a fresh
+Settings → Custom Fields export taken from a site that actually runs the custom design
+tools, then reconciled against the parent tree. A hand-corrected count next to a
+generated table drifts again on the next pass.
 
 ---
 
@@ -935,3 +1107,4 @@ hides it. Test on one collection before promising it to a client.
 - 2026-08-11: Corrected the field type list — there is no `html` type; all 18 table rows typed `html` changed to `snippet`, and the Phase 3 type list corrected to text/multitext/boolean/number/asset/snippet. Added Key Notes for what each non-string type returns in Liquid, the `Public` flag controlling non-admin edit rights rather than storefront visibility, and large-content capacity being snippet-type only (text-type caps around 1KB). Added Section — the per-product export archive as a bulk-creation format carrying variant types and values. Source: claude-chat (Shopper v2 verification kit, art-archive build).
 - 2026-08-21: Added snippet-type custom field rendering gotcha (requires non-empty Description). Source: slack-message + fireflies-call.
 - 2026-08-29: Added Fields Seen Live But Absent From This Reference — `unpublished` observed in a live Collection `custom` hash, distinct from `blog_unpublished` and `service_unpublish`, with the open question of whether the Shopper shop index respects it (Shopper lists all collections by default). Source: claude-chat.
+- 2026-09-09: Closed the "Untested" flag on the per-product export archive — re-importing an archive whose `code` already exists **creates a duplicate and reassigns IDs**, it does not update. The format is create-only with no upsert on `code`: seeding and site rebuilds only, never a live catalogue change. Bulk price editing must write through the admin API per object, and site-rebuild runs are one-shot. Whether the Static Product Importer CSV upserts on `handle`/`sku` remains not verified. Added Key Notes: a custom field definition archive carries no object-type key, so the import target in admin decides the object; template options are a separate custom-field object and `custom_script` lives there, with the four-step install order for a custom design tool on a new site; Order and Cart are the same custom-field object; some fields are platform-consumed only (`lab_printer`, `lab_size`, `oversize`, `quantity_from_variants`, `ga_client_id`, `ga_session_id`) and must not be pruned on the strength of a Liquid-tree grep. Added Product fields `quantity_unit_label` and `quantity_price_table`. Added the Option rule never to set `read_only` on anything a tool writes, and the Design rule that `cart_edit_url: project-edit` must be a design custom field. Added the standalone `__template_options.yml` archive section (blank ids create records; the two reuse traps; duplicate-code behavior still untested). Added the rule preferring an existing snippet-type custom field over a new parent snippet, with the product-level rendering caveat. Added a section recording that this file's counts are stale — Product reads 207 against the 81 recorded, 121 of them custom design tool fields — and that it needs regenerating from a fresh export. Source: claude-chat, fireflies-call.

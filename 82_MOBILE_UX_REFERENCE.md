@@ -131,6 +131,56 @@ device is rotated. All of it is in 17_DESIGN_TOOL.md.
 
 ---
 
+## 4a. Touch and form implementation rules
+
+Four rules that came out of product-page and custom-tool work. Each is a small change with a
+failure mode that is silent, which is why they are worth writing down rather than rediscovering.
+
+### Gallery arrows hidden until hover mean hidden forever on touch
+
+**Verified by reading source** (Shopper parent `product/gallery/standard` and its CSS). Stock
+Shopper reveals the gallery's previous/next arrows on hover. Touch has no hover state, so on a
+phone the arrows never appear, and that is the mechanism by which a second product image goes
+unnoticed — the customer has no signal that there is anything to the right of the first frame.
+
+An always-visible override is the fix, but **scope it to galleries that actually have more than
+one image** — for example on a selector that only matches when a second item is present — so
+single-image galleries keep the clean look. An unscoped override puts dead arrows on every
+one-image product on the site.
+
+### A visually hidden radio must use `opacity: 0`, never `display: none`
+
+**Verified live.** A radio styled away with `display: none` cannot receive focus, so the browser
+cannot focus it to report a native `required` validation failure. The result is a form that
+silently refuses to submit: no validation message, no scroll to the offending field, and
+nothing in the console. The customer taps the button and nothing happens.
+
+Hide the input with `opacity: 0` (plus zero size and absolute positioning if needed) and paint
+the visible control on the label. The input stays focusable, native validation still fires, and
+the swatch or pill still looks the way it should.
+
+### Size a canvas or preview on both axes, and repaint on the events that change the box
+
+**Verified live.** A canvas or preview stage sized from its container's width alone will overflow
+or letterbox as soon as the available height is the binding constraint — which on a phone in
+landscape, or inside a modal, it usually is. Measure width *and* height, subtract the real
+padding rather than an assumed value, and take the smaller scale.
+
+Repaint on a **debounced** resize and on the modal's shown event. A modal that has not been
+opened yet reports a zero-size box, so anything measured at page load inside a hidden modal
+computes a scale of zero and paints nothing.
+
+### Prefer native `<details>` / `<summary>` to a JS tab component for collapsible product content
+
+**Verified by reading source** (Shopper re-injects product-page fragments, so component scripts
+have to be re-bound after every AJAX update). For collapsible product-page content —
+specifications, delivery, care — native `<details>` / `<summary>` has no JS dependency and
+nothing to re-bind, so there is nothing to break when the fragment is re-injected. It is also
+open by default to a crawler, which a JS-built tab panel may not be. Reach for a JS component
+only when the interaction genuinely needs one.
+
+---
+
 ## 5. Patterns from the wider category
 
 **[category]** Observed across consumer photo-book and photo-gift editors in an
@@ -231,3 +281,4 @@ Honest list, so the next person does not assume coverage that is not here.
 
 ## Changelog
 - 2026-08-29: Created. Consolidates the mobile facts that were scattered across 17, 50 and 80 — nav collapse, `header/logo-height-mobile`, `variant_columns_mobile`, the device-detected editor mode, and the generated-CSS specificity trap — with the Shopper UX framework's mobile-first principles, four mobile failures observed on live builds, category patterns from the August 2026 consumer editor audit, and a mobile audit checklist. Written because `02_RETRIEVAL_MAP.md` had routed to this filename and to `83_MOBILE_UX_AUDIT.md` since before 2026-05-21 without either file ever existing. The audit checklist is folded in here rather than split into an 83 file, since 83 is taken by AI imagery production. Source: claude-chat, Shopper UX framework, competitor audit.
+- 2026-09-09: Added § 4a Touch and form implementation rules — gallery arrows hidden until hover are hidden forever on touch (and why an always-visible override must be scoped to multi-image galleries); a visually hidden radio must use `opacity: 0` rather than `display: none`, or native validation fails silently and the form refuses to submit with no message; size a canvas or preview on both axes and repaint on debounced resize and modal-shown, because a hidden modal reports a zero box; prefer native `<details>`/`<summary>` to a JS tab component for collapsible product content. Source: claude-chat.

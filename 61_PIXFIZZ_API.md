@@ -2,7 +2,7 @@
 
 **Authority Scope:** Pixfizz REST API (v1), JS API, user handoff, project/fulfillment endpoints, dynamic previews, and custom eCommerce integration.
 
-_Last updated: 2026-07-01. Compiled from Pixfizz Notion wiki (API section)._
+_Last updated: 2026-09-09. Compiled from Pixfizz Notion wiki (API section)._
 
 ---
 
@@ -805,6 +805,57 @@ SOURCE: Pixfizz Promocodes API documentation. Confirmed applicable: #development
 
 ---
 
+## 13d. Order Webhook — Registration and Payload
+
+The Pixfizz platform can POST an order to an external endpoint when the order changes state.
+**Customers register the webhook themselves in Pixfizz admin** — it is a self-serve setup step,
+not a Pixfizz engineering job, and it is the same mechanism OrderHub uses. Anyone standing up an
+order consumer registers their own endpoint the same way.
+
+**The payload carries `orderlines[].product_id`, a numeric internal product id. It does not carry
+`product_code`.** *Verified by query, 2026-09-09* — `product_code` is absent from every orderline
+on every payload checked.
+
+Consequence, and it is not cosmetic: **any downstream consumer that keys items by product code
+cannot join against the webhook.** The rest of the platform — the storefront, the design product,
+the feed, every client-side analytics event — identifies a product by its code. A consumer built
+on the webhook alone identifies it by a number, and the two sets never meet. Plan for a lookup on
+the consumer side, or expect item-level reporting not to reconcile.
+
+The live case is the server-side GA4 `purchase` pipeline, where this produces item reports with
+two rows per product and funnels that never join. See `85_GA4_SERVER_SIDE_PURCHASE.md`.
+
+---
+
+## 13e. What Is Not Possible Today
+
+Recorded so these stop being re-proposed as available. Each is a **current limitation, not a
+roadmap commitment**, and each should be re-checked rather than quoted from here indefinitely.
+
+### Price Variables are not reachable via the API
+
+**Stated by the core developer, 2026-09-07; not independently verified against the API.** There is no API
+surface for reading or writing Price Variables. Adding one was described as not difficult, which
+is not the same as scheduled.
+
+Practical effect: a bulk price change that lives in price variables is an admin job. Do not scope
+an integration, a migration script or a pricing tool on the assumption that variables can be
+read or set programmatically. Bulk export and import of price variables **through admin** does
+exist and is the supported bulk route.
+
+### There is no template import endpoint
+
+**Stated by the core developer, 2026-09-09; not independently verified against the API.** Template tar files must
+be imported **one at a time through admin**. There is no endpoint, so a bulk-generated set of
+templates is a manual import per template, however the set was produced.
+
+The named blockers are large-file handling and progress tracking, both of which are real
+engineering rather than a missing route. Factor the manual import time into any project that
+generates templates in bulk — it is usually the largest single item in the schedule and it is
+routinely estimated as free.
+
+---
+
 ## 14. Retrieval Pointer
 
 | Topic | File |
@@ -814,6 +865,8 @@ SOURCE: Pixfizz Promocodes API documentation. Confirmed applicable: #development
 | Pixfizz Liquid objects (user, order, etc.) | `50_LIQUID_REFERENCE.md` |
 | Shopper template cart/checkout | `20_SHOPPER_CART_RULES.md`, `21_SHOPPER_CHECKOUT_POLICY.md` |
 | Template responsibility boundaries | `13_TEMPLATE_BOUNDARIES.md` |
+| Server-side GA4 `purchase` from the order webhook | `85_GA4_SERVER_SIDE_PURCHASE.md` |
+| Order lifecycle and confirmed status | `32_ORDER_LIFECYCLE.md` |
 
 ---
 
@@ -825,3 +878,4 @@ SOURCE: Pixfizz Promocodes API documentation. Confirmed applicable: #development
 - 2026-07-20: Documented the `fulfillment` param on the theme/project preview endpoint (placeholder-vs-resolution trade-off, not officially documented); added §13a no-fixed-outbound-IP networking note; added §13b reprint order-ID uniqueness (append a letter suffix). Source: support-ticket, fulfillment-integration call, #development.
 - 2026-07-25: Added § 13c Admin Content API — custom type list/read/instance-create, asset upload and list, and the custom-field update endpoints for products, designs (`theme`), and collections (`theme_category`). Marked not publicly announced; documented the genuine `/admin` vs `/v1/admin` prefix inconsistency. Source: internal notes (Matjaz).
 - 2026-08-21: Added full Promocodes / Gift Vouchers API section (§13a) including create, read, update, delete endpoints and gift voucher (reuse_credit) pattern. Source: api-docs + slack-message.
+- 2026-09-09: Added §13d Order Webhook — customers register it themselves in Pixfizz admin (the same mechanism OrderHub uses), and the payload carries `orderlines[].product_id` (numeric internal id) and not `product_code`, so any consumer keying items by product code cannot join (verified by query). Added §13e What Is Not Possible Today — Price Variables are not reachable via the API (confirmed by the core developer 2026-09-07) and there is no template import endpoint, so bulk-generated template tars are imported one at a time through admin, blocked on large-file handling and progress tracking. Both recorded as current limitations, not roadmap. Added retrieval pointer rows for `85_GA4_SERVER_SIDE_PURCHASE.md` and `32_ORDER_LIFECYCLE.md`. Source: slack-message, fireflies-call.

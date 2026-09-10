@@ -2,7 +2,7 @@
 
 **Authority Scope:** OrderHub order lifecycle, production pipeline, fulfillment destinations, and OrderHub Desktop.
 
-_Last updated: 2026-05-19_
+_Last updated: 2026-09-09_
 
 ---
 
@@ -332,6 +332,104 @@ The `manual_payment` field is a custom field set at order creation. It returns `
 
 ---
 
+## Print-on-Demand Parent/Child Routing
+
+Where a child site outsources an orderline to a parent lab's OrderHub, the line is priced by
+the **parent**, not by the child.
+
+**How the price is resolved.** The parent looks the line up by **product code and variant
+code against the parent lab's own site**, and takes the parent's wholesale value for it. The
+price is not passed through from the child's order.
+
+**The failure mode is silent and it is expensive.** A code that does not match anything on
+the parent's site **does not reject the order — it inserts a zero price**, and that zero
+flows straight into the parent's automatic wholesale invoicing. Nothing errors, the job
+prints, and the parent lab bills nothing for it.
+
+Two more properties of the routing:
+
+- **Only the outsourced items reach the parent lab.** The whole order still goes to the
+  child's own fulfilment; the parent sees just the lines routed to it.
+- **The product feed carries nothing from the template**, so template-level variants cannot
+  be resolved this way at all.
+
+**A POD-specific SKU property populated from the template code was discussed and is NOT
+built. Do not document it as existing.**
+
+**Why the codes drift.** Cross-reference the semi-inheritance rule in
+`16_PRODUCT_HIERARCHY.md`: once a parent lab grants a template to a child site, selecting
+that template on Publish Products auto-populates the product code from the template code —
+and **the auto-populated code is editable by the child admin**. Any edit there breaks the
+lookup above. When a parent lab reports zero-priced wholesale lines, compare the child's
+product and variant codes against the parent's before looking anywhere else.
+
+_Stated on a client call and consistent with the semi-inheritance behaviour recorded in
+16_PRODUCT_HIERARCHY.md; not independently verified by test, 2026-09-09._
+
+---
+
+## Stock Decrement Timing
+
+Where a product tracks inventory, stock is decremented **the first time an order enters
+Confirmed or Draft, once only**. It is not decremented again on later status transitions, and
+not at cart or checkout time.
+
+Cross-reference `16_PRODUCT_HIERARCHY.md` (inventory is tracked per product, not per variant)
+and `18_ADMIN_NAVIGATION.md` § Inventory Management.
+
+_Verified by reading source (platform documentation), 2026-09-09._
+
+---
+
+## Server-Side GA4 `purchase` Depends on `confirmed_at`
+
+The server-side GA4 `purchase` event is sent **only when `confirmed_at` is present** on the
+order. In practice that means it fires:
+
+- on `order_status_changed` / `order_updated`, once the order reaches confirmed; and
+- on `order_created`, only where the order arrives **already** confirmed — the pay-in-store
+  and auto-confirm cases.
+
+**A brand whose orders never reach confirmed sends nothing at all.** Counter and pickup
+workflows are the classic cause: the order is taken, fulfilled and collected without anyone
+moving it to Confirmed, so revenue never appears in GA4 while the storefront looks healthy.
+This is the same underlying behaviour as "Pending orders do not auto-route to production"
+above — the confirm step gates both.
+
+Full detail in `85_GA4_SERVER_SIDE_PURCHASE.md`.
+
+_Verified by reading source, 2026-09-09._
+
+### The order webhook payload does not carry `orderlines[].product_code`
+
+The webhook payload exposes only the numeric `product_id` on each orderline. There is no
+product code.
+
+Consequence: item-level GA4 funnels do not join — the analytics side has product codes from
+the storefront and numeric ids from the webhook, with nothing to join on — and this blocks
+the item-level fix rather than merely complicating it.
+
+_Verified by query, 2026-09-09._
+
+---
+
+## Cart Custom Fields Promote to Order Custom Fields at Checkout
+
+A custom field written on the cart is carried onto the order at checkout:
+
+```
+cart[custom][x]   ->   order.custom.x
+```
+
+The promoted value is then available in order management, in exports, and in email
+templates — so anything a storefront or a custom tool needs to survive checkout should be
+written as a cart custom field rather than held in page state or a hidden form field outside
+the cart.
+
+_Verified by reading source, 2026-09-09._
+
+---
+
 ## Changelog
 - 2026-03-30: Created from master platform documentation export.
 - 2026-04-23: Added pending order email scoping rule for manual_payment field.
@@ -344,3 +442,4 @@ The `manual_payment` field is a custom field set at order creation. It returns `
 - 2026-08-21: Added OHD FTP folder fulfillment mode. Source: slack-message (#development, Richard, Aug 17).
 - 2026-08-21: Added kiosk terminal tracking (custom.kiosk_id + ?terminal=N URL param). Source: slack-message (#development).
 - 2026-08-21: Added rush/urgent order options section. Source: fireflies-call (Documentation call, Aug 14).
+- 2026-09-09: Added print-on-demand parent/child routing — the parent lab prices the outsourced line by product code and variant code against its own site, a mismatch inserts a zero price into automatic wholesale invoicing rather than rejecting the order, only outsourced items reach the parent, template-level variants cannot be resolved because the feed carries nothing from the template, and the discussed POD SKU property is not built; cross-referenced to semi-inheritance and the editable auto-populated product code in 16_PRODUCT_HIERARCHY.md. Added stock decrement timing (first entry to Confirmed or Draft, once only). Added that the server-side GA4 purchase event is sent only when `confirmed_at` is present, so brands whose orders never reach confirmed send nothing, cross-referenced to 85_GA4_SERVER_SIDE_PURCHASE.md, and that the order webhook payload carries only the numeric `product_id` and no `orderlines[].product_code`, which is what blocks item-level funnels. Added cart custom fields promoting to order custom fields at checkout (`cart[custom][x]` to `order.custom.x`). Source: fireflies-call, claude-chat.

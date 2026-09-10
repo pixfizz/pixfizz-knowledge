@@ -2,7 +2,7 @@
 
 **Authority Scope:** Onboarding process, deployment path phase sequences, pre-onboarding preparation, launch readiness, and email notification templates.
 
-_Last updated: 2026-05-27_
+_Last updated: 2026-09-09_
 
 ---
 
@@ -394,7 +394,7 @@ These are the most common reasons a phase stalls. Flagging them early saves week
 
 ### Photo Labs
 
-- **Kiosk mode:** If the lab needs an in-store kiosk experience, plan for this in Phase 1 — it affects storefront structure. Basic kiosk mode uses a dedicated alternate domain (separate CNAME pointing to `hosting.pixfizz.com` with SSL). The kiosk domain is registered under **Settings → General → Domain Hosting** in admin. Checklist keys to set: `kiosk-mode-enabled: TRUE`, `kiosk-mode-domain: <kiosk-domain>`, `kiosk-pay-in-store-only: TRUE` (restricts pay-in-store to kiosk sessions only). Pay-in-store auto-confirmation is configured separately in admin. If the kiosk offers products at different pricing than the web store, unpublish those collections from the public storefront or access-gate them.
+- **Kiosk mode:** If the lab needs an in-store kiosk experience, plan for this in Phase 1 — it affects storefront structure. Basic kiosk mode uses a dedicated alternate domain (separate CNAME pointing to `hosting.pixfizz.com` with SSL). The kiosk domain is registered under **Settings → General → Domain Hosting** in admin. Checklist keys to set: `kiosk-mode-enabled: TRUE`, `kiosk-mode-domain: <kiosk-domain>`, `kiosk-pay-in-store-only: TRUE` (restricts pay-in-store to kiosk sessions only). Pay-in-store auto-confirmation is configured separately in admin. If the kiosk offers products at different pricing than the web store, unpublish those collections from the public storefront or access-gate them. **See Kiosk Storefront Prerequisites below for the minimum checklist keys, the subdomain trap on captcha, and multi-terminal identification.**
 - Establish whether the lab offers in-store collection (affects checkout/shipping config)
 - **Film processing:** If offered, needs separate product template setup. 120 and 220 film formats have different frame counts and scan rates — set them up as separate products, not as variants of the same product.
 - **Same-day collection:** Same-day or next-day collection messaging is a strong commercial differentiator — plan for it in Phase 1. A JavaScript-based time cutoff (typically after 1pm Mon–Fri) can be configured in Shopper to switch checkout messaging once the same-day window has passed. This is implemented at the snippet level.
@@ -522,6 +522,158 @@ seed. Check these by hand after every import, on the live site:
 Liquid engine and screenshotting it says nothing about a live storefront. Load the
 live URL and assert the expected DOM before reporting an import as done.
 
+## Google Account Ownership and Analytics Setup
+
+### The ownership standard
+
+**The customer owns every Google account. Pixfizz takes delegated administrator access. No
+credentials are shared, held, or created on the customer's behalf.**
+
+| Account | Owner | Pixfizz role |
+|---|---|---|
+| Tag Manager container | Customer | Administrator |
+| GA4 property | Customer | Administrator |
+| Search Console property | Customer | Full user |
+
+This is not a formality. A property held under a Pixfizz login is a hostage on the way out
+and a liability on the way in; a delegated admin seat is removed with one click by either
+side. It is also the shape the customer-facing setup flow assumes, so anything configured by
+hand today has to match it or it cannot be adopted later.
+
+**Two working rules follow, and both are onboarding rules rather than technical ones:**
+
+1. **Use a shared business Google account, never a staff member's personal login.** A
+   personal login walks out with the person.
+2. **Add the Pixfizz contact as administrator at creation time, not after.** Access latency
+   is the main cause of stalled analytics onboarding — the accounts exist, nobody can get
+   into them, and the phase sits open for weeks.
+
+### The technical standard
+
+**Set the Tag Manager container id. Leave the GA4 tag id field blank.** Both are exposed in
+Setup and Manage → Integrations.
+
+- The direct GA4 tag path cannot carry the funnel — it delivers page views and product views
+  and nothing past them.
+- The dataLayer path through the container carries the full ecommerce set.
+- **Both fields set is roughly 2x double counting** on product views and view-to-cart rate.
+- **Google Ads conversion tracking has no Shopper preset and must go through the container
+  anyway**, so a site that will ever run paid media needs the container regardless.
+
+Verified live on a customer storefront, 2026-09-02. See `50_SHOPPER_TEMPLATE_REFERENCE.md`
+for the storefront tagging implementation and `85_GA4_SERVER_SIDE_PURCHASE.md` for the
+server-side purchase path.
+
+**The trap to state on every handover:** a container on the site is only half the chain. If
+the container carries no GA4 event tags for the ecommerce events, GA4 shows traffic and no
+revenue. That is the first thing to check on any "analytics is connected but I see nothing"
+report — see `40_PLAYBOOK_UPDATED.md`.
+
+### What a GA4 API secret is, in customer terms
+
+Where server-side purchase reporting is being set up, the customer is asked for a **GA4 API
+secret**. Worth saying plainly, because "we need a key from your Analytics" sounds like more
+than it is:
+
+**An API secret is not a login.** It is a **write-only ingestion key scoped to one GA4 data
+stream**. The customer creates it, the customer can revoke it, it cannot read their data, and
+it gives access to nothing else in their Google account. It does not contradict the ownership
+standard above. Verified by reading source (Measurement Protocol documentation and the
+implementation), 2026-09-02.
+
+---
+
+## Configuration Order on a New Site
+
+Two ordering rules that produce no error at all when they are broken. Both cost a debugging
+session every time they are missed, because the first test looks like a code fault when it is
+a configuration fault.
+
+### Create custom field definitions before adding any records
+
+**This is the single most repeated failure mode in the field.**
+
+A value written against a custom field definition that **does not exist** is **silently
+dropped on save**. There is no error in admin, no error in the log, and nothing on the
+storefront to say a value was discarded. The field simply reads empty next time, and the
+build that consumes it behaves as though the customer never filled it in.
+
+So on any new site, in this order:
+
+1. Import or create the **custom field definitions**, on each object that needs them.
+2. **Only then** create or edit the records that carry values in those fields.
+
+Two things that make this worse than it sounds:
+
+- **Definitions do not inherit.** A child site needs its own definitions even where the
+  parent has them.
+- **The definition archive carries no object type**, so the object the fields land on is
+  decided by where in admin the import is run — see `18_ADMIN_NAVIGATION.md`. Importing at
+  the wrong screen produces definitions that exist and are still not the ones the code reads.
+
+Verified by reading source (archive contents and a field-by-field audit against the parent
+template, 2026-09-09). Field inventories per object are in `51_CUSTOM_FIELDS_REFERENCE.md`.
+
+### Custom design tool install order
+
+Installing a custom design tool on a new site is a **four-step order**, and **getting the
+order wrong produces no error** — the tool simply never appears, which sends people to the
+tool's own code rather than to the site's configuration.
+
+The four steps and their exact admin locations are in `51_CUSTOM_FIELDS_REFERENCE.md`. Follow
+them there rather than from memory or from a restatement; the step most often missed is the
+`custom_script` custom field definition on the child site, because definitions do not
+inherit.
+
+---
+
+## Kiosk Storefront Prerequisites
+
+For a kiosk storefront, the storefront side must be configured before any in-store hardware
+is worth setting up. Minimum checklist keys:
+
+| Checklist key | Value |
+|---|---|
+| `kiosk-mode-enabled` | `TRUE` |
+| `kiosk-mode-domain` | the **exact host** the kiosk points at |
+| `kiosk-remove-captcha` | `TRUE` |
+| `kiosk-pay-in-store-only` | `TRUE` where pay-in-store should be kiosk-only |
+
+**`kiosk-remove-captcha` must be set on the kiosk subdomain specifically. It does not carry
+over** from the main site — this is the one that gets missed, and the symptom is customers
+being handed repeated captcha challenges at a terminal with no keyboard.
+
+**Terminals are distinguished by `?terminal=N` on a single kiosk domain**, not by a domain per
+terminal. Kiosk mode compares the request host against the single value in `kiosk-mode-domain`,
+so one host serves every terminal.
+
+**Per-order terminal attribution is additional.** It needs the terminal checklist keys and the
+terminal-capture snippet on top of the above; without them the orders arrive with no terminal
+recorded. Verified by reading source (kiosk-mode helper and the checklist keys, 2026-09-08).
+
+**Do not document or offer the kiosk desktop application.** A Windows kiosk helper application
+exists, is **pre-1.0 and not distributable**, and nothing about it should reach a customer or
+an onboarding plan yet. The storefront configuration above is independent of it.
+
+---
+
+## Support Intake — Changed 9 September 2026
+
+**Inbound support email now routes into the myPixfizz support system.** The previous helpdesk
+stays accessible for history and for tickets already open, but **receives nothing new**.
+
+- Raising a ticket in the myPixfizz portal and emailing the support address now arrive in the
+  same place.
+- **Any onboarding material, welcome email, handover pack or help page that tells a customer
+  to email the old helpdesk address is now wrong.** Check the customer-facing documents used
+  in Phase 5 and the pre-launch handoff before the next handover, not after a customer sends
+  mail into a system nobody is reading.
+
+Verified by reading source (the ingestion endpoint and its go-live tests, 2026-09-09). See
+`90_FAQ.md` for the customer-facing wording.
+
+---
+
 ## Changelog
 - 2026-03-30: Created from master platform documentation export.
 - 2026-04-23: Added content completeness (descriptions) pre-launch checklist item.
@@ -530,4 +682,5 @@ live URL and assert the expected DOM before reporting an import as done.
 - 2026-05-21: Major rewrite. Added all deployment paths (Custom API, Marketplace/Etsy). Added "Preparing for Onboarding" customer preparation section. Added Full Pixfizz Custom path. Expanded phase sequences with blockers. Merged content from onboarding skill. Added pre-launch handoff checklist. Added vertical-specific notes.
 - 2026-05-27: Photo Labs vertical notes: added kiosk mode setup procedure (CNAME, checklist keys, pay-in-store config), OHD single-location install rule, film 120/220 as separate products, same-day JS cutoff pattern. Phase 2: added static product CSV importer note (manage/tools/product-importer). Phase 3: added SendGrid deliverability and DNS authentication note. Pre-launch checklist: added email delivery DNS check. Custom API Phase 2: added external user warning (_uid creates non-login users; OrderHub operators must use /v1/users). Source: Fireflies calls, Slack #dev, support tickets.
 - 2026-08-05: Added the custom domain and SSL sequence to Phase 1 (CNAME to hosting.pixfizz.com, register under Settings > General > Domain Hosting, up to 48 hours propagation, SSL requested manually after DNS confirms, roughly 40 minutes to issue). Confirms SSL is not auto-provisioned. Source: fireflies-call.
+- 2026-09-09: Added Google Account Ownership and Analytics Setup — the customer owns every Google account with Pixfizz taking delegated administrator access, use a shared business account and add the Pixfizz contact at creation time, set the container id and leave the GA4 tag id blank (both set is roughly 2x double counting), Google Ads conversion tracking has no Shopper preset, and what a GA4 API secret is in customer terms. Added Configuration Order on a New Site — create custom field definitions before adding any records, because values written against a definition that does not exist are silently dropped on save, plus a cross-reference to the four-step custom design tool install order. Added Kiosk Storefront Prerequisites — the minimum checklist keys, `kiosk-remove-captcha` needing to be set on the kiosk subdomain specifically, terminals distinguished by `?terminal=N` on one domain, and per-order terminal attribution needing the terminal keys and capture snippet. Added Support Intake — Changed 9 September 2026, flagging that any material pointing customers at the old helpdesk address is now wrong. Source: claude-chat, fireflies-call.
 - 2026-08-29: Added Post-Import Checks a Tar Cannot Cover — `no-index` ships `TRUE` on the parent and must be set to `FALSE` on a live store; assert the custom homepage wrapper class on the live root; confirm which navigation style actually renders because a tar cannot read or set that admin value; re-check checkout preselects after any wipe-and-replace import; and verify value-snippet trailing whitespace on generated bundles. Restated that a local render verifies the file and not the site. Source: claude-chat.

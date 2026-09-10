@@ -2,7 +2,7 @@
 
 **Authority Scope:** Navigation + retrieval guidance only. This file does not introduce new platform or template rules.
 
-_Last updated: 2026-05-21_
+_Last updated: 2026-09-09_
 
 ---
 
@@ -446,6 +446,134 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 ### "Spin GIFs are huge / optimising 360 product animations?"
 → **40_PLAYBOOK_UPDATED.md** § Optimising 360-Degree Product Spin GIFs
 
+---
+
+## Added 2026-09-09
+
+### "Server-side purchase / GA4 Measurement Protocol / why is revenue double counted / why do purchases land as Direct?"
+→ **85_GA4_SERVER_SIDE_PURCHASE.md**
+
+### "Analytics is connected but I see nothing / GTM container but no revenue?"
+→ **81_SEO_AND_GEO_REFERENCE.md** § The half-a-chain trap, and **40_PLAYBOOK_UPDATED.md**
+
+### "Do I set the GTM container or the GA4 tag id / both / Google Ads conversions?"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § The technical standard: GTM only, and **80_ONBOARDING.md** § Google Account Ownership and Analytics Setup
+
+### "Who owns the customer's Google accounts / can we hold their login?"
+→ **80_ONBOARDING.md** § The ownership standard
+
+### "Add to Cart does nothing / dead button / no network request?"
+→ **40_PLAYBOOK_UPDATED.md**, then **22_OPTION_VARIANT_RENDERING.md** § A Required File-Upload Option Behind a Trigger Silently Kills Add to Cart
+
+### "Does `disable_required_form` unblock Add to Cart?"
+→ **22_OPTION_VARIANT_RENDERING.md** § `disable_required_form` does NOT fix this
+
+### "The editor says Not Found on one variant and works on another?"
+→ **60_SHOPIFY_INTEGRATION.md** § Editor "Not Found" on one variant, and **40_PLAYBOOK_UPDATED.md**
+
+### "A Shopify variant does not reach the editor / cart shows two different values for the same option?"
+→ **60_SHOPIFY_INTEGRATION.md** § 10b
+
+### "Custom Type instances list as 1, 10, 11, 2, 3?"
+→ **16_PRODUCT_HIERARCHY.md** § Custom Type Instances Sort by the Custom Field's Declared Type
+
+### "A product is in no collection but people are still ordering it?"
+→ **16_PRODUCT_HIERARCHY.md** § Unpublishing Does Not Make a Product Unreachable
+
+### "Error saving: Price isn't valid / what can a variant price formula contain?"
+→ **30_PRICING_ENGINE.md** § Variant Price Formula Validator — Narrower Than Ruby
+
+### "Can a variant formula read `value` and `quantity` together / tier on pages x copies?"
+→ **30_PRICING_ENGINE.md** § `value` and `quantity` Are Both In Scope in a Variant Price Formula
+
+### "One more unit costs less / the price ladder goes backwards at a boundary?"
+→ **30_PRICING_ENGINE.md** § Whole-order stepped ladders are not monotonic
+
+### "Can an Extra Fee read a cart custom field / how is an Extra Fee formula written / is a fee taxable?"
+→ **30_PRICING_ENGINE.md** § Extra Fees, and **21_SHOPPER_CHECKOUT_POLICY.md** § Extra fees and the VAT tax base
+
+### "A 100%-off promo code still leaves a fee on the order?"
+→ **30_PRICING_ENGINE.md** § A minimum-order fee survives a 100%-off promo code
+
+### "My page-count pricing formula prices the wrong number of pages on an upload product?"
+→ **30_PRICING_ENGINE.md** § `pages` on a product whose artwork is uploaded, not designed
+
+### "Catalogue and category pages show $0 / how do I show a From price?"
+→ **30_PRICING_ENGINE.md** § Catalogue and Category Pages Show $0 for Variant-Driven Prices
+
+### "The custom design tool does not appear on this site?"
+→ **51_CUSTOM_FIELDS_REFERENCE.md** (`custom_script` is a template-option custom field, and the four-step install order), and **90_FAQ.md** § Section 11 — Silent Failures (symptom first)
+
+### "Which object does a custom field definition archive land on?"
+→ **51_CUSTOM_FIELDS_REFERENCE.md**, and **18_ADMIN_NAVIGATION.md** § A custom field definition archive has no object type in it
+
+### "Can I re-import an archive to update a product / why did I get a duplicate with a -1 suffix?"
+→ **16_PRODUCT_HIERARCHY.md** § Import Behavior, **51_CUSTOM_FIELDS_REFERENCE.md**, and **01_CODE_GOVERNANCE_UPDATED.md** § Never Re-Import to Update
+
+### "Reusing a template-options export from another site?"
+→ **51_CUSTOM_FIELDS_REFERENCE.md** § The Standalone `__template_options.yml` Archive
+
+### "How do I add a feature to a parent snippet without changing every site?"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 21. Parent-Safe Changes to Shopper 24, and **41_IMPLEMENTATION_PATTERNS_UPDATED.md**
+
+### "How do I create a new checklist snippet on a child site?"
+→ **52_SNIPPET_INVENTORY.md** § Creating a New Snippet — Parent First, Always, and **01_CODE_GOVERNANCE_UPDATED.md** § Parent first, stated at the point of use
+
+### "collection_filters fields / five-field syntax / snippet args / asset_images?"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 21.1, and **22_OPTION_VARIANT_RENDERING.md** § `collection_filters` Has Two Syntaxes
+
+### "Nav links work from the homepage and fail between sub-categories?"
+→ **50_LIQUID_REFERENCE.md** § 5. Navigation hrefs must be root-relative
+
+### "Why does `{% if x | strip == 'TRUE' %}` break the page?"
+→ **50_LIQUID_REFERENCE.md** § 1. Filters are not allowed inside an `{% if %}` condition
+
+### "Free option values render as +$0.00?"
+→ **22_OPTION_VARIANT_RENDERING.md** § `value.price` Exports Blank, Not Zero
+
+### "Changing a size filter opens the tool at the old size until I refresh?"
+→ **17_DESIGN_TOOL.md** § A dialog reparented to `<body>` survives an AJAX partial re-render
+
+### "The editor opens in the wrong language even though the locale is passed?"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § Editor locale needs editor-namespace translations imported, and **18_ADMIN_NAVIGATION.md**
+
+### "Which kiosk checklist keys does a kiosk storefront need?"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § Kiosk mode is not touchscreen mode, and **80_ONBOARDING.md** § Kiosk Storefront Prerequisites
+
+### "An outsourced print-on-demand line invoiced at zero?"
+→ **32_ORDER_LIFECYCLE.md** § Print-on-Demand Parent/Child Routing, and **45_ORDERHUB.md**
+
+### "How long do files stay on the FTP drop?"
+→ **45_ORDERHUB.md** § Files Left on the Pixfizz FTP Drop Are Auto-Deleted After a Week
+
+### "Failed generating files: unexpected token at ']' / invalid _additional_files.json?"
+→ **31_FULFILLMENT_ENGINE.md** § The trailing-comma failure
+
+### "Which files must _additional_files.json carry for a tool-driven product?"
+→ **31_FULFILLMENT_ENGINE.md** § The four source buckets
+
+### "My regex edit to an exported template definition matched nothing?"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Editing an Exported Template Definition — Attribute Order Is Alphabetical
+
+### "Where is a photobook's page count set?"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Page Count and `minimum-dpi` Are Definition-Level Decisions
+
+### "Can an AI-generated scene go in a preview page?"
+→ **83_AI_IMAGERY_PRODUCTION.md** § A5, and **19_XML_TEMPLATE_REFERENCE.md** § Preview Sets
+
+### "A next-number trigger collides only for customers / duplicate key on submit?"
+→ **70_MYPIXFIZZ_OVERVIEW.md** § RLS and Aggregates in Triggers
+
+### "Can I read or write Price Variables through the API / is there a template import endpoint?"
+→ **61_PIXFIZZ_API.md** § 13e. What Is Not Possible Today
+
+### "Where do support tickets go now?"
+→ **70_MYPIXFIZZ_OVERVIEW.md** § Support Intake, **80_ONBOARDING.md**, and **90_FAQ.md** § Section 1
+
+### "It fails silently and there is nothing in the console — what class of fault is this?"
+→ **90_FAQ.md** § Section 11 — Silent Failures (symptom first)
+
+
 ## Changelog
 - 2026-03-13: Added Shopify Integration section and Shopify scope warning.
 - 2026-03-26: Added MyPixfizz section pointing to 70/71/72 files.
@@ -466,3 +594,5 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 - 2026-08-29: Removed a duplicated SEO/GEO block and three leaked kbsync scaffolding lines (RATIONALE / SOURCE / SOURCE TYPE) that had been pasted verbatim into the published file. Replaced the two dangling mobile UX routes with an honest statement of the gap: `82_MOBILE_UX_REFERENCE.md` and `83_MOBILE_UX_AUDIT.md` have never existed in this repo. Source: kbsync audit.
 - 2026-08-29: `82_MOBILE_UX_REFERENCE.md` now exists, so the mobile routes point at a real file. Added routes for the three-mobile-surfaces distinction, the mobile editor CSS section in 17, and the two mobile-specific checklist keys. Recorded that the audit checklist lives in 82 § 6 rather than in an 83 file. Source: kbsync.
 - 2026-08-29: Audited every filename this map points at against the repo. Corrected `40_PLAYBOOK.md` (3 routes) and `01_CODE_GOVERNANCE.md` (1 route) to their real `_UPDATED` filenames. Added the two files the map had never routed to at all, `41_IMPLEMENTATION_PATTERNS_UPDATED.md` and `52_SNIPPET_INVENTORY.md`. Every route now resolves. Source: kbsync audit.
+- 2026-09-09: Added 85_GA4_SERVER_SIDE_PURCHASE.md and 40 routing entries for the 2026-09-09 sync — server-side GA4, the GTM-only standard, Google account ownership, the dead Add to Cart / stale page cache / lexicographic sort / formula validator diagnostics, the Extra Fee corrections, unpublished products staying orderable, archive re-import duplication, parent-safe snippet changes and the parent-first snippet rule, collection_filters, root-relative nav hrefs, the reparented modal, kiosk keys, print-on-demand zero-price routing, FTP retention, the _additional_files.json trailing comma, alphabetical export attribute order, the AI preview-scene narrowing, the RLS-in-triggers rule, and the silent-failure index. Every target section was written in the same sync. Source: kbsync.
+- 2026-09-09: Route check run as the mandatory closing step now recorded in 01_CODE_GOVERNANCE_UPDATED.md. Every route resolves. Note for whoever runs the naive one-liner next: it also matches filenames quoted inside this file's own prose and changelog, so `01_CODE_GOVERNANCE.md`, `40_PLAYBOOK.md` and `83_MOBILE_UX_AUDIT.md` are reported as missing. All three are historical references, not live routes: the first two appear only in the 2026-08-29 changelog entries describing corrections already made, and the third only in the note above § 82 recording that it never existed. Excluding the changelog leaves one known false positive. Source: kbsync audit.

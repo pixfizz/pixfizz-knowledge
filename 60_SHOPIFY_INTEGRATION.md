@@ -2,7 +2,7 @@
 
 **Authority Scope:** Shopify + Pixfizz integration architecture, snippets, metafields, cart page, and order sync.
 
-_Last updated: 2026-06-30_
+_Last updated: 2026-09-09_
 
 ---
 
@@ -488,6 +488,47 @@ Some Shopify stores use a third-party options app such as **Globo Product Option
 
 ---
 
+## 10b. Shopify Native Variants Cannot Carry a Pixfizz Option Into the Editor
+
+**Verified by reading source — confirmed by the core developer, 2026-09-09.** This is a
+platform-level constraint of the Shopify path, not a configuration mistake and not something a
+snippet can work around.
+
+**A Shopify native variant selection does not propagate to a Pixfizz option.** The shopper picks a
+variant on the Shopify product page, presses Personalize, and the editor opens on the Pixfizz
+option's **default** value — whatever the shopper chose on the Shopify side is not carried in.
+
+The damage is downstream of the editor, which is why it survives a casual test:
+
+- The cart line then shows **two contradictory values on the same line** — the Shopify variant
+  value and the Pixfizz project value.
+- Shopify charges the price for the variant the shopper selected, so **the money is right**.
+- The project that reaches production carries the Pixfizz default, so **the wrong attribute is
+  manufactured**.
+
+Nothing errors, nothing is flagged, and the order looks correct in Shopify.
+
+### The decision rule
+
+Three ways out, and the choice is made by one question: **do the options influence the design —
+do they trigger element substitutions?**
+
+| Do the options change the design? | What to do |
+|---|---|
+| **No** — no element substitutions | Remove the options from Pixfizz entirely. Let Shopify own them; they are a price and attribute axis only. |
+| **Yes**, and you want one design | Use **options-to-editor**. The options are then modeled as **separate Shopify products, not variants**. |
+| **Yes**, and you want to keep Shopify variants | Create **one design per value** and map each design to its Shopify variant. |
+
+**In both of the "yes" cases the options must also be removed from Pixfizz.** Leaving them in
+place is what recreates the contradictory cart line, whichever route is taken.
+
+Practical consequence for scoping: a catalog where a finish, a stock or a paper type genuinely
+changes the artwork cannot be modeled as Shopify variants over a single Pixfizz design. Decide
+this before the metafields are built, because both fixes change the Shopify catalog shape and
+§10's per-variant `pixfizz.product_sku` mapping along with it.
+
+---
+
 ## 11. Troubleshooting Guide
 
 ### Project preview not showing in cart
@@ -590,6 +631,46 @@ This is a second, lower ceiling on the same axis as the Shopify variant-count co
 
 **Not verified:** add-to-cart, cart preview, quantity lock and order sync with the filtered
 map. Exercise the flow through to cart before shipping the snippet change.
+
+### Editor "Not Found" on one variant — check the page cache before the SKU
+
+**Verified by reading source (the failing request) — underlying core bug fixed 2026-09-08.**
+
+Symptom: one variant opens the editor fine, another returns a not-found error and the editor
+opens with an undefined book. It reads as a mapping problem, and it is not.
+
+**The tell is in the request that opens the editor.** On the failing variant, the POST that
+creates the project goes out with the **product id and theme id empty**. Pixfizz therefore has
+nothing to look up and correctly returns a not-found error. On the working variant both ids are
+populated.
+
+**Rule: empty product/theme ids in that POST mean the page was rendered stale.** The ids come
+from the rendered page, so if they are blank the page was built before the data existed. Check
+publish and cache state *before* re-checking SKUs, metafields or theme mapping — a stale CMS page
+cache presents as an editor "Not Found", never as anything that looks like a caching symptom.
+
+The underlying core defect — the CMS cache not refreshing when a previously unpublished design
+product was published into a collection, so the page continued to be served from before the
+product existed — was **fixed in core on 2026-09-08**. The triage rule is worth keeping anyway:
+any future cache staleness on that page presents the same way.
+
+### Some themes open, some return "not found", with the SKU confirmed present
+
+**Not verified — open bug, escalated, unresolved as at 2026-09-09.**
+
+Seen on a Shopify storefront that renders the Pixfizz theme list itself and opens the chosen SKU
+on Personalize. Some themes open normally; others return "not found" or "error opening the
+project". The SKU is confirmed present in the metafield and in the site's debug menu, and the
+same theme can behave differently between attempts.
+
+**Triage rule that came with it, and it generalizes past this case: if it sometimes works and
+sometimes does not, it is a bug, not a missing link or a missing SKU. A missing link would never
+work.** Intermittency rules out configuration as the cause, so do not spend the session
+re-verifying mappings that are demonstrably correct — escalate it.
+
+Distinguish it from the stale-cache case above by reading the request: stale cache sends **empty**
+product and theme ids every time on the affected variant, and is therefore deterministic, not
+intermittent.
 
 ---
 
@@ -855,3 +936,4 @@ Not verified in a controlled test; recorded as the current recommendation.
 - 2026-07-20: Noted all Shopify line item properties are now captured into Pixfizz orderline options, and that static-product routing depends on the exact expected property name. Source: #development (commit 2026-07-13), Weekly Tech call.
 - 2026-08-21: Added Shopify max variant limitation note in §1. Source: fireflies-call (Harold's Photo, Aug 20).
 - 2026-08-29: Added §2 guidance on setting variant metafields in bulk (native product CSV carries product metafields only; use the variant bulk editor or Matrixify, with the `Variant Metafield: ns.key [type]` header and Handle + Option matching). Added §11 troubleshooting entry for `414 Request-URI Too Large` on `photo-prints` launches, with the measured URL breakdown, the empty-addons-map cause, and the four fixes in order. Added §18 add-to-cart vs direct checkout recommendation. Source: claude-chat (Shopify photo-prints launch diagnosis, canvas variant SKU linking), fireflies-call.
+- 2026-09-09: Added §10b — Shopify native variants cannot carry a Pixfizz option through to the editor (editor opens on the Pixfizz default, cart line shows two contradictory values, Shopify charges the right price while the wrong attribute reaches production), with the core developer's three-way decision rule: no design influence means remove the options from Pixfizz; design influence means either options-to-editor with the options modeled as separate Shopify products rather than variants, or one design per value mapped to each Shopify variant — options removed from Pixfizz either way. Added two §11 troubleshooting entries: a stale CMS page cache presents as an editor "Not Found" and the tell is empty product/theme ids in the POST that opens the editor (underlying core bug fixed 2026-09-08), and the open, unresolved intermittent theme "not found" symptom with the triage rule that intermittency means a bug rather than a missing link or SKU. Source: slack-message (#development), fireflies-call.

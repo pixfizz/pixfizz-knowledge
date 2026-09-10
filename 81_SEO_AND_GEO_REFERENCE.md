@@ -2,7 +2,7 @@
 
 **Authority Scope:** How AI-powered search works, Generative Engine Optimization (GEO) practice, and what the Pixfizz platform and Shopper template currently do for AI search visibility. Industry concepts are general knowledge. Platform and template capabilities are tagged explicitly.
 
-_Last updated: 2026-06-18_
+_Last updated: 2026-09-09_
 
 ---
 
@@ -264,6 +264,86 @@ This meets Google's required fields for a merchant listing (`name`, `image`, and
 
 ---
 
+## Part G — Shopper Parent SEO Defects, September 2026 `[SHOPPER]`
+
+Found and fixed at Shopper parent level in the window ending 2026-09-09. Each is written
+generically, because each was a parent-template defect rather than one site's mistake — if a
+site is on the Shopper parent and has not taken the fix, it has the defect. **Verified by
+reading source and by crawler output** unless stated otherwise.
+
+- **Paginated listings were invisible to crawlers.** Paginated product and static listings were
+  not being followed: page 1 indexed, pages 2 and beyond missed by every search-engine tool
+  tested. On a catalog of any size that is the majority of the products on the site. Fixed on the
+  parent.
+- **A footer link hard-coded to `http://` multiplied into hundreds of phantom broken pages.**
+  One wrong scheme in a parent snippet, rendered in the footer of every page, produced one broken
+  URL per originating page in the crawl report. The count is alarming and the cause is a single
+  character — check the footer before chasing a list of broken URLs individually.
+- **The Google reviews widget ships without structured-data markup.** The widget renders, and on
+  a correctly connected site it shows real reviews, but it emits **no** Review or AggregateRating
+  JSON-LD, so it is never picked up as a rich snippet. This is the same `[GAP]` recorded in Part D
+  under Structured data, now confirmed on the widget specifically. **The existing help article on
+  the Google reviews integration is incomplete on this point** and should say that connecting the
+  widget does not by itself produce review rich results.
+- **Snippet headings used `h3` with no `h1` on the page.** A page with no `h1` reads to a crawler
+  as having no topic. Fixed by adding a hidden `h1`.
+- **Preview modules and pop-up design tools are not recognized as product imagery.** A product
+  page whose only visual is a preview module or an externally launched design tool reads to a
+  crawler as a page with no images, which costs it in both image search and merchant listings.
+  **Ship two or three static product images alongside any preview module**, on every product that
+  uses one.
+- **Sitemap and robots.txt must be explicitly enabled.** Neither is on by default. Check both on
+  every launch. Shopper admin also carries **AI-search settings** that expose product descriptions
+  and summaries to AI assistants; those are a deliberate choice and should be set, not left at
+  whatever they default to.
+- **Legacy kiosk landing pages get crawled and scored as broken.** Old kiosk or split-screen
+  landing pages carry no menu links but remain indexable, so they are crawled, found to be
+  dead ends, and counted against the site. Either redirect them or noindex them; do not assume
+  that unlinked means uncrawled. This is the same rule as the unpublished-product case — removing
+  the link does not remove the page.
+
+### Search Console verification branches on container presence
+
+**Verified by reading source (the setup standard, 2026-09-02).** How a Shopper site verifies with
+Google Search Console depends on whether a Google Tag Manager container is already on the site:
+
+| Situation | Verification method | Theme write |
+|---|---|---|
+| A GTM container is present | Verify through GTM | None |
+| No container | Inject a verification meta token into the theme head | Yes, one meta tag |
+
+Fewer moving parts is the deciding factor, not preference: where a container exists, GTM
+verification needs nothing pasted into the theme at all.
+
+A wizard that would perform this automatically — one Google sign-in, then wire Search Console and
+GA4 together — is **specced and not built**. Do not describe it to a customer as available.
+
+### The half-a-chain trap
+
+**Verified live.** A container on the site is only half the chain. If the container carries no GA4
+event tags for the ecommerce events, GA4 shows traffic and no revenue, and the site looks
+"connected" from every angle a non-specialist can check.
+
+**This is the first thing to check on any "analytics is connected but I see nothing" report** —
+before re-checking the container ID, before creating anything, before touching the theme.
+
+### Enumerate before you create
+
+**Verified live.** When a site arrives with an unidentified tag, read the live page first: find
+which container is actually loading and which measurement id that container carries. Only then
+decide what to create.
+
+The expensive mistake in this situation is creating a new property next to a working one — not a
+week of lost history. A site can easily have a live container feeding a property with real history
+plus a second property somebody created and shared that has never received a hit; a naive setup
+pass produces a third. Match against **what the storefront is actually loading**, not against the
+domain.
+
+For the storefront tagging standard itself and the server-side revenue path, see
+`85_GA4_SERVER_SIDE_PURCHASE.md`.
+
+---
+
 ## Pending Confirmation (for Matjaz / team)
 
 - Shopper LocalBusiness JSON-LD: are the placeholders populated and emitted by default, and do they include geo-coordinates and `sameAs`? What configuration is required?
@@ -290,3 +370,4 @@ This meets Google's required fields for a merchant listing (`name`, `image`, and
 - 2026-07-11: Part D — noted the built-in crawler can run on a 24-hour schedule to maintain SEO health; added staging/pre-launch indexing gotcha with the Shopper redirect-config format (JSON array of `[regex, destination]` pairs, anchored `^/site/<path>/?$`); added the primary-domain-vs-`shop.`-subdomain consolidation recommendation under Trust and local. Source: fireflies-call (2026-07-07, 2026-07-10), claude-chat (redirect JSON build).
 - 2026-06-18: Added Part F (Product Schema: High-Fidelity Attributes), researched against Google Search Central's product / merchant-listing / product-snippet structured-data docs. Documents the current Shopper baseline, Google's required-vs-recommended set, prioritized Shopper upgrade tiers (Tier 1 ratings + return/shipping + attributes; Tier 2 variants, unit pricing, `additionalProperty`; Tier 3 Organization/Brand/`sameAs`, FAQPage), Pixfizz cautions (server-side rendering, match-visible-content, GTIN validity, `from_pricing`, loyalty/`validForMemberTier`), and two correctness flags on the current snippet (`priceValidUntil` inside a `{% dynamic %}` block; `http` vs `https` context). Added the standalone Schema Builder authoring tool. Updated the Quick capability summary, Pending Confirmation, and Build Opportunities to match. Source: claude-chat (web-verified against developers.google.com).
 - 2026-07-25: Documented the v2 manage-admin noindex key mismatch (writes `launch-no-index`, `html.head` reads `no-index`) — the hide-from-search toggle silently does nothing. Source: claude-chat.
+- 2026-09-09: Added Part G — Shopper parent SEO defects found and fixed this window (paginated listings invisible to crawlers; a footer link hard-coded to `http://` multiplying into hundreds of phantom broken pages; the Google reviews widget shipping without structured-data markup, which makes the existing help article on that integration incomplete; `h3` headings with no `h1`, fixed with a hidden `h1`; preview modules and pop-up design tools not recognized as product imagery, so ship two or three static images alongside; sitemap and robots.txt needing explicit enabling, plus the AI-search settings in Shopper admin; legacy kiosk landing pages crawled and scored as broken). Added the Search Console verification branch on GTM container presence, with the wizard marked not built; the half-a-chain trap (a container with no GA4 event tags shows traffic and no revenue); and the enumerate-before-you-create rule. Source: fireflies-call, claude-chat.

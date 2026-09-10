@@ -2,7 +2,7 @@
 
 **Authority Scope:** Customer-facing Q&A grounded in platform truth (files 10–32, 60). Covers Full Pixfizz / Shopper and Shopify + Pixfizz deployments. Not a developer reference — answers are written for store owners and operators.
 
-_Last updated: 2026-07-31_
+_Last updated: 2026-09-09_
 
 ---
 
@@ -52,6 +52,13 @@ _Applies to: All_
 Support runs through the **myPixfizz portal** (`my.pixfizz.com`). Raise a ticket there, track its status, and see the full conversation thread in one place. The portal is also where you find training videos, what's new, the roadmap, and your onboarding tasks.
 
 The previous third-party helpdesk is being retired — from **1 September 2026** the myPixfizz portal is the support channel. Tickets raised through the old system before that date are being carried across; if you have an open ticket, it will continue to be worked. Email to the support address still reaches the team either way.
+
+**Update, 9 September 2026 — this completes the change described above.** Inbound support
+email now routes **into the myPixfizz support system** rather than into the old helpdesk. The
+old helpdesk stays accessible for history and for tickets already open, but **it receives
+nothing new**. Emailing the support address and raising a ticket in the portal now arrive in
+the same place. Any older instruction that tells you to email the previous helpdesk address
+is out of date.
 
 ---
 
@@ -178,6 +185,38 @@ Start with the pricing formula on the Product Attribute. Check that it uses the 
 _Applies to: Full Pixfizz_
 
 Yes. Prices are editable inline directly from the product attributes list page. Click on any price field to switch to edit mode, type the new price or formula, and press Enter for simple prices or click OK for multi-line formulas. Press Esc to cancel without saving.
+
+---
+
+**Q: My catalogue and category pages show $0 for a product, but the product page shows the right price.**
+_Applies to: Full Pixfizz_
+
+That happens whenever a product's price lives **entirely on its variants**. Listing and
+category pages have no variant selection to price against, so they render zero.
+
+The fix is the **product-level starting-price field**, which gives the listing something to
+display. Note which field to use: `From pricing`, `To pricing` and `Starting at` are **number**
+fields and will render `$0` in exactly this situation. **`Custom pricing` is the only product
+custom field that accepts free text for a price label** — so it is the one to use for "from
+$25" or "priced per size". It is display only and does not interfere with the pricing formula.
+
+Seen independently at two stores. Known cosmetic issue: the `Custom pricing` label renders at
+a smaller font than the sibling price label. Cause not yet confirmed.
+
+---
+
+**Q: A customer has asked why ordering one more unit costs them less than the order below it.**
+_Applies to: Full Pixfizz_
+
+Because a **whole-order stepped tier ladder is not monotonic**, and that is inherent to the
+model rather than a fault. When crossing a tier boundary re-prices **every** unit at the lower
+rate, the total can fall as the order grows — 24 units at the higher rate can cost more than
+25 units at the lower one.
+
+**State it, do not fix it.** It is what a published stepped price table specifies, and most
+print businesses accept it. The alternative is marginal tiering, where only the units above
+each break get the lower rate. That is a different commercial model and a different formula,
+so it is a decision for the business, not a correction to make quietly.
 
 ---
 
@@ -403,7 +442,37 @@ Configurable options include:
 
 ---
 
+## Section 11 — Silent Failures (symptom first)
+
+Every entry in this section shares one property: **there is no error message anywhere**, on
+either side. Something looks saved, or looks configured, and does nothing. They are listed
+symptom first, because in every one of these the symptom points somewhere other than the
+cause. One line of cause, then where the detail lives.
+
+| Symptom | Cause | Detail in |
+|---|---|---|
+| A custom field value vanishes on save. It looks accepted, and the field is empty next time you open it | **No definition exists for that field.** A value written against a definition that does not exist is discarded on save | `51_CUSTOM_FIELDS_REFERENCE.md`, `80_ONBOARDING.md` |
+| A custom design tool never appears on the product page | The `custom_script` **definition does not exist on the child site** (definitions do not inherit), or the install steps were done in the wrong order | `51_CUSTOM_FIELDS_REFERENCE.md` |
+| Add to Cart does nothing, no error, no network request | A **required upload option behind a trigger** on a branch the shopper did not select. It stays permanently invalid and the browser refuses to submit | `40_PLAYBOOK_UPDATED.md`, `22_OPTION_VARIANT_RENDERING.md` |
+| A checklist flag never fires, though the value reads correctly in admin | A **trailing newline in the snippet body** (`capture` does not trim, so the comparison never matches), or the snippet was **created on the child instead of the parent with Allow Override** | `01_CODE_GOVERNANCE_UPDATED.md` |
+| A net-new snippet pasted into a child site appears to save, then resolves blank forever | A child can only **override** a snippet that already exists on the parent. It cannot create one | `01_CODE_GOVERNANCE_UPDATED.md` |
+| A design tool writes a value and the write no-ops | **`read_only` is set on the option** the tool writes to | `51_CUSTOM_FIELDS_REFERENCE.md` |
+| A per-product setting is ignored and every product behaves the same | The tool has **no `product` in Liquid scope** at that point and has fallen back to the site-level checklist value | `51_CUSTOM_FIELDS_REFERENCE.md`, `50_SHOPPER_TEMPLATE_REFERENCE.md` |
+| Navigation links work from the homepage and 404 between sibling pages | A **relative `href`**. It resolves against whatever path the visitor is currently on | `50_SHOPPER_TEMPLATE_REFERENCE.md` |
+| `+$0.00` renders against option values that are supposed to be free | **`value.price` exports blank, not zero**, so the template prints a zero adjustment | `22_OPTION_VARIANT_RENDERING.md` |
+| A nav or filter change opens the wrong instance of a tool or modal | A **modal reparented to `<body>`** survives the AJAX re-render, so the old instance is still in the DOM and still bound | `40_PLAYBOOK_UPDATED.md`, `01_CODE_GOVERNANCE_UPDATED.md` |
+| A corrected archive is re-imported and the site now has two of everything | **Re-import creates a suffixed duplicate, it does not update.** The suffix lands on the code as well as the name | `01_CODE_GOVERNANCE_UPDATED.md`, `51_CUSTOM_FIELDS_REFERENCE.md` |
+| A regex written against a template export matches nothing at all | **Export attribute order is alphabetical**, not the order the attributes were authored in | `19_XML_TEMPLATE_REFERENCE.md` |
+| An outsourced print-on-demand line invoices at zero | **Product or variant code mismatch** against the parent lab's site. A mismatch inserts a zero price rather than rejecting the order | `45_ORDERHUB.md` |
+| The editor opens in the wrong language, though the language is enabled | **Editor-namespace translations are absent on the site.** Enabling a language does not create them | `18_ADMIN_NAVIGATION.md` |
+
+If a report matches one of these, check the cause before anything else. Every one of them has
+cost at least one debugging session that started somewhere else.
+
+---
+
 ## Changelog
+- 2026-09-09: Added Section 11 — Silent Failures, a symptom-first consolidation of the failure modes that produce no error on either side, each with a one-line cause and a pointer to the file carrying the detail. Added Section 4 entries for catalogue and category pages showing $0 on variant-driven pricing (with `Custom pricing` as the only product custom field accepting a free-text price label) and for a whole-order stepped tier ladder not being monotonic. Added an update to the Section 1 support entry: from 2026-09-09 inbound support email routes into the myPixfizz support system and the old helpdesk receives nothing new. Source: claude-chat, fireflies-call.
 - 2026-08-14: Added Section 1 entries for the support channel (myPixfizz portal; third-party helpdesk retired 1 September 2026) and the quarterly review webinar. Source: fireflies-call (2026-08-11/12/13, 3x repeat signal).
 - 2026-04-06: Initial version. 35 Q&As covering Getting Started, Products, Design Tool, Pricing, Cart/Checkout, Shopify, Orders, Storefront, and Troubleshooting.
 - 2026-05-19: Added inventory tracking Q&A (Section 2), inline price editing Q&A (Section 4), order cancellation and transaction fees Q&A (Section 7), multi-language support Q&A (Section 8), and Batch Film Uploader workflow (new Section 10 — Film Lab Workflows). Source: Notion KB articles.

@@ -2,7 +2,7 @@
 
 **Authority Scope:** Operational reasoning and troubleshooting guidance.
 
-*Last updated: 2026-05-19*
+*Last updated: 2026-09-09*
 
 ------------------------------------------------------------------------
 
@@ -589,6 +589,205 @@ with more than one admin user.
 Recorded from a client call, **not verified against the admin UI** — confirm the
 exact settings and where they live before walking a client through it.
 
+## Add to Cart Does Nothing and No Network Request Is Issued — It Is Form Validation
+
+**Symptom.** The shopper clicks Add to Cart and nothing happens. No error, no message, and
+**no network request is issued**. Other products on the same site add to cart normally.
+
+**It is form validation.** Not JavaScript, not pricing, not the cart. When the browser
+refuses to submit an invalid form, no request goes out — that missing request is the
+diagnostic, and it points at exactly one thing.
+
+**Go straight to the form.** In the console:
+
+```js
+form.checkValidity()
+[...form.elements].filter(el => el.willValidate && !el.checkValidity())
+```
+
+Then resolve every element in that list to its enclosing `PX-OPTION`. That mapping is the
+answer: it names the option the shopper cannot see and cannot satisfy.
+
+**Console errors at that moment are usually a red herring.** In the case that established
+this, an unrelated `gtag is not defined` ReferenceError threw on page load and looked like
+the obvious culprit. It had nothing to do with the fault.
+
+**Commonest cause: a required upload option on a variant branch the customer did not
+select.** The upload component sets a custom validity message and does not clear it when the
+option is hidden by its trigger, so every unselected branch stays permanently invalid. The
+controls sit inside a `display: none` `PX-OPTION`, so the browser cannot focus them to show a
+validation bubble either. See `22_OPTION_VARIANT_RENDERING.md`. Verified in-browser and
+independently reproduced in admin, 2026-09-08.
+
+**`setCustomValidity()` mutations persist for the life of the page.** A first pass that
+clears a hidden option's validity poisons the next test, which then shows one invalid control
+and appears to exonerate the others. **Reload before every re-test**, and run the whole
+before/after comparison in a single pass.
+
+## The Editor Returns "Not Found" on One Variant and Works on Another — Suspect a Stale Page Cache
+
+**Symptom.** One variant launches the editor; another returns "Not Found" and the editor
+opens with no book. The SKU is present and correct, so the SKU is where everyone looks.
+
+**Look at the POST that opens the editor first.** On the failing variant it goes out with the
+**product and theme ids empty**; on the working variant both are populated. Empty ids mean
+the **page** was rendered stale — the values were never written into the markup. That is a
+publish and cache question, not a SKU or theme-mapping question.
+
+**Order of checks:** publish state, then cache state, then the SKU. Not the other way round.
+
+**Underlying core bug, fixed 2026-09-08.** The CMS cache failed to refresh when a
+previously-unpublished design product was published into a collection, so the page continued
+to be served from before the product existed. Verified by reading the fix commits. If the
+symptom appears on a site running current core, it is a new fault and worth escalating rather
+than clearing caches until it goes away.
+
+## A Custom Type's Instances List in Non-Numeric Order (1, 10, 11, 2, 3) — The Sort Field Is a Text Type
+
+**Symptom.** Instances of a Custom Type list as 1, 10, 11, 12, 13, 2, 3 — lexicographic, not
+numeric — in the admin instance list and on the front end.
+
+**Cause.** Custom Type instances sort by the **declared type of the custom field** they are
+sorted on. A text field sorts as text, and "10" sorts before "2".
+
+**Fix.** Change the sort custom field from text to **number**. The admin list corrects
+immediately. **The front-end page can lag behind on cache**, so do not treat an unchanged
+storefront as a failed fix — re-check admin first, then the page.
+
+This is distinct from the separate sorting fault where *some* instances have no value in the
+sort field at all, which produces unpredictable rather than lexicographic order. See
+`90_FAQ.md`.
+
+## `Error saving: Price isn't valid` Names Nothing — Bisect from a Known-Good Formula Outward
+
+**Symptom.** Saving a price formula fails with `Error saving: Price isn't valid`. The message
+names no token, no line and no reason.
+
+**Method, and it is the whole entry: bisect.** Start from a formula that is known to save —
+normally the current live one — and add **one construct at a time**, saving after each. The
+first save that fails names the construct.
+
+**Do not guess at the cause and do not rewrite the formula.** In the case that established
+this, four saves located the problem, and two rounds had already been lost to a confident
+wrong diagnosis that the next test disproved in seconds.
+
+The variant price field runs its own validator, which is narrower than Ruby — the accepted
+and rejected constructs are recorded in `30_PRICING_ENGINE.md`. Verified by live admin test,
+2026-09-08. Note that **a save proves the validator accepts the string, not that the engine
+prices it**; confirm in the cart.
+
+## "Analytics Is Connected but I See Nothing" — Check the Container for GA4 Event Tags
+
+**Symptom.** The customer can see the tag manager container loading on the site, and GA4
+shows traffic, but no revenue and no ecommerce funnel.
+
+**A container on the site is only half the chain.** The container has to carry **GA4 event
+tags listening for the ecommerce events** — product view, add to cart, view cart, begin
+checkout, purchase. Without them the site pushes events into a container that forwards
+nothing, and every symptom points at the storefront rather than at the container.
+
+Check this **first** on any "analytics is connected but I see nothing" report, before
+touching the storefront or adding a second tag. Verified live on a customer site,
+2026-09-02. For the account and tagging standard see `80_ONBOARDING.md`.
+
+## An Unidentified Tag on an Inherited Site — Read the Live Page and Enumerate Before Creating Anything
+
+**Symptom.** A site arrives with analytics already on it, nobody knows which property it
+feeds, and the customer has shared a property that shows no data.
+
+**Read the live page before creating anything.** Find which container the page loads and
+which measurement id that container carries. A property the customer has shared and a
+property the site is actually feeding are frequently two different properties, and the one
+with the history is usually not the one that was shared.
+
+**A new property created next to a working one is the expensive mistake here, not a week of
+lost history.** History nobody can read is worth little; a third property, splitting data
+three ways, is worth less than nothing. Enumerate first, then decide whether to take over the
+live property or repoint the container at the new one.
+
+The same rule generalises: on any inherited configuration, enumerate what is already attached
+before adding to it.
+
+## A Product Nobody Can Find Is Still Taking Orders
+
+**Symptom.** A product has been removed from every collection and the customer is still
+receiving orders for it.
+
+**Removing a product from every collection does not make it unreachable.** A previously
+published and crawled product URL **stays live and orderable**. There is no automatic 404, no
+redirect and no "unavailable" state.
+
+**The feed self-heals and the page does not.** The product does drop out of the site's
+product feed, so feed-driven surfaces stop showing it — which is exactly why the problem
+looks solved from the outside while direct traffic, bookmarks and search results keep
+converting.
+
+**Suppression options that exist today:**
+
+1. **Enable inventory tracking and let stock reach zero.** Preferred route. See
+   `18_ADMIN_NAVIGATION.md`.
+2. **Set the product-level `sold_out` custom field.**
+
+A flag or redirect behaviour for this is **not built** — do not document or promise it.
+Stated on a client call and corroborated by an independent report; not verified by reading
+source.
+
+## If It Sometimes Works and Sometimes Does Not, It Is a Bug — Not a Missing Link or a Missing SKU
+
+A configuration fault is deterministic. **A missing link, a missing SKU, an unpublished
+product or a wrong mapping would never work — not once, not for one shopper, not on one
+attempt.**
+
+So intermittency is a decision rule, and a cheap one: the moment the same action succeeds
+sometimes and fails sometimes with the same inputs, **stop checking configuration**. Capture
+the failing request, record what differs between a success and a failure, and escalate it as
+a bug. Rechecking the SKU for a fourth time is time spent proving something the intermittency
+already disproved.
+
+## Method: Copy Mail to an Ingestion Endpoint with a Transport Rule, Not Mailbox Forwarding
+
+When mail has to reach an ingestion endpoint as well as the mailbox, **use a mail transport
+rule with a Bcc, not mailbox forwarding**.
+
+- The tenant's **outbound spam policy governs automatic forwarding** to external domains. An
+  ingestion subdomain is not an accepted domain, so mailbox forwarding to it can be **silently
+  dropped** — no bounce, no log the operator will look at, and an ingestion pipeline that
+  simply never receives anything.
+- **A transport rule is not subject to that control**, and a Bcc leaves normal delivery
+  intact, so the mailbox keeps everything and rollback is one switch.
+
+Verified by reading source (tenant mail-flow configuration and the endpoint's own tests,
+2026-09-09). The general form: prefer the mechanism that adds a copy over the mechanism that
+redirects, and check which policy engine governs each before choosing.
+
+## Method: When the Output Is Large and the Inputs Already Exist, Ship the Generator
+
+When the inputs already exist on the far side of a slow or lossy channel, **send the
+generator across rather than the output**. A small self-contained script travels reliably; a
+large generated artifact does not.
+
+1. Send the script.
+2. Run it against the folder in place, on the machine that already holds the inputs.
+3. **Hash-compare both builds** to prove the two sides produced the same thing.
+
+Step 3 is what makes it a method rather than a shortcut. Without it there is no evidence the
+remote run matched the local one.
+
+## Method: Verify a Parent Asset's Live Version by Absence of the New Symbol, Not by a Delivery Record
+
+To establish which version of a shared asset is actually live on a parent site:
+
+1. Read the asset's **own version declaration in the CMS backup**, not a delivery note or a
+   chat message.
+2. **Hash-compare** it against the corresponding file in the build kit.
+3. **Confirm by the absence of a symbol that only the newer version introduces** — a new key,
+   a new function name — rather than by the version string.
+
+The version string can be stale, hand-edited, or correct in a file nobody pasted. An absent
+symbol cannot be faked by a wrong constant. **Do not trust a delivery record**: a version
+recorded as delivered was found absent from the parent, still carrying a known data-loss bug
+two weeks after it was recorded as shipped. Verified by reading source, 2026-09-09.
+
 ## Changelog
 - 2026-03-21: Initial content from platform documentation export.
 - 2026-04-23: Added CSS snippet logs diagnostic note, password reset Liquid deprecation pattern, fulfillment template DPI failure, URL reserved parameter 404 gotcha, Stripe pending-without-payment issue, FTP original files intermittent failure.
@@ -600,5 +799,6 @@ exact settings and where they live before walking a client through it.
 - 2026-07-11: Added CMS tar import gotcha — `admin/checklist/*` flags are not reliably applied on import (observed: custom-home-page TRUE in tar but unset after import); verify checklist flags in the admin UI after any import. Source: claude-chat (Shopper CMS tar build).
 - 2026-07-20: Added Shopper v2 account `date_format` gotcha — `account/v2/orders` and `account/v2/dashboard` miss `| strip` on the date_format capture, causing a format mismatch with order-details. Source: claude-chat.
 - 2026-08-14: Added the rule that shopper-supplied strings rendered on admin pages must be escaped, with the ordered response steps for suspected admin credential compromise (fix injection point, force site-wide logout, then rotate) and the multi-site bulk-password-reset timeout note. Added the rule that editing a confirmed order does not regenerate its production files — force refulfill, deleting the existing generated file first. Added wrapped-canvas mirrored-edge diagnosis (template definition and bleed value, not the renderer). Source: slack-message (#support), fireflies-call (2026-08-11/12).
+- 2026-09-09: Added symptom-first diagnostics — Add to Cart doing nothing with no network request is form validation (with the `checkValidity()` enumeration, the required-upload-behind-a-trigger cause and the `setCustomValidity()` persistence trap); an editor "Not Found" on one variant being a stale page cache, identified by empty product and theme ids in the POST, with the underlying core bug fixed 2026-09-08; Custom Type instances listing lexicographically because the sort custom field is a text type; bisecting from a known-good formula when `Error saving: Price isn't valid` names nothing; checking the container for GA4 event tags on "analytics is connected but I see nothing"; enumerating a live page before creating a second analytics property; a de-collectioned product staying live and orderable while the feed self-heals, with inventory tracking or `sold_out` as the only suppression routes; and the rule that intermittent failure is a bug rather than a missing link or SKU. Added three methods: transport rule rather than mailbox forwarding when copying mail to an ingestion endpoint, shipping the generator rather than the output with a hash comparison, and verifying a parent asset's live version by the absence of the new symbol rather than by a delivery record. Source: claude-chat, fireflies-call, slack-message.
 - 2026-07-28: Added Collection Filter Drilldown blank-PDP entry — stale or invalid dependent filter values break the drilldown; fix is a three-tier selection cascade in `product/product-details-filter` and `product/details-filter-dual-mode`. Source: claude-chat.
 - 2026-08-29: Added Optimising 360-degree product spin GIFs — measured savings table (lossless gains nothing; lossy plus every-2nd-frame is roughly 87% smaller), the frame-dropping trap that silently speeds up the rotation and how to recompute the delay, and the larger win of serving a static first frame on collection grids. Added Recommended Admin Security Hardening (rename admin URLs, enforce 2FA, block admin via the main domain), flagged as unverified against the admin UI. Source: claude-chat, fireflies-call.

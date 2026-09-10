@@ -588,6 +588,12 @@ Represents a product variant type or template option type.
 | `option_type.all_values` | List of all (including unpublished) `OptionValue` objects (multiple_choice only) |
 | `option_type.custom` | `CustomFields` object |
 
+**One type covers two different things.** Liquid defines a single `OptionType` for both a
+**product variant type** and a **template option type**. Nothing on the object distinguishes
+them, so the two cannot be told apart from the template tree — you have to know which
+collection you walked in from (`product.variants` versus `design.template_options`).
+*Verified by reading source (this reference's own object model), 2026-09-09.*
+
 ---
 
 ## OptionValue
@@ -862,6 +868,25 @@ Contains general website information. Available globally as `website` in all ren
 | `website.authorizedotnet_api_login_id` | Authorize.net API Login ID |
 | `website.authorizedotnet_public_client_key` | Authorize.net Public Client Key |
 | `website.authorizedotnet_sandbox_mode` | `true` if Authorize.net sandbox mode |
+
+### Website Redirects — config shape
+
+Confirmed correct by the core developer, 2026-09. The Website Redirects setting takes an
+**array of `[regex, target]` pairs**. Each regex is anchored at both ends and allows an
+optional trailing slash:
+
+```
+[
+["^/site/shop/photobooks/?$", "/site/shop/books"],
+["^/site/shop/wallet-photo-prints/?$", "/site/shop/photo-prints-wallets"],
+["^/site/shop/photo-prints/?$", "/site/photo-prints"],
+["^/site/shop/stationery/?$", "/site/shop"]
+]
+```
+
+Worth recording because a malformed set has previously taken a site down. Targets are
+root-relative paths, same rule as navigation hrefs below.
+*Stated by the core developer, not independently verified.*
 
 ---
 
@@ -1295,6 +1320,8 @@ These behaviours differ from standard Liquid or Shopify Liquid. Confirmed throug
 | Checklist snippet capture without `strip` | Always pipe through `strip` after capture — snippet renders with trailing newline that breaks `== 'TRUE'` |
 | `{% if product != blank %}` to detect a nil object | Test an attribute that always exists on a real one: `{% if product.id %}`. Nil yields nil, which is falsy in every engine. `!= blank` is not portable and can take the "it exists" branch for an object that is nil |
 | `product.custom.x != blank` to test whether a field was set | `{% assign v = product.custom.x \| default: '' \| strip %}{% if v != '' %}`. Comparing against the empty string behaves identically everywhere; `!= blank` does not |
+| A filter inside an `{% if %}` condition — `{% if flag \| strip == 'TRUE' %}` | **Syntax error, not a no-op.** `{% assign %}` first, then compare. See *Authoring Traps in Parent Snippets* below (verified by test, 2026-09-08) |
+| `{% if value.price != 0 %}` to test whether a value is free | `{% assign p = value.price \| plus: 0 %}{% if p > 0 %}`. Numbers arrive from Liquid as strings and `value.price` exports blank rather than zero, so `!= 0` passes and renders `+$0.00` on free values (verified by reading a variant export, 2026-08-20) |
 
 ---
 
@@ -1303,6 +1330,18 @@ These behaviours differ from standard Liquid or Shopify Liquid. Confirmed throug
 These are Liquid-related capabilities added to the platform recently. They are not yet
 documented on the master Notion reference and may still be evolving — confirm against
 a live site before depending on specific syntax.
+
+---
+
+## Liquid objects are not constructed for orphaned projects (2026-09-02)
+
+A platform change on 2026-09-02 stopped Liquid objects being constructed when a project's
+**design or product is missing**. This explains a class of nil and attribute errors seen on
+orphaned projects — a project whose design or product has since been deleted no longer yields
+a half-built object for the template to trip over.
+
+**Not verified — recorded from a commit message, no discussion.** Confirm the exact behaviour
+before relying on it in a guard.
 
 ---
 
@@ -1643,6 +1682,127 @@ document.querySelectorAll("[data-base]").length   // 0 = the pass ran and found 
 If the script is present and that count is zero, the problem is element-finding —
 not the conversion arithmetic and not the control.
 
+## Authoring Traps in Parent Snippets (2026-09-09)
+
+Every item here was hit while editing a snippet on the Shopper parent, where the blast radius
+is every child site at once.
+
+### 1. Filters are not allowed inside an `{% if %}` condition
+
+```liquid
+{% if option_panels | strip == 'TRUE' %}   {# syntax error #}
+```
+
+This is a **syntax error, not a silent no-op**. On a parent snippet that is every child's
+product page down at once. Assign first, then compare:
+
+```liquid
+{% assign option_panels = option_panels | strip %}
+{% if option_panels == 'TRUE' %}
+```
+
+*Verified by test — a python-liquid render of the parent snippet refused to parse the filtered
+form, 2026-09-08.*
+
+### 2. A checklist `{% capture %}` is appended to an existing line, never given its own
+
+Put the capture for a checklist value **at the end of an existing line** in the snippet body.
+On its own line it shifts the leading whitespace of every option's output on every child site,
+and `{%- -%}` whitespace-control markers do **not** save it. Appended to the end of an existing
+line it emits nothing at all.
+
+This is a real, visible diff on sites that changed nothing, which is exactly what a gated
+parent change is supposed to avoid. *Verified by test — byte-identical render comparison
+across 14 option fixtures, 2026-09-08.*
+
+### 3. Checklist bodies carry no trailing newline, and that is load-bearing
+
+A checklist body on the parent is **exactly its own bytes**: `admin/checklist/search` is four
+bytes, `TRUE`. `capture` does not trim, so a body saved as `TRUE\n` never equals `'TRUE'` and
+the flag **fails silently and permanently while looking correct in admin**.
+
+Two defences, and you want both:
+
+- `| strip` the capture in any **new** checklist reader.
+- Keep the bodies clean regardless — the existing readers in the parent do not all strip.
+
+This is the Liquid-side statement of the rule recorded in full, with its signature and the
+generator fix, in `50_SHOPPER_TEMPLATE_REFERENCE.md` §17 (*A trailing newline in a value
+snippet silently breaks every flag*), and summarised in the quirks table above.
+*Verified by reading source — shopper24 CMS backup, 2026-09-01.*
+
+### 4. Numbers arrive from Liquid as strings — `| plus: 0` before any comparison
+
+Coerce before you compare. `| plus: 0` turns both `''` and nil into `0`.
+
+`value.price` is the case that bites: on an option whose unpriced values export as `''` rather
+than `0`, the common idiom `{% if value.price != 0 %}` **passes**, and the page renders
+`+$0.00` against every free value.
+
+```liquid
+{% assign qq_value_price = value.price | plus: 0 %}
+{% if qq_value_price > 0 %}+{{ qq_value_price | currency }}{% endif %}
+```
+
+*Verified by reading a variant export — priced values carried `price: '2'`, free values carried
+`price: ''`, 2026-08-20.*
+
+### 5. Navigation hrefs must be root-relative
+
+Every storefront link in a navigation snippet needs the leading slash: `/site/shop/<path>`,
+never `site/shop/<path>`.
+
+A relative href resolves against the **current directory**, not the site root. From the
+homepage `site/shop/x/y` resolves to `/site/shop/x/y` and works. From a page already at
+`/site/shop/x/y` the browser asks for `/site/shop/x/site/shop/x/y` and gets the error page.
+
+**The signature is what makes it hard to find:** the first link works, every link between
+siblings fails. It presents as a collection or routing problem and is neither. Reported by a
+photo lab client as "the first sub-category works from the homepage but switching between
+sub-categories gives Error Found".
+
+Diagnosis is a grep, not a click-through:
+
+```
+grep -n 'href="[^/#][^"]*site/' snippets/navigation__*
+```
+
+Anything it returns is a bug. **Mixed files are the normal case** — one group of links written
+by hand alongside groups that were generated correctly.
+*Verified by reading source and by live diagnosis, 2026-09-09.*
+
+### 6. Sorting a Custom Type by a numeric field
+
+- Make the sort field **required** and use a **high sentinel** for "last" (`99`). Nil values
+  sort unpredictably.
+- Sort **once at assignment** — `website.custom_types.<type> | sort: 'custom.<field>'` — and
+  never re-sort. This is the `sort`-on-a-`Paginate` rule in the FILTERS section above.
+- Skip excluded records **inside the render loop** with `unless`. That preserves the sort order
+  without building an array with `push`, which is where nested sort keys fail silently.
+- **Instances sort by the custom field's declared type.** A text field sorts
+  lexicographically — `1, 10, 11, 12, 13, 2, 3…` in the admin instance list. The fix is to
+  change the field's type from text to number; admin ordering corrects immediately, though the
+  front-end page can lag behind on cache.
+
+*Verified by reading source (a live Custom Type render loop) for the sort pattern; the
+lexicographic-ordering symptom is stated by the core developer, not independently verified.*
+
+### 7. A `custom_script`-mounted tool may have no `product` in Liquid scope
+
+A tool snippet mounted from a template option's `custom_script` custom field can render with
+**no `product` object in scope at all** (`productSeen: false`). Every product-level custom field
+then silently falls back to the site checklist, and a per-product override is **dropped with no
+error anywhere**.
+
+Two build rules follow, and both exist so the failure is visible:
+
+- The tool emits a **`data-product-seen` marker** on its root element.
+- The tool logs an **init diagnostic** naming, per value, where it was resolved from.
+
+**Ask for that line first when a tool misbehaves.** It splits "the tool is broken" from "the
+tool never saw the product" in one paste, and nothing else does.
+*Verified by reading source (custom tool build specs), 2026-09-08.*
+
 ## Changelog
 - 2026-06-01: Noted Shopify IDs live in chosen_variants. Source: claude-chat.
 - 2026-06-15: Added json_parse filter to Pixfizz-extended filters. Added assign_to_user / assign_to_cart optional params to the address_create form. Source: notion-dashboard.
@@ -1650,3 +1810,4 @@ not the conversion arithmetic and not the control.
 - 2026-07-28: Added file_upload accessor note on ChosenOption (`uploaded_file.url` / `.filename`; `value`, `asset.url`, `thumbnail_url` and the `preview_url` filter do not work), the `thumbnail/{n}` path segment on UploadedFile, and the `cart[custom][field]` write pattern for `cart_update`. Source: claude-chat.
 - 2026-08-21: Added FORMS section with address_create form options (assign_to_user, assign_to_cart). Source: notion-page (Dashboard 🆕 Update).
 - 2026-08-29: Added Translation Keys — the `t` filter key is the source string downcased (so case-only variants collide and a capitalised key file matches nothing), `en` is an optional override, an export is not the full key set (346 exported vs 578 in code, union 856), keys absent from Liquid are not dead, `products`/`variants` are catalogue-driven, the importer takes the namespace from the file's top-level key so one file can carry all of them, `request.locale` is the language test, plus the bidi logical-order trap and the auto-match audit. Added Display Currency Switching — there is no class hook on prices, so find them by rendered format and wrap once into a data attribute; disconnect the MutationObserver during its own pass; read the base from `website.currency_code` and refuse to convert on an unknown base; conversion is display-only. Source: claude-chat.
+- 2026-09-09: Added Authoring Traps in Parent Snippets — a filter inside an `{% if %}` condition is a syntax error not a no-op; a checklist `{% capture %}` must be appended to an existing line or it shifts every option's leading whitespace; checklist bodies carry no trailing newline and `capture` does not trim; `| plus: 0` before any numeric comparison because `value.price` exports blank rather than zero; navigation hrefs must be root-relative and the failure signature is first-link-works-siblings-fail; sorting a Custom Type by a numeric field (required field, high sentinel, sort once, skip with `unless`, and text fields sort lexicographically); and a `custom_script`-mounted tool may have no `product` in scope, so it must emit `data-product-seen` and an init diagnostic. Added the two matching rows to KNOWN CMS LIQUID QUIRKS. Added a note that one `OptionType` covers both product variant types and template option types, so the two cannot be told apart from the template tree. Added the Website Redirects config shape (anchored `[regex, target]` pairs with an optional trailing slash). Added the 2026-09-02 platform change stopping Liquid objects being constructed when a project's design or product is missing, marked not verified. Source: claude-chat, slack-message, fireflies-call.
