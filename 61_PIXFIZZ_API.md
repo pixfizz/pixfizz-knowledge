@@ -657,6 +657,23 @@ Authentication is HTTP Basic with an admin account, as in § 2.
 
 **Path prefix inconsistency:** some of these endpoints sit under `/admin/...` and others under `/v1/admin/...`, as listed below. This is not a transcription error — the prefixes genuinely differ per endpoint. Do not assume a uniform prefix; test each one.
 
+> **The `/admin/...` JSON endpoints are being retired.** The core developer stated on the
+> Notion Dashboard (week of 2026-09-21) that every unofficial `/admin/...` endpoint **will stop
+> working when the current staging code is deployed to production**. Replacements live under
+> `/v1/admin/...`. Confirmed replacements so far:
+>
+> | Retiring | Replacement |
+> |---|---|
+> | `/admin/custom_types` | `/v1/admin/custom_types` |
+> | `/admin/custom_types/<id>/custom_type_instances` | `/v1/admin/custom_types/<id>/custom_type_instances` |
+> | `/admin/assets` | `/v1/admin/assets` |
+>
+> `PUT /admin/theme_categories/<id>.json` (collections, below) has **no confirmed replacement
+> yet** — pending confirmation. Any script, tool or integration that calls an `/admin/...` path
+> must be moved to `/v1/admin/...` before that deploy, or it breaks silently on the day. Write
+> new code against `/v1/admin/...` only. Stated by the core developer; the retirement itself is
+> not yet live, so not verified.
+
 ### Custom types
 
 ```
@@ -832,16 +849,12 @@ two rows per product and funnels that never join. See `85_GA4_SERVER_SIDE_PURCHA
 Recorded so these stop being re-proposed as available. Each is a **current limitation, not a
 roadmap commitment**, and each should be re-checked rather than quoted from here indefinitely.
 
-### Price Variables are not reachable via the API
+### Price Variables via the API — superseded
 
-**Stated by the core developer, 2026-09-07; not independently verified against the API.** There is no API
-surface for reading or writing Price Variables. Adding one was described as not difficult, which
-is not the same as scheduled.
-
-Practical effect: a bulk price change that lives in price variables is an admin job. Do not scope
-an integration, a migration script or a pricing tool on the assumption that variables can be
-read or set programmatically. Bulk export and import of price variables **through admin** does
-exist and is the supported bulk route.
+This entry previously said Price Variables were not reachable via the API (core developer,
+2026-09-07). **That is superseded:** an experimental read/write Price Variables API was
+announced on 2026-09-16 — see § 13f. § 13f is staging only (verified 2026-09-16), so until it deploys,
+bulk export and import **through admin** remains the safe bulk route.
 
 ### There is no template import endpoint
 
@@ -856,6 +869,90 @@ routinely estimated as free.
 
 ---
 
+## 13f. Experimental Admin API — Price Variables and CMS Content
+
+> **Experimental, staging only.** Announced by the core developer on the Notion Dashboard,
+> week of 2026-09-21. **Not on production:** `GET /v1/admin/cms_snippets.json` on a production
+> site did not respond, and the same path on port **5748** (the staging host,
+> `https://<subdomain>.pixfizz.com:5748/v1/admin/...`) did, verified by test on 2026-09-16.
+> Build and test against the `:5748` host only, and re-check production after the staging deploy. Authentication is HTTP Basic with an admin account, as in § 2. Cross-origin writes
+> follow the `POST` + `_method=put` rule in § 13c.
+
+All four resources share one pattern. Index endpoints return **pages of 100**; use `?page=N`
+as in § 1.
+
+```
+GET    /v1/admin/<resource>.json          # list (100 per page)
+GET    /v1/admin/<resource>/<id>.json     # read
+POST   /v1/admin/<resource>.json          # create
+PUT    /v1/admin/<resource>/<id>.json     # update
+DELETE /v1/admin/<resource>/<id>.json     # delete
+```
+
+### Price variables — `price_variables`
+
+```
+price_variable[name]
+price_variable[description]
+price_variable[value]
+```
+
+A formula that references a variable will not save until the variable exists
+(`30_PRICING_ENGINE.md`), so a scripted rollout creates variables **before** it writes formulas.
+
+### CMS pages — `cms_pages`
+
+```
+page[url]
+page[title]
+page[body]               # the Liquid content of the page
+page[layout_id]          # layout id; -1 = site default layout; blank = no layout
+page[meta_title]
+page[meta_description]
+page[meta_keywords]
+page[in_sitemap]         # true | false
+page[custom][<field-name>]
+```
+
+`page[custom][...]` writes to Page custom fields, which must already be defined on the site
+(§ 13c: an undefined field's value is silently dropped).
+
+### CMS snippets — `cms_snippets`
+
+```
+snippet[name]
+snippet[description]
+snippet[content]
+snippet[allow_override]  # true | false
+```
+
+`snippet[description]` fills the snippet Description column. House convention: never leave it
+blank — one line, sentence case, full stop. On a Shopper child site, writing a snippet that exists on
+the parent creates or changes a **site override**, which pins that snippet and stops parent
+inheritance — the same consequence as pressing **Override Snippet** in admin.
+
+### CMS layouts — `cms_layouts`
+
+```
+layout[name]
+layout[description]
+layout[content]
+layout[default]          # true | false
+```
+
+### What this changes
+
+- Snippets, pages, layouts and price variables can now be read and written without a CMS
+  backup tar. A script can diff, patch and verify one snippet instead of shipping a whole site
+  backup.
+- Renaming a snippet or page through the API breaks every reference to it exactly as a manual
+  rename does. The bulk-rename ban on strings that reference platform data still applies.
+- **Still not possible:** template import (§ 13e). Asset **deletion** was mentioned on a call
+  (2026-09-14) as published on staging; the endpoint is not documented here yet — pending
+  confirmation.
+
+---
+
 ## 14. Retrieval Pointer
 
 | Topic | File |
@@ -867,6 +964,8 @@ routinely estimated as free.
 | Template responsibility boundaries | `13_TEMPLATE_BOUNDARIES.md` |
 | Server-side GA4 `purchase` from the order webhook | `85_GA4_SERVER_SIDE_PURCHASE.md` |
 | Order lifecycle and confirmed status | `32_ORDER_LIFECYCLE.md` |
+| Price variable formulas and save rules | `30_PRICING_ENGINE.md` |
+| Snippet overrides on Shopper child sites | `50_SHOPPER_TEMPLATE_REFERENCE.md` |
 
 ---
 
@@ -879,3 +978,4 @@ routinely estimated as free.
 - 2026-07-25: Added § 13c Admin Content API — custom type list/read/instance-create, asset upload and list, and the custom-field update endpoints for products, designs (`theme`), and collections (`theme_category`). Marked not publicly announced; documented the genuine `/admin` vs `/v1/admin` prefix inconsistency. Source: internal notes (Matjaz).
 - 2026-08-21: Added full Promocodes / Gift Vouchers API section (§13a) including create, read, update, delete endpoints and gift voucher (reuse_credit) pattern. Source: api-docs + slack-message.
 - 2026-09-09: Added §13d Order Webhook — customers register it themselves in Pixfizz admin (the same mechanism OrderHub uses), and the payload carries `orderlines[].product_id` (numeric internal id) and not `product_code`, so any consumer keying items by product code cannot join (verified by query). Added §13e What Is Not Possible Today — Price Variables are not reachable via the API (confirmed by the core developer 2026-09-07) and there is no template import endpoint, so bulk-generated template tars are imported one at a time through admin, blocked on large-file handling and progress tracking. Both recorded as current limitations, not roadmap. Added retrieval pointer rows for `85_GA4_SERVER_SIDE_PURCHASE.md` and `32_ORDER_LIFECYCLE.md`. Source: slack-message, fireflies-call.
+- 2026-09-16: Added § 13f Experimental Admin API (price variables, CMS pages, snippets, layouts: shared list/read/create/update/delete pattern, 100 per page, parameter lists, override and rename consequences). Staging only, not on production (verified by test 2026-09-16). Superseded the § 13e 'Price Variables are not reachable via the API' entry. Added the `/admin` → `/v1/admin` retirement notice to § 13c with the confirmed replacement table; collections update has no confirmed replacement yet. Source: notion-page (Dashboard), fireflies-call.

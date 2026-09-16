@@ -166,6 +166,32 @@ When the design tool is embedded in an external site (such as Shopify), the logi
 
 The redirect-back-to-design-tool flow depends on the Pixfizz setup code running on the post-login landing page. If using a custom Shopify theme, confirm the setup snippet is present on every page before enabling the login modal.
 
+### Login inside the upload dialog
+
+`<px-upload-dialog>` can render the same login form, so an anonymous user can sign in from the
+upload dialog to reach their galleries. It is **off unless explicitly enabled**, because an
+external site such as Shopify needs the external login URL configured.
+
+Four attributes, matching the design tool's login modal settings:
+
+```
+login-modal-enabled
+login-modal-external-url
+login-modal-forgotten-password-url
+login-modal-registration-url
+```
+
+- **On `<px-upload-dialog>`** — use the attributes as written above.
+- **In the PhotoPrints component config** — replace dashes with underscores
+  (`login_modal_enabled`).
+- **On `<px-image-upload>` and `<px-multi-image-upload>`** — prefix with `upload-dialog-`
+  (`upload-dialog-login-modal-enabled="true"`).
+
+The forgotten-password and registration URLs are site-specific; do not assume every Shopper
+site uses the same paths. The dialog added ten translation keys, listed at the bottom of the
+`<px-upload-dialog>` table in the design tool translation reference. Announced on the Notion
+Dashboard 2026-08-17; not verified live.
+
 ---
 
 ## Editor CSS Customization
@@ -965,3 +991,4 @@ _Verified by reading source, 2026-09-09._
 - 2026-08-29: Added Editor Gallery Folders — per-tag theming via `data-gallery-id` (the literal tag name), the `currentColor` inline-SVG folder glyph, the `data-px-tooltip` caption hook, a per-tag thumbnail recipe, and the open question of whether the Galleries tab is distinguishable from Clipart. Added `--neutral-grey-2` and `--caption-height` to the aliasable variable set. Clarified that `@filename@` is the fallback for the non-Liquid Design Tool Configuration Custom CSS field, while `editor.css` and `shopify/custom-styles` are Liquid-rendered and take `asset_url` — marked inferred pending two checks. Added Design Theme Layouts export format (layouts as a sibling of templates, `left`/`top` always 0 with `x`/`y` omitted when zero, mm coordinates, `edit`+`placeholder` photo slots, the fixed tag vocabulary with `5+ photos` as the catch-all) and what is and is not verified about layout import. Source: claude-chat (live editor inspection, photobook layout build).
 - 2026-08-29: Added Mobile Editor CSS — the mobile editor is a separate template chosen by device and touch detection rather than a breakpoint (so it cannot be reproduced by narrowing a window; use `editor.store.ui.setEditorMode('mobile')`), the desktop/mobile class map, the cached `setDimensions()` measurement that makes any CSS resize of the page list render at a stale scale until the device is rotated, a verified persistent-bottom-page-strip recipe, why the prev/next hints are decorative, and the two platform changes that would retire the workaround. Cross-referenced from the Known Issues — Mobile entry for #18343. Source: claude-chat, live editor inspection, on-device testing.
 - 2026-09-09: Added Custom Design Tools — Browser-Side Rules. A dialog reparented to `<body>` survives an AJAX partial re-render and wins document-order resolution, so a tool that reparents must sweep its own previous instance on every boot (with the backdrop and scroll-lock cleanup, the uninitialised-root selector, and the verification lesson that a correct boot log proves nothing). pdf.js detaches the buffer it is handed, with the copy guard. pdf.js and pdf-lib do not read the same page box — measured CropBox versus MediaBox proof, the false no-bleed consequence, and rendering the review image from the built print PDF as the clean fix. Browser preflight — what is reliable, that colour space/CMYK is not detectable via pdf.js and must be reported unchecked, warn-do-not-block, a check that cannot conclude returns true or null, the acknowledgement click as liability transfer, `.docx` page count as undeterminable in the browser, and the audit question of whether one check carries every hard failure. The canvas-space versus page-space coordinate rule with a single self-inverse flip and a pinned sign convention. One placement decided once and consumed by proof, cart thumbnail, review image and print writer — explicitly correcting the earlier decision that the proof should not fork on output mode. Warning copy must match the output mode, with the amber-only-past-the-bleed and judge-resolution-at-placed-size rules. Browser PDF dependency pinning. Build and install rules for a custom tool, ending in placing one real order end to end. And that generic-by-design must be an explicit opt-out flag rather than inferred absence. Source: claude-chat, fireflies-call.
+- 2026-09-16: Added login inside `<px-upload-dialog>` — four attributes, the underscore form for PhotoPrints config and the `upload-dialog-` prefix for `<px-image-upload>` / `<px-multi-image-upload>`; off by default. Missed in the 2026-08-17 sync. Source: notion-page (Dashboard).

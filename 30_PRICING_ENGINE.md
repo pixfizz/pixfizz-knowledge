@@ -26,9 +26,10 @@ Pricing formulas are set on the **Product Attribute** in the admin:
 - **A formula referencing a price variable will not save until that variable exists.**
   Create the price variables first, then paste the formula; the save is rejected otherwise.
   Verified live, 2026-09-08.
-- **Price Variables are not reachable via the API.** There is no API read or write for them.
-  Confirmed by the core developer, 2026-09-07. This is a statement of the current limitation,
-  not a roadmap commitment — do not scope work that assumes it will change.
+- **Price Variables have an experimental read/write API** (announced 2026-09-16), which
+  supersedes the 2026-09-07 statement that none existed. Endpoints and parameters are in
+  `61_PIXFIZZ_API.md` § 13f. **Staging only** — not on production, verified by test on
+  2026-09-16. On production sites, admin bulk export/import (below) is still the only bulk route.
 - House convention for tier variables: store **multipliers**, not percentages off.
 
 ## Keep formulas basic
@@ -771,3 +772,4 @@ Stated from client calls, not independently verified.
 - 2026-09-09: Added the escape hatch for a tier driver that is a product of two inputs (JS-computed price into a `number` option priced as `value`) with its two costs, and the rule that a per-order charge written by a tool must be divided by the unit count. Source: claude-chat + fireflies-call.
 - 2026-09-09: Added additive pricing via hidden `number` child variants (`value * 0` siblings are deliberate no-ops), the transcribed-price-table drift hazard with the same-sitting mirroring rule and the platform ask to expose a price ladder to Liquid, and the withdrawal of the claim that `product.price` evaluates in a mid tier. Source: claude-chat.
 - 2026-09-09: Added zero-priced catalogue/category pages for variant-driven prices (fix is the product-level starting-price field) and the note that `Custom pricing` is the only product custom field accepting free text for a price label. Source: fireflies-call.
+- 2026-09-16: Replaced 'Price Variables are not reachable via the API' with a pointer to the new experimental Price Variables API in `61_PIXFIZZ_API.md` § 13f. Source: notion-page (Dashboard).

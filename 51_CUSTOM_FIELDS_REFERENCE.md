@@ -111,6 +111,12 @@ This reference documents **30 object access patterns** mapping to approximately 
 
 - **Field type can differ by object for the same field name**: the product tab fields `details`, `features` and `production` render as markup at the Collection level but not at the Product level. Tab content authored as HTML belongs on the Collection, not on the individual product export.
 
+- **Settings → Custom Fields is now a site-wide definitions page** (announced 2026-09-16) with
+all-or-subset export and import across object types. Use it instead of per-object exports when
+porting definitions between sites. Whether its export records the object type is pending
+confirmation; see `18_ADMIN_NAVIGATION.md` § Custom Fields, Schema Order and Bulk
+Export/Import.
+
 - **A custom field definition archive contains no object-type key.** Verified by reading
 source, 9 September 2026. Every `custom_fields_*.tar.gz` contains exactly one member,
 `./__custom_field_definitions.yml`, and the YAML is a flat `custom_field_definitions:`
@@ -1108,3 +1114,4 @@ hides it. Test on one collection before promising it to a client.
 - 2026-08-21: Added snippet-type custom field rendering gotcha (requires non-empty Description). Source: slack-message + fireflies-call.
 - 2026-08-29: Added Fields Seen Live But Absent From This Reference — `unpublished` observed in a live Collection `custom` hash, distinct from `blog_unpublished` and `service_unpublish`, with the open question of whether the Shopper shop index respects it (Shopper lists all collections by default). Source: claude-chat.
 - 2026-09-09: Closed the "Untested" flag on the per-product export archive — re-importing an archive whose `code` already exists **creates a duplicate and reassigns IDs**, it does not update. The format is create-only with no upsert on `code`: seeding and site rebuilds only, never a live catalogue change. Bulk price editing must write through the admin API per object, and site-rebuild runs are one-shot. Whether the Static Product Importer CSV upserts on `handle`/`sku` remains not verified. Added Key Notes: a custom field definition archive carries no object-type key, so the import target in admin decides the object; template options are a separate custom-field object and `custom_script` lives there, with the four-step install order for a custom design tool on a new site; Order and Cart are the same custom-field object; some fields are platform-consumed only (`lab_printer`, `lab_size`, `oversize`, `quantity_from_variants`, `ga_client_id`, `ga_session_id`) and must not be pruned on the strength of a Liquid-tree grep. Added Product fields `quantity_unit_label` and `quantity_price_table`. Added the Option rule never to set `read_only` on anything a tool writes, and the Design rule that `cart_edit_url: project-edit` must be a design custom field. Added the standalone `__template_options.yml` archive section (blank ids create records; the two reuse traps; duplicate-code behavior still untested). Added the rule preferring an existing snippet-type custom field over a new parent snippet, with the product-level rendering caveat. Added a section recording that this file's counts are stale — Product reads 207 against the 81 recorded, 121 of them custom design tool fields — and that it needs regenerating from a fresh export. Source: claude-chat, fireflies-call.
+- 2026-09-16: Pointed to the new Settings → Custom Fields site-wide definitions page for porting definitions. Source: notion-page (Dashboard).

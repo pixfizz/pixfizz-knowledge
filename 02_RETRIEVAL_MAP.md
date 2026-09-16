@@ -197,6 +197,18 @@ Use **61_PIXFIZZ_API.md** for all questions about the Pixfizz REST API, JS API, 
 ### "What REST endpoints exist / what objects can the API manage?"
 → **61_PIXFIZZ_API.md** § 1 (Overview)
 
+### "Can I read or write snippets, pages, layouts or price variables through the API?"
+→ **61_PIXFIZZ_API.md** § 13f (Experimental Admin API — staging only as of 2026-09-16)
+
+### "My script calls /admin/custom_types or /admin/assets — will it keep working?"
+→ **61_PIXFIZZ_API.md** § 13c (the `/admin` → `/v1/admin` retirement)
+
+### "Where do I export or import all custom field or custom type definitions at once?"
+→ **18_ADMIN_NAVIGATION.md** § Custom Fields, Schema Order and Bulk Export/Import
+
+### "Can customers log in from the upload dialog?"
+→ **17_DESIGN_TOOL.md** § Login inside the upload dialog
+
 ### "How do I authenticate with the API?"
 → **61_PIXFIZZ_API.md** § 2 (Authentication: basic auth, cookie, OAuth)
 
@@ -596,3 +608,4 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 - 2026-08-29: Audited every filename this map points at against the repo. Corrected `40_PLAYBOOK.md` (3 routes) and `01_CODE_GOVERNANCE.md` (1 route) to their real `_UPDATED` filenames. Added the two files the map had never routed to at all, `41_IMPLEMENTATION_PATTERNS_UPDATED.md` and `52_SNIPPET_INVENTORY.md`. Every route now resolves. Source: kbsync audit.
 - 2026-09-09: Added 85_GA4_SERVER_SIDE_PURCHASE.md and 40 routing entries for the 2026-09-09 sync — server-side GA4, the GTM-only standard, Google account ownership, the dead Add to Cart / stale page cache / lexicographic sort / formula validator diagnostics, the Extra Fee corrections, unpublished products staying orderable, archive re-import duplication, parent-safe snippet changes and the parent-first snippet rule, collection_filters, root-relative nav hrefs, the reparented modal, kiosk keys, print-on-demand zero-price routing, FTP retention, the _additional_files.json trailing comma, alphabetical export attribute order, the AI preview-scene narrowing, the RLS-in-triggers rule, and the silent-failure index. Every target section was written in the same sync. Source: kbsync.
 - 2026-09-09: Route check run as the mandatory closing step now recorded in 01_CODE_GOVERNANCE_UPDATED.md. Every route resolves. Note for whoever runs the naive one-liner next: it also matches filenames quoted inside this file's own prose and changelog, so `01_CODE_GOVERNANCE.md`, `40_PLAYBOOK.md` and `83_MOBILE_UX_AUDIT.md` are reported as missing. All three are historical references, not live routes: the first two appear only in the 2026-08-29 changelog entries describing corrections already made, and the third only in the note above § 82 recording that it never existed. Excluding the changelog leaves one known false positive. Source: kbsync audit.
+- 2026-09-16: Added routing for the experimental Admin API, the `/admin` endpoint retirement, site-wide custom field / custom type definition export, and upload dialog login. Source: notion-page (Dashboard).

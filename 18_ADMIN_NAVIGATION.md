@@ -219,6 +219,29 @@ A major upgrade shipped 2026-03-30 added:
 
 ## Custom Fields, Schema Order and Bulk Export/Import
 
+### Settings → Custom Fields — one page for every definition
+
+A dedicated admin page at **Settings → Custom Fields** lists every custom field definition on
+the site, across object types. From it you can **export and import definitions for all
+supported object types, or a chosen subset**, in one pass instead of visiting each object's
+own custom fields screen.
+
+- It moves **definitions**, not values.
+- Whether this export carries the object type per definition (unlike the per-object archive
+  described below, which does not) is **pending confirmation**. Until confirmed, import it only
+  from this page and check the result on each object.
+
+### Custom type definition export/import
+
+The **Custom Types** index page can now export and import **all, or a subset of, custom type
+definitions**. It exports the **type definitions only, not the instances** — content has to be
+moved separately (for example with the `/v1/admin/custom_types/<id>/custom_type_instances`
+endpoint in `61_PIXFIZZ_API.md` § 13c).
+
+Both features were announced on the Notion Dashboard, week of 2026-09-21, alongside the
+staging release. Confirm they are present on the site before sending a customer to them. Not
+verified live.
+
 ### Reordering product custom fields — Edit Schema
 
 Beside the custom fields on a product there is an **Edit Schema** link. It reorders which
@@ -329,3 +352,4 @@ per organization.
 - 2026-08-11: Documented the Enable AI Tokens Super Admin feature flag — off by default, activated per website by Pixfizz staff, formerly "Enable Perfectly Clear". Clarifies that it is a Super Admin setting and not a fulfillment template field. Source: internal correction.
 - 2026-09-09: Added the full Extra Fees path with the per-fee Taxable checkbox, Name and Code; the variant price formula location on the variant type; the editor-namespace translation rule (enabling a language does not translate the editor); a new Custom Fields, Schema Order and Bulk Export/Import section covering Edit Schema autosave, the object-type-free definition archive, and price-variable / variant bulk export-import with the duplicate caveat; semi-inheritance of a parent lab's templates through the parent's Super Admin, with the editable auto-populated product code; and a warning that a staging-only change to admin hosting and paths will invalidate the admin URLs recorded here. Source: claude-chat, fireflies-call, slack-message.
 - 2026-08-14: Added Gift Vouchers under Marketing — the section `02_RETRIEVAL_MAP.md` already routed to but which did not exist in this file. Documented that a voucher's value can be updated after creation via the API, and that voucher codes can be printed into fulfillment output for in-store redemption tracking. Removed a stray closing code fence at end of file. Source: slack-message (#development, 2026-08-14), fireflies-call (2026-08-10).
+- 2026-09-16: Added the Settings → Custom Fields page (site-wide definition list with all-or-subset export/import) and custom type definition export/import from the Custom Types index (definitions only, not instances). Object-type handling in the new export pending confirmation. Source: notion-page (Dashboard).
