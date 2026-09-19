@@ -855,7 +855,7 @@ verified**._
 
 # The Custom-Tool Install Order on a New Site
 
-Four steps, in this order. **A wrong order gives no useful error — the tool simply does not
+Two steps, in this order. **A wrong order gives no useful error — the tool simply does not
 appear.**
 
 1. **Template-option custom field schema first.** Export it from a site that already has the
@@ -864,9 +864,12 @@ appear.**
    nothing else works until this exists. Note that "the `custom_script` custom field
    definition" does not match anything a person sees in admin — say "the template-option
    custom field schema export".
-2. **Template options** — the tool's own `<prefix>_*` options, imported per template.
-3. **Product custom field definitions** for the tool's product-level configuration.
-4. **Values** — checklist keys at site level, custom field values per product.
+2. **Template options** — the tool's own `<prefix>_*` options, imported per template,
+   carrying the mount block in `custom_script`.
+
+**The former steps 3 and 4 — product custom field definitions and checklist values — are
+retired.** Since 11 September 2026 a tool's configuration rides in its mount argument list,
+which travels with the template export. See `26_CUSTOM_DESIGN_TOOLS.md` § 4.
 
 Two rules for step 2, both learned by nearly breaking a live site:
 
@@ -878,9 +881,9 @@ Two rules for step 2, both learned by nearly breaking a live site:
 - **Blank ids in an options import create new records.** Confirmed in practice; a keep-ids
   fallback was not needed.
 
-Cross-reference `51_CUSTOM_FIELDS_REFERENCE.md`.
+Cross-reference `51_CUSTOM_FIELDS_REFERENCE.md` and `26_CUSTOM_DESIGN_TOOLS.md`.
 
-_Verified by test (performed on a live site install), 2026-09-09._
+_Verified by test (performed on a live site install), 2026-09-09. Steps 3 and 4 retired 2026-09-19._
 
 ------------------------------------------------------------------------
 
@@ -1099,3 +1102,4 @@ kit), 2026-09-09._
 - 2026-08-11: Added Measured platform behaviour — `parse_json` is cheap at scale (25 parses of a 20KB payload per render, no measurable TTFB change); redirects capture dotted root paths so `llms.txt` and similar are servable from an asset; the asset uploader is extension-filtered (.txt/.md rejected, .json accepted); WebP is the image-pipeline ceiling with no AVIF (AVIF under discussion, pending). Added the `!= blank` nil trap and the `| default: '' | strip` portable comparison. Source: claude-chat (Shopper v2 verification kit).
 - 2026-08-29: **Corrected the image-pipeline rule** — the `format:` filter is WebP-capped, which is not a format ban; pre-encoded AVIF uploads and serves through `<picture>` and has shipped since 2026-08-16. Current rule is AVIF + WebP with WebP as the `<img>` fallback, keeping AVIF only where it measures smaller. Added: canvas export requires `crossOrigin = 'anonymous'` or `toBlob` throws `SecurityError` after a perfect-looking preview; the iOS Safari 16,777,216-pixel canvas ceiling as a go/no-go test for browser-built print files; writing to the cart from a custom tool (`cart_add_product` per product, disabled inputs as the mechanism, sequential queue in `sessionStorage`, assert `cart.orderlines_total` grew); collection filter params are arrays, so `?type=Roll` silently no-ops; a snippet's own `data-*-mount` default is a label rather than evidence, with the two photo-prints routes; a literal `</style>` inside an inlined CSS snippet ends the element early and dumps the stylesheet onto the page; and five browser PDF preflight rules (pdf.js exposes only the CropBox, never infer trim from page size, cMap config, text-trigram page matching, `pdf-lib copyPages` fidelity). Source: claude-chat.
 - 2026-09-09: Added adding a capability to a shared parent snippet without touching any site — the free-form arguments string as an admin-data opt-in, the three properties that make it parent-safe (opt-in proven by grep, byte-identical degradation, parallel-array alignment preserved by pushing outside the conditional), the negative-diff proof standard against a live URL, the unresolved snippet-scope question, and Override Snippet vocabulary with the pinning consequence. Added the four-step custom-tool install order on a new site, the no-useful-error failure, and the two options-import traps; cross-referenced 51_CUSTOM_FIELDS_REFERENCE.md. Added the two-stage feature-flag pattern for a parent snippet that must stay inert on most children — data condition first, then a checklist switch defaulting off, read with an empty fallback and stripped before an exact TRUE comparison, created on the parent with Allow Override. Added that a byte-identical render harness needs per-fixture marker assertions or it proves nothing, with the silently-dropped-values and filter-in-an-if traps and the capture whitespace rule, plus python-liquid treating an undefined key as != blank and how to control for it. Added that progress UI must live in the panel the customer is looking at and must yield a frame before a blocking step. Added that a visually-hidden radio must use opacity 0, never display none. Added no-JavaScript as a defence against AJAX re-injection. Added preview canvas view anchoring, bleed legibility and canvas sizing, with the direction-and-pixel test assertions. Added how to verify which version of a parent asset is actually live — hash-compare against the build kit and confirm by the absence of the new symbol, not the version string. Source: claude-chat, fireflies-call.
+- 2026-09-19: Custom-tool install order cut from four steps to two. Product custom field definitions and checklist values are retired as install steps — configuration rides in the mount argument list. Cross-referenced `26_CUSTOM_DESIGN_TOOLS.md`. Source: kbsync (custom tool estate).

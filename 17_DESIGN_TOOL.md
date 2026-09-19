@@ -667,6 +667,9 @@ customer file, and write a print file and its supporting records onto the orderl
 on the same shape). The rules here are platform-level unless stated otherwise — they follow
 from how the CMS re-renders pages, and from how pdf.js and pdf-lib behave in a browser.
 
+**Which tools exist, what each one does, how one is configured, mounted and installed:
+`26_CUSTOM_DESIGN_TOOLS.md`.** This section is the browser-side engineering only.
+
 ---
 
 ### A dialog reparented to `<body>` survives an AJAX partial re-render, and wins
@@ -942,9 +945,12 @@ Carried from shipped builds. Each of these has cost time at least once.
 - **Load the tool's own dependencies from the product snippet**, not from a widely-overridden
   layout include, and inject with a `data-<tool>-src` marker so a re-render cannot
   double-load. See `41_IMPLEMENTATION_PATTERNS_UPDATED.md` § Custom Tool Dependency Loading.
-- **Create the two shared custom fields before the template import.** Definitions do not
-  inherit, and values written without a definition are silently dropped — presenting as "the
-  tool is broken" with nothing to point at.
+- **Configuration rides in the mount argument list, not in custom fields.** Since 11
+  September 2026 a tool reads every setting from the arguments passed to its snippet by the
+  `custom_script` mount, because a template option's custom field travels with a template
+  export and a product or design custom field does not. The one definition that must exist
+  on the child site before the template import is `custom_script` itself, on the template
+  option object. See `26_CUSTOM_DESIGN_TOOLS.md` § 4.
 - **Measure the print file on a real order** — format, colour mode, alpha, pixel dimensions,
   embedded DPI. **None of them are visible in a proof.**
 - **Place one real order end to end before handing over. Every defect found on this platform
@@ -992,3 +998,4 @@ _Verified by reading source, 2026-09-09._
 - 2026-08-29: Added Mobile Editor CSS — the mobile editor is a separate template chosen by device and touch detection rather than a breakpoint (so it cannot be reproduced by narrowing a window; use `editor.store.ui.setEditorMode('mobile')`), the desktop/mobile class map, the cached `setDimensions()` measurement that makes any CSS resize of the page list render at a stale scale until the device is rotated, a verified persistent-bottom-page-strip recipe, why the prev/next hints are decorative, and the two platform changes that would retire the workaround. Cross-referenced from the Known Issues — Mobile entry for #18343. Source: claude-chat, live editor inspection, on-device testing.
 - 2026-09-09: Added Custom Design Tools — Browser-Side Rules. A dialog reparented to `<body>` survives an AJAX partial re-render and wins document-order resolution, so a tool that reparents must sweep its own previous instance on every boot (with the backdrop and scroll-lock cleanup, the uninitialised-root selector, and the verification lesson that a correct boot log proves nothing). pdf.js detaches the buffer it is handed, with the copy guard. pdf.js and pdf-lib do not read the same page box — measured CropBox versus MediaBox proof, the false no-bleed consequence, and rendering the review image from the built print PDF as the clean fix. Browser preflight — what is reliable, that colour space/CMYK is not detectable via pdf.js and must be reported unchecked, warn-do-not-block, a check that cannot conclude returns true or null, the acknowledgement click as liability transfer, `.docx` page count as undeterminable in the browser, and the audit question of whether one check carries every hard failure. The canvas-space versus page-space coordinate rule with a single self-inverse flip and a pinned sign convention. One placement decided once and consumed by proof, cart thumbnail, review image and print writer — explicitly correcting the earlier decision that the proof should not fork on output mode. Warning copy must match the output mode, with the amber-only-past-the-bleed and judge-resolution-at-placed-size rules. Browser PDF dependency pinning. Build and install rules for a custom tool, ending in placing one real order end to end. And that generic-by-design must be an explicit opt-out flag rather than inferred absence. Source: claude-chat, fireflies-call.
 - 2026-09-16: Added login inside `<px-upload-dialog>` — four attributes, the underscore form for PhotoPrints config and the `upload-dialog-` prefix for `<px-image-upload>` / `<px-multi-image-upload>`; off by default. Missed in the 2026-08-17 sync. Source: notion-page (Dashboard).
+- 2026-09-19: Pointed the Custom Design Tools section at the new `26_CUSTOM_DESIGN_TOOLS.md` for the estate, configuration and install. Replaced the "create the two shared custom fields before the template import" build rule with the mount-argument-list rule decided 11 Sep 2026. Source: kbsync (custom tool estate).

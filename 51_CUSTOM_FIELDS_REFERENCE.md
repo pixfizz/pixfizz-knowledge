@@ -139,14 +139,18 @@ a tool that never renders, with nothing in the console and nothing in admin to p
 
   1. **Template-option custom field definitions** — exported from a site that already
      runs the tool. Nothing below works until this exists.
-  2. **The tool's template options** — per template.
-  3. **Product custom field definitions** — the tool's per-product settings.
-  4. **Values** — site checklist keys first, then per-product field values.
+  2. **The template export**, which carries the tool's template options, its variants and
+     the mount block held in `custom_script`.
 
-  Steps 1 and 3 are both reached as "custom fields" in admin, but they are different
-  object types and different imports. The wording that causes the confusion is calling
-  step 1 "the `custom_script` custom field definition"; in admin it is a template-option
-  custom field schema.
+  **There is no step 3.** Since 11 September 2026 a custom design tool reads its
+  configuration from its mount argument list and from nowhere else, so it needs no
+  product custom field definitions and no site checklist keys. The full rule, and why,
+  is in `26_CUSTOM_DESIGN_TOOLS.md` § 4. The `framing_*`, `bc_*`, `pu_*` and other
+  per-tool product fields listed in the audit below are the retired model; they are
+  recorded because live sites still carry them, not because a new install needs them.
+
+  The wording that causes the confusion in step 1 is calling it "the `custom_script`
+  custom field definition"; in admin it is a template-option custom field schema.
 
 - **Order and Cart are the same custom-field object.** Verified by reading source, 9
 September 2026. The Order archive carries `cart_option`, `first_name`, `last_name`,
@@ -1115,3 +1119,4 @@ hides it. Test on one collection before promising it to a client.
 - 2026-08-29: Added Fields Seen Live But Absent From This Reference — `unpublished` observed in a live Collection `custom` hash, distinct from `blog_unpublished` and `service_unpublish`, with the open question of whether the Shopper shop index respects it (Shopper lists all collections by default). Source: claude-chat.
 - 2026-09-09: Closed the "Untested" flag on the per-product export archive — re-importing an archive whose `code` already exists **creates a duplicate and reassigns IDs**, it does not update. The format is create-only with no upsert on `code`: seeding and site rebuilds only, never a live catalogue change. Bulk price editing must write through the admin API per object, and site-rebuild runs are one-shot. Whether the Static Product Importer CSV upserts on `handle`/`sku` remains not verified. Added Key Notes: a custom field definition archive carries no object-type key, so the import target in admin decides the object; template options are a separate custom-field object and `custom_script` lives there, with the four-step install order for a custom design tool on a new site; Order and Cart are the same custom-field object; some fields are platform-consumed only (`lab_printer`, `lab_size`, `oversize`, `quantity_from_variants`, `ga_client_id`, `ga_session_id`) and must not be pruned on the strength of a Liquid-tree grep. Added Product fields `quantity_unit_label` and `quantity_price_table`. Added the Option rule never to set `read_only` on anything a tool writes, and the Design rule that `cart_edit_url: project-edit` must be a design custom field. Added the standalone `__template_options.yml` archive section (blank ids create records; the two reuse traps; duplicate-code behavior still untested). Added the rule preferring an existing snippet-type custom field over a new parent snippet, with the product-level rendering caveat. Added a section recording that this file's counts are stale — Product reads 207 against the 81 recorded, 121 of them custom design tool fields — and that it needs regenerating from a fresh export. Source: claude-chat, fireflies-call.
 - 2026-09-16: Pointed to the new Settings → Custom Fields site-wide definitions page for porting definitions. Source: notion-page (Dashboard).
+- 2026-09-19: Corrected the custom design tool install order — two steps, not four. Recorded that the per-tool product field families in the audit table (`bc_`, `pu_`, `framing_`, `sticker_`, `facefan_`, `gangup_`, `flyer_`, `dsn_`) are the retired configuration model, kept because live sites carry them, not because a new install needs them. Cross-referenced `26_CUSTOM_DESIGN_TOOLS.md`. Source: kbsync (custom tool estate).

@@ -514,7 +514,7 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 → **30_PRICING_ENGINE.md** § Catalogue and Category Pages Show $0 for Variant-Driven Prices
 
 ### "The custom design tool does not appear on this site?"
-→ **51_CUSTOM_FIELDS_REFERENCE.md** (`custom_script` is a template-option custom field, and the four-step install order), and **90_FAQ.md** § Section 11 — Silent Failures (symptom first)
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 5 (install order) and § 4 (the mount), **51_CUSTOM_FIELDS_REFERENCE.md** (`custom_script` is a template-option custom field), and **90_FAQ.md** § Section 11 — Silent Failures (symptom first)
 
 ### "Which object does a custom field definition archive land on?"
 → **51_CUSTOM_FIELDS_REFERENCE.md**, and **18_ADMIN_NAVIGATION.md** § A custom field definition archive has no object type in it
@@ -586,6 +586,34 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 → **90_FAQ.md** § Section 11 — Silent Failures (symptom first)
 
 
+## Routes added 2026-09-19 — custom design tools
+
+### "Which custom design tools exist / what is the current version of one / is X ready to sell?"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 2 — the registry. A tool absent from that table does not exist.
+
+### "What does the Sticker Designer / Gang Up / Business Cards / Cover Studio / Publication Upload / Document Uploader / Booklet Uploader / Fan Face / Flyer Fold / Design Brief / Film Builder do, and what does it write to the orderline?"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 7 — per-tool reference
+
+### "Where does a custom design tool read its settings from / can I put this in a product custom field?"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 4 — the mount argument list, and nothing else. Supersedes the settings cascade in every spec written before 11 Sep 2026.
+
+### "How do I install a custom design tool on a new site?"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 5. Two steps, not four — `41_IMPLEMENTATION_PATTERNS_UPDATED.md` and `51_CUSTOM_FIELDS_REFERENCE.md` carry the same order.
+
+### "Should this product be a custom design tool or a template with options?"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 1 — three tests, all of which must be true
+
+### "The tool's preview does not show in the cart / saved projects / the order email?"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 6 — the six surfaces, the two variable spellings, and the two live defects
+
+### "What has to be true before a custom design tool is finished?"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 8 — definition of done
+
+### "Why can't the pricing formula see the paper / colour / binding the customer chose?"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 1, and **30_PRICING_ENGINE.md**. The tool resolves the rate card in the browser and writes one number to a variant whose formula is `value`.
+
+---
+
 ## Changelog
 - 2026-03-13: Added Shopify Integration section and Shopify scope warning.
 - 2026-03-26: Added MyPixfizz section pointing to 70/71/72 files.
@@ -609,3 +637,4 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 - 2026-09-09: Added 85_GA4_SERVER_SIDE_PURCHASE.md and 40 routing entries for the 2026-09-09 sync — server-side GA4, the GTM-only standard, Google account ownership, the dead Add to Cart / stale page cache / lexicographic sort / formula validator diagnostics, the Extra Fee corrections, unpublished products staying orderable, archive re-import duplication, parent-safe snippet changes and the parent-first snippet rule, collection_filters, root-relative nav hrefs, the reparented modal, kiosk keys, print-on-demand zero-price routing, FTP retention, the _additional_files.json trailing comma, alphabetical export attribute order, the AI preview-scene narrowing, the RLS-in-triggers rule, and the silent-failure index. Every target section was written in the same sync. Source: kbsync.
 - 2026-09-09: Route check run as the mandatory closing step now recorded in 01_CODE_GOVERNANCE_UPDATED.md. Every route resolves. Note for whoever runs the naive one-liner next: it also matches filenames quoted inside this file's own prose and changelog, so `01_CODE_GOVERNANCE.md`, `40_PLAYBOOK.md` and `83_MOBILE_UX_AUDIT.md` are reported as missing. All three are historical references, not live routes: the first two appear only in the 2026-08-29 changelog entries describing corrections already made, and the third only in the note above § 82 recording that it never existed. Excluding the changelog leaves one known false positive. Source: kbsync audit.
 - 2026-09-16: Added routing for the experimental Admin API, the `/admin` endpoint retirement, site-wide custom field / custom type definition export, and upload dialog login. Source: notion-page (Dashboard).
+- 2026-09-19: Added `26_CUSTOM_DESIGN_TOOLS.md` and 8 routing entries for it. Corrected the "tool does not appear" route, which pointed at a four-step install order that no longer exists. Source: kbsync (custom tool estate).

@@ -616,14 +616,20 @@ template, 2026-09-09). Field inventories per object are in `51_CUSTOM_FIELDS_REF
 
 ### Custom design tool install order
 
-Installing a custom design tool on a new site is a **four-step order**, and **getting the
-order wrong produces no error** — the tool simply never appears, which sends people to the
-tool's own code rather than to the site's configuration.
+Installing a custom design tool on a new site is **two steps**, and **getting the order
+wrong produces no error** — the tool simply never appears, which sends people to the tool's
+own code rather than to the site's configuration.
 
-The four steps and their exact admin locations are in `51_CUSTOM_FIELDS_REFERENCE.md`. Follow
-them there rather than from memory or from a restatement; the step most often missed is the
-`custom_script` custom field definition on the child site, because definitions do not
-inherit.
+1. Import the **template-option custom field schema**, which creates `custom_script` on the
+   child site. Definitions do not inherit from the parent, so this is the step most often
+   missed and the most likely cause of a tool that never renders.
+2. Import the **template export**, which carries the tool's options, its variants and the
+   mount block.
+
+Then set prices and verify on the live URL. There is no third step: since 11 September 2026 a
+tool reads its configuration from its mount argument list, not from product custom fields or
+checklist keys. Full order, per-tool detail and the estate itself are in
+`26_CUSTOM_DESIGN_TOOLS.md`.
 
 ---
 
@@ -684,3 +690,4 @@ Verified by reading source (the ingestion endpoint and its go-live tests, 2026-0
 - 2026-08-05: Added the custom domain and SSL sequence to Phase 1 (CNAME to hosting.pixfizz.com, register under Settings > General > Domain Hosting, up to 48 hours propagation, SSL requested manually after DNS confirms, roughly 40 minutes to issue). Confirms SSL is not auto-provisioned. Source: fireflies-call.
 - 2026-09-09: Added Google Account Ownership and Analytics Setup — the customer owns every Google account with Pixfizz taking delegated administrator access, use a shared business account and add the Pixfizz contact at creation time, set the container id and leave the GA4 tag id blank (both set is roughly 2x double counting), Google Ads conversion tracking has no Shopper preset, and what a GA4 API secret is in customer terms. Added Configuration Order on a New Site — create custom field definitions before adding any records, because values written against a definition that does not exist are silently dropped on save, plus a cross-reference to the four-step custom design tool install order. Added Kiosk Storefront Prerequisites — the minimum checklist keys, `kiosk-remove-captcha` needing to be set on the kiosk subdomain specifically, terminals distinguished by `?terminal=N` on one domain, and per-order terminal attribution needing the terminal keys and capture snippet. Added Support Intake — Changed 9 September 2026, flagging that any material pointing customers at the old helpdesk address is now wrong. Source: claude-chat, fireflies-call.
 - 2026-08-29: Added Post-Import Checks a Tar Cannot Cover — `no-index` ships `TRUE` on the parent and must be set to `FALSE` on a live store; assert the custom homepage wrapper class on the live root; confirm which navigation style actually renders because a tar cannot read or set that admin value; re-check checkout preselects after any wipe-and-replace import; and verify value-snippet trailing whitespace on generated bundles. Restated that a local render verifies the file and not the site. Source: claude-chat.
+- 2026-09-19: Custom design tool install order rewritten as two steps, with the third and fourth (product custom fields, checklist values) retired. Cross-referenced `26_CUSTOM_DESIGN_TOOLS.md`. Source: kbsync (custom tool estate).
