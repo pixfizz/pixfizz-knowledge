@@ -411,7 +411,7 @@ Runs automatically during slow months, turns itself off when the month changes.
 - The formula must return a numeric value. If the formula returns nothing (no branch matches), no discount is applied.
 - The discount is an **amount**, not a percentage — the formula does the percentage math itself.
 - Automatic discounts are separate from promo codes and extra fees. They are a distinct discount mechanism.
-- Admin location: confirm exact admin path with Matjaz (likely under Discounts or Pricing in Main Admin).
+- Admin location: **Marketing → Automatic Discounts** in Main Admin. Not Promotions, which is the wrong guess people reach for first. Confirmed by AdeB, 2026-09-19.
 
 ---
 
@@ -773,3 +773,4 @@ Stated from client calls, not independently verified.
 - 2026-09-09: Added additive pricing via hidden `number` child variants (`value * 0` siblings are deliberate no-ops), the transcribed-price-table drift hazard with the same-sitting mirroring rule and the platform ask to expose a price ladder to Liquid, and the withdrawal of the claim that `product.price` evaluates in a mid tier. Source: claude-chat.
 - 2026-09-09: Added zero-priced catalogue/category pages for variant-driven prices (fix is the product-level starting-price field) and the note that `Custom pricing` is the only product custom field accepting free text for a price label. Source: fireflies-call.
 - 2026-09-16: Replaced 'Price Variables are not reachable via the API' with a pointer to the new experimental Price Variables API in `61_PIXFIZZ_API.md` § 13f. Source: notion-page (Dashboard).
+- 2026-09-19: Confirmed the Automatic Discounts admin location as Marketing → Automatic Discounts, replacing the open "confirm with Matjaz" note. Source: AdeB.

@@ -147,11 +147,40 @@ GET /v1/books/<id>/text_elements
 ```
 
 ### Data retention
-| State | Retained for |
+
+Project, image and cart lifetimes are set by the platform deletion policy, not by the API.
+
+| Object | Deleted |
 |---|---|
-| Unsaved | 1 year from last activity |
-| Saved | 2 years from last save |
-| Ordered | Indefinitely |
+| Cart never checked out | 1 year |
+| Abandoned cart | 3 months. Never deleted on Etsy-enabled sites |
+| Saved cut print project | 6 months |
+| Saved project, any other type | No fixed expiry. Goes with the user on inactivity |
+| Project gallery, cut print | 3 months |
+| Project gallery, any other type | 1 year |
+| Images on an **ordered** cut print project | 6 months after the order |
+| Images on any other **ordered** project | 3 years after the order |
+| Images referenced nowhere | Removed by periodic cleanup once detected unused |
+| Anonymous user and all their data | 3 months |
+| Registered and guest users | Never |
+| Website crawls | Last 5 kept regardless of age; older ones at 1 month |
+
+PDFs and uploaded files follow the image policy exactly.
+
+**An inactive user loses everything.** Inactive means **no login for 4 years**, guest users
+included. All their galleries and all their saved projects are deleted.
+
+**An inactive site loses every user-uploaded image.** Website and theme assets are kept. A site
+is inactive when its super account is flagged inactive in super admin.
+
+> **Correction.** An earlier version of this table said unsaved projects are kept 1 year from
+> last activity, saved projects 2 years from last save, and ordered projects **indefinitely**.
+> Ordered projects are not kept indefinitely: the order record persists, the images behind it do
+> not. See `40_PLAYBOOK_UPDATED.md` § A Customer's Old Project Shows Broken Images for the
+> support-facing version.
+
+*Verified by reading source: Pixfizz Wiki → Legal & Compliance → Deletion Policies,
+last edited 2025-08-13.*
 
 ---
 
@@ -979,3 +1008,4 @@ layout[default]          # true | false
 - 2026-08-21: Added full Promocodes / Gift Vouchers API section (§13a) including create, read, update, delete endpoints and gift voucher (reuse_credit) pattern. Source: api-docs + slack-message.
 - 2026-09-09: Added §13d Order Webhook — customers register it themselves in Pixfizz admin (the same mechanism OrderHub uses), and the payload carries `orderlines[].product_id` (numeric internal id) and not `product_code`, so any consumer keying items by product code cannot join (verified by query). Added §13e What Is Not Possible Today — Price Variables are not reachable via the API (confirmed by the core developer 2026-09-07) and there is no template import endpoint, so bulk-generated template tars are imported one at a time through admin, blocked on large-file handling and progress tracking. Both recorded as current limitations, not roadmap. Added retrieval pointer rows for `85_GA4_SERVER_SIDE_PURCHASE.md` and `32_ORDER_LIFECYCLE.md`. Source: slack-message, fireflies-call.
 - 2026-09-16: Added § 13f Experimental Admin API (price variables, CMS pages, snippets, layouts: shared list/read/create/update/delete pattern, 100 per page, parameter lists, override and rename consequences). Staging only, not on production (verified by test 2026-09-16). Superseded the § 13e 'Price Variables are not reachable via the API' entry. Added the `/admin` → `/v1/admin` retirement notice to § 13c with the confirmed replacement table; collections update has no confirmed replacement yet. Source: notion-page (Dashboard), fireflies-call.
+- 2026-09-19: Replaced the § 4 Data retention table. The previous table (unsaved 1 year, saved 2 years, ordered indefinitely) was wrong on the point that matters: ordered projects lose their images 6 months after the order for cut prints and 3 years for every other type. Added the full deletion policy (carts, galleries, images, PDFs, uploaded files, users, crawls), the 4-year inactive-user rule that deletes all galleries and saved projects including guests, and the inactive-site rule. Source: notion-page (Pixfizz Wiki, Deletion Policies).

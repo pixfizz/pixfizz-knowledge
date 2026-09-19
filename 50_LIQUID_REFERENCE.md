@@ -34,7 +34,9 @@ With no options, a successful submission does two things:
 | `assign_to_user` | `true` | The address is **not** saved to the user's saved addresses. Applied to the current cart only. Use for a one-off delivery address the shopper should not keep. |
 | `assign_to_cart` | `true` | The address is **not** set as the selected address on the current cart. Saved to the address book only. Use when collecting addresses for later, not for the order in progress. |
 
-Both options are independent — set either or both.
+**Only one of the two may be `false`.** The platform does not accept
+`assign_to_user: false` together with `assign_to_cart: false`: an address that is attached to
+neither the cart nor the address book has nowhere to go. Set one or the other, never both.
 
 ### Examples
 
@@ -52,8 +54,15 @@ Apply to cart only, do not save to address book (one-off address):
 {% endform %}
 ```
 
-> **Note:** Setting both `assign_to_user: false` and `assign_to_cart: false` creates the address
-> but applies it to neither the cart nor the address book — rarely the intended result.
+> **Correction, 2026-09-19.** An earlier version of this section said the two options are
+> independent and that setting both to `false` creates an orphaned address. That is wrong.
+> Only one of `assign_to_user` and `assign_to_cart` can be `false`.
+
+Signature:
+
+```
+address_create(*assign_to_user:, *assign_to_cart:)
+```
 
 SOURCE: Notion Dashboard 🆕 Update (2026-08-21). Help article: https://help.pixfizz.com/ecommerce/pixfizz-ecommerce/pixfizz-cms/liquid/forms/address_create-form-options
 
@@ -1218,7 +1227,7 @@ Three conditions apply:
 
 | Form Type | Required Params | Description |
 |---|---|---|
-| `address_create` | *`assign_to_user:`, *`assign_to_cart:` | Creates an address. By default the new address is set on the current cart **and** saved to the user's saved addresses. Pass `assign_to_user: false` and/or `assign_to_cart: false` to suppress either behaviour. |
+| `address_create` | *`assign_to_user:`, *`assign_to_cart:` | Creates an address. By default the new address is set on the current cart **and** saved to the user's saved addresses. Pass `assign_to_user: false` **or** `assign_to_cart: false` to suppress one of the two. Only one of them may be `false`. |
 | `address_update` | `address:` | Updates the given Address |
 | `address_delete` | `address:` | Deletes the given Address |
 
@@ -1811,3 +1820,4 @@ tool never saw the product" in one paste, and nothing else does.
 - 2026-08-21: Added FORMS section with address_create form options (assign_to_user, assign_to_cart). Source: notion-page (Dashboard 🆕 Update).
 - 2026-08-29: Added Translation Keys — the `t` filter key is the source string downcased (so case-only variants collide and a capitalised key file matches nothing), `en` is an optional override, an export is not the full key set (346 exported vs 578 in code, union 856), keys absent from Liquid are not dead, `products`/`variants` are catalogue-driven, the importer takes the namespace from the file's top-level key so one file can carry all of them, `request.locale` is the language test, plus the bidi logical-order trap and the auto-match audit. Added Display Currency Switching — there is no class hook on prices, so find them by rendered format and wrap once into a data attribute; disconnect the MutationObserver during its own pass; read the base from `website.currency_code` and refuse to convert on an unknown base; conversion is display-only. Source: claude-chat.
 - 2026-09-09: Added Authoring Traps in Parent Snippets — a filter inside an `{% if %}` condition is a syntax error not a no-op; a checklist `{% capture %}` must be appended to an existing line or it shifts every option's leading whitespace; checklist bodies carry no trailing newline and `capture` does not trim; `| plus: 0` before any numeric comparison because `value.price` exports blank rather than zero; navigation hrefs must be root-relative and the failure signature is first-link-works-siblings-fail; sorting a Custom Type by a numeric field (required field, high sentinel, sort once, skip with `unless`, and text fields sort lexicographically); and a `custom_script`-mounted tool may have no `product` in scope, so it must emit `data-product-seen` and an init diagnostic. Added the two matching rows to KNOWN CMS LIQUID QUIRKS. Added a note that one `OptionType` covers both product variant types and template option types, so the two cannot be told apart from the template tree. Added the Website Redirects config shape (anchored `[regex, target]` pairs with an optional trailing slash). Added the 2026-09-02 platform change stopping Liquid objects being constructed when a project's design or product is missing, marked not verified. Source: claude-chat, slack-message, fireflies-call.
+- 2026-09-19: Corrected the `address_create` form options. Only one of `assign_to_user` and `assign_to_cart` may be `false`; the previous text said the two were independent and described setting both to `false`, which the platform does not accept. Corrected in both the FORMS section and the Form Types table, and added the signature. Source: AdeB (platform signature).

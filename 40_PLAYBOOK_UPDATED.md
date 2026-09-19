@@ -788,6 +788,56 @@ symbol cannot be faked by a wrong constant. **Do not trust a delivery record**: 
 recorded as delivered was found absent from the parent, still carrying a known data-loss bug
 two weeks after it was recorded as shipped. Verified by reading source, 2026-09-09.
 
+## An AI-Generated Template Crashes the Importer: Check Embedded Image Resolution First
+
+**Symptom.** A template produced by an AI generation tool, including the Pixfizz AI template
+generator, fails to import. The importer stops without a message that names a cause.
+
+**Cause seen.** An embedded image at an absurd resolution. The observed case was a 305
+megapixel asset sitting directly in the template file.
+
+**Pre-import check.** Before importing any generated template, list its embedded assets and
+read their pixel dimensions from the file headers (`exiftool`, `identify`, or an editor's info
+panel). Treat anything much above roughly 50 MP, or a single asset in the hundreds of
+megabytes, as the first suspect. Read the header rather than a viewer's info panel: a macOS
+info panel misreports both color mode and DPI, and has caused wrong diagnoses before.
+
+**Fix.** Downsample or replace the asset and re-import. For full-page background artwork, WebP
+at quality 90 is the working default. It holds up visually and lands well under a megabyte
+where the PNG equivalent is 2 to 3 MB.
+
+*Stated in #development, week of 2026-09-12. Not independently verified.*
+
+---
+
+## A Customer's Old Project Shows Broken Images: The Assets Have Aged Out
+
+**Symptom.** A customer opens a saved project or an old order and the images are missing, or a
+reorder from an old project produces nothing usable.
+
+**Cause.** Images are deleted on a schedule. This is policy, not a fault, and it is not a bug
+report. The two figures that answer almost every case:
+
+- **Ordered cut print projects lose their images 6 months after the order.**
+- **Every other ordered project type loses them 3 years after the order.**
+
+So a 2022 photo book reaching a customer as broken images in 2026 is the policy working as
+written.
+
+**Two other routes to the same symptom.** A user who has not logged in for **4 years** is
+treated as inactive and has **all** their galleries and saved projects deleted, guest users
+included. And a saved cut print project is deleted after **6 months** whether or not it was
+ordered.
+
+**Support response.** Get the order date and the product type, then read the figure off the
+table in `61_PIXFIZZ_API.md` § Data retention. If the window has passed, tell the customer the
+images are gone and they will need to re-upload to place a new order. Do not offer to recover
+them and do not tell a customer that an ordered project is kept indefinitely, which an earlier
+version of that section wrongly said.
+
+*Verified by reading source: Pixfizz Wiki → Legal & Compliance → Deletion Policies,
+last edited 2025-08-13.*
+
 ## Changelog
 - 2026-03-21: Initial content from platform documentation export.
 - 2026-04-23: Added CSS snippet logs diagnostic note, password reset Liquid deprecation pattern, fulfillment template DPI failure, URL reserved parameter 404 gotcha, Stripe pending-without-payment issue, FTP original files intermittent failure.
@@ -802,3 +852,4 @@ two weeks after it was recorded as shipped. Verified by reading source, 2026-09-
 - 2026-09-09: Added symptom-first diagnostics — Add to Cart doing nothing with no network request is form validation (with the `checkValidity()` enumeration, the required-upload-behind-a-trigger cause and the `setCustomValidity()` persistence trap); an editor "Not Found" on one variant being a stale page cache, identified by empty product and theme ids in the POST, with the underlying core bug fixed 2026-09-08; Custom Type instances listing lexicographically because the sort custom field is a text type; bisecting from a known-good formula when `Error saving: Price isn't valid` names nothing; checking the container for GA4 event tags on "analytics is connected but I see nothing"; enumerating a live page before creating a second analytics property; a de-collectioned product staying live and orderable while the feed self-heals, with inventory tracking or `sold_out` as the only suppression routes; and the rule that intermittent failure is a bug rather than a missing link or SKU. Added three methods: transport rule rather than mailbox forwarding when copying mail to an ingestion endpoint, shipping the generator rather than the output with a hash comparison, and verifying a parent asset's live version by the absence of the new symbol rather than by a delivery record. Source: claude-chat, fireflies-call, slack-message.
 - 2026-07-28: Added Collection Filter Drilldown blank-PDP entry — stale or invalid dependent filter values break the drilldown; fix is a three-tier selection cascade in `product/product-details-filter` and `product/details-filter-dual-mode`. Source: claude-chat.
 - 2026-08-29: Added Optimising 360-degree product spin GIFs — measured savings table (lossless gains nothing; lossy plus every-2nd-frame is roughly 87% smaller), the frame-dropping trap that silently speeds up the rotation and how to recompute the delay, and the larger win of serving a static first frame on collection grids. Added Recommended Admin Security Hardening (rename admin URLs, enforce 2FA, block admin via the main domain), flagged as unverified against the admin UI. Source: claude-chat, fireflies-call.
+- 2026-09-19: Added two entries. An AI-generated template that crashes the importer with no useful error, with the embedded-image resolution check (observed: a 305 MP asset) and WebP quality 90 as the replacement default. A customer's old project showing broken images because the images have been deleted on schedule (6 months after an ordered cut print, 3 years after any other ordered project), with the inactive-user and saved-cut-print routes to the same symptom. Source: slack-message (#development), notion-page (Deletion Policies).

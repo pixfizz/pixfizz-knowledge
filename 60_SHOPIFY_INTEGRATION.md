@@ -674,6 +674,30 @@ intermittent.
 
 ---
 
+### Order arrives in Shopify with no Pixfizz project
+
+**Symptom.** The order is in Shopify but does not appear in Pixfizz order management, or it
+appears with no personalization data. The order webhook fires and returns without error.
+
+**Cause.** The cart line carries no `_pixfizz_project_id`, so the webhook has no project to
+link. That happens whenever the theme adds a Pixfizz product to the cart without routing the
+shopper through the Pixfizz product page: a quick-add button on a collection card, a sticky or
+drawer buy control, an upsell or bundle app, or any custom code that posts straight to
+`cart/add.js`. The project-ID injection lives in the Pixfizz product-page flow, so anything
+that skips that page skips the injection.
+
+**Why it is hard to spot.** Nothing errors. Shopify takes the order and the customer is
+charged. The failure is visible only as an absence on the Pixfizz side.
+
+**Fix.** Enumerate every add-to-cart path the theme offers, not only the one on the product
+page, and for Pixfizz products either disable the alternate path or route it through the
+Pixfizz product page first. Repeat the audit after any theme update or app install, since both
+can reintroduce a quick-add control.
+
+Related: §4 Cart Item Properties, §9 Order Sync.
+
+*Stated in #development, week of 2026-09-12. Not independently verified.*
+
 ## 12. Retrieval Pointer
 
 For questions about:
@@ -937,3 +961,4 @@ Not verified in a controlled test; recorded as the current recommendation.
 - 2026-08-21: Added Shopify max variant limitation note in §1. Source: fireflies-call (Harold's Photo, Aug 20).
 - 2026-08-29: Added §2 guidance on setting variant metafields in bulk (native product CSV carries product metafields only; use the variant bulk editor or Matrixify, with the `Variant Metafield: ns.key [type]` header and Handle + Option matching). Added §11 troubleshooting entry for `414 Request-URI Too Large` on `photo-prints` launches, with the measured URL breakdown, the empty-addons-map cause, and the four fixes in order. Added §18 add-to-cart vs direct checkout recommendation. Source: claude-chat (Shopify photo-prints launch diagnosis, canvas variant SKU linking), fireflies-call.
 - 2026-09-09: Added §10b — Shopify native variants cannot carry a Pixfizz option through to the editor (editor opens on the Pixfizz default, cart line shows two contradictory values, Shopify charges the right price while the wrong attribute reaches production), with the core developer's three-way decision rule: no design influence means remove the options from Pixfizz; design influence means either options-to-editor with the options modeled as separate Shopify products rather than variants, or one design per value mapped to each Shopify variant — options removed from Pixfizz either way. Added two §11 troubleshooting entries: a stale CMS page cache presents as an editor "Not Found" and the tell is empty product/theme ids in the POST that opens the editor (underlying core bug fixed 2026-09-08), and the open, unresolved intermittent theme "not found" symptom with the triage rule that intermittency means a bug rather than a missing link or SKU. Source: slack-message (#development), fireflies-call.
+- 2026-09-19: Added §11 troubleshooting entry for an order that reaches Shopify with no Pixfizz project, caused by any add-to-cart path that skips the Pixfizz product page and therefore the `_pixfizz_project_id` injection; the webhook then finds no project and fails silently. Source: slack-message (#development).

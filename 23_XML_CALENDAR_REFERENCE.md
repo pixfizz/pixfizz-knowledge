@@ -522,6 +522,65 @@ Week-number triggering fires a transformation on a given week (for example week 
 
 ---
 
+## Per-Month Backgrounds and Colors Are Calendar Transformations, Not XML
+
+Swapping a background image, a text color or a line color month by month is done with
+**calendar transformations** in the admin, not in the template definition. The XML declares the
+elements; the transformations decide what each element carries in each month.
+
+### The four steps
+
+1. **Name every element that changes.** Give each one an element name, in the Design Tool
+   element settings or as a `name` attribute in the XML. Names used on a working 12-month wall
+   calendar: `background`, `month`, `notes`, `url`, `line`, `text`. One name can be shared by
+   several elements that should always change together.
+
+2. **Turn on "Dates" on each of those elements** in the element settings. An element without it
+   ignores date-based transformations entirely, and that is the usual reason a correctly
+   configured transformation appears to do nothing.
+
+3. **Create one transformation per month per element.** Use **Set Image** to swap a background,
+   **Element Color** to change a text or shape color.
+
+4. **Fill each transformation in** with the element name from step 1, the **date series name
+   exactly as configured on that template page**, and the date (`date month January`,
+   `date month February`, and so on), then the image asset or color value.
+
+### There is no odd/even or bulk shortcut
+
+Every month needs its own entry. January is one entry, February is another. Build the first one
+completely, then duplicate and edit it for the remaining eleven.
+
+### Multi-page calendars: the date series name is per page
+
+Where a template has more than one page and each page carries its own date series
+(`calendar-month-1` on page one, `calendar-month-2` on page two), a transformation must name the
+series belonging to **its own page**. A transformation pointing at a generic `calendar month` on
+a page whose series is `calendar-month-2` fails with:
+
+```
+Could not find definition for dates on calendar month two
+```
+
+Fix it either by standardizing every page on one series name, or by pointing each page's
+transformations at that page's own series.
+
+### Two working tips
+
+- **Bulk naming.** On a template with many elements to name, export the XML, add the `name`
+  attributes in one pass, and re-import, rather than clicking through the Design Tool element by
+  element. Attribute order in an export is alphabetical, so match the tag and edit inside it
+  rather than anchoring a pattern on a neighboring attribute. See
+  `19_XML_TEMPLATE_REFERENCE.md` § Editing an Exported Template Definition.
+- **Asset format.** Use WebP at quality 90 for swapped backgrounds. A full-page calendar
+  background typically drops from 2 to 3 MB as PNG to under 1 MB with no visible loss, and there
+  are twelve of them.
+
+*Source: Loom walkthrough shared 2026-09-14 in #cottonbird-products-pixfizz. Stated, not
+independently verified in admin.*
+
+---
+
 ## Reaching Elements Hidden Behind a Calendar Grid
 
 Calendar and planner pages stack a lot of elements in the same place, and a grid
@@ -548,3 +607,4 @@ edit was ever made.
 - 2026-04-03: Created from platform documentation and annotated real-world examples provided by AdeB. Covers definition attributes, set parameters, full dates vocabulary, foreachdate, named sequence patterns, and three annotated examples.
 - 2026-06-30: Documented week-number triggering for calendar transformations. Source: notion-dashboard (2026-06-22).
 - 2026-08-14: Added the layer-visibility technique for reaching calendar elements blocked by an overlapping grid, and the rule that a manual refulfill is required after any such edit before production files reflect it. Source: fireflies-call (2026-08-12).
+- 2026-09-19: Added per-month backgrounds and colors as calendar transformations rather than XML: element naming, the Dates flag on each element, Set Image and Element Color, the date series name having to match the page exactly (with the "Could not find definition for dates" error it produces on a multi-page calendar), the absence of any odd/even shortcut, and the bulk XML naming and WebP quality 90 tips. Source: loom-video (2026-09-14).

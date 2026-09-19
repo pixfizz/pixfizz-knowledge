@@ -733,6 +733,24 @@ _Verified by reading source (seed archive) and by parsing every generated archiv
 
 ---
 
+## Layouts Do Not Travel With a Template Export
+
+Exporting a design template, either as a `.yml` definition or as an archive, does **not** carry
+the layouts linked to that template. The API has no endpoint for reading or writing layouts
+either, so there is no scripted route around it. This is platform behavior, not a fault in the
+export.
+
+**Consequence.** After importing a template on another site the definition is correct and the
+layouts are missing. They have to be recreated and relinked in the Design admin. Teams
+routinely expect layouts to travel with the template, so say so before the import rather than
+after.
+
+**For a bulk move.** Export the design theme (`__print_theme.yml`), which does carry layout
+definitions, import it separately on the target site, then relink the layouts to the imported
+template.
+
+*Stated in #development, week of 2026-09-12. Not independently verified.*
+
 ## Open Platform Question — `fulfillment` on Layers
 
 Logged 2026-08-24 and **not implemented**. Recorded here only so it is not re-proposed as an
@@ -756,3 +774,4 @@ documented above. There is no layer-level `fulfillment` attribute. Do not docume
 - 2026-08-29: Added Canvas Wrap Geometry — `borderwrap` is the mirror-wrap depth measured inward from the image element in mm (`print area = element - 2 x borderwrap`), the three canvas wrap layouts fully parameterised from print area / bleed / mirror depth, the `crop_aspect_ratio` rewrite requirement on any size change, and the derivation of `<ipage> zoom` (with the plausible-but-wrong simpler form called out). Added Template Import — `products[].price` validates presence, so `''` aborts the import with `Validation failed: Price can't be blank`; emit `price: '0'`, note this is the opposite of `products[].image`, and widen the archive diff to treat `nil` and `''` as one blank condition recorded per path. Restated mm page geometry regardless of definition unit, and landscape-first cut print naming. Source: claude-chat.
 - 2026-08-29: Confirmed by re-import that `price: '0'` on the products row is accepted — the template import succeeds. Source: claude-chat.
 - 2026-09-09: Added that photobook page count (min, max, starting) lives on the first line of the template definition and is not a product setting, and that `minimum-dpi` should be the product's real floor rather than a reflex 300. Added the all-sets-`fulfillment="false"` case — the platform renders no production file, so a tool's output must travel via `_additional_files.json` — with a real definition, the sheet = trim + bleed per edge convention, and two-sided output as one file via a shared `output-name` (not verified). Added Preview Sets — layer roles read from a live definition, the `ipage`'s own drop-shadow attributes, WebP via `src="db:<id>"`, the derivation of scene scale and per-size placement from the ipage so a whole range is one master plate plus offsets, plate-aspect preservation when placing into a page rect, and the background image element name as what colour substitution binds to. Added that attribute order in a template export is alphabetical, so a regex anchored on one attribute to reach another silently matches nothing — match the tag, edit inside it, read back every write. Added the seed-archive audit before cloning across a size range. Recorded the layer-level `fulfillment` parameter as an open, not-implemented platform question. Source: claude-chat, fireflies-call, notion-dashboard.
+- 2026-09-19: Added that layouts are excluded from template exports and that the API cannot manage or transfer them, so layouts must be recreated and relinked after any template import; a design theme export (`__print_theme.yml`) is the route for a bulk layout move. Source: slack-message (#development).
