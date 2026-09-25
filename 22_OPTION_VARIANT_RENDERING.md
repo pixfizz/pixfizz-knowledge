@@ -593,10 +593,9 @@ another site, and the still-untested duplicate question, are in
 
 **Verified by reading source — a Finish variant type export, 2 September 2026.**
 
-A variant type is a **shared** object attached to many Product Attributes, and a
-`variant_value` carries a single `price`. One price list therefore covers every product
-using that variant type, which does not fit a per-size price ladder. Plan the shape before
-building the export, not after.
+**Corrected 2026-09-20.** A variant type belongs to **one Product Attribute** and is **not shared** across products. Two products on the same site can carry the same variant code at different prices. It is created at **Products Attributes → Product: `<name>` → New Variant** (`/admin/products/<product_id>/variant_types/new`). Fields: Name, Code, Description, Image, Type, Page Names, Required, Published. Types: Multiple Choice, Text, Number, Color, Font, Image Upload, File Upload. Hidden, Read only and Hide from cart are set in admin and do not appear in the export, so a hand-built export must not assume they travel.
+
+The earlier text here called a variant type a shared object with one price list for every product using it. That was read from the shape of an export file and was wrong: an export's shape is not proof of how the platform uses it. Confirm against the admin screen. *Verified by reading source (admin) and stated by Alex, 2026-09-20.*
 
 The export format is its own shape, not the template shape:
 
@@ -611,16 +610,17 @@ one `variant_types` list; each entry carries `variant_values`. Type-level keys s
 `name`, `code`, `default`, `order`, `price`, `image`. Unpriced values export `price: ''`
 — see the blank-price section above.
 
-**Stated, not independently verified:** that a variant-type import updates in place by ID
-rather than creating duplicates, which would make an export → edit → re-import
-round trip safe for bulk price editing. This is **in tension** with the auto-suffix
-duplicate behavior recorded for Templates, Product Attributes and Designs in
-`16_PRODUCT_HIERARCHY.md`, and with the create-only per-product archive in
-`51_CUSTOM_FIELDS_REFERENCE.md`. A bench test on a test site settles it. Neither behavior
-should be written as a general import rule until it does.
+**Settled 2026-09-20: a variant-type import never updates in place.** A code collision appends `-1` to every code and value code in the imported set, the same create-only behavior as every other import (`01_CODE_GOVERNANCE_UPDATED.md` § Never Re-Import to Update). An export → edit → re-import round trip is not a bulk price-editing route. *Stated by Alex.*
+
+## Pricing and POS-Relevant Choices Belong on Variants, Not Template Options
+
+Anything that affects price, needs a customer choice, or would have to be entered by hand on a point of sale belongs on a **Product Attribute variant**. Manual and POS orders placed through the Order API pull **product variants only, never template options**, so a custom tool built only on template options cannot be re-created at a counter. Template options remain the right place for design-side inputs (photos, text) that do not change the price. *Stated by Alex, 2026-09-21 and 2026-09-22.*
+
+A Product Attribute links to **one** template; one template can be used by **many** Product Attributes. *Stated by Alex, 2026-09-22.*
 
 ## Changelog
 - 2026-06-19: Added section 4.8 `toggle` selector (2-value animated CSS-only switch on `product/px-options`), including the `toggle_hide_labels` bare-switch option, guard/fallback behavior, and primary-colour sourcing. Added cart-context note (7) that toggle is product-page only. Added `toggle` and `toggle_hide_labels` to the recognize-and-document list (8).
 - 2026-07-28: Added 5.2c — option input names differ between the product page (`variants[code]`) and project-edit (`book[options][code]`); scripts must suffix-match and must handle hidden inputs. Source: claude-chat.
 - 2026-08-29: Added the single-value variant type gotcha — one value is auto-selected and inherits the theme's selected-button styling, producing a large fixed pill that costs roughly 190 px per group; includes the markup tree, the `:only-child` CSS fix that reverts itself when a second value is added, and the two things that need an admin change rather than CSS. Added: unset booleans export as the quoted string `'false'` and read truthy in Liquid, affecting `hidden`, `read_only` and `hide_from_cart` inside `custom` — re-check both flags in admin after importing any option archive. Source: claude-chat.
 - 2026-09-09: Added the platform bug where a required file-upload option behind a trigger silently kills Add to Cart — symptom, cause, evidence table, the independent confirmation, the correction that `disable_required_form` does not fix it, the three workarounds and the two debugging techniques. Extended §4.6 `quick-quantity` with the no-`name` consequence for `px-option-selector` and `px-product-price` (display fault, cart correct), the three add-to-cart handler hardening rules, the cloned-button trap, the `getEventListeners` diagnostic and the missing `t: ns: 'variants'` translation filter. Added that `value.price` exports blank rather than zero, so `!= 0` renders `+$0.00` on free values, and the `| plus: 0` normalisation. Added the two rules for grouped value bands (order-independent collection, opt-in on the group field) and the recorded test failure where `== blank` dropped ungrouped values. Added the two `collection_filters` syntaxes. Added that blank ids in a standalone template-options import create new records. Added the variant type export shape and the shared-object price constraint, with the unverified update-in-place claim flagged. Source: claude-chat, fireflies-call.
+- 2026-09-24: Corrected "Variant Type Exports": variant types belong to one Product Attribute and are not shared; variant-type imports never update in place. Added "Pricing and POS-Relevant Choices Belong on Variants" and the one-template-per-Product-Attribute rule. Source: claude-chat, fireflies-call, slack-message.

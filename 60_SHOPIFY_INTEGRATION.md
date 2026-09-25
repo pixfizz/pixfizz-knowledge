@@ -944,6 +944,10 @@ stores or a deliberate one-item funnel.
 
 Not verified in a controlled test; recorded as the current recommendation.
 
+## 19. Image Swatches in the Personalization Modal Render at Source Size
+
+Variant-value image swatches in the Shopify modal take the image's natural width: `.pill-wrapper { flex: 0 0 auto; width: auto; max-width: none }` combined with the swatch image's inline `width: 100%` means a 600px source renders about 600px wide. Fix: `.variant-selector img.label-img { width: 104px !important; height: 104px; object-fit: cover; display: block; }` (`!important` is needed to beat the inline style). Serve swatch images at about twice display size (240 × 240), not at full source size. Candidate for the shared Shopify `product.css`. *Verified live, 2026-09-21.*
+
 ## Changelog
 - 2026-03-13: Initial version. Compiled from public docs + working cart page (Dawn, inline_asset_content variant).
 - 2026-03-21: Added Dawn button innerHTML overwrite troubleshooting entry (§11).
@@ -962,3 +966,4 @@ Not verified in a controlled test; recorded as the current recommendation.
 - 2026-08-29: Added §2 guidance on setting variant metafields in bulk (native product CSV carries product metafields only; use the variant bulk editor or Matrixify, with the `Variant Metafield: ns.key [type]` header and Handle + Option matching). Added §11 troubleshooting entry for `414 Request-URI Too Large` on `photo-prints` launches, with the measured URL breakdown, the empty-addons-map cause, and the four fixes in order. Added §18 add-to-cart vs direct checkout recommendation. Source: claude-chat (Shopify photo-prints launch diagnosis, canvas variant SKU linking), fireflies-call.
 - 2026-09-09: Added §10b — Shopify native variants cannot carry a Pixfizz option through to the editor (editor opens on the Pixfizz default, cart line shows two contradictory values, Shopify charges the right price while the wrong attribute reaches production), with the core developer's three-way decision rule: no design influence means remove the options from Pixfizz; design influence means either options-to-editor with the options modeled as separate Shopify products rather than variants, or one design per value mapped to each Shopify variant — options removed from Pixfizz either way. Added two §11 troubleshooting entries: a stale CMS page cache presents as an editor "Not Found" and the tell is empty product/theme ids in the POST that opens the editor (underlying core bug fixed 2026-09-08), and the open, unresolved intermittent theme "not found" symptom with the triage rule that intermittency means a bug rather than a missing link or SKU. Source: slack-message (#development), fireflies-call.
 - 2026-09-19: Added §11 troubleshooting entry for an order that reaches Shopify with no Pixfizz project, caused by any add-to-cart path that skips the Pixfizz product page and therefore the `_pixfizz_project_id` injection; the webhook then finds no project and fails silently. Source: slack-message (#development).
+- 2026-09-24: Added § 19 image swatch sizing in the personalization modal. Source: claude-chat.

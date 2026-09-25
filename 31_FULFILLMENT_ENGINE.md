@@ -827,6 +827,15 @@ Establish a naming convention at the start of each FTP integration and apply it 
 
 ---
 
+## Routing One Customer Group's Files Separately
+
+- **Same destination, separate folder.** Flag the customer (for example a user custom field `category` set to `B2B`) and use an order-level flag such as `order.is_priority` in the filename or directory template to write their files to a subfolder on the same FTP account. The same user field can drive Liquid conditionals on the storefront. A single shared flag sends every flagged customer to **one** folder; separating several B2B customers needs a fulfillment code each or more logic. *Stated on a client call, 2026-09-22.*
+- **Fully separate destination.** Create a dedicated fulfillment code (its own FTP server, credentials and filename template) and assign it to the products concerned (see § Fulfillment Code Resolution and Precedence). A new fulfillment code can take from a few minutes to about 30 minutes to become active. *Stated on a client call, 2026-09-22.*
+
+## Custom Tool Print Files — Name the Option, Not a List
+
+In `_additional_files.json` and the filename template, identify a custom tool's print-file options by a **token in the option code**, not by a maintained list of codes: a print-file option's code contains `_print_` (`bc_print_front`, `stk_print_sheet`), and a cart-thumbnail-only option's code contains `preview`. A new tool then needs no edit to the fulfillment template. The document and booklet uploaders (`du_file`, `bu_file`) do not follow the convention yet and must be special-cased until they are renamed. `_additional_files.json` and the main filename template must describe the same destination path and be edited as a pair. *File-verified with python-liquid, not yet verified on a live order.*
+
 ## Where No Production File Is Rendered At All
 
 Where **every** `<set>` in a template definition carries `fulfillment="false"`, the platform
@@ -903,3 +912,4 @@ _Verified by reading source, 2026-09-09._
 - 2026-07-11: Noted cut print filenames now use an index counter (`idx`) instead of page numbers for uniqueness. Source: fireflies-call (2026-07-09).
 - 2026-07-31: Renamed "Enable Perfectly Clear" billing field to "Enable AI Tokens" — confirms shift from Perfectly Clear-specific billing to a generic AI token model (OpenAI/Gemini). Source: slack-message (#development), commit 8aeec021.
 - 2026-09-09: Restated the trailing-comma rule at its point of failure — a `_additional_files.json` suppressing the comma with `forloop.last and forloop.parentloop.last` emits invalid JSON on any order whose final orderline has zero project images, surfacing as `Failed generating files: unexpected token at ']'` and reproducible with `JSON.parse` on the rendered job ticket. Added the four source buckets a complete template must cover (project images, the tool's generated print file, `file_upload` options, `file_upload` variants), the exclusion-list pattern for keeping cart thumbnails off the FTP, and the production-versus-originals destination conventions (production filename marked as a proposal). Added that where every `<set>` is `fulfillment="false"` no production file is rendered at all, cross-referenced to 19_XML_TEMPLATE_REFERENCE.md. Added that files left on the Pixfizz FTP drop are auto-deleted after a week. Added the fail-open rule for custom tools, with `production.fallback_reason` as the diagnostic. Cross-referenced `project.page_count` on upload-driven products to the pricing consequence now in 30_PRICING_ENGINE.md. Source: claude-chat, slack-message.
+- 2026-09-24: Added "Routing One Customer Group's Files Separately" and the `_print_` / `preview` option-code convention for custom tool print files (file-verified only). Source: fireflies-call, claude-chat.

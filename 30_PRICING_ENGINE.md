@@ -23,6 +23,7 @@ Pricing formulas are set on the **Product Attribute** in the admin:
 - Admin-defined numeric constants available by name in formulas.
 - Used to centralize pricing inputs across products/options.
 - `whitelabel` is a **Price Variable** (not a system variable).
+- **A new Price Variable's name must not collide with a runtime pricing variable** (`quantity`, `units`, `cut_print_quantity`, `pages`, `uncounted_pages`, `extra_pages`, `value`) and should be a plain lowercase identifier. *Carried from a tool spec, not tested against the engine; confirm before enforcing as a hard block.*
 - **A formula referencing a price variable will not save until that variable exists.**
   Create the price variables first, then paste the formula; the save is rejected otherwise.
   Verified live, 2026-09-08.
@@ -299,6 +300,8 @@ The first range starts at 0 so a zero entry cannot return nil from `.find`.
 > orderline agree, and that changing quantity in the cart re-tiers. Never report a tiered
 > variant formula as done on a successful save. Runtime behaviour for this shape is
 > **not verified — pending a cart test**.
+
+> **The API write path skips even this validator.** `PUT /v1/admin/products/<id>.json` with `product[price]` saves any syntactically valid formula with no product check: `12.99 * cut_print_quantity` saved on a static product. A tool that writes prices in bulk must probe the storefront after every formula write (`61_PIXFIZZ_API.md` § 13g). *Verified by query, 2026-09-23.*
 
 ### Whole-order stepped ladders are not monotonic
 
@@ -774,3 +777,4 @@ Stated from client calls, not independently verified.
 - 2026-09-09: Added zero-priced catalogue/category pages for variant-driven prices (fix is the product-level starting-price field) and the note that `Custom pricing` is the only product custom field accepting free text for a price label. Source: fireflies-call.
 - 2026-09-16: Replaced 'Price Variables are not reachable via the API' with a pointer to the new experimental Price Variables API in `61_PIXFIZZ_API.md` § 13f. Source: notion-page (Dashboard).
 - 2026-09-19: Confirmed the Automatic Discounts admin location as Marketing → Automatic Discounts, replacing the open "confirm with Matjaz" note. Source: AdeB.
+- 2026-09-24: The API write path skips the formula validator; reserved names for Price Variables (not engine-tested). Source: claude-chat.

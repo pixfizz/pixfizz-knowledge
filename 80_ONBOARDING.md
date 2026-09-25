@@ -680,6 +680,25 @@ Verified by reading source (the ingestion endpoint and its go-live tests, 2026-0
 
 ---
 
+## Staging and Production Share One Database
+
+Pixfizz staging and production run **the same database**; only the code differs. A site, its products, variants, orders, users, galleries, custom field values and CMS records exist once, and both environments read and write the same rows. Creating, editing or importing on staging is a real change to live data, and a test order on staging is a real order that reaches the lab and OrderHub.
+
+- **Never suggest doing data work "on staging to be safe."** There is no safer environment for a data change. For a risky change: export the current state first, work on a throwaway product, and finish in one sitting.
+- **"Please use staging" means exercise the newer code**, not work somewhere safe. The red staging banner in admin is about code. A behavior difference between the two environments is a code difference, never a data difference.
+- **Not verified:** whether uploaded binaries (assets, print files) are shared as well as database rows.
+
+*Stated by the platform owner, 2026-09-17 and 2026-09-20; confirmed again 2026-09-23.*
+
+## Custom Domain Setup
+
+1. The client points the domain at Pixfizz hosting (a CNAME, plus the `www` or apex record as advised).
+2. Check propagation with a public DNS checker.
+3. Tell Pixfizz, who then request the SSL certificate.
+4. Only after the certificate is issued, set the domain as primary and force SSL.
+
+After any domain change, repoint payment-provider webhooks that carry the old domain (`21_SHOPPER_CHECKOUT_POLICY.md` § Payment Gateway Notes). *Stated on client calls, 2026-09-22 and 2026-09-24.*
+
 ## Changelog
 - 2026-03-30: Created from master platform documentation export.
 - 2026-04-23: Added content completeness (descriptions) pre-launch checklist item.
@@ -691,3 +710,4 @@ Verified by reading source (the ingestion endpoint and its go-live tests, 2026-0
 - 2026-09-09: Added Google Account Ownership and Analytics Setup — the customer owns every Google account with Pixfizz taking delegated administrator access, use a shared business account and add the Pixfizz contact at creation time, set the container id and leave the GA4 tag id blank (both set is roughly 2x double counting), Google Ads conversion tracking has no Shopper preset, and what a GA4 API secret is in customer terms. Added Configuration Order on a New Site — create custom field definitions before adding any records, because values written against a definition that does not exist are silently dropped on save, plus a cross-reference to the four-step custom design tool install order. Added Kiosk Storefront Prerequisites — the minimum checklist keys, `kiosk-remove-captcha` needing to be set on the kiosk subdomain specifically, terminals distinguished by `?terminal=N` on one domain, and per-order terminal attribution needing the terminal keys and capture snippet. Added Support Intake — Changed 9 September 2026, flagging that any material pointing customers at the old helpdesk address is now wrong. Source: claude-chat, fireflies-call.
 - 2026-08-29: Added Post-Import Checks a Tar Cannot Cover — `no-index` ships `TRUE` on the parent and must be set to `FALSE` on a live store; assert the custom homepage wrapper class on the live root; confirm which navigation style actually renders because a tar cannot read or set that admin value; re-check checkout preselects after any wipe-and-replace import; and verify value-snippet trailing whitespace on generated bundles. Restated that a local render verifies the file and not the site. Source: claude-chat.
 - 2026-09-19: Custom design tool install order rewritten as two steps, with the third and fourth (product custom fields, checklist values) retired. Cross-referenced `26_CUSTOM_DESIGN_TOOLS.md`. Source: kbsync (custom tool estate).
+- 2026-09-24: Added "Staging and Production Share One Database" and "Custom Domain Setup". Source: claude-chat, fireflies-call.

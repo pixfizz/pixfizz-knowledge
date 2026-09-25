@@ -159,12 +159,20 @@ geometry in Custom Admin, a screen nobody associates with a product.
 travels. Its definition still has to exist on the child site before a template
 carrying a value for it can be imported. Nothing else works until it does.
 
+### The mount gets its own hidden option (standard from 2026-09-20)
+
+A tool's mount block no longer sits on its artwork upload option. It gets a **dedicated option**: type Text, hidden, hide from cart, code `<prefix>_mount` (for example `bc_mount`, `bu_mount`, `cvs_mount`), name "`<Tool>` Mount". Its `custom_script` holds only the `{% snippet 'product/<tool>', … %}` mount block. Reasons: the artwork option has its own required flag and upload behavior, and a tool with no artwork option has nowhere else to mount. The "Mount option" column in § 2 lists where each tool mounts today; tools move to the dedicated option as they are rebuilt. *Decided by Alex, 2026-09-20.*
+
+### The counter test
+
+A custom tool is not finished until someone at the counter, with the customer's file in hand, can build the same order from the Product Attribute's variants alone, with no template, no design and no browser tool. Artwork and anything derived from it are exempt. Tools whose price is computed in the browser from a rate card and written to a number variant (the booklet and document uploaders) do not pass yet; that is open. *Decided by Alex, 2026-09-20.* See `22_OPTION_VARIANT_RENDERING.md` § Pricing and POS-Relevant Choices Belong on Variants.
+
 ### Configuration is not choice
 
 | | What it is | Where it lives |
 |---|---|---|
 | **Configuration** | how this product behaves — size, bleed, dpi, output mode, which controls are on | mount arguments |
-| **Shopper choice** | what the customer picked — sides, paper, finish, binding | **variants**, read live by the asset |
+| **Shopper choice** | every customer selection and every commercial value — sides, paper, finish, binding, quantity | **variants**, read live by the asset |
 
 Sides, stock, corners and binding stay variants because they carry price, and price
 is a product-level concern. The mount only says which variant *code* to read, for a
@@ -469,3 +477,4 @@ once.
   `claude/CUSTOM_TOOL_CONFIG_MUST_TRAVEL.md`, `claude/CUSTOM_TOOL_DOC_SET_SPEC.md`,
   `claude/ORDERLINE_PREVIEW_SURFACES.md`, the per-tool build specs, and the tool
   assets themselves.
+- 2026-09-24: Added the dedicated hidden mount option standard (`<prefix>_mount`) and the counter test; widened "Shopper choice" to every customer selection and commercial value. Source: claude-chat, fireflies-call.

@@ -14,7 +14,7 @@ The Pixfizz API is a read/write/delete REST API over HTTPS. All responses are JS
 - **Version:** v1 (breaking changes will be released as v2 — v1 will not have breaking changes)
 - **Format:** JSON only. Send `Content-Type: application/json` for POST/PUT requests with JSON bodies.
 - **Timestamps:** ISO 8601 (`YYYY-MM-DDTHH:MM:SSZ`)
-- **Pagination:** Append `?page=N` to index endpoints. `page=3` fetches the third page of results.
+- **Pagination:** Append `?page=N` to index endpoints. `page=3` fetches the third page of results. **Page size is not contractual and varies by endpoint**: `/v1/admin/products.json` returns 20 per page (verified by query, 2026-09-23); § 13f resources are announced at 100. Never hardcode a page size: page until a request returns an empty list, keep a generous page-count cap as a runaway guard, and report it if the cap is hit rather than presenting a truncated result as complete.
 - **Rate limits:** No hard limits. Best practice: add a 30-second delay after every 100 requests. Notify support before large bulk uploads.
 - **ETag headers:** Present on every response. Use to detect unchanged data.
 - **User-Agent header:** Required on every request. Automatically included by the JS API and browsers. Custom scripts must supply a descriptive string.
@@ -53,6 +53,8 @@ curl -X POST \
      https://<subdomain>.pixfizz.com/v1/session
 ```
 Not recommended for production.
+
+**The admin session cookie is `__Host-` prefixed since 2026-09-23.** Sessions were seen dropping repeatedly during long browser-driven admin runs that day; treat a run of unexpected 401s or login redirects mid-session as a possible session drop before suspecting the credentials. *Observed live, not root-caused.*
 
 ### OAuth 2.0 (client-side / mobile apps)
 - Create an OAuth application in Pixfizz admin under **Site → OAuth**.
@@ -686,6 +688,10 @@ Authentication is HTTP Basic with an admin account, as in § 2.
 
 **Path prefix inconsistency:** some of these endpoints sit under `/admin/...` and others under `/v1/admin/...`, as listed below. This is not a transcription error — the prefixes genuinely differ per endpoint. Do not assume a uniform prefix; test each one.
 
+> **Update 2026-09-23: the retirement is live.** Every unofficial `/admin/...` path now redirects cross-host to `admin.pixfizz.com/site/<site>/admin/...`, which needs an interactive session. **A cross-origin redirect drops the `Authorization` header**, so a Basic-auth client that follows it gets a 401 that looks exactly like a wrong password. Confirmed intentional and permanent by the core developer. A person clicking an `/admin` link in a browser is unaffected; the break is for server-to-server clients. Every server-to-server call must use `/v1/admin/...` and send `redirect: "manual"`, treating any redirect as its own failure. *Verified live and by query, 2026-09-23.*
+>
+> **`/v1/admin/...` is not a public integration surface.** External integrations use the standard `/v1` order endpoints (look up by order id); the admin namespace is for Pixfizz and site-admin tooling. *Stated by Alex, 2026-09-22.*
+
 > **The `/admin/...` JSON endpoints are being retired.** The core developer stated on the
 > Notion Dashboard (week of 2026-09-21) that every unofficial `/admin/...` endpoint **will stop
 > working when the current staging code is deployed to production**. Replacements live under
@@ -885,6 +891,8 @@ This entry previously said Price Variables were not reachable via the API (core 
 announced on 2026-09-16 — see § 13f. § 13f is staging only (verified 2026-09-16), so until it deploys,
 bulk export and import **through admin** remains the safe bulk route.
 
+**Update 2026-09-23: Price Variables read and update are confirmed on production.** `GET /v1/admin/price_variables.json` and `PUT /v1/admin/price_variables/<id>.json` work on the normal host. Fields: `id`, `name`, `description`, `value` (a string); there is no `updated_at`. Create and delete were exercised only on `:5748` (which writes to the same database, see § 13f). `cms_snippets`, `cms_pages` and `cms_layouts` were still staging-only on that date. *Verified by query.*
+
 ### There is no template import endpoint
 
 **Stated by the core developer, 2026-09-09; not independently verified against the API.** Template tar files must
@@ -906,6 +914,8 @@ routinely estimated as free.
 > `https://<subdomain>.pixfizz.com:5748/v1/admin/...`) did, verified by test on 2026-09-16.
 > Build and test against the `:5748` host only, and re-check production after the staging deploy. Authentication is HTTP Basic with an admin account, as in § 2. Cross-origin writes
 > follow the `POST` + `_method=put` rule in § 13c.
+
+> **`:5748` is staging code against the production database, not a separate database.** A write on `:5748` is a write to live data (`80_ONBOARDING.md` § Staging and Production Share One Database). Product reads on `:5748` can return stale pre-write values, including on the paginated index, and a cache-busting query string does not help because `GET /v1/admin/products/<id>.json` redirects to `/v1/products/<id>.json` and the redirect drops the query string. Verify a product write by reading it back on the normal host. *Verified by query and confirmed by Alex, 2026-09-23.*
 
 All four resources share one pattern. Index endpoints return **pages of 100**; use `?page=N`
 as in § 1.
@@ -982,6 +992,33 @@ layout[default]          # true | false
 
 ---
 
+## 13g. Admin Products API — Read, Write, Create
+
+*Verified by query on two production sites, 2026-09-23, except where noted.*
+
+### Read
+`GET /v1/admin/products.json?page=N` returns the catalogue 20 per page (§ 1): pricing (flat or formula), every variant type and value with its price, inventory state and every custom field. `GET /v1/admin/products/<id>.json` redirects to `/v1/products/<id>.json` with the same payload.
+
+| Field | Notes |
+|---|---|
+| `price` | a number **or** a Ruby formula string |
+| `price_formula` | boolean, set by the platform; writing a formula string to `product[price]` flips it to `true` |
+| `current_inventory` | **absent entirely (not null, not zero) when `track_inventory` is false**. Defaulting a missing key to 0 shows a made-to-order catalogue as sold out |
+| `starting_price` | separate display value, nullable |
+| `variants[]` | variant types (`id, type, name, code, parent_id, trigger_value_id, control_type, required, published, values[]`); values carry `id, name, code, price, default, published`. `parent_id` + `trigger_value_id` make a type conditional on a value of its parent |
+
+### Write
+`PUT /v1/admin/products/<id>.json` is a real partial update: one named parameter changes only that field. Multipart form data is accepted.
+
+- **The inventory write is an absolute set with no compare-and-set.** Re-read immediately before writing and treat a changed baseline as a conflict.
+- **A formula is not validated against the product.** `12.99 * cut_print_quantity` saved 200 OK on a static product, where that variable means nothing (`30_PRICING_ENGINE.md`). Probe the storefront after every formula write.
+
+### Create
+`POST /v1/admin/products.json` always creates, never updates. `product[name]` and `product[image]` are capped at 64 characters; codes are unique case-insensitively; **`product[description]` returns 200 but is never stored**, on create or update. There is no API to delete or archive a product.
+
+### Variants are read-only
+There is no write API for variant values, prices or types. *Confirmed by the core developer, 2026-09-23.*
+
 ## 14. Retrieval Pointer
 
 | Topic | File |
@@ -1009,3 +1046,4 @@ layout[default]          # true | false
 - 2026-09-09: Added §13d Order Webhook — customers register it themselves in Pixfizz admin (the same mechanism OrderHub uses), and the payload carries `orderlines[].product_id` (numeric internal id) and not `product_code`, so any consumer keying items by product code cannot join (verified by query). Added §13e What Is Not Possible Today — Price Variables are not reachable via the API (confirmed by the core developer 2026-09-07) and there is no template import endpoint, so bulk-generated template tars are imported one at a time through admin, blocked on large-file handling and progress tracking. Both recorded as current limitations, not roadmap. Added retrieval pointer rows for `85_GA4_SERVER_SIDE_PURCHASE.md` and `32_ORDER_LIFECYCLE.md`. Source: slack-message, fireflies-call.
 - 2026-09-16: Added § 13f Experimental Admin API (price variables, CMS pages, snippets, layouts: shared list/read/create/update/delete pattern, 100 per page, parameter lists, override and rename consequences). Staging only, not on production (verified by test 2026-09-16). Superseded the § 13e 'Price Variables are not reachable via the API' entry. Added the `/admin` → `/v1/admin` retirement notice to § 13c with the confirmed replacement table; collections update has no confirmed replacement yet. Source: notion-page (Dashboard), fireflies-call.
 - 2026-09-19: Replaced the § 4 Data retention table. The previous table (unsaved 1 year, saved 2 years, ordered indefinitely) was wrong on the point that matters: ordered projects lose their images 6 months after the order for cut prints and 3 years for every other type. Added the full deletion policy (carts, galleries, images, PDFs, uploaded files, users, crawls), the 4-year inactive-user rule that deletes all galleries and saved projects including guests, and the inactive-site rule. Source: notion-page (Pixfizz Wiki, Deletion Policies).
+- 2026-09-24: Page size varies by endpoint (products: 20); never hardcode it. Session cookie now `__Host-` prefixed. The `/admin/...` retirement is live (cross-host redirect drops Authorization; use `/v1/admin/...` with manual redirects); `/v1/admin` is not a public integration surface. Price Variables read/update confirmed on production. `:5748` writes to the production database. Added § 13g Admin Products API. Source: claude-chat, slack-message, fireflies-call.

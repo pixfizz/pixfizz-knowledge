@@ -122,9 +122,28 @@ confirm `cart.tax` does not move.
 Until that is answered: do not enable a fee that must not be taxed on a VAT site, and do not
 tell a client the checkbox changes what the shopper sees at checkout.
 
+## Kiosk Sessions — Logout, Carts and Unfinished Orders
+
+- **Checkout is one page.** A customer who is not logged in first sees a login-or-guest block, which makes it feel like two steps; a logged-in customer goes straight to contact details and **Confirm Order**.
+- **Only Confirm Order turns the cart into an order.** Until it is pressed, everything the customer did is a saved project, not an order. A customer who fills in details and walks away has placed nothing.
+- **The order notes field autosaves.** A separate Save button next to it adds nothing and is a suspected cause of customers believing they have ordered. *Suspected, not observed.*
+- **Kiosk auto-logout fires only from the thank-you page**, about 10 seconds after a completed order. If anyone presses Home before that, the logout never happens and the session, cart included, carries over to the next customer. The post-order Home button does not clear the cart.
+- **The kiosk app's idle timeout is the only other logout** (`18_ADMIN_NAVIGATION.md` § Pixfizz Kiosk App).
+- **Recovering an unfinished or guest order:** every cart is saved immediately under **Orders → Projects**, guest or registered, so the customer's photos and design can be retrieved even when no order was placed. Abandoned Carts shows the same thing about an hour later. A guest record and a registered record with the same email can coexist and can be merged manually from the customer record; automatic merging is not on every site yet.
+- **Kiosk card payment can be switched off per site** while keeping the payment tile, which then shows a custom *please pay at the counter* message. Use this when card entry on a shared kiosk is a problem.
+- **Card details on a kiosk are entered in the payment provider's own hosted window**; Pixfizz never stores card numbers. A card appearing prefilled for the next customer is browser or payment-provider autofill, not Pixfizz storage. *Stated by Alex as his understanding; not verified.*
+
+*Stated and demonstrated live on a client call, 2026-09-24, except where marked.*
+
+## Payment Gateway Notes
+
+- **BridgePay:** the TokenPay.js widget's ZIP field (used for AVS) is now enabled for all Shopper 24 sites. *Stated by the core developer, 2026-09-21.*
+- **PayU:** the success and failure webhook URLs are set in PayU admin → Developers → Webhooks and must be repointed by hand after any domain change, or order confirmations fail silently. *Stated on a client call, 2026-09-22.*
+
 ## Changelog
 - 2026-02-26: Initial checkout policy content.
 - 2026-04-23: Added tax model note (US-style vs European VAT, postal code CSV, automatic discount workaround). Added guest checkout configurable fields note.
 - 2026-06-01: Added tax CSV format and matching specificity. Source: claude-chat/help-article.
 - 2026-06-26: Added payment method selection (URL param priority, then first entry in checkout/available-payment-methods; radio only renders for 2+ methods) and label renaming via Translations. Source: claude-chat/fireflies-call.
 - 2026-09-09: Added the extra-fee VAT tax base defect — `pages/checkout` sums every extra fee into `taxable_total` with no reference to the per-fee Taxable checkbox, and the template is only given `fee.name`, `fee.amount` and `fee.code` so there is no `fee.taxable` to test; contained fix is exclusion by fee code, the block is inside the `vat-active == 'TRUE'` branch so US sales-tax sites are unaffected, and whether the checkbox reaches `cart.tax` server-side on a US site is still open. Source: claude-chat.
+- 2026-09-24: Added Kiosk Sessions (one-page checkout, Confirm Order is the only conversion, thank-you-page logout, guest recovery from Orders → Projects, per-site kiosk card payment switch-off) and Payment Gateway Notes (BridgePay ZIP field, PayU webhooks after a domain change). Source: fireflies-call, slack-message.

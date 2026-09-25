@@ -49,6 +49,21 @@ Never default to full blocks for minor edits — it forces unnecessary manual re
     names only the child is not a shorter version of the right instruction — it is an
     instruction that silently does nothing. See the Checklist Snippet Creation Rule below.
 
+### Install-Step Gate — Run It on Every Set of Install Instructions (MANDATORY, P0)
+
+Before any install, deployment or setup instructions are sent, to the team or to a customer, check every step:
+
+1. **Does any step say "create a snippet", "new snippet" or "add a snippet", or name a snippet path that does not already exist on shopper24?** (Check `52_SNIPPET_INVENTORY.md`.)
+2. **If yes, is the target site `shopper24.pixfizz.com`?** Every other Shopper site is a child, and every client storefront on Shopper is a child. If the answer is no, or unknown, the step is wrong and must be rewritten.
+3. **Rewrite it as one of these, in this order:**
+   - **Override Snippet** on an existing parent snippet built to be overridden: `style/custom.css`, `integrations/custom-body-scripts`, `website/homepage`, the active navigation snippet, `header/logo`, a checklist snippet created on the parent with Allow Override ticked.
+   - A **`pages` Custom Type instance** for page content (`50_SHOPPER_TEMPLATE_REFERENCE.md` § 14).
+   - **Template options or variants** on the product, which are product data and are created on the child.
+   - If a new snippet is truly required: it is created on **shopper24** by the Pixfizz team, as a paste block, never a tar. **For a customer the instruction is "contact Pixfizz support", never "create it yourself."**
+4. **Any step that creates a snippet names `shopper24.pixfizz.com` in the same sentence.**
+
+Why this is a gate and not another restatement: the rule below was already written in four files and in project memory, and it was still broken on 2026-09-24, when an install began "On the child site, create a snippet". A customer following that instruction gets a snippet that saves in admin and renders blank forever with no error. Knowing the rule does not stop the mistake; checking the draft does.
+
 ------------------------------------------------------------------------
 
 ## Dynamic Snippet Rule (AJAX / `{% dynamic %}` / `async: true` forms)
@@ -187,6 +202,10 @@ tar cf output.tar asset_files/ assets/ layouts/ pages/ snippets/
 tar tf output.tar | head -5
 # Must show: asset_files/..., NOT: v2kiosk/asset_files/...
 ```
+
+### A CMS backup tar is always the full current backup
+
+**A CMS tar is the complete current backup with the changes applied, even when only one file changed.** The importer does a full wipe-and-replace, so a tar that carries only the changed directory (for example only `layouts/main`) deletes everything else the site had. A real incident removed `pages/__home` this way and the site returned *Not found*. "Only the files that changed" governs chat attachments and paste blocks; it never describes a CMS tar. **Before shipping, diff `tar -t` of the new tar against `tar -t` of the backup it was built from: every file in the backup must still be present.** *Verified live, 2026-09-23.*
 
 ### Front matter is a database row, not metadata
 
@@ -526,6 +545,10 @@ nowhere in the archive it serves, and a count badge that was off by one against 
 preview had been hand-written from a documentation table rather than read from the file.
 Verified by reading source, 2026-09-09.
 
+### Long plain scalars fold differently under Ruby 3.3 Psych
+
+Long **plain** (unquoted) scalars are affected as well as long double-quoted ones: Ruby 3.3 Psych emits a long plain scalar as a `>-` block scalar where the platform's export keeps it inline. Keep generated strings short, or force double quoting (a string ending `\r\n` is always double-quoted, which matches the platform's HTML descriptions), and assert that the output contains no `: >-` or `: |-`. In a Ruby post-pass, read regex captures before calling `String#index` with a regex: the call resets `$~` and can silently drop an edit. *Verified by byte-exact round trip against a real export, 2026-09-22.*
+
 ## Never Re-Import to Update
 
 **A re-import of a corrected archive creates a suffixed duplicate. It does not update the
@@ -539,6 +562,10 @@ not carry, and the reference resolves outside the tar where nothing can detect t
 **A correction means deleting the old object first, then importing.** In that order, checked,
 on a site where a mistake is affordable. See `16_PRODUCT_HIERARCHY.md` and
 `51_CUSTOM_FIELDS_REFERENCE.md` for the per-object behaviour and for what is still untested.
+
+**Applies to every import type, including product variants and template options.** A code collision on a `__variant_types.yml` or `__template_options.yml` import appends `-1` to every code and value code in the imported set. Never plan an import that relies on matching an existing record by code. *Stated by Alex, 2026-09-18 and 2026-09-20.*
+
+**Staging does not make an import safer.** Staging and production share one database (`80_ONBOARDING.md` § Staging and Production Share One Database). An import on staging is an import on live data.
 
 ## A Product Rename Must Never Trigger a Code Rename
 
@@ -688,3 +715,4 @@ second; the alternative is trusting that nobody renamed anything.
 - 2026-08-11: Hardened the CMS Backup Tar Packaging Rule — front matter is a database row and a missing `renderer_type` aborts the import with a generic error naming no file; packaging must be one atomic command with a freshness assertion, because a stale tar imports cleanly and changes nothing; the seed backup is the authority for Liquid vocabulary. Recorded that `asset_files/` transfer and CDN content-hash cache-busting were both ruled out as causes. Added the Custom Type Instance Archive Packaging Rule (gzipped, five empty media directories, four `__*_map` keys, literal block scalar for `page_content`). Source: claude-chat.
 - 2026-09-09: Stated the parent-first snippet rule at the point of use — create on the parent with the off value and Allow Override ticked, then override on the child — with the governance requirement that any instruction naming a checklist or value snippet must name the parent first, the child second, and the parent's off value, and the note that the rule already existed in three files and was still missed. Added that checklist bodies are byte-exact at the point of use and that a site-level key set on the parent moves for every child. Added: never hand-author an export archive and generate any preview from the archive at build time; never re-import to update, because a re-import creates a suffixed duplicate and the suffix lands on the code; a product rename must never trigger a code rename; a snippet Description is a real column and never blank, with the blank-in-a-set-of-six instance; customer-visible partner and printer names in a parent-level tool must come from a snippet; the three verification formulations, ending in placing one real order end to end; the four-step marker-assertion method for a byte-identical render harness; the publication gate for a public repo; and a mandatory closing step for every knowledge base sync verifying that every route in `02_RETRIEVAL_MAP.md` resolves. Source: claude-chat, fireflies-call, slack-message.
 - 2026-08-29: Added the byte-exact value snippet rule for CMS tars — `capture` does not trim, so a trailing newline makes every compared flag fail silently while the tar imports cleanly; includes the generator fix and the instruction to error rather than warn. Added Archive Emission — the platform's Psych writes a trailing space after a nil scalar and Ruby 3.3 does not, so a modern Psych needs a post-pass; Psych also quotes ambiguous scalars and folds long double-quoted scalars differently from PyYAML (measured 87 differing lines in 3,118 for a Python emitter, byte-identical for Psych plus the nil post-pass). Added the Collections export format — archive shape, import path, the four record shapes in platform key order, the bare-numeric-asset-id convention with `__asset_map` Ruby symbol keys, and the fact that a collections export carries no site or owner field and so cannot answer inheritance. Source: claude-chat.
+- 2026-09-24: Added the Install-Step Gate (P0): every install instruction is checked for a "create a snippet" step before it is sent; unless the site is shopper24 it is rewritten as Override Snippet, a pages Custom Type instance, product data, or "contact Pixfizz support". Added "A CMS backup tar is always the full current backup". Widened "Never Re-Import to Update" to variant and template-option imports and to staging. Added the Ruby 3.3 Psych plain-scalar folding note. Source: claude-chat.

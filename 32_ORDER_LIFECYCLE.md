@@ -130,6 +130,8 @@ Pixfizz supports configurable Liquid scripts (set in the Super Admin) that autom
 - Set **custom fields on the order** (order-level script)
 - Set **custom fields on individual orderlines** (orderline-level script)
 
+**Reading the customer inside these scripts:** use the `user` global (`user.custom.<field>`), never `order.user`, which does not exist (`50_LIQUID_REFERENCE.md`). `orderline.product.category` renders the plain category name, so `contains 'Film Processing'` is a valid film-only gate, and a snippet-type orderline custom field stores the script's output as written. *Verified by query, 2026-09-22.*
+
 ### Script execution order
 
 When an order is created, scripts run in this fixed sequence:
@@ -443,3 +445,4 @@ _Verified by reading source, 2026-09-09._
 - 2026-08-21: Added kiosk terminal tracking (custom.kiosk_id + ?terminal=N URL param). Source: slack-message (#development).
 - 2026-08-21: Added rush/urgent order options section. Source: fireflies-call (Documentation call, Aug 14).
 - 2026-09-09: Added print-on-demand parent/child routing — the parent lab prices the outsourced line by product code and variant code against its own site, a mismatch inserts a zero price into automatic wholesale invoicing rather than rejecting the order, only outsourced items reach the parent, template-level variants cannot be resolved because the feed carries nothing from the template, and the discussed POD SKU property is not built; cross-referenced to semi-inheritance and the editable auto-populated product code in 16_PRODUCT_HIERARCHY.md. Added stock decrement timing (first entry to Confirmed or Draft, once only). Added that the server-side GA4 purchase event is sent only when `confirmed_at` is present, so brands whose orders never reach confirmed send nothing, cross-referenced to 85_GA4_SERVER_SIDE_PURCHASE.md, and that the order webhook payload carries only the numeric `product_id` and no `orderlines[].product_code`, which is what blocks item-level funnels. Added cart custom fields promoting to order custom fields at checkout (`cart[custom][x]` to `order.custom.x`). Source: fireflies-call, claude-chat.
+- 2026-09-24: Scripts read the customer from the `user` global, not `order.user`; `orderline.product.category` is a usable gate. Source: claude-chat.

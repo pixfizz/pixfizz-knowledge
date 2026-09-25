@@ -614,6 +614,50 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 
 ---
 
+## Routes added 2026-09-24
+
+### "I'm writing install / setup steps for a Shopper site — can I tell them to create a snippet?"
+→ **01_CODE_GOVERNANCE_UPDATED.md** § Install-Step Gate. Run it on every set of install instructions. Only shopper24 can create snippets; for a customer the answer is "contact Pixfizz support".
+
+### "Why can't I find this snippet in the child site's admin?"
+→ **13_TEMPLATE_BOUNDARIES.md** § A Child Site's Snippet List Shows Only Its Overrides
+
+### "How do PDF layers work / how do I hide something from the customer but print it / split foil or white ink into its own file?"
+→ **19_XML_TEMPLATE_REFERENCE.md** § PDF Layers in Practice
+
+### "How do I show something in the editor that must never print?" / "Why did part of the design not print?"
+→ **17_DESIGN_TOOL.md** § Show in the Editor, Never Print — the Uneditable Placeholder
+
+### "I can't click an element because another one is on top"
+→ **17_DESIGN_TOOL.md** § Grouping Elements to Hide Them While Editing — View Settings
+
+### "Does a template export carry its layouts?"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Layouts Travel With a Template Export (corrected 2026-09-24)
+
+### "Layout swap stacks two placeholders" / "Duplicate filename when fulfilling project on JPEG output"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Layout Content Requires `layout="true"`; § Parameter Reference (`output-name`)
+
+### "Are variant types shared between products?" / "Should this choice be a variant or a template option?"
+→ **22_OPTION_VARIANT_RENDERING.md** § Variant Type Exports (corrected) and § Pricing and POS-Relevant Choices Belong on Variants
+
+### "Kiosk customer's session carried over / order never placed / recover a guest's photos"
+→ **21_SHOPPER_CHECKOUT_POLICY.md** § Kiosk Sessions
+
+### "Is staging safe for testing a data change?"
+→ **80_ONBOARDING.md** § Staging and Production Share One Database. No: one database.
+
+### "Admin API calls return 401 since 23 Sep" / "Products API fields, page size, inventory writes"
+→ **61_PIXFIZZ_API.md** § 13c (retirement is live), § 1 (page size), § 13g (Products API)
+
+### "Child CSS does nothing" / "where does CSS go on the parent?"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § CSS delivery and § 18.1
+
+### "Static Product Importer hung / products in no collection" / "filter a static collection by category"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 15 importer notes and § 23
+
+### "Product save silently does nothing" / "text custom field truncated"
+→ **51_CUSTOM_FIELDS_REFERENCE.md** (1,024-character description limit; 256-character text fields)
+
 ## Changelog
 - 2026-03-13: Added Shopify Integration section and Shopify scope warning.
 - 2026-03-26: Added MyPixfizz section pointing to 70/71/72 files.
@@ -638,3 +682,5 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 - 2026-09-09: Route check run as the mandatory closing step now recorded in 01_CODE_GOVERNANCE_UPDATED.md. Every route resolves. Note for whoever runs the naive one-liner next: it also matches filenames quoted inside this file's own prose and changelog, so `01_CODE_GOVERNANCE.md`, `40_PLAYBOOK.md` and `83_MOBILE_UX_AUDIT.md` are reported as missing. All three are historical references, not live routes: the first two appear only in the 2026-08-29 changelog entries describing corrections already made, and the third only in the note above § 82 recording that it never existed. Excluding the changelog leaves one known false positive. Source: kbsync audit.
 - 2026-09-16: Added routing for the experimental Admin API, the `/admin` endpoint retirement, site-wide custom field / custom type definition export, and upload dialog login. Source: notion-page (Dashboard).
 - 2026-09-19: Added `26_CUSTOM_DESIGN_TOOLS.md` and 8 routing entries for it. Corrected the "tool does not appear" route, which pointed at a four-step install order that no longer exists. Source: kbsync (custom tool estate).
+- 2026-09-24: Added 14 routes for the 2026-09-24 sync, led by the Install-Step Gate and PDF layers. Every target section was written in the same sync. Source: kbsync.
+- 2026-09-24: Route check run as the mandatory closing step. Only the three known historical false positives are reported (01_CODE_GOVERNANCE.md, 40_PLAYBOOK.md, 83_MOBILE_UX_AUDIT.md). Source: kbsync audit.

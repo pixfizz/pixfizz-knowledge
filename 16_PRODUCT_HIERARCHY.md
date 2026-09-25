@@ -23,6 +23,8 @@ The commercial side of a product — how it appears in the store, how it's price
 A Product Attribute linked to a Template = **design product** (requires personalization).
 A Product Attribute without a Template link = **static product** (standard eCommerce item like frames, gift vouchers, accessories).
 
+**A custom design tool product is always a design product**, even when the platform renders no production file from it: the tool's own template can have every set `fulfillment="false"` and still be a design product. Rule of thumb: if the tool produces a production file, or needs a template per trim size, it is a design product. Reasons: a static product cannot sit in a mixed collection with design products; `custom_script` on a static product's variant is invisible in admin; and orderlines store design choices in `chosen_template_options` and static choices in `chosen_variants`, so anything reading an orderline must handle both. *Decided by Alex, 2026-09-20.*
+
 ### Templates
 The production specification — the technical blueprint for how personalized artwork is generated.
 - Name, Code, Category
@@ -159,6 +161,10 @@ rebuild, not a field edit.
 
 ---
 
+## Paper Is a Variant, Not a Template Per Paper
+
+When a lab sells the same size on several papers, build **one template per size** and put paper on the product as a priced multiple-choice **variant**. Never generate a template per paper per size (one lab's range would have meant 329 imports). Fine-art prints are wall art with their own product page: one template per size, paper as a variant, base price set to the cheapest paper at that size and the others carrying a **positive** delta, because negative variant prices are not supported (`30_PRICING_ENGINE.md`). *Stated by Alex, 2026-09-22.*
+
 ## Cloning a Product
 
 **Verified by reading source.**
@@ -244,3 +250,4 @@ Beyond the core hierarchy:
 ## Changelog
 - 2026-03-30: Created from master platform documentation export.
 - 2026-09-09: Added platform import behavior — ids in an import tar are not honored and duplicate codes/names are auto-suffixed `-1`, `-2`, so a re-import duplicates rather than updates and can break code-referencing Liquid or collection paths. Added the size naming convention (catalog notation regardless of orientation, orientation carried by `custom.orientation`, orientation token in the code only). Added that inventory is tracked per product, not per variant, and is decremented once on first Confirmed or Draft. Added that one design cannot render several product variations, with the live-preview versus per-product-image trade-off and the one-template-per-variation architecture. Added product cloning via the per-product export archive rather than the Static Product Importer CSV. Added that unpublished and de-collectioned products stay purchasable via their old URL, with the two suppression routes that exist today. Added semi-inheritance of a parent lab's templates and the editable auto-populated product code. Added that Custom Type instances sort by the custom field's declared type. Added that the photo-prints component cannot deliver a pack of N different photos. Source: claude-chat, fireflies-call, slack-message.
+- 2026-09-24: Added the rule that a custom design tool product is always a design product, and "Paper Is a Variant, Not a Template Per Paper". Source: claude-chat.

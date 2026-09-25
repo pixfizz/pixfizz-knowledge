@@ -75,7 +75,20 @@ That constraint applies to **snippets only**. It does not apply to:
 
 Treating template options and variants as parent-first produces unnecessary edits on `shopper24.pixfizz.com`, which carry blast radius across every child site for no benefit.
 
+Before sending any install instructions for a child site, run the Install-Step Gate in `01_CODE_GOVERNANCE_UPDATED.md`. It exists because this rule was known and still broken in a delivered instruction (2026-09-24).
+
+## Pages Are Parent-Only — a Child Cannot Override a Page
+
+A Shopper child site overrides **snippets and assets** only. It cannot override a **page**: `pages/checkout` and every other page always renders from the parent, on every child. A page-level fault on a child is therefore a parent fault, or a fault in a snippet or asset override the page calls, never a page override. *Stated by Alex, 2026-09-22.*
+
+**Open, needs confirmation:** `50_SHOPPER_TEMPLATE_REFERENCE.md` § 21.5 describes a child overriding `pages/custom.css`. Either `custom.css` is a special case or § 21.5 is describing the `style/custom.css` snippet override. Do not rely on either reading until confirmed.
+
+## A Child Site's Snippet List Shows Only Its Overrides
+
+On a child site, **Website → Snippets lists only the snippets that site has overridden**, not the roughly one thousand it inherits from the parent. A snippet that "does not exist" in a child's list usually exists on the parent. Use `52_SNIPPET_INVENTORY.md`, or the **Search CMS** box on the Snippets toolbar (full-text search of snippet content), to find it. *Stated on a client call, 2026-09-24.*
+
 ## Changelog
 - 2026-03-13: Added Shopify deployment path as a distinct boundary layer.
 - 2026-07-25: Added Site Assets — No Parent→Child Inheritance, including the silent-failure mode for JS assets and the version-marker practice for confirming a deployed build past browser cache. Source: claude-chat.
 - 2026-07-28: Corrected Site Assets section — assets ARE inherited parent to child; the silent failure previously attributed to asset inheritance is a child override of `integrations/custom-body-scripts`. Added Parent-First Rule scope note (snippets only, not template options or variants). Source: claude-chat.
+- 2026-09-24: Pointed the Parent-First Rule at the new Install-Step Gate. Added "Pages Are Parent-Only" (with the open § 21.5 question) and "A Child Site's Snippet List Shows Only Its Overrides". Source: claude-chat, fireflies-call.

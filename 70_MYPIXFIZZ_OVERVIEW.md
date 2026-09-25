@@ -149,6 +149,14 @@ them". *Each verified by reading source, and each was a live defect.*
 
 ---
 
+### More recurring defect patterns (2026-09-23)
+
+- **An empty state that doubles as the error state.** A failed query and a genuinely empty list render the same UI, so a broken query looks like "no records yet" for days. Every list whose query can fail needs a distinct error branch.
+- **An edge function fix is not live until it is published.** Functions ship on publish, not on commit. The stored shape of the data a function writes is evidence of which version ran.
+- **An email that invites a reply, sent from an address that cannot receive one.** A `noreply@` sender with no `Reply-To` turns "reply to this email" into a silent bounce.
+
+*Verified by reading source and by query, 2026-09-23.*
+
 ## RLS and Aggregates in Triggers — the Rule
 
 *Verified by reading source and by test, 2026-09-09. This is the highest-value finding of the
@@ -238,3 +246,4 @@ re-checking against the current route.
 - 2026-03-26: Initial version. Compiled from Lovable project summary.
 - 2026-08-29: Added Credential Storage — `brand_api_credentials` is the single store for Pixfizz admin access; a connector prompts for a login only when `credential_vault_id` is null and writes at brand level via `customer_set_brand_api_credentials`, with per-connector credentials as an override rather than the default. Source: claude-chat.
 - 2026-09-09: REPLACED the one-line GA4 row in the Integrations table with the full description of the server-side `purchase` pipeline (Measurement Protocol, live since March 2026; per-brand measurement id, API secret, enabled and debug flags, billing currency; order webhook into an event outbox with per-order idempotency and attempt logging; dependent on the Shopper order custom fields `ga_client_id` and `ga_session_id`), pointing at `85_GA4_SERVER_SIDE_PURCHASE.md`. Extended Credential Storage with what is held and where — secret in a vault, write-only from the client, base URL hardened to a Pixfizz host. Added Recurring Defect Patterns (self-referential RLS SELECT policy; edge function gated on an admin-role check; a 200 carrying `ok: false`; a test-connection probe on a different route family). Added the RLS-and-aggregates rule — a PL/pgSQL trigger without `SECURITY DEFINER` runs as the caller, so an aggregate inside it is RLS-filtered, which is why the bug is invisible to staff and reproduces only for customers; a sequence is the right fix; and the testing rule that a staff account cannot test anything gated by RLS. Added webhook endpoint design rules (401 for a bad key, 200 for everything else on purpose, and a query-string secret making the URL a credential that rotates with the provider entry, in that order). Added the mail transport rule versus mailbox forwarding for copying mail to an ingestion endpoint. Added Support Intake — intake moved off the previous helpdesk on 2026-09-09, which invalidates any article giving customers the old address. Source: claude-chat, fireflies-call.
+- 2026-09-24: Added three recurring defect patterns: empty state as error state, unpublished edge functions, reply-inviting mail with no Reply-To. Source: claude-chat.

@@ -252,6 +252,42 @@ Reusable techniques confirmed in production:
   underlying order is not configurable in admin.
 
 ---
+## Show in the Editor, Never Print — the Uneditable Placeholder
+
+**Platform rule: a placeholder the customer never edits is not fulfilled.** A placeholder is an element the customer is expected to replace. If it is still untouched at order time, production drops it on the reasoning that it was meant to be edited and was not. The editor preview flags it as *placeholder missing*.
+
+That rule gives a clean way to show something **in the editor only**:
+
+1. Add the element (a shape is simpler than a copy of the artwork; a mid-tone at partial opacity keeps it readable without dominating).
+2. Mark it **not editable** and **placeholder**.
+3. Send it to the back and align it to the artwork.
+
+Because the customer can never edit it, it is always an unedited placeholder, so it always renders in the design tool and is always removed from the production file. Typical use: a colored backing behind white text so the customer can see what they are typing, on a product that prints on a transparent or white substrate. Check it by opening the project in the editor and using the preview, which reports the placeholder as missing, or by rendering the production file from Orders → Projects.
+
+The reverse job, **print but never show**, is a PDF layer with `visibility="fulfillment"` (cut marks, registration lines). See `19_XML_TEMPLATE_REFERENCE.md` § PDF Layers in Practice.
+
+*Verified live in the admin design tool with a photo lab client, 2026-09-24.*
+
+## Grouping Elements to Hide Them While Editing — View Settings
+
+Elements can be assigned to named layers (for example `background`, `artwork`, `ribbon`) and each layer switched on or off under **View Settings** at the top of the design tool. This is only a working aid for whoever is building the design: it gets covered elements out of the way so they can be selected without nudging the element on top. It changes nothing for the customer and nothing in production. The layers themselves are declared in the XML template definition; see `19_XML_TEMPLATE_REFERENCE.md` § PDF Layers.
+
+*Verified live in the admin design tool, 2026-09-24.*
+
+## Editor Buttons and Per-Site CSS
+
+- **Autofill button.** Desktop: `.px-project-gallery-panel .px-gallery-actions .px-action-buttons button[data-onclick="autofill"]` (no class of its own). The mobile editor uses a different element, `button.px-autofill`. It renders only when Autofill is on in the Design Tool Configuration, outside cut-print mode, and when the project gallery has images; it is `disabled` when every uploaded image is already placed, so a faint button usually means all photos are used. Stock styling is a low-visibility text link. `.px-gallery-actions` is flex, so `flex-wrap: wrap` plus `flex: 0 0 100%` on `.px-action-buttons` gives a full-width button. View-size toggles are `.px-gallery-actions .px-gallery-size button[data-size]`, selected state `[data-selected=true]`. *Verified by reading source; the styling recipe was tested on a mock, not yet on a live project.*
+- **Where the CSS goes.** The Design Tool Configuration has its own **Custom CSS** field. Per-site editor styling such as the autofill button goes there, with no template change. See § Editor CSS Customization for which asset syntax that field accepts.
+- **AI photo filters** in the design tool consume AI credits billed to the merchant; the merchant can cap daily uses per customer. *Stated on a client call, 2026-09-24.*
+
+## Mapped Previews — What "Use Mapped Preview" Actually Is
+
+A mapped preview is not a full 3D model. Each entry in the print product's mapped previews pairs a background photo (`bg_url`) with a small GLB mesh (`glb_url`, served from `/fz/...` with open CORS): a partial surface plus a camera, used to warp the flat production artwork onto the photo at render time. The mapped previews travel with the template export as `glb_files/`, referenced from `__print_product.yml` by `mapped_preview` and `glb_blob_hash_key`. `GET /v1/themes/<id>/preview.<ext>?...&preview_section=left|center|right` returns the rendered composite for a named preview section; `template_name=<page>` returns the flat production page. A `.glb` cannot be uploaded as an ordinary site asset; the mapped-preview upload on the print product is the route that accepts it.
+
+The older per-size "preview section" configuration used for mug previews (arc, rotation, scale per size) cannot be copied between sizes and has to be rebuilt by hand when a size is missing it. It is being replaced by code-built 3D previews.
+
+*Verified by query (a live mug product, 2026-09-24); the legacy-mechanism note is stated by Alex, 2026-09-22.*
+
 ## Zero-Width or Zero-Height Shapes Corrupt PDF Output
 
 A shape element with a width or height of 0 causes `NaN` to be written into the generated PDF,
@@ -999,3 +1035,4 @@ _Verified by reading source, 2026-09-09._
 - 2026-09-09: Added Custom Design Tools — Browser-Side Rules. A dialog reparented to `<body>` survives an AJAX partial re-render and wins document-order resolution, so a tool that reparents must sweep its own previous instance on every boot (with the backdrop and scroll-lock cleanup, the uninitialised-root selector, and the verification lesson that a correct boot log proves nothing). pdf.js detaches the buffer it is handed, with the copy guard. pdf.js and pdf-lib do not read the same page box — measured CropBox versus MediaBox proof, the false no-bleed consequence, and rendering the review image from the built print PDF as the clean fix. Browser preflight — what is reliable, that colour space/CMYK is not detectable via pdf.js and must be reported unchecked, warn-do-not-block, a check that cannot conclude returns true or null, the acknowledgement click as liability transfer, `.docx` page count as undeterminable in the browser, and the audit question of whether one check carries every hard failure. The canvas-space versus page-space coordinate rule with a single self-inverse flip and a pinned sign convention. One placement decided once and consumed by proof, cart thumbnail, review image and print writer — explicitly correcting the earlier decision that the proof should not fork on output mode. Warning copy must match the output mode, with the amber-only-past-the-bleed and judge-resolution-at-placed-size rules. Browser PDF dependency pinning. Build and install rules for a custom tool, ending in placing one real order end to end. And that generic-by-design must be an explicit opt-out flag rather than inferred absence. Source: claude-chat, fireflies-call.
 - 2026-09-16: Added login inside `<px-upload-dialog>` — four attributes, the underscore form for PhotoPrints config and the `upload-dialog-` prefix for `<px-image-upload>` / `<px-multi-image-upload>`; off by default. Missed in the 2026-08-17 sync. Source: notion-page (Dashboard).
 - 2026-09-19: Pointed the Custom Design Tools section at the new `26_CUSTOM_DESIGN_TOOLS.md` for the estate, configuration and install. Replaced the "create the two shared custom fields before the template import" build rule with the mount-argument-list rule decided 11 Sep 2026. Source: kbsync (custom tool estate).
+- 2026-09-24: Added "Show in the Editor, Never Print" (unedited placeholders are not fulfilled; the uneditable-placeholder technique), "Grouping Elements to Hide Them While Editing — View Settings", "Editor Buttons and Per-Site CSS" (autofill selector and states, the Design Tool Configuration Custom CSS field, AI filter credits) and "Mapped Previews". Source: fireflies-call, claude-chat, slack-message.

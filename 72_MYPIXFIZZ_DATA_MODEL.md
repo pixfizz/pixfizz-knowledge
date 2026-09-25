@@ -1515,6 +1515,11 @@ emits a plain `ON CONFLICT (brand_id)`:
 42P10: there is no unique or exclusion constraint matching the ON CONFLICT specification
 ```
 
+### 3. A second foreign key to an already-embedded table breaks every existing embed
+
+Adding a **second** foreign key from table A to table B makes every bare embed of B from A ambiguous. PostgREST returns `PGRST201`, the query throws, and a component that treats an empty result as "no rows" shows its empty state instead of an error. Before adding the second key, find every bare embed of that table in the frontend and name the constraint on each in the same change: `b:table_b!fk_name_a(name)`. *Verified by query, 2026-09-23.*
+
 ## Changelog
 - 2026-03-26: Full schema populated from Lovable export. 88 tables documented.
 - 2026-08-29: Added two Postgres/Supabase rules — an RLS policy on a table must not call a helper that re-reads that same table, because `INSERT … RETURNING` cannot see its own row and Postgres misreports the failure as a WITH CHECK violation on the innocent INSERT policy (isolate by running the insert without `RETURNING` in a rolled-back transaction); and any column PostgREST upserts on needs a non-partial unique index, or `onConflict` fails with `42P10`. Source: claude-chat.
+- 2026-09-24: Added rule 3: a second foreign key to an embedded table breaks existing PostgREST embeds. Source: claude-chat.

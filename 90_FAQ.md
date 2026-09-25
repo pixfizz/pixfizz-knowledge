@@ -471,6 +471,20 @@ cost at least one debugging session that started somewhere else.
 
 ---
 
+## Section 12 — Design Templates
+
+**Why did part of my design not print?**
+A placeholder the customer never edits is left out of production on purpose: the platform treats it as something that was meant to be replaced. If something must always print, it must not be a placeholder. The same rule is used deliberately to show a guide in the editor that never prints (`17_DESIGN_TOOL.md` § Show in the Editor, Never Print).
+
+**How do I make something print that the customer never sees, like cut marks?**
+Put it on a PDF layer with `visibility="fulfillment"` in the template's XML definition (`19_XML_TEMPLATE_REFERENCE.md` § PDF Layers in Practice).
+
+**I cannot click an element because another one is on top of it.**
+Assign elements to layers and switch the layer on top off under View Settings in the design tool. This only affects your editing view.
+
+**Can the production file be mirrored for printing on the back of acrylic?**
+Not by a setting. It may be possible with inline pages but there is no confirmed recipe yet; contact Pixfizz support with an example of the production file you need.
+
 ## Changelog
 - 2026-09-09: Added Section 11 — Silent Failures, a symptom-first consolidation of the failure modes that produce no error on either side, each with a one-line cause and a pointer to the file carrying the detail. Added Section 4 entries for catalogue and category pages showing $0 on variant-driven pricing (with `Custom pricing` as the only product custom field accepting a free-text price label) and for a whole-order stepped tier ladder not being monotonic. Added an update to the Section 1 support entry: from 2026-09-09 inbound support email routes into the myPixfizz support system and the old helpdesk receives nothing new. Source: claude-chat, fireflies-call.
 - 2026-08-14: Added Section 1 entries for the support channel (myPixfizz portal; third-party helpdesk retired 1 September 2026) and the quarterly review webinar. Source: fireflies-call (2026-08-11/12/13, 3x repeat signal).
@@ -478,3 +492,4 @@ cost at least one debugging session that started somewhere else.
 - 2026-05-19: Added inventory tracking Q&A (Section 2), inline price editing Q&A (Section 4), order cancellation and transaction fees Q&A (Section 7), multi-language support Q&A (Section 8), and Batch Film Uploader workflow (new Section 10 — Film Lab Workflows). Source: Notion KB articles.
 - 2026-07-04: Added CMYK-JPEG upload caution to the image-upload Q&A (Section 3) — upload sRGB; reserve CMYK for fulfillment transformation. Source: Fireflies (2026-07-03).
 - 2026-07-31: Added per-template image upload visibility Q&A (Section 3) — use a separate Design Tool Configuration per template rather than a single global editor.css rule. Source: support ticket.
+- 2026-09-24: Added Section 12 Design Templates: unedited placeholders do not print, production-only layers, hiding layers while editing, mirrored output. Source: fireflies-call.

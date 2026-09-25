@@ -180,6 +180,10 @@ Three levers, in order of effectiveness:
 
 Without at least one of these, a batch will drift noticeably in tone and palette across ten images.
 
+### B9a. Branded product shots — one fictional brand, reused `[GENERAL]`
+
+For corporate or promotional pages that need logos on products, invent **one fictional but believable brand** and reuse it across the whole set; abstract geometric marks read as fake, and a real company's brand is never used. Generate the flat logo first. Generate the first product shot in generate mode with the logo as the reference (editing an existing photo returned a lower resolution and kept the old mark). Generate every later shot with two references, the logo and the first product shot, asking for the brand exactly as it appears on the products in the second reference. Check every crop for garbled text on background items. *From one production session, 2026-09-21; not re-verified.*
+
 ### B10. An automated measurement that disagrees with itself cannot settle a question `[GENERAL]`
 
 If an automated detector or measurement script returns values that are inconsistent with a manual
@@ -399,3 +403,4 @@ Suggested delivery: a short setup walkthrough on `help.pixfizz.com` covering sub
 
 - 2026-07-26: Initial version. Consolidated from two internal drafts (`HIGGSFIELD_EXPERT_REFERENCE.md`, `AI_IMAGERY_MASTER_INDEX.md`, both April 2026) into a single Higgsfield-focused file. Corrections applied: "Cling" renamed to **Kling** throughout (Kuaishou; transcription error in the source drafts); Nano Banana attribution corrected from "Higgsfield's own model" to **Google DeepMind Gemini Image** (verified against Google DeepMind and Kuaishou sources). Weavy and Midjourney content dropped, since only Higgsfield is being recommended and the source index referenced two files that do not exist in this repo. Restructured so volatile vendor detail is isolated in Part D and the durable production practice in Parts A to C and E to F does not need touching when model lineups change. Added Part A (product misrepresentation, consent, minors, disclosure, production-file boundary), which was implicit at best in the source drafts. Added Part D4 mapping the connector surface against web-app-only features. Removed the source YouTube link list (unverified URLs, low durability). Source: claude-chat, web-verified.
 - 2026-09-09: Narrowed rule A5 — the prohibition now names production output files, customer-placeable design tool asset libraries and any template set that contributes to fulfillment, and states explicitly that a scene image inside a `preview="true" fulfillment="false"` set is permitted, with the three-column reasoning and a worked template example. A1 and the resale-licensing sentence are unchanged. Stated the SynthID provenance watermark on nano_banana / Gemini output under A4 as fact rather than as a thing to confirm. Added B10, an automated measurement that disagrees with itself cannot settle a question. Source: claude-chat.
+- 2026-09-24: Added B9a branded product shots with one fictional brand. Source: claude-chat.

@@ -206,7 +206,9 @@ Shopper uses a two-layer theming system:
 
 - The CSS page at URL `/site/custom.css` is loaded in `html.head` via: `<link rel="stylesheet" href="/site/custom.css">`
 - The snippet `style/custom.css` is **blank in the parent** — it is the stub where per-site custom CSS goes.
-- **All CSS customisations go in `style/custom.css`** — this is what gets injected into the CSS page.
+- **Child site: all CSS customisations go in the `style/custom.css` snippet override** — this is what gets injected into the CSS page.
+- **Master parent (shopper24): CSS goes in the CMS page `custom.css`, never in the `style/custom.css` snippet**, which must stay empty on the parent because it is the stub children override.
+- **The cascade runs the other way from what people expect.** The parent's `custom.css` page opens with `{% snippet 'style/custom.css' %}`, so a child's CSS is printed at the **top** of the served stylesheet and every parent rule comes after it. At equal specificity **the parent wins**. A child rule that restates a parent selector needs higher specificity (for example a leading `body`), `!important`, or a selector the parent does not use. New parent feature blocks belong at the end of the parent page. See § 18 and § 18.1. *Stated by Alex and verified by reading source, 2026-09-19.*
 - Do NOT write CSS inline in Liquid/HTML snippets.
 
 ### Style snippet inventory
@@ -688,7 +690,7 @@ with Matjaz.
 ## 13. Practical Notes for Development
 
 - **Editing nav links:** Always check which nav style is active before editing. `admin/checklist/header-logo-position` value `LEFT` renders `navigation/style1`; `CENTER` (default) renders `navigation/style3`. Edit the `{% capture navigation_links %}` block at the top of the **active** snippet only — editing the wrong one has no effect. Do not edit the HTML structure below the capture block.- **Adding a megamenu panel:** Create or edit `navigation/megamenu/<name>`. Use the patterns in section 3 above. Register the nav item in the `navigation_links` capture block.
-- **CSS changes:** Always in `style/custom.css` only. Never inline in Liquid/HTML.
+- **CSS changes:** child site → `style/custom.css` snippet override; shopper24 parent → the `custom.css` page. Never inline in Liquid/HTML.
 - **Theme color changes:** Edit the relevant `style/<token>` snippet. The CSS page picks them up automatically.
 - **Checklist changes:** Edit the `admin/checklist/<key>` snippet value. Boolean flags expect exactly `TRUE` or blank.
 - **New sections:** Use an existing section snippet from `sections/static/` or create a new one. Include in `pages/__home` or the relevant page.
@@ -738,6 +740,7 @@ How it works:
 Constraints:
 - Real CMS pages always take priority over Custom Type instances on the
   same path — always use a path that has no real page equivalent
+- **Nothing stops two instances having the same `page_path`.** Admin accepts a duplicate with no warning, and the storefront renders the **older** instance, so the new content never appears and it looks like caching. To replace a page, edit the existing instance; before pasting, list the instances for that path, and after pasting confirm a marker unique to the new content in the live DOM. *Verified live, 2026-09-22.*
 - Levels 1, 2 and 3 each have their own catch-all page. Each one builds
   `page_path` by joining its own path params with `/`, so a level 3
   instance stores all three segments in that single field
@@ -855,7 +858,9 @@ CSV column order (the tool reads columns positionally):
 | `min_quantity` | integer | Whole number |
 | `max_quantity` | integer | Whole number |
 
-- A header row is optional and is skipped if present.
+- A header row is skipped **only when its first cell is exactly `name`**. Columns beyond those listed are ignored.
+- `name` and the image filename are capped at **64 characters** on create; codes are unique **case-insensitively**; `description` is sent but **not stored** (an API defect, `61_PIXFIZZ_API.md` § 13g).
+- **The importer can hang after creating the products, before assigning them to the collection.** The products exist but sit in no collection. Assign them from the admin host instead (`admin.pixfizz.com/site/<site>/admin/theme_categories/<id>/add_products?products[]=…`, about 10 ids at a time). **If a customer says the importer hung, check whether the products already exist before re-running the file**: a re-run duplicates every product. One target collection per upload run. *Verified by query, a 1,092-product import, 2026-09-23.*
 - This tool drives the same product-creation path as the Pixfizz API; it does not create
   personalization templates or designs, only static products.
 
@@ -1245,6 +1250,10 @@ Sites migrated to the r3w settings architecture read this through `shopper/confi
 storage.
 
 
+### Live `selectors:` re-renders patch the DOM, they do not replace it
+
+A live form re-render (`selectors:` on an async form) is applied with a DOM-diffing patch. **An unchanged node survives**, so a one-shot hook on it (an `onload` on a `<style>`, an insertion-triggered script) fires once and never again while the node is unchanged. Any automatic write driven this way must (a) wait for `.px-live-fragment-loading` to clear before posting, because concurrent `cart_update` posts can each save a stale `custom` hash and wipe each other's field, and (b) re-check its own result and retry a capped number of times rather than relying on re-insertion. Give the hook element a stable `id` so a retry can find the current node. *Verified by reading the live platform bundle, 2026-09-21.*
+
 ## 18. Generated CSS Is Appended After `style/custom.css`
 
 `/site/custom.css` is not just the `style/custom.css` snippet. Shopper serves one stylesheet
@@ -1297,6 +1306,12 @@ a nav label written in sentence case renders title-cased unless the override mat
 specificity.
 
 ---
+
+### 18.1 The parent's own CSS in `pages/custom.css` also outranks a child
+
+The ordering in § 18 is not limited to generated color rules. The parent's `custom.css` page also carries the parent's own large feature-build CSS (one observed block ran to about 7,000 lines), printed **after** the child's `style/custom.css`. At equal specificity the parent's rule wins, including over a child's `!important` when the parent's rule is also `!important`. Observed offenders include an unscoped `h1, h2, h3, h4 { margin: 0 }` reset and `!important` colors on `.btn-primary` and form inputs.
+
+**Rule for a child theme:** prefix a global element or Bootstrap-class override with one extra type selector (`body h1`, `body .btn-primary`) to outrank the later parent rule. A class of the child's own is unaffected. Confirm with the live computed style, not by reading either file. *Verified by reading source, shopper24, 2026-09-23.*
 
 ## 19. Account v2 (`acv2`) Theming
 
@@ -1610,6 +1625,16 @@ applied to every child site, and the same classes recur on any new template work
 
 ---
 
+## 23. Static Product Collections — Filtering and Aggregation
+
+- **A parent collection does not aggregate its subcollections' products.** It lists its own static products plus subcollection cards; every product must sit directly in the collection meant to list it.
+- **`collection/collection-filters` can filter on `category` with no custom field.** Its three-field syntax maps `filter_attribute` over `collection.static_products`, and `category` is a Product property the Static Product Importer already writes.
+- **The collection still needs a `collection_filters` custom field definition (snippet type)** on the site before any collection there can be given a filter.
+- **Collection paths are `/`-separated** (`film/processing`); `collection.path | split: '/' | first` gives the top-level parent.
+- Not yet verified: the query-string shape a nav link needs to pre-select a filter value from outside the collection page.
+
+*Verified by reading source (shopper24, 2026-09-18 backup) and a live catalogue build, 2026-09-23.*
+
 ## Changelog
 - 2026-03-14: Added website/homepage snippet pattern and Custom Admin checkbox requirement to Section 13.
 - 2026-03-19: Added how to create pages with Custom Types to Section 14.
@@ -1624,3 +1649,4 @@ applied to every child site, and the same classes recur on any new template work
 - 2026-08-11: Added Value-bearing checklists to Section 5 — many `admin/checklist/*` keys hold interpolated values, and overwriting one with a boolean takes every page down; includes the known value-bearing key list, the case-sensitivity and `| strip` capture rules, and the `custom-X-page` flag against an empty target snippet. Added three Known Gotchas: the Add to Cart button carries no `type` attribute; reading the product price from JavaScript (`px-product-price`, the `regular_pricing` strikethrough trap, observer placement, and `unit-price="true"` instead of JS division); and a child's CMS backup can hold a stale inherited copy of a parent snippet. Source: claude-chat.
 - 2026-08-29: Added §18 generated CSS is appended after `style/custom.css` (nav colour overrides must out-specify `.navbar-light .navbar-nav .nav-link`, with the console diagnostic and the `text-transform: capitalize` companion). Added §19 Account v2 theming — specificity ladder, token list, the malformed `--acv2-accent-soft` platform defect, `!important` on `.btn-dark`/`.btn-primary`, inline styles in the parent dashboard, the typing animation, and the transition-masks-computed-values testing gotcha. Added §20 GA4 tagging defects on the parent — duplicate `view_item`, photo-prints emitting nothing, `purchase` re-firing on refresh, the `item_id` mismatch for design products, and the orphaned `integrations/google/gtag`. Added §17 gotchas: the trailing-newline value-snippet rule with its signature and generator fix, the `default-delivery-option` `public`/`private` value set, and three parent defects (lowercase-only `font-body`, inverted kiosk idle-screen logo test, double-prefixed checklist path). Corrected the custom home page gate to the `admin/checklist/custom-home-page` capture with no `| strip`, flagged pending on whether the Storefront Settings checkbox is also required. Amended the §16 kiosk status. Source: claude-chat.
 - 2026-09-09: Added §21 Parent-Safe Changes to Shopper 24 — the two `collection_filters` syntaxes (three fields for `collection/collection-filters`, five for `pdp_layout` via `product/details-filter-dual-mode`, with `snippet_args` consumed by `product/filter-controls` and `asset_images: true` requiring an asset filename); a free-form arguments string is an opt-in needing no code and no deploy, with the three properties that must be proven and the unverified `{% snippet %}` scope question; the admin action is Override Snippet, an override pins the snippet, and a promotion is unfinished until the override is removed; every parent port ships gated and off by default; a child overriding `pages/custom.css` wholesale inherits no parent CSS blocks, and the parent file is Liquid-rendered; a site-level checklist key set on the parent moves for every child. Added §22 SEO defects fixed at parent level. Added to §20 the GTM-only technical standard (`setup-google-tag-manager` set, `website/gtag` blank, both set is ~2x double counting, only `view_item` wired through gtag, Google Ads has no preset), the half-a-chain trap as the first check on any "connected but I see nothing" report, and the cross-reference to the myPixfizz server-side `purchase` pipeline including the double-count risk from leaving `purchase` in the GTM trigger regex and the missing `_ga` cookie landing purchases as Direct / (not set). Added to §16 the minimum kiosk-mode key set, the silent host-mismatch failure of `helpers/is-kiosk-mode`, and the fact that kiosk design tokens are defined on `.kiosk-touchscreen` inside `kiosk/style`. Added §17 gotchas: hide-don't-replace for a computed price with its drift conditions; always-visible gallery arrows and driving the platform gallery by dispatching a click on its own thumbnail; editor locale needs `editor`-namespace translations exported and imported. Source: claude-chat, slack-message, fireflies-call.
+- 2026-09-24: CSS delivery split by site: child → `style/custom.css` snippet override, parent → `custom.css` page; the parent wins at equal specificity (and new § 18.1 for the parent's own feature CSS). Pages Custom Type accepts duplicate `page_path` values silently. Static Product Importer: header rule, 64-character caps, case-insensitive codes, description not stored, the hang before collection assignment. Live `selectors:` re-renders are DOM patches. Added § 23 Static Product Collections. Source: claude-chat.

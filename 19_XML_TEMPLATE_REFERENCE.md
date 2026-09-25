@@ -64,6 +64,8 @@ The root element of every XML template definition.
 | `width` | Pre-trimmed width of the production file. Bleed is **not** added on top of this value. |
 | `height` | Pre-trimmed height of the production file. Bleed is **not** added on top of this value. |
 | `output-name` | Defines the type name of the production file and controls how production PDFs are grouped. Pages with the same `output-name` are grouped into a single multi-page PDF. Default behaviour groups similarly sized pages together. |
+
+**`output-name` on JPEG output.** On `output="pdf"`, several pages sharing one `output-name` are grouped into one multi-page file. On `output="jpeg"` nothing is grouped, and an explicit `output-name` is used verbatim with no page index appended, so two pages carrying the same `output-name` resolve to the same filename and fulfillment fails on the second page with *Duplicate filename when fulfilling project*. On JPEG output, remove `output-name` from interior pages and keep it only on a page that is meant to be a single file of its own (a cover). *Verified by query (two live orders, controlled pair) and by reading source.*
 | `hinge` | Used with a binding map (cover spine only). Renders a visible hinge line in the Design Tool and shifts the alignment aid center point. Common for hard cover products. |
 | `bleed` | Virtual bleed displayed in the Design Tool to show users where the page will be trimmed. **Has no effect on the artwork output size.** Supports asymmetric values in `top bottom left right` order, e.g. `bleed="10 20 10 25"`. |
 | `margin` | Displays a visual safe line to end users. The value is added on top of any bleed value — it is measured from the bleed line, not from the page edge. This is the mechanism for defining a **safe area**. |
@@ -211,6 +213,28 @@ To suppress separate layer output entirely for a page:
 ### Design Tool Use
 
 Layers can also be used as a design aid independent of fulfillment. Once defined, layer visibility can be toggled on and off in the admin design tool, making it easier to access and edit elements on different layers — similar to working with layers in Photoshop.
+
+### PDF Layers in Practice — What Each Setting Does to the Customer and to Production
+
+PDF layers are the platform's name for what PDF viewers call **Optional Content Groups**. They are declared in the `<layers>` block of the XML template definition, and elements in a design are then assigned to a layer in the admin design tool. The production PDF carries them as real layers, so they appear as a layer list when the file is opened in Illustrator or Acrobat.
+
+A layer does one of three jobs depending on its attributes. Pick the job first, then the attributes:
+
+| Job | Attributes | Customer sees it while designing | In the production file |
+|---|---|---|---|
+| **Design aid only** — group elements so they can be hidden while editing | none beyond `name` (default `visibility="on"`) | Yes | Yes, merged into the main file. The layer changes nothing about production |
+| **Production-only artwork** — cut marks, registration lines, a die line, an order barcode | `visibility="fulfillment"` | **Never** — not in the editor, not on previews | Yes |
+| **Split artwork into its own file or pages** — a digital foil or white-ink plate, a second printing pass | `separate-file="true"` (optional `filename`) or `separate-page="true"` | Depends on `visibility` | Written to a separate file, or appended as extra pages to the same PDF |
+
+**Assigning and hiding in the admin design tool.** Select the element and assign it to a layer (named groups such as `background`, `artwork`, `ribbon`). Every layer can then be switched on or off for the current editing session under **View Settings** at the top of the design tool. Hiding a layer there is purely a working aid: it does not change the customer's view and does not change production. It is the answer to "I cannot click the element underneath without nudging the one on top." Set the layers up before building a range of designs; retrofitting them design by design costs more than planning them once.
+
+**Replacing an element that sits on a layer.** If a background or other element does not respond to clicks, check which layer it is on and whether that layer is switched off under View Settings. Switch it on, select the element, then replace or delete it. A replacement element must be assigned to the same layer if it is meant to keep the same production behavior. *Not independently verified step by step — walk it on the site before relying on it in support.*
+
+**The opposite job is not a layer setting.** An element that the customer should **see while designing but that must never print** (a colored backing behind white text, a guide) is not done with a PDF layer. It is done by making the element **uneditable and a placeholder**. See `17_DESIGN_TOOL.md` § Show in the Editor, Never Print — the Uneditable Placeholder.
+
+**Front and back printing on a transparent substrate (acrylic).** Production output cannot be mirrored by a setting. Splitting the back-print artwork into its own file with `separate-file` is supported; mirroring that artwork for reverse printing is not a documented capability. An inline page that is itself flipped has been discussed as a route, with the caveat that elements layered over it (text) would not flip with it. **Unconfirmed — needs a worked example built against the production file the lab wants before it is offered to a customer.**
+
+*Verified by reading source (the platform help page on PDF layers, and a live admin walkthrough with a photo lab client, 2026-09-24), except where marked.*
 
 ---
 
@@ -733,23 +757,27 @@ _Verified by reading source (seed archive) and by parsing every generated archiv
 
 ---
 
-## Layouts Do Not Travel With a Template Export
+## Layout Content Requires `layout="true"` and a Matching `layout_id`
 
-Exporting a design template, either as a `.yml` definition or as an archive, does **not** carry
-the layouts linked to that template. The API has no endpoint for reading or writing layouts
-either, so there is no scripted route around it. This is platform behavior, not a fault in the
-export.
+Applying a different layout (the layout picker, or a variant element substitution of type layout) only replaces elements that came from a layout. The `<page>` must carry `layout_id="<id of a layout in the design>"` and each element that belongs to the layout must carry `layout="true"`. A plain element without `layout="true"` is not replaced: the new layout's content is added on top, and the customer sees two placeholders stacked. A generator that rebuilds pages from layout XML must copy both attributes forward; seed exports already carry them.
 
-**Consequence.** After importing a template on another site the definition is correct and the
-layouts are missing. They have to be recreated and relinked in the Design admin. Teams
-routinely expect layouts to travel with the template, so say so before the import rather than
-after.
+A template can hold several named layouts (for example `full` and `matted` for the same frame), and a variant with an element substitution of type layout switches between them. That is the right shape when two sellable versions share one physical product: one product with a variant, not two products that double-count stock.
 
-**For a bulk move.** Export the design theme (`__print_theme.yml`), which does carry layout
-definitions, import it separately on the target site, then relink the layouts to the imported
-template.
+*Verified live in the design tool (2026-09-21) and stated on a client call (2026-09-22).*
 
-*Stated in #development, week of 2026-09-12. Not independently verified.*
+## Layouts Travel With a Template Export
+
+**Corrected 2026-09-24.** The entry previously here said a template export does not carry the layouts linked to the template. That is wrong for the admin template export.
+
+A template export (`__print_product.yml`) carries the design's pages (`templates:`) **and** its `layouts:` in the same file, together with every product on the template, the referenced images, fonts and, where the print product has them, the mapped-preview GLB files (`glb_files/`). Ask for the template export alone when the template, its designs, layouts or products are needed; do not ask separately for a design theme export or per-product exports.
+
+What still holds:
+
+- **There is no API route for layouts.** They cannot be read or written through the admin API, so they cannot be moved by script.
+- **Relinking can still be needed.** A layout that the template uses but that belongs to another design theme is not guaranteed to come across; check the layout picker after import.
+- **Layouts cannot be exported on their own.** The export is the template (or the design theme), not a layouts-only file.
+
+*Verified by reading source (a real template export, 2026-09-22) and stated on a client call, 2026-09-22. The 2026-09-12 #development statement this replaces was probably describing a layout shared from another theme, or the API.*
 
 ## Open Platform Question — `fulfillment` on Layers
 
@@ -775,3 +803,4 @@ documented above. There is no layer-level `fulfillment` attribute. Do not docume
 - 2026-08-29: Confirmed by re-import that `price: '0'` on the products row is accepted — the template import succeeds. Source: claude-chat.
 - 2026-09-09: Added that photobook page count (min, max, starting) lives on the first line of the template definition and is not a product setting, and that `minimum-dpi` should be the product's real floor rather than a reflex 300. Added the all-sets-`fulfillment="false"` case — the platform renders no production file, so a tool's output must travel via `_additional_files.json` — with a real definition, the sheet = trim + bleed per edge convention, and two-sided output as one file via a shared `output-name` (not verified). Added Preview Sets — layer roles read from a live definition, the `ipage`'s own drop-shadow attributes, WebP via `src="db:<id>"`, the derivation of scene scale and per-size placement from the ipage so a whole range is one master plate plus offsets, plate-aspect preservation when placing into a page rect, and the background image element name as what colour substitution binds to. Added that attribute order in a template export is alphabetical, so a regex anchored on one attribute to reach another silently matches nothing — match the tag, edit inside it, read back every write. Added the seed-archive audit before cloning across a size range. Recorded the layer-level `fulfillment` parameter as an open, not-implemented platform question. Source: claude-chat, fireflies-call, notion-dashboard.
 - 2026-09-19: Added that layouts are excluded from template exports and that the API cannot manage or transfer them, so layouts must be recreated and relinked after any template import; a design theme export (`__print_theme.yml`) is the route for a bulk layout move. Source: slack-message (#development).
+- 2026-09-24: Added "PDF Layers in Practice": the three jobs a layer does (design aid, production-only, split file), View Settings for hiding layers while editing, replacing an element on a layer, the pointer to the uneditable-placeholder technique for show-but-never-print, and front/back acrylic marked unconfirmed. Replaced "Layouts Do Not Travel With a Template Export" with the corrected rule: the template export carries layouts. Added the `output-name` JPEG duplicate-filename rule and the `layout="true"` + `layout_id` requirement for layout swaps. Source: fireflies-call, claude-chat.

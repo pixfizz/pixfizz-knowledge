@@ -181,6 +181,15 @@ only when the interaction genuinely needs one.
 
 ---
 
+## 4b. Verifying on iPhone
+
+- **A headless Chromium pass at a phone viewport is not evidence a page works on an iPhone.** iOS Safari differs on `100vh` versus `dvh`, `position: sticky` inside an overflow container, overscroll, keyboard resize and horizontal pan. Verify with Playwright WebKit and a device descriptor, and still ask for a real-device test before calling a mobile fix done.
+- **Do not keep patching a desktop multi-pane layout for phones.** After about two rounds, build a dedicated mobile route with its own shell and reuse only the data layer.
+- **A reliable mobile shell:** `position: fixed; inset: 0; height: 100dvh` as a flex column, with the top bar and composer as siblings outside the single scroll region; `overflow-x: hidden` on shell and scroll region, `min-width: 0` on flex children, `overflow-wrap: anywhere` on user text.
+- **Known issue, design tool on iPad Safari:** photo upload gives almost no progress feedback, so customers think nothing happened. Workaround: upload to a gallery first, then place. *Reproduced 2026-09-22, not fixed.*
+
+*Verified on a real iPhone, 2026-09-21, except where marked.*
+
 ## 5. Patterns from the wider category
 
 **[category]** Observed across consumer photo-book and photo-gift editors in an
@@ -282,3 +291,4 @@ Honest list, so the next person does not assume coverage that is not here.
 ## Changelog
 - 2026-08-29: Created. Consolidates the mobile facts that were scattered across 17, 50 and 80 — nav collapse, `header/logo-height-mobile`, `variant_columns_mobile`, the device-detected editor mode, and the generated-CSS specificity trap — with the Shopper UX framework's mobile-first principles, four mobile failures observed on live builds, category patterns from the August 2026 consumer editor audit, and a mobile audit checklist. Written because `02_RETRIEVAL_MAP.md` had routed to this filename and to `83_MOBILE_UX_AUDIT.md` since before 2026-05-21 without either file ever existing. The audit checklist is folded in here rather than split into an 83 file, since 83 is taken by AI imagery production. Source: claude-chat, Shopper UX framework, competitor audit.
 - 2026-09-09: Added § 4a Touch and form implementation rules — gallery arrows hidden until hover are hidden forever on touch (and why an always-visible override must be scoped to multi-image galleries); a visually hidden radio must use `opacity: 0` rather than `display: none`, or native validation fails silently and the form refuses to submit with no message; size a canvas or preview on both axes and repaint on debounced resize and modal-shown, because a hidden modal reports a zero box; prefer native `<details>`/`<summary>` to a JS tab component for collapsible product content. Source: claude-chat.
+- 2026-09-24: Added § 4b Verifying on iPhone, including the iPad Safari upload-feedback known issue. Source: claude-chat, fireflies-call.

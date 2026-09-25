@@ -2,7 +2,7 @@
 
 **Authority Scope:** Pixfizz Core admin interface sections and settings only.
 
-_Last updated: 2026-09-09_
+_Last updated: 2026-09-24_
 
 ---
 
@@ -228,9 +228,8 @@ supported object types, or a chosen subset**, in one pass instead of visiting ea
 own custom fields screen.
 
 - It moves **definitions**, not values.
-- Whether this export carries the object type per definition (unlike the per-object archive
-  described below, which does not) is **pending confirmation**. Until confirmed, import it only
-  from this page and check the result on each object.
+- **Resolved 2026-09-21: the site-wide export carries the object type.** Every definition has an `owner_type` key (the per-object archive described below still does not). Admin label → class: Product Attributes → `Product`, Collections → `ThemeCategory`, Designs → `PrintTheme`, Template Options → `TemplateOptionType`, Template Option Values → `TemplateOptionValue`, Orders and carts → `Order`, Order Lines → `Orderline`, Users → `User`, Addresses (pickup locations) → `Location`, Pages → `Page`, Projects → `PrintBook`. Not yet seen: Galleries, Templates. *Verified by reading source.*
+- **Re-importing the same site-wide file changes nothing.** It is refused with *No custom fields were imported. They may already exist on this site.* Existing definitions are skipped, never duplicated and never updated: a changed type, description or Public flag does not propagate by re-import. *Verified live, 2026-09-21.*
 
 ### Custom type definition export/import
 
@@ -286,6 +285,18 @@ but not on the object the code reads. Verified by reading source (archive conten
   a catalogue, and take a backup first.
 
 ---
+
+## Website Settings Worth Knowing
+
+- **Website → Crawler.** A daily automatic crawl keeps the sitemap and product feed current; a manual crawl is super-admin only. There is a per-site field for the sitemap URL. *Stated on a client call, 2026-09-22.*
+- **Website → robots.txt** is editable in admin, as a second way to block crawling alongside page-level meta tags. *Stated on a client call, 2026-09-22.*
+- **Advanced → Redirects** holds 301 redirects as JSON (an outer array of `[from, to]` pairs; a bare single pair silently fails). It is tucked away deliberately because a bad redirect can break the site. *Stated on a client call, 2026-09-22.*
+- **Website → Snippets** has a **Search CMS** box that full-text searches snippet content. On a child site the list shows only that site's overrides (`13_TEMPLATE_BOUNDARIES.md`).
+- **Super-admin password reset** from the regular admin currently throws an application error; it is a known bug. Reset it from the super admin panel until fixed. *Confirmed as a bug by the core developer, 2026-09-23.*
+
+## Pixfizz Kiosk App — Idle Timeout
+
+The Pixfizz Kiosk desktop app (myPixfizz → Tools → Pixfizz Kiosk) locks the computer to the site's kiosk domain, allows USB image import, and has its own idle timeout that **defaults to 4 minutes** and can be set to 0 (off). This timeout is separate from the storefront's post-order logout (`21_SHOPPER_CHECKOUT_POLICY.md` § Kiosk Sessions). A site that turns it off to stop customers losing carts mid-order also loses the only logout that does not depend on reaching the thank-you page. *Stated on client calls, 2026-09-22 and 2026-09-24.*
 
 ## Super Admin
 
@@ -355,3 +366,4 @@ per organization.
 - 2026-08-14: Added Gift Vouchers under Marketing — the section `02_RETRIEVAL_MAP.md` already routed to but which did not exist in this file. Documented that a voucher's value can be updated after creation via the API, and that voucher codes can be printed into fulfillment output for in-store redemption tracking. Removed a stray closing code fence at end of file. Source: slack-message (#development, 2026-08-14), fireflies-call (2026-08-10).
 - 2026-09-16: Added the Settings → Custom Fields page (site-wide definition list with all-or-subset export/import) and custom type definition export/import from the Custom Types index (definitions only, not instances). Object-type handling in the new export pending confirmation. Source: notion-page (Dashboard).
 - 2026-09-19: Added Automatic Discounts to the Marketing section, with the note that it is not under Promotions. Source: AdeB.
+- 2026-09-24: Resolved the pending question on the Settings → Custom Fields site-wide export: it carries owner_type (mapping listed) and re-import is refused, never updating. Added Website Settings Worth Knowing (Crawler, robots.txt, Redirects JSON shape, Search CMS, super-admin password reset bug) and the Pixfizz Kiosk app idle timeout. Source: claude-chat, fireflies-call, slack-message.
