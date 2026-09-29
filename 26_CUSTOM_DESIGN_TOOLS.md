@@ -162,6 +162,10 @@ carrying a value for it can be imported. Nothing else works until it does.
 ### The mount gets its own hidden option (standard from 2026-09-20)
 
 A tool's mount block no longer sits on its artwork upload option. It gets a **dedicated option**: type Text, hidden, hide from cart, code `<prefix>_mount` (for example `bc_mount`, `bu_mount`, `cvs_mount`), name "`<Tool>` Mount". Its `custom_script` holds only the `{% snippet 'product/<tool>', … %}` mount block. Reasons: the artwork option has its own required flag and upload behavior, and a tool with no artwork option has nowhere else to mount. The "Mount option" column in § 2 lists where each tool mounts today; tools move to the dedicated option as they are rebuilt. *Decided by Alex, 2026-09-20.*
+**Rolling a mount onto a range that is already live:** copy the mount option from one configured template to the rest with **Admin → Advanced → Bulk Update Tools** (Template Options; super admin only). Never delete and re-import a live range to add or change a mount. The mount's `custom_script` is stored and exported with CRLF line ends, so compare mounts after folding CRLF to LF. See `18_ADMIN_NAVIGATION.md` § Bulk Update Tools. *Stated by Alex, 2026-09-26 and 2026-09-29; CRLF verified by query, 2026-09-26.*
+
+A mount on a template runs on every product that uses that template, so list the product lines sharing it before adding one (`16_PRODUCT_HIERARCHY.md`).
+
 
 ### The counter test
 
@@ -195,6 +199,7 @@ site that named one differently.
   live tool reporting `productSeen: "false"` is working only because the fallbacks
   happen to be right.
 - Numbers arrive as strings. `| plus: 0` before any comparison.
+- **Re-read the mount's data attributes when they change, not only when the root node is replaced.** When a Shopper 24 PDP filter swaps to a sibling product whose template also carries a `custom_script` mount, the page keeps the **same root node** and rewrites its `data-*` attributes in place (`root === oldRoot` is true, the values change). A tool that re-initialises only when its root leaves the document keeps the first product's settings until a reload. Keep a signature of the root's `data-*` config attributes and re-run init when it differs. Template-level (Shopper). *Verified by query on a live child PDP, 2026-09-29.* Same mechanism as `50_SHOPPER_TEMPLATE_REFERENCE.md` § 17, *Live `selectors:` re-renders patch the DOM, they do not replace it*.
 
 ---
 
@@ -209,6 +214,9 @@ which ended in product custom field definitions and checklist values, is retired
    until this exists. In admin this is the "template-option custom field schema
    export" — the phrase "the `custom_script` custom field definition" matches nothing
    a person sees on screen.
+   The same schema must include the **boolean** option flags, `kiosk_mode_only` above
+   all: without them an imported mount option stores `"false"` as text and Shopper hides
+   it. See `22_OPTION_VARIANT_RENDERING.md` § 3.1.
 2. **Import the template export.** It carries the tool's template options, their
    `hidden` / `read_only` / `hide_from_cart` flags, the variants, and the mount block
    in `custom_script`.
@@ -478,3 +486,4 @@ once.
   `claude/ORDERLINE_PREVIEW_SURFACES.md`, the per-tool build specs, and the tool
   assets themselves.
 - 2026-09-24: Added the dedicated hidden mount option standard (`<prefix>_mount`) and the counter test; widened "Shopper choice" to every customer selection and commercial value. Source: claude-chat, fireflies-call.
+- 2026-09-29: Pointer: roll a mount across a live range with Bulk Update Tools; custom_script stored with CRLF. §4 a PDP swap keeps the custom_script root and rewrites its attributes; tools must re-read config on attribute change. Install step 1 must include boolean option flag definitions. Source: claude-chat.

@@ -72,6 +72,9 @@ Same mechanism, different objects:
 - **Options** live on Templates or Designs — production-level choices
 
 This split avoids redundancy when multiple Product Attributes share a Template. Common production options live on the Template; product-specific pricing/commercial choices live on each Product Attribute.
+**Template options and design options are one object type.** The same option, with the same fields (value type, custom fields, order, hide flags), attached either to the template (applies to every design on it) or to one design (that design only). An option **code must be unique across both levels**: adding a design option with a code the template already uses fails with "code already used". To move an option between levels, export it, delete it, then create or import it at the new level. *Stated by Alex and verified by reading an export, 2026-09-28.*
+
+**A template option appears on every product that uses the template.** One template often serves several Product Attributes (metal, acrylic, wood and canvas on one wall-decor template), so a template option, including a `custom_script` mount, runs on all of them. Before adding one to a live range, list which product lines share each template (`/v1/themes/<id>` gives the print product for each theme). *Verified by query, 2026-09-27.*
 
 ---
 
@@ -104,6 +107,19 @@ Two consequences to design around:
 
 Fixed ids can therefore be carried unchanged across a generated set of tars without
 collision, because they are discarded either way.
+**Asset ids are the exception: the importer matches them.** When a tar's `__asset_map` id already
+exists on the site, the imported records point at that existing asset. An id the site does not
+have creates one new asset with a new site id, and later tars that carry that site id reuse it
+rather than copying it. A 90-template range imported with 25 assets, not 90 copies. So the
+importer does create assets from a populated `assets/` directory. For a generated range, import
+the first tar, read the new asset id from an export, and write that id into the rest.
+*Verified by query, 2026-09-26.*
+
+**A template export carries its product and design only when asked.** The export link on a
+template page opens a modal; the underlying URL is
+`/print_theme/export_print_product/<template>?print_theme_ids[]=<design>&product_ids[]=<product>`.
+Without those two parameters the archive has `products: []` and `print_themes: []`. Design ids
+are the `print_theme/theme/<id>` links on the template's page. *Verified by query, 2026-09-26.*
 
 ---
 
@@ -209,6 +225,7 @@ Products auto-populates the product code from the template code.
 price lookups drift, because the parent lab prices an outsourced line by product code and
 variant code against its own site rather than from the child's order. See
 `32_ORDER_LIFECYCLE.md`.
+Templates shared from a hub site are listed in the hub's admin template list, not on the site that sells them. *Verified by query, 2026-09-27.*
 
 ---
 
@@ -251,3 +268,4 @@ Beyond the core hierarchy:
 - 2026-03-30: Created from master platform documentation export.
 - 2026-09-09: Added platform import behavior — ids in an import tar are not honored and duplicate codes/names are auto-suffixed `-1`, `-2`, so a re-import duplicates rather than updates and can break code-referencing Liquid or collection paths. Added the size naming convention (catalog notation regardless of orientation, orientation carried by `custom.orientation`, orientation token in the code only). Added that inventory is tracked per product, not per variant, and is decremented once on first Confirmed or Draft. Added that one design cannot render several product variations, with the live-preview versus per-product-image trade-off and the one-template-per-variation architecture. Added product cloning via the per-product export archive rather than the Static Product Importer CSV. Added that unpublished and de-collectioned products stay purchasable via their old URL, with the two suppression routes that exist today. Added semi-inheritance of a parent lab's templates and the editable auto-populated product code. Added that Custom Type instances sort by the custom field's declared type. Added that the photo-prints component cannot deliver a pack of N different photos. Source: claude-chat, fireflies-call, slack-message.
 - 2026-09-24: Added the rule that a custom design tool product is always a design product, and "Paper Is a Variant, Not a Template Per Paper". Source: claude-chat.
+- 2026-09-29: Import: __asset_map ids that exist on the site are reused (importer creates assets from assets/); template export needs print_theme_ids[] and product_ids[] to carry design and product. Template and design options are one object; code unique across both; template options reach every product on the template. Hub-shared templates are listed on the hub. Source: claude-chat.

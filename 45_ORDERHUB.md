@@ -236,6 +236,12 @@ OHD polls for **New** jobs not yet received. If multiple OHD instances are runni
 
 OHD auto-update notifications are delivered via OrderHub. Labs always run the latest version without manual update steps.
 
+### Batching prints to an Epson Order Controller
+
+To have OrderHub Desktop send prints to an Epson Order Controller in batches: open **Settings → Routing**, edit the Epson Order Controller entry, set **Maximum prints per job**, and tick **Send Batches Automatically**.
+
+*Stated once, in a support reply drafted by Richard, 2026-09-29. Not verified.*
+
 ### API Integration
 
 OHD uses the OrderHub API to report job status changes back to the platform:
@@ -446,6 +452,16 @@ Customer replies appear in the **SMS Conversation panel** on the order detail pa
 | `STOP` | Handled by Twilio (opt-out compliance) |
 | Custom keywords | Configured via Auto-Replies in the Notify settings |
 
+### Website Chat (Twilio Conversations)
+
+OrderHub can also run a website chat built on Twilio Conversations.
+
+- **The storefront widget is a snippet override under Integrations** on the Shopper site (template-level). The exact snippet path is not recorded here.
+- **Chats and staff replies live in OrderHub.**
+- **A chat can be assigned to a task**, so a customer request becomes tracked work.
+
+*Stated on calls, 2026-09-25 and 2026-09-28. Not verified by reading source.*
+
 ### Notification Log
 
 Every notification attempt is logged on the order in the `notification_log` field, recording: channel (email/SMS), trigger, timestamp, success/failure status, and error details.
@@ -554,12 +570,24 @@ Two current limits worth knowing before designing a bulk workflow:
 - **There is no template import endpoint.** Bulk-generated template tar files are imported
   **one at a time through admin**. Large-file handling and progress tracking are the named
   blockers on building one. Stated by the core developer, not independently verified.
-- **Price variables are not reachable via the API** at all, read or write. A read/write API
-  for them is on the task list and **is not built** — not a roadmap commitment. Stated by the
-  core developer, 2026-09-09.
+- **Price variables: superseded.** This line said price variables were not reachable via the
+  API. Read and update are now confirmed on production (`GET /v1/admin/price_variables.json`,
+  `PUT /v1/admin/price_variables/<id>.json`); see `61_PIXFIZZ_API.md` § 13f. *Verified by
+  query, 2026-09-23.*
 
 Anything that needs either of these has to route through admin by hand. See
 `61_PIXFIZZ_API.md` for what the API does cover.
+
+---
+
+## Stock on OrderHub Sites: OrderHub Owns the Count
+
+- **Pixfizz Core has no locations.** It holds one `current_inventory` per product (`16_PRODUCT_HIERARCHY.md`); OrderHub holds stock per location.
+- **On each sale OrderHub writes its figure back to Core, overwriting the Core count.** A stock edit made in Core in between (Pixfizz admin, the admin API, a bulk tool) is lost at the next sale.
+- **OrderHub can expose either one primary location's stock or the sum of all locations** to Core.
+- **On these sites, edit stock only in OrderHub.** The myPixfizz Catalog Manager locks stock editing when the organization's stock is managed in OrderHub (`71_MYPIXFIZZ_FEATURES_ROUTES.md`). The admin API inventory write is an absolute set with no compare-and-set (`61_PIXFIZZ_API.md` § 13g), so no tool can merge its change with a sale.
+
+*Stated by Richard (OrderHub) on a call, 2026-09-25. The Catalog Manager lock is verified by reading source, 2026-09-29. Where the primary-location or sum choice is set is not verified.*
 
 ---
 
@@ -573,10 +601,10 @@ Confirmed pattern as of August 2026, across more than one lab.
   web store's.
 - **Location-specific order routing runs through OrderHub.** Orders placed at a
   given kiosk route to that location's queue.
-- A **Windows kiosk helper application** exists and is **not yet released**. It is pre-1.0
-  and not distributable, so it is not documented here and must not be offered to a lab.
-  Kiosk storefront configuration is unaffected by it — see `80_ONBOARDING.md` for the
-  storefront-side prerequisites.
+- The **Pixfizz Kiosk** Windows app is distributed from myPixfizz (Tools → Pixfizz Kiosk);
+  see `18_ADMIN_NAVIGATION.md` § Pixfizz Kiosk App. Kiosk storefront configuration does not
+  depend on it: see `80_ONBOARDING.md` for the storefront-side prerequisites. *Stated on
+  client calls, 2026-09-22 and 2026-09-24.*
 
 Recorded from client calls; the routing behaviour is consistent with the Locations
 model documented above, but the kiosk-to-location binding itself has **not been
@@ -593,3 +621,4 @@ verified by reading configuration**.
 - 2026-08-14: Corrected the order-level boolean slot count from four to five (`rush`, `urgent`, `option1`, `option2`, `option3`) and documented the no-underscore naming rule, the rush/urgent mutual exclusivity, the unresolved label-ownership question, and the Extra Fee re-point trap when migrating off a single-string rush field. Source: fireflies-call (2026-08-13), slack-message (#development).
 - 2026-09-09: Added that files left on the Pixfizz FTP drop are auto-deleted after a week, so a multi-location workflow can copy and leave rather than retrieve-and-delete. Added Print-on-Demand Routing to a Parent Lab's OrderHub — whole order to the child's own fulfillment, outsourced items only to the parent, price looked up by product and variant code against the parent's site at the parent's wholesale value, a mismatch inserting a zero price into automatic wholesale invoicing, and the product feed carrying nothing from the template. Added the Twilio prerequisite of three prescribed policy pages plus a validation step, marked not verified end to end. Added that there is no template import endpoint and that price variables are not reachable via the API. Noted that a Windows kiosk helper application exists and is not yet released. Source: fireflies-call, slack-message.
 - 2026-08-29: Added Kiosk and Online Are Separate Catalogues — separate products and pricing for kiosk versus web, with location-specific order routing through OrderHub; the kiosk-to-location binding is not yet verified by reading configuration. Source: fireflies-call (2x repeat signal).
+- 2026-09-29: Corrected the kiosk app line: distributed from myPixfizz Tools, not unreleased. Stock on OrderHub sites: OrderHub overwrites Core stock on each sale, primary location or sum, edit stock only in OrderHub. Superseded the stale 'price variables not in the API' line, pointing at 61 § 13f. Website chat on Twilio Conversations: snippet override under Integrations, chats and replies in OrderHub, assignable to a task. OHD batching to an Epson Order Controller (Settings → Routing, Maximum prints per job, Send Batches Automatically). Source: claude-chat, fireflies-call, slack-message.

@@ -50,6 +50,8 @@ These fields are set up on the storefront once, per site. A site with a broken a
 bootstrap — no GA4 initialization, therefore no `_ga` cookie — has nothing to write into
 `ga_client_id`, and no amount of server-side work can recover it.
 
+**Where the capture happens (Shopper 24 parent).** `checkout/utm-cart-code`, included on `pages/cart`, writes `ga_client_id` and `ga_session_id` as cart custom fields, which promote to order custom fields at checkout. The UTM landing cookie `_pf_utm` is set by `integrations/google/utm-capture`. *Verified by reading source (shopper24 backup), 2026-09-28.* In the webhook payload the values sit at `raw_payload.custom.ga_client_id` and `raw_payload.custom.ga_session_id`; the client id is the `_ga` cookie value with the `GA1.1.` prefix stripped. *Verified by query of the event outbox, 2026-09-14.*
+
 ---
 
 ## 3. How the Webhook Function Decides
@@ -60,6 +62,13 @@ bootstrap — no GA4 initialization, therefore no `_ga` cookie — has nothing t
 
 The incoming order is matched to a brand by, in order: **subdomain → brand id → website code**.
 The first that resolves wins. A brand that cannot be resolved cannot be sent for.
+
+**In production the only key present is the website code.** The real Pixfizz order webhook payload is flat (no `order` wrapper) and carries no subdomain and no brand id, only a top-level `website` holding the website code. A brand row without the correct `website_code` therefore never resolves: the webhook answers 404 and nothing reaches the outbox, not even a skipped row. *Verified by query across every `sent` event in a 30-day window, 2026-09-14.*
+
+**Duplicate brand rows are dangerous, not untidy.** The customer-side connectors flow can create a second brand row for a storefront that already has one. Orders then resolve to whichever row holds the website code, which need not be the row carrying the GA4 configuration, and the admin Brand dialog and the customer brand screen can end up editing different rows (symptom: the two forms show different values). A live case was found and fixed on 2026-09-27/28 (verified by query).
+
+- Before wiring GA4 for any brand, query the brands for that organization and check there is exactly one row per storefront.
+- **Never hard-delete a brand row.** Merge or archive it. A delete cascades: the brand's saved API credential and its `labworks_integrations` rows are deleted (`ON DELETE CASCADE`), while its brand profile survives unlinked (`brand_id` set null). *Verified by query of the table constraints, 2026-09-28.* Hard delete was removed from the admin in the brand clean-up of 2026-09-28.
 
 ### Signature handling — observe, then enforce
 
@@ -132,6 +141,19 @@ surface. Per event it shows:
 That is enough to answer "did this order send, and if not why" without a database query, and it is
 the first place to look on any report of missing revenue in GA4.
 
+### Where the webhook secret is set
+
+The **Webhook Secret** exists only in the admin Brand dialog: myPixfizz admin → Brands → open the brand → **Integrations** tab → **Pixfizz Webhook** section. The **Test Webhook** button appears there only once a secret is set. The customer-side "Google Analytics 4" card carries only Enabled, Measurement ID, API secret and Debug mode, so a customer setting up GA4 on their own cannot set the secret (product gap). Signature enforcement was off on every brand checked, so a missing secret logs `no_secret` and does not block sends today; set it anyway. *Verified by reading source (`BrandDialog.tsx`) and by screenshot, 2026-09-27.*
+
+### What Test Webhook proves, and what it does not
+
+- The test payload carries a brand id and subdomain and **no `website`**, so it resolves by brand id. It does **not** prove website-code resolution, which is what real orders use (§ 3).
+- It carries no `confirmed_at`, so it is **always skipped with `no_confirmed_at`**. That skip is the expected result, not a fault.
+- It sends no signature headers, so it always logs `missing_headers`. Harmless while enforcement is off; it would be rejected once enforcement is on.
+- **The real proof is the first live order on the brand that reaches Confirmed** and shows `sent` in the Event Log.
+
+*Verified by query of the event outbox and the signature log, 2026-09-28.* Product gap: Test Webhook should send a confirmed order, the `website` code and signed headers, so it exercises the real path.
+
 ---
 
 ## 6. Known Defects, as at 2026-09-09
@@ -196,6 +218,8 @@ Before trusting any revenue figure from a wired brand, check the container. This
 most common reason a wired brand's GA4 revenue does not reconcile with the platform's own numbers,
 and it inflates rather than deflates, so it does not look like a fault.
 
+**Before enabling a brand, compare Measurement IDs.** Read the GA4 Measurement ID the live storefront actually loads (usually through its GTM container) and compare it with the Measurement ID on the myPixfizz brand. A mismatch sends server-side revenue to a different property from the browser events. One wired brand was found in this state. *Verified live in the browser, 2026-09-28.*
+
 The storefront-side tagging standard, and the "a container with no GA4 event tags shows traffic
 and no revenue" trap that is its mirror image, are in `81_SEO_AND_GEO_REFERENCE.md` Part G and
 `50_SHOPPER_TEMPLATE_REFERENCE.md`.
@@ -233,3 +257,4 @@ order after checkout, which is not the storefront.
 
 ## Changelog
 - 2026-09-09: Created. Documents the server-side GA4 `purchase` pipeline, live since March 2026 and previously covered by one line in `70_MYPIXFIZZ_OVERVIEW.md`: the Shopper order custom fields the storefront must supply; brand resolution order; observe-then-enforce signature handling; the `confirmed_at` send rule; the two idempotency layers; billing-currency-only currency with a deliberate skip when it is missing; short-delay retry; the skip reasons and the `disabled` status; the admin GA4 Event Log; the three known defects (numeric `item_id` blocked on the webhook payload carrying no product code, a fabricated client id where the storefront captured no `_ga` cookie, and no event timestamp against GA4's 24-hour attribution window and 72-hour backdating cap); the double-count warning for wired brands; and the "read the system that would own it" research rule. Source: claude-chat.
+- 2026-09-29: §2 named the capture snippets and where the values land in the payload. §3 production resolves by website code only; duplicate brand rows and never hard-delete a brand. §5 where the webhook secret is set, and what Test Webhook does and does not prove. §7 compare the storefront's loaded Measurement ID with the brand's before enabling. Source: claude-chat.

@@ -8,14 +8,22 @@ _Last updated: 2026-09-24_
 
 ## Admin Overview
 
-The Pixfizz Core admin is the central interface for managing your store, products, orders, and settings. Accessed at `{your-domain}/admin`.
+The Pixfizz Core admin is the central interface for managing your store, products, orders, and settings. Since 2026-09-23 it lives at `https://admin.pixfizz.com/site/<slug>/admin/`. The old `{your-domain}/admin` address still works in a browser: it answers 301 to the same path on the admin host.
 
-> **Admin hosting and paths are changing — every admin URL in this file is due to be
-> invalidated.** A change that moves the admin to a dedicated host and scopes admin paths
-> differently is on staging and has **not** shipped. When it does, every path recorded here
-> has to be re-checked against the live admin. The new host and paths are deliberately
-> **not** recorded in this file, because they are not live and writing them down would put
-> a wrong URL in front of a customer. Not verified — pending release.
+> **The admin moved host on 2026-09-23** (a security update, confirmed intentional and permanent
+> by the core developer). Paths in this file are written relative to `/admin`; in a browser they
+> resolve under `admin.pixfizz.com/site/<slug>/admin/`. The same deploy converted parts of the
+> admin to htmx, and tools and bookmarks with hard-coded admin URLs broke (stated by the core
+> developer, 2026-09-23). Two consequences:
+>
+> - Some admin forms and field values are now rendered client-side and are **not in the fetched
+>   HTML** (for example template option custom fields and the Ace-backed `custom_script`
+>   textarea). Read them from a rendered page, never from a `fetch` of the page.
+> - **The API did not move.** Integrations keep calling `https://<slug>.pixfizz.com/v1/admin/...`,
+>   never the admin host. See `61_PIXFIZZ_API.md` § 2.
+>
+> Re-check any path recorded here against the live admin before sending it to a customer.
+> *Host change verified live, 2026-09-23 and 2026-09-28.*
 
 ---
 
@@ -39,6 +47,8 @@ Public galleries where customers share and view photo projects.
 
 ### Users
 Customer accounts and access management.
+- **API Keys** (since 2026-09-23): a section on each user's page, below Change Password and Custom Fields, with **Add API Key** at its top right. A key belongs to that user on that site; there is no site-level keys page. The full key is shown once. See `61_PIXFIZZ_API.md` § 2 for how to use it.
+- The user page sections, in order: user details (User Status, Email, names, Telephone, Category, the Admin checkbox), AI Tokens, Change Password, Custom Fields, API Keys, Promocodes, Orders, Projects, Galleries, Calendars, Addresses. *Verified from admin screenshots, 2026-09-28.*
 
 ### Shipping
 - **Shipping Services** — carrier and method configuration
@@ -57,8 +67,10 @@ Customer accounts and access management.
 
 ### Products
 - **Published Products** — published products list (everything in a Collection). Renamed from "All Products" on 2026-03-30 to make it clear the listing is scoped to published items only.
+  - The button that adds a product here is labelled **Publish Product** since the 2026-09-28 deploy (previously **Add Product**). *Stated by the core developer, 2026-09-28.*
 - **Product Attributes** — commercial product definitions. Prices are now **editable inline** directly from the product attributes list — click on any price field, type the new value (simple price or formula), press Enter for simple prices or click OK for multi-line formulas, Esc to cancel. No need to open each product individually.
 - **Templates** — production specifications. Includes a bulk **Text Upgrade** action (shipped 2026-03-05) that applies text-box vertical alignment fixes across all templates in one step — use when migrating older templates that pre-date the current text rendering.
+  - **Template option `custom_script`** is an Ace editor over a hidden textarea, `template_option_type[custom][custom_script]`. Save it with the **Custom Fields** Save button on the option page, not the top form's Save. The value is stored and exported with CRLF line ends (a browser form submit sends CRLF), while the textarea in the page shows LF; compare mounts after folding CRLF to LF. *Verified live, 2026-09-25 and 2026-09-26.*
 - **Collections** — product groupings for storefront
 - **Fonts** / **Font Palettes** / **Color Palettes** — typography and color management
   - **Gotcha:** the default font palette tooltip implies fonts are auto-assigned, but fonts must be **manually assigned** to a palette. If a design shows fallback typography, check the palette assignment rather than assuming the admin auto-populated it.
@@ -275,14 +287,48 @@ but not on the object the code reads. Verified by reading source (archive conten
 - **Price variables** can be bulk exported and imported from admin — a full export of every
   price variable on the site, edited externally and re-imported. Stated, not independently
   verified; a help article dated 2026-08-05 is the canonical reference.
-- **Full variant exports** can be edited and re-imported as a bundle. The intended bulk
-  workflow for a large variant tree is: full variant export → edit the prices in the file →
-  import the updated bundle, rather than editing each variant in admin.
-- **Caveat on the variant bundle.** That variant-type import updates in place by id rather
-  than creating duplicates is **stated, not verified at scale**, and it is in tension with
-  the behaviour recorded for **per-product archives, which duplicate rather than update** —
-  see `51_CUSTOM_FIELDS_REFERENCE.md`. Prove it on one variant type before running it across
-  a catalogue, and take a backup first.
+- **Full variant exports can be exported and edited, but re-importing one never updates in
+  place.** A code collision appends `-1` to every code in the set (settled 2026-09-20, see
+  `22_OPTION_VARIANT_RENDERING.md` § Variant Type Exports), so an export, edit, re-import round
+  trip is not a bulk price-editing route. To copy a variant set from one template to others, use
+  Bulk Update Tools (below). Per-product prices are edited per product: there is no write API
+  for variant prices (`61_PIXFIZZ_API.md` § 13g).
+
+---
+
+## Bulk Update Tools: Rolling a Change Across Live Templates
+
+**Admin → Advanced → Bulk Update Tools** (super admin only) copies **Product Variants**,
+**Template Options** and **Design Options** from one template to a chosen set of other templates
+in one pass. Platform-level (Pixfizz CMS).
+
+- **This is the route for rolling a template option or a variant set across a range that is
+  already live**, for example adding a custom design tool's `custom_script` mount option to every
+  template in a range. Do not delete and re-import the range (imports never update in place, see
+  `01_CODE_GOVERNANCE_UPDATED.md` § Never Re-Import to Update), and do not hand-edit each template.
+- It copies those three things only. **Per-product values**, such as a different price per size,
+  still need per-product edits after the copy.
+- **XML definitions and design pages are not covered.** They need per-template edits, which can
+  be scripted from a logged-in admin tab through the admin's own forms (paths relative to
+  `admin.pixfizz.com/site/<slug>/admin`):
+  - XML definition: the template form, `PATCH /print_theme/product/<id>` (fields
+    `print_product[name|code|description|category|editor_configuration_id|fulfillment|layout]`,
+    `save=Save`). The current layout is not in the fetched textarea; read it from the page's Ace
+    mount script.
+  - Add a design page: the page row's Copy form, `POST /print_theme/copy_page/<design>?page=<page id>`,
+    creates a copy with the same name. Find it by its new id, rename it with
+    `PATCH /print_pages/<id>` (`page[name]`) and set its XML with `PATCH /print_pages/<id>` (`page[data]`).
+  - Preview flag on a design page: `PUT /print_theme/set_page_as_preview/<design>` with
+    `page=<page id>` and `preview=1` (what the Preview checkbox does).
+  - Template option custom fields (for example `custom_script`): `PATCH /templates/<t>/options/<option>`
+    with **every** `template_option_type[custom][...]` field (checkboxes as a hidden 0 plus 1 when
+    on). The form is rendered client-side, so build the field list from a rendered edit page, not
+    from a fetch, or the fields left out are blanked.
+  - The template option edit page's only server-rendered form is the **DELETE** form
+    (`_method=delete`). Never script-submit a form found on that page.
+
+*Bulk Update Tools scope stated by Alex, 2026-09-26 and 2026-09-29. The per-template routes
+verified live on a 90-template range, 2026-09-27.*
 
 ---
 
@@ -297,10 +343,20 @@ but not on the object the code reads. Verified by reading source (archive conten
 ## Pixfizz Kiosk App — Idle Timeout
 
 The Pixfizz Kiosk desktop app (myPixfizz → Tools → Pixfizz Kiosk) locks the computer to the site's kiosk domain, allows USB image import, and has its own idle timeout that **defaults to 4 minutes** and can be set to 0 (off). This timeout is separate from the storefront's post-order logout (`21_SHOPPER_CHECKOUT_POLICY.md` § Kiosk Sessions). A site that turns it off to stop customers losing carts mid-order also loses the only logout that does not depend on reaching the thank-you page. *Stated on client calls, 2026-09-22 and 2026-09-24.*
+## Admin Login: Two-Factor and Passkeys
+
+Platform-level (Pixfizz CMS). Rolling out from 2026-09-28: super users first, then site admins. *Stated by the core developer, 2026-09-28.*
+
+- Admin login runs through `login.pixfizz.com` and adds a **TOTP challenge** (an authenticator app).
+- A user can also register a **passkey**. Once a passkey is registered, login requires it, unless an authenticator app is registered too, in which case the app is offered as the alternative.
+- **Passkeys are bound to a device; an authenticator app works on any device.** An admin who signs in from more than one computer should register an authenticator app as well as a passkey, or they are tied to the device that holds the passkey.
+- **Impersonated sessions** (logging in as a user from admin) expire after **30 minutes of inactivity**.
+- Super admin location: see § Super Admin below.
 
 ## Super Admin
 
 Cross-website management layer (for organizations managing multiple Pixfizz websites).
+Super admin now lives on the admin host: `admin.pixfizz.com/superadmin`, with deep links of the form `admin.pixfizz.com/site/-/superadmin/...`. Old `login.pixfizz.com/superadmin/...` links return not found. Signing in needs the second factor (§ Admin Login). *Verified live, 2026-09-25; entry URL stated by the core developer, 2026-09-28.*
 
 ### Customer Super User Access
 - **Websites** — manage all Pixfizz websites, configuration, feature flags, integrations
@@ -367,3 +423,4 @@ per organization.
 - 2026-09-16: Added the Settings → Custom Fields page (site-wide definition list with all-or-subset export/import) and custom type definition export/import from the Custom Types index (definitions only, not instances). Object-type handling in the new export pending confirmation. Source: notion-page (Dashboard).
 - 2026-09-19: Added Automatic Discounts to the Marketing section, with the note that it is not under Promotions. Source: AdeB.
 - 2026-09-24: Resolved the pending question on the Settings → Custom Fields site-wide export: it carries owner_type (mapping listed) and re-import is refused, never updating. Added Website Settings Worth Knowing (Crawler, robots.txt, Redirects JSON shape, Search CMS, super-admin password reset bug) and the Pixfizz Kiosk app idle timeout. Source: claude-chat, fireflies-call, slack-message.
+- 2026-09-29: Admin now on admin.pixfizz.com/site/<slug>/admin (site /admin 301s there); htmx conversion; API unchanged. Replaced the 'not shipped' warning. Users: API Keys section on each user page, and the user page section order. Published Products: 'Add Product' button renamed 'Publish Product'. Templates: custom_script is an Ace field saved by the Custom Fields Save button; stored with CRLF. Corrected the variant bundle re-import bullet (never updates in place); added Bulk Update Tools (copy variants, template options, design options across live templates) and the per-template edit routes. Added Admin Login: TOTP via login.pixfizz.com, passkeys (device-bound, required once registered unless an authenticator app is also registered), 30-minute impersonation timeout. Super Admin moved to admin.pixfizz.com/superadmin; old login.pixfizz.com/superadmin links are dead. Source: claude-chat, slack-message.

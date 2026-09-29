@@ -118,6 +118,7 @@ The map is defined separately in the XML definition:
 - The value is the spine width for that page range.
 - The `<filter>` must be nested inside the cover `<page>` element.
 - The `map` attribute value must match the `name` attribute on the corresponding `<map>` element.
+- **Every value the filter looks up must fall inside a key range.** A value with no range fails the render with `PrintBook::TemplateError (Entry for N not found in map "binding")`, where N is the value that had no entry (seen for 29 and 33 on a live photobook range). Fix it by adding the missing range to the template's `<map name="binding">`, and check that the ranges leave no gap between them. Adding the `<filter>` alone does not fix it. *Stated by the core developer ("95% sure", 2026-09-24); the errors cleared once the missing entries were added, 2026-09-25. Not verified by reading source.*
 
 ### Layflat Spread Page Break
 
@@ -482,6 +483,9 @@ upload.
 **When asking a lab for wrap depth, expect them to answer with stretcher-bar
 thickness** (3/4 inch, 1 1/2 inch) instead. That is the bar, not the wrapped
 material. Ask again.
+**Templates model the fold differently: compare page size less twice the bleed with the nominal size before trusting either.** Two canvas templates in one 10x10 range read: one page 13.25 in with bleed 1.5 in, so page less twice the bleed is 10.25 in and the 0.125 in fold sits inside the trim; the other page 11.75 in with bleed 0.875 in, trim exactly 10 in, fold inside the bleed. Another range put an 8x10 on a 14x16 page with a 2 in bleed, so the trim is 10x12, 1 in a side over the face. A preview or tool that takes the trim as the face must inset by the difference. *Verified by reading source (template exports), 2026-09-27 and 2026-09-29.*
+
+**The platform preview render draws the selected wrap (gallery, mirror, color) into the bleed itself**, so the render's bleed shows what the sides will print. *Verified by reading renders on three sites, 2026-09-27.*
 
 ### `<ipage> zoom` is derived, and `crop="true"` means cover, not fit
 
@@ -502,6 +506,14 @@ a 16x20 where the answer is 30.
 
 `zoom` does not vary with box size. `left` and `top` are the pan offset and are 0
 whenever the box aspect matches the print-area aspect.
+**Sign of `left` and `top`.** They move the referenced page under the box, so a box that shows a region right of (or below) the referenced page's center needs a **negative** offset, in percent of the referenced page:
+
+```
+left = (refW / 2 - regionCenterX) / refW * 100
+top  = (refH / 2 - regionCenterY) / refH * 100
+```
+
+The case that settled it: panel pages with an `<ipage>` onto one wall page. With the sign flipped, the two outer panels rendered each other's artwork; symmetric panel sets hide the error. *`left` verified by render on a test template, 2026-09-27. `top` assumed to follow the same convention, not verified.*
 
 ## Template Import — `products[].price` Validates Presence
 
@@ -764,6 +776,15 @@ Applying a different layout (the layout picker, or a variant element substitutio
 A template can hold several named layouts (for example `full` and `matted` for the same frame), and a variant with an element substitution of type layout switches between them. That is the right shape when two sellable versions share one physical product: one product with a variant, not two products that double-count stock.
 
 *Verified live in the design tool (2026-09-21) and stated on a client call (2026-09-22).*
+## Element Rotation in Page XML: `rotate`
+
+**Platform-level (Pixfizz CMS).** `rotate="90"` on an element turns it a quarter turn **clockwise about its own center**. Write the box at its unrotated size, positioned as if unrotated, and add the attribute. Typical use: a landscape layout on a portrait print page. A 254 x 203.2 mm image at x -25.4, y 25.4 on a 203.2 x 254 mm page renders turned and filling the page.
+
+- `rotation="90"` and `angle="90"` are ignored (render unchanged).
+- `erotation="false"` is the editor permission flag, not a rotation.
+- A placeholder holding a customer upload fills the unrotated box and turns with it in the platform render.
+
+*Verified by render, 2026-09-29. Not verified: the Adjust crop dialog and the production file for a rotated placeholder (needs a test order).*
 
 ## Layouts Travel With a Template Export
 
@@ -776,8 +797,21 @@ What still holds:
 - **There is no API route for layouts.** They cannot be read or written through the admin API, so they cannot be moved by script.
 - **Relinking can still be needed.** A layout that the template uses but that belongs to another design theme is not guaranteed to come across; check the layout picker after import.
 - **Layouts cannot be exported on their own.** The export is the template (or the design theme), not a layouts-only file.
+- **Deleting layouts from designs removes the links to them.** A design can use layouts linked from another design on the same template, and in some cases from another template. A scripted cleanup that deleted layouts from a range's designs left the linked layouts unlinked, and relinking them by hand took about two hours. Export the template before any scripted layout cleanup. *Observed on a client range and stated by the core developer, #development, 2026-09-22.*
 
 *Verified by reading source (a real template export, 2026-09-22) and stated on a client call, 2026-09-22. The 2026-09-12 #development statement this replaces was probably describing a layout shared from another theme, or the API.*
+## Template Changes Do Not Reach Existing Projects
+
+**Platform-level (Pixfizz CMS).** A project keeps the page geometry it was created with. Changing the template afterwards (page size, bleed) does not update projects that already exist:
+
+- Existing projects keep the old dimensions.
+- A refulfill (delete the generated file, force refulfill) does resend to the fulfiller, but with the project's old page size.
+- New projects pick up the changed template.
+- The only fix for an existing project is editing that project's page XML, one project at a time. A spec change on a live range therefore leaves every open project on the old spec.
+
+The same holds when a design is copied to a new size: its layouts stay at the old size until **Resize** is used on the layouts.
+
+*Stated by the core developer (#development, 2026-09-25) and on calls, 2026-09-28 and 2026-09-29. Not verified by test.*
 
 ## Open Platform Question — `fulfillment` on Layers
 
@@ -804,3 +838,4 @@ documented above. There is no layer-level `fulfillment` attribute. Do not docume
 - 2026-09-09: Added that photobook page count (min, max, starting) lives on the first line of the template definition and is not a product setting, and that `minimum-dpi` should be the product's real floor rather than a reflex 300. Added the all-sets-`fulfillment="false"` case — the platform renders no production file, so a tool's output must travel via `_additional_files.json` — with a real definition, the sheet = trim + bleed per edge convention, and two-sided output as one file via a shared `output-name` (not verified). Added Preview Sets — layer roles read from a live definition, the `ipage`'s own drop-shadow attributes, WebP via `src="db:<id>"`, the derivation of scene scale and per-size placement from the ipage so a whole range is one master plate plus offsets, plate-aspect preservation when placing into a page rect, and the background image element name as what colour substitution binds to. Added that attribute order in a template export is alphabetical, so a regex anchored on one attribute to reach another silently matches nothing — match the tag, edit inside it, read back every write. Added the seed-archive audit before cloning across a size range. Recorded the layer-level `fulfillment` parameter as an open, not-implemented platform question. Source: claude-chat, fireflies-call, notion-dashboard.
 - 2026-09-19: Added that layouts are excluded from template exports and that the API cannot manage or transfer them, so layouts must be recreated and relinked after any template import; a design theme export (`__print_theme.yml`) is the route for a bulk layout move. Source: slack-message (#development).
 - 2026-09-24: Added "PDF Layers in Practice": the three jobs a layer does (design aid, production-only, split file), View Settings for hiding layers while editing, replacing an element on a layer, the pointer to the uneditable-placeholder technique for show-but-never-print, and front/back acrylic marked unconfirmed. Replaced "Layouts Do Not Travel With a Template Export" with the corrected rule: the template export carries layouts. Added the `output-name` JPEG duplicate-filename rule and the `layout="true"` + `layout_id` requirement for layout swaps. Source: fireflies-call, claude-chat.
+- 2026-09-29: Binding map missing-entry error and fix. `<ipage>` left/top sign convention. Canvas fold inside trim vs bleed; render draws the wrap into the bleed. `rotate="90"` element rotation. Layout links break when layouts are deleted from designs. Template changes do not update existing projects; refulfill resends old geometry. Source: claude-chat, slack-message.

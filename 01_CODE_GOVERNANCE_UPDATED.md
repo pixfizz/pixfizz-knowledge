@@ -207,6 +207,8 @@ tar tf output.tar | head -5
 
 **A CMS tar is the complete current backup with the changes applied, even when only one file changed.** The importer does a full wipe-and-replace, so a tar that carries only the changed directory (for example only `layouts/main`) deletes everything else the site had. A real incident removed `pages/__home` this way and the site returned *Not found*. "Only the files that changed" governs chat attachments and paste blocks; it never describes a CMS tar. **Before shipping, diff `tar -t` of the new tar against `tar -t` of the backup it was built from: every file in the backup must still be present.** *Verified live, 2026-09-23.*
 
+**A Shopper child's CMS backup does not hold its landing page content.** A child backup carries snippets, layouts, assets and the `__home` page only. Every `/site/<slug>` landing page built as a `pages` Custom Type instance (`50_SHOPPER_TEMPLATE_REFERENCE.md` § 14) lives outside it. A site-wide redesign or audit needs the Custom Type instance export as well as the CMS backup. Platform-level (Pixfizz CMS) and template-level (Shopper 24). *Verified on a live child site and its backup, 2026-09-29.*
+
 ### Front matter is a database row, not metadata
 
 The importer writes `name`, `description` and `renderer_type` straight into
@@ -509,10 +511,10 @@ __asset_map:
 All four maps sit at the **end** of the YAML file, not in separate files; empty ones
 emit `{}`.
 
-**Verified on export only.** Whether the importer creates assets from a populated
-`assets/` directory, or still requires them to pre-exist in Website → Assets as the
-per-product patch documented, is untested. Do not build on it until someone imports
-one.
+**Resolved for template imports, 2026-09-26:** the template importer does create assets from a
+populated `assets/` directory, and it reuses any `__asset_map` id that already exists on the site
+instead of copying it. See `16_PRODUCT_HIERARCHY.md` § Import Behavior. Other archive families
+(collections, per-product archives) were not re-tested. *Verified by query.*
 
 **What a collections export cannot tell you.** No record carries a site or owner
 field — no `site_id`, no `website_id`, no hostname, no URL anywhere in the archive,
@@ -600,6 +602,8 @@ together, **five carried full Descriptions and the sixth shipped blank**. That i
 its own right — an unlabelled key in a labelled set reads as an internal or deprecated one,
 and the next person either leaves it alone or guesses at its values. Verified by reading
 source, 2026-09-09.
+
+**Exception: a child override of an inherited snippet carries no Description.** The Description of an inherited snippet cannot be edited on a child site, by design; Descriptions are editable only on the master (parent) site. For a child override, deliver the path and the paste body only. The rule above applies to snippets created on the shopper24 parent and to site-only snippets on a standalone site. If a parent Description is wrong or no longer fits, flag it as a change on the parent. Platform-level (parent/child snippet inheritance). *Stated by Alex, 2026-09-28.*
 
 ## Customer-Visible Strings in a Parent-Level Tool Must Come From a Snippet
 
@@ -716,3 +720,4 @@ second; the alternative is trusting that nobody renamed anything.
 - 2026-09-09: Stated the parent-first snippet rule at the point of use — create on the parent with the off value and Allow Override ticked, then override on the child — with the governance requirement that any instruction naming a checklist or value snippet must name the parent first, the child second, and the parent's off value, and the note that the rule already existed in three files and was still missed. Added that checklist bodies are byte-exact at the point of use and that a site-level key set on the parent moves for every child. Added: never hand-author an export archive and generate any preview from the archive at build time; never re-import to update, because a re-import creates a suffixed duplicate and the suffix lands on the code; a product rename must never trigger a code rename; a snippet Description is a real column and never blank, with the blank-in-a-set-of-six instance; customer-visible partner and printer names in a parent-level tool must come from a snippet; the three verification formulations, ending in placing one real order end to end; the four-step marker-assertion method for a byte-identical render harness; the publication gate for a public repo; and a mandatory closing step for every knowledge base sync verifying that every route in `02_RETRIEVAL_MAP.md` resolves. Source: claude-chat, fireflies-call, slack-message.
 - 2026-08-29: Added the byte-exact value snippet rule for CMS tars — `capture` does not trim, so a trailing newline makes every compared flag fail silently while the tar imports cleanly; includes the generator fix and the instruction to error rather than warn. Added Archive Emission — the platform's Psych writes a trailing space after a nil scalar and Ruby 3.3 does not, so a modern Psych needs a post-pass; Psych also quotes ambiguous scalars and folds long double-quoted scalars differently from PyYAML (measured 87 differing lines in 3,118 for a Python emitter, byte-identical for Psych plus the nil post-pass). Added the Collections export format — archive shape, import path, the four record shapes in platform key order, the bare-numeric-asset-id convention with `__asset_map` Ruby symbol keys, and the fact that a collections export carries no site or owner field and so cannot answer inheritance. Source: claude-chat.
 - 2026-09-24: Added the Install-Step Gate (P0): every install instruction is checked for a "create a snippet" step before it is sent; unless the site is shopper24 it is rewritten as Override Snippet, a pages Custom Type instance, product data, or "contact Pixfizz support". Added "A CMS backup tar is always the full current backup". Widened "Never Re-Import to Update" to variant and template-option imports and to staging. Added the Ruby 3.3 Psych plain-scalar folding note. Source: claude-chat.
+- 2026-09-29: Resolved the untested asset-import question for template imports. Snippet Description rule: child overrides carry no Description (parent-only column). A child CMS backup does not contain Custom Type landing pages; audits need the instance export too. Source: claude-chat.

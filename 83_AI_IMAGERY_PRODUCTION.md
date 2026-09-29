@@ -99,6 +99,12 @@ Worked example — a framed print 8x10 vertical. The generated room scene sits i
 
 The reason this is worth stating rather than deciding case by case: preview-only room scenes are the highest-value legitimate use of generated imagery on this platform. Every wall-art product wants one, few labs can photograph a room per SKU, and the compositing pattern in A1 is exactly what the template renderer already does.
 
+### A6. Never pass off a generated room or lab as the client's premises `[RULE]`
+
+Do not use a generated image of a whole room, shop or lab as a storefront hero or section image for a real business. It reads as the client's premises, it can show equipment the client does not own, and customers who know the shop see that it is fake. Use close-ups that are not location-specific instead: film strips, hands, prints, materials, textures. The same test applies to copy: do not claim "everything done in-house" when some lines are outsourced. *Stated by Alex, 2026-09-25.*
+
+This does not conflict with A5: a preview-only room scene behind the customer's own product is a product visualization, not a claim about where the business is.
+
 ---
 
 ## Part B — Durable Fundamentals
@@ -194,6 +200,10 @@ look better sourced than it is.
 
 The rule generalizes past imagery: name the tool that would do the job properly rather than
 tuning the one that has already failed. *Stated as working practice, not independently verified.*
+
+### B11. A seamless hero loop from one still `[GENERAL]` `[PIXFIZZ]`
+
+For slight motion behind a hero, pass the **same image as start frame and end frame** to an image-to-video model; the clip returns to its first frame and loops without a jump. Kling 3.0 kept the input aspect ratio even when a different `aspect_ratio` was requested (a 5:4 start frame came back 5:4), so the loop matches the still exactly and the still can sit underneath the video with no shift. MP4 files uploaded to the Pixfizz site asset store serve through `asset_url` and play in a `<video autoplay muted loop playsinline>` element. Hide the video under `prefers-reduced-motion` so the still shows instead. *Verified by ffprobe and by query on a live site, 2026-09-25.*
 
 ---
 
@@ -404,3 +414,4 @@ Suggested delivery: a short setup walkthrough on `help.pixfizz.com` covering sub
 - 2026-07-26: Initial version. Consolidated from two internal drafts (`HIGGSFIELD_EXPERT_REFERENCE.md`, `AI_IMAGERY_MASTER_INDEX.md`, both April 2026) into a single Higgsfield-focused file. Corrections applied: "Cling" renamed to **Kling** throughout (Kuaishou; transcription error in the source drafts); Nano Banana attribution corrected from "Higgsfield's own model" to **Google DeepMind Gemini Image** (verified against Google DeepMind and Kuaishou sources). Weavy and Midjourney content dropped, since only Higgsfield is being recommended and the source index referenced two files that do not exist in this repo. Restructured so volatile vendor detail is isolated in Part D and the durable production practice in Parts A to C and E to F does not need touching when model lineups change. Added Part A (product misrepresentation, consent, minors, disclosure, production-file boundary), which was implicit at best in the source drafts. Added Part D4 mapping the connector surface against web-app-only features. Removed the source YouTube link list (unverified URLs, low durability). Source: claude-chat, web-verified.
 - 2026-09-09: Narrowed rule A5 — the prohibition now names production output files, customer-placeable design tool asset libraries and any template set that contributes to fulfillment, and states explicitly that a scene image inside a `preview="true" fulfillment="false"` set is permitted, with the three-column reasoning and a worked template example. A1 and the resale-licensing sentence are unchanged. Stated the SynthID provenance watermark on nano_banana / Gemini output under A4 as fact rather than as a thing to confirm. Added B10, an automated measurement that disagrees with itself cannot settle a question. Source: claude-chat.
 - 2026-09-24: Added B9a branded product shots with one fictional brand. Source: claude-chat.
+- 2026-09-29: A6 never pass off a generated room or lab as the client's premises. B11 seamless hero loop (same start and end frame), Kling keeps input aspect, MP4 assets play via asset_url. Source: claude-chat.

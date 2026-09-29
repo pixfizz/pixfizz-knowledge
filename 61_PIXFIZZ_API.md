@@ -37,9 +37,27 @@ The Pixfizz API is a read/write/delete REST API over HTTPS. All responses are JS
 ---
 
 ## 2. Authentication
+### API keys (recommended for every Basic-auth call)
+
+Since 2026-09-23 an admin **API key** can replace the username and password on **every request that uses HTTP Basic auth**, including every `/v1/admin/...` call. Platform-level (Pixfizz CMS): the same on Shopper sites and Shopify + Pixfizz sites.
+
+- Send the key as the Basic-auth **username**. The password is ignored and can be empty. No email or username is needed: the key identifies the user it belongs to.
+  ```
+  curl -u pxk_<key>: https://<subdomain>.pixfizz.com/v1/admin/orders.json
+  ```
+- Keys start with `pxk_` followed by a long hex string. Validate on the prefix; do not hard-code the length.
+- A key bypasses the brute-force login protection that applies to username and password logins, and saves about 0.5 s per request.
+- **A key belongs to one user on one site.** Admin → Users → open the user → **API Keys** section (below Change Password and Custom Fields) → **Add API Key**. There is no site-level API keys page and no global or super-admin key: an integration that works across several sites needs a key per site.
+- The full key is shown **once**, when it is created. Copy it then. The Name is only a label. The table lists Name, the key masked to its first 12 characters, Created, Last Used ("never" until the first call) and Delete. Deleting a key revokes that key alone.
+- Practice: create keys on a dedicated admin API user, not on a person's own account, and issue one key per integration, named after it, so Last Used shows which integration is live and each can be revoked on its own.
+- Not verified: that a key carries exactly its user's permissions, and that deleting the user or unticking Admin disables its keys. Test before relying on either.
+- A key does not change the base URL. See "Admin UI host vs API host" below.
+
+*Stated by the core developer (Notion Dashboard, "New Feature: API Keys"); admin screens verified from screenshots and a live key test by query, 2026-09-28.*
+
 
 ### HTTP Basic Auth (server-to-server, recommended)
-Use an admin user's credentials. Required for all admin endpoints.
+Use an admin user's **API key** (above), or, as the legacy form, the admin user's email and password. Required for all admin endpoints.
 
 ```
 curl --user admin@example.com:password https://<subdomain>.pixfizz.com/v1/admin/orders.json
@@ -55,6 +73,22 @@ curl -X POST \
 Not recommended for production.
 
 **The admin session cookie is `__Host-` prefixed since 2026-09-23.** Sessions were seen dropping repeatedly during long browser-driven admin runs that day; treat a run of unexpected 401s or login redirects mid-session as a possible session drop before suspecting the credentials. *Observed live, not root-caused.*
+### Admin UI host vs API host: never interchangeable
+
+Since the 2026-09-23 deploy the admin UI lives on its own host. **The API did not move.** Platform-level (Pixfizz CMS).
+
+| Purpose | Form |
+|---|---|
+| Human admin UI (what the browser bar shows) | `https://admin.pixfizz.com/site/<slug>/admin/...` |
+| API base (what an integration stores and calls) | `https://<slug>.pixfizz.com` + `/v1/admin/...` |
+
+- `https://<slug>.pixfizz.com/admin` answers **301** to the same path on the admin host. `https://<slug>.pixfizz.com/v1/admin/orders.json` answers directly (401 without credentials, no redirect).
+- `https://admin.pixfizz.com/site/<slug>/v1/admin/orders.json` is **404**. Appending `/v1/admin/...` to a URL copied from the browser produces a path that does not exist.
+- The slug is the same in both forms on every site checked.
+- People now copy the admin-host URL from their browser, and it is the wrong value for an integration's base URL. Convert a pasted admin link to `https://<slug>.pixfizz.com` before storing it; do not loosen the validation to accept it.
+
+*Verified live (unauthenticated requests and a logged-in browser), 2026-09-23, 2026-09-24 and 2026-09-28.*
+
 
 ### OAuth 2.0 (client-side / mobile apps)
 - Create an OAuth application in Pixfizz admin under **Site → OAuth**.
@@ -522,6 +556,8 @@ Requires admin access.
 
 - The theme and project preview endpoints above are optimised for on-page previews, not
   print. Output is **capped at `width=1200`** and rendered at a lower JPEG quality.
+- **The cap is on the longest side, not the width.** `width=3000` on a portrait 8x10 returned 966 x 1200. *Verified by query, 2026-09-26.*
+- **`template_name=<page>` renders the whole page including bleed.** An 8x10 page with `bleed="0.125"` (8.25 x 10.25 in the definition) renders at 400 x 497 for `width=400`; `crop=false` made no difference. A tool that shows the render at trim must crop it itself. *Verified by query, 2026-09-26.*
 - For higher-quality, production-resolution output, render the page directly:
   `/v1/pages/<page-id>.jpg?width=X&fulfillment=true`. This uses the production render
   settings rather than the preview pipeline.
@@ -706,17 +742,19 @@ Authentication is HTTP Basic with an admin account, as in § 2.
 > `PUT /admin/theme_categories/<id>.json` (collections, below) has **no confirmed replacement
 > yet** — pending confirmation. Any script, tool or integration that calls an `/admin/...` path
 > must be moved to `/v1/admin/...` before that deploy, or it breaks silently on the day. Write
-> new code against `/v1/admin/...` only. Stated by the core developer; the retirement itself is
-> not yet live, so not verified.
+> new code against `/v1/admin/...` only. Stated by the core developer; live since 2026-09-23
+> (see the update above).
 
 ### Custom types
 
 ```
-GET  /admin/custom_types.json                                    # list all custom types
-GET  /admin/custom_types/<id>.json                               # single custom type
-GET  /admin/custom_types/<id>/custom_type_instances.json         # list instances
-POST /admin/custom_types/<id>/custom_type_instances.json         # create an instance
+GET  /v1/admin/custom_types.json                                 # list all custom types
+GET  /v1/admin/custom_types/<id>.json                            # single custom type
+GET  /v1/admin/custom_types/<id>/custom_type_instances.json      # list instances
+POST /v1/admin/custom_types/<id>/custom_type_instances.json      # create an instance
 ```
+
+The `/admin/...` forms of these paths are retired (they redirect, see above). On `/v1`, the list and the instance list return 200 with an array of `{ id, custom_type_id, custom: {...} }` (verified live, 2026-09-23). The single-type read and the instance create have not yet been verified on `/v1`.
 
 Create parameters, one per custom field on the type:
 
@@ -729,9 +767,11 @@ The custom type `<id>` is numeric and site-specific. Fetch the list endpoint on 
 ### Assets
 
 ```
-POST /admin/assets.json     # multipart encoded
-GET  /admin/assets.json     # list all assets
+POST /v1/admin/assets.json     # multipart encoded
+GET  /v1/admin/assets.json     # list all assets
 ```
+
+`GET /v1/admin/assets.json` lists every asset with its signed `/fz/` URL (verified by query, 2026-09-26). The multipart upload has not yet been verified on `/v1`.
 
 Upload parameters:
 
@@ -773,6 +813,8 @@ PUT /admin/theme_categories/<collection-id>.json
 theme_category[custom][custom_field_1]=value1
 theme_category[custom][custom_field_2]=value2
 ```
+> **Status 2026-09-23:** this `/admin/...` path is retired with the rest; it redirects cross-host, so a server-to-server call fails. No `/v1` replacement for writing collection custom fields is confirmed yet. Do not build on this endpoint until one is. *Pending confirmation with the core developer.*
+
 
 Two things follow from § 13's CORS note and from `13_TEMPLATE_BOUNDARIES.md`:
 
@@ -907,6 +949,22 @@ routinely estimated as free.
 ---
 
 ## 13f. Experimental Admin API — Price Variables and CMS Content
+> **Update 2026-09-26: `cms_snippets` and `cms_pages` answer on production**, on the normal host, with an admin session (verified by query on the Shopper parent; calls made with `?sitename=<site>`). `cms_layouts` was not checked, and no write method was tried on production. What the reads return:
+>
+> | Call | Returns |
+> |---|---|
+> | `GET /v1/admin/cms_snippets.json?page=N` | `[{id, name, description}]`; page until an empty array |
+> | `GET /v1/admin/cms_snippets/<id>.json` | `{id, name, description, content, allow_override}` |
+> | `GET /v1/admin/cms_pages.json?page=N` | `[{id, url, title, layout_id}]` |
+> | `GET /v1/admin/cms_pages/<id>.json` | `{id, url, title, layout_id, body, meta_title, meta_description, meta_keywords, in_sitemap, custom}` |
+>
+> - The text field differs: a snippet's is `content`, a page's is `body`. The index is a summary only; read each record for its content.
+> - `/v1/admin/snippets.json` and `/v1/admin/theme_snippets.json` are 404.
+> - This is now the way to read one snippet or page without a CMS backup, and it shows `allow_override` per snippet, which a backup's front matter does not.
+> - With an admin browser session on `admin.pixfizz.com`, `?sitename=<site>` selects any site that admin can reach (seen on assets and products). From a storefront host a call answers only for that site.
+>
+> The staging note below is kept for history.
+
 
 > **Experimental, staging only.** Announced by the core developer on the Notion Dashboard,
 > week of 2026-09-21. **Not on production:** `GET /v1/admin/cms_snippets.json` on a production
@@ -1047,3 +1105,4 @@ There is no write API for variant values, prices or types. *Confirmed by the cor
 - 2026-09-16: Added § 13f Experimental Admin API (price variables, CMS pages, snippets, layouts: shared list/read/create/update/delete pattern, 100 per page, parameter lists, override and rename consequences). Staging only, not on production (verified by test 2026-09-16). Superseded the § 13e 'Price Variables are not reachable via the API' entry. Added the `/admin` → `/v1/admin` retirement notice to § 13c with the confirmed replacement table; collections update has no confirmed replacement yet. Source: notion-page (Dashboard), fireflies-call.
 - 2026-09-19: Replaced the § 4 Data retention table. The previous table (unsaved 1 year, saved 2 years, ordered indefinitely) was wrong on the point that matters: ordered projects lose their images 6 months after the order for cut prints and 3 years for every other type. Added the full deletion policy (carts, galleries, images, PDFs, uploaded files, users, crawls), the 4-year inactive-user rule that deletes all galleries and saved projects including guests, and the inactive-site rule. Source: notion-page (Pixfizz Wiki, Deletion Policies).
 - 2026-09-24: Page size varies by endpoint (products: 20); never hardcode it. Session cookie now `__Host-` prefixed. The `/admin/...` retirement is live (cross-host redirect drops Authorization; use `/v1/admin/...` with manual redirects); `/v1/admin` is not a public integration surface. Price Variables read/update confirmed on production. `:5748` writes to the production database. Added § 13g Admin Products API. Source: claude-chat, slack-message, fireflies-call.
+- 2026-09-29: Added API keys (pxk_ key as Basic-auth username, per user per site, shown once, one key per integration). HTTP Basic now points to API keys first; email and password marked legacy. Added the admin UI host vs API host table (admin moved to admin.pixfizz.com; API stays on the site host; admin host /v1 is 404). Removed the stale 'retirement not yet live' line in § 13c. Moved the § 13c custom type endpoints to /v1/admin with what is verified. Moved the § 13c asset endpoints to /v1/admin; list verified. Flagged the collections custom-field PUT as retired with no confirmed /v1 replacement. § 13f: cms_snippets and cms_pages confirmed on production with their read shapes; cms_layouts and writes unchecked. Preview cap is on the longest side; page render includes bleed. Source: claude-chat, notion-page.

@@ -658,6 +658,35 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 ### "Product save silently does nothing" / "text custom field truncated"
 → **51_CUSTOM_FIELDS_REFERENCE.md** (1,024-character description limit; 256-character text fields)
 
+## Routes added 2026-09-29
+
+### "Roll a template option, a mount or a variant set across many live templates" / "bulk update templates"
+→ **18_ADMIN_NAVIGATION.md** § Bulk Update Tools: Rolling a Change Across Live Templates. Never hand-edit each template, never delete and re-import. Pointers in 22 and 26.
+
+### "API key" / "Basic auth" / "how should an integration authenticate?"
+→ **61_PIXFIZZ_API.md** § API keys (recommended for every Basic-auth call), then § Admin UI host vs API host
+
+### "Admin login / 2FA / TOTP / passkey / super admin URL / impersonation timeout?"
+→ **18_ADMIN_NAVIGATION.md** § Admin Login: Two-Factor and Passkeys
+
+### "Which order notification email fires when? / BCC on confirmation / Fulfilled vs Shipped email?"
+→ **32_ORDER_LIFECYCLE.md** § Which notification email fires when
+
+### "OrderHub site stock / inventory overwritten / where to edit stock?"
+→ **45_ORDERHUB.md** § Stock on OrderHub Sites: OrderHub Owns the Count
+
+### "Changed a template but existing projects still have the old size / refulfill uses old geometry?"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Template Changes Do Not Reach Existing Projects
+
+### "Rotate an element in page XML / landscape layout on a portrait page?"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Element Rotation in Page XML: `rotate`
+
+### "A PDP swap left my custom tool showing the previous product's settings?"
+→ **26_CUSTOM_DESIGN_TOOLS.md** (PDP swap keeps the `custom_script` root and rewrites its attributes)
+
+### "myPixfizz Google Reviews / brand connections / Catalog Manager?"
+→ **71_MYPIXFIZZ_FEATURES_ROUTES.md** § Brand Connections and Catalog
+
 ## Changelog
 - 2026-03-13: Added Shopify Integration section and Shopify scope warning.
 - 2026-03-26: Added MyPixfizz section pointing to 70/71/72 files.
@@ -684,3 +713,4 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 - 2026-09-19: Added `26_CUSTOM_DESIGN_TOOLS.md` and 8 routing entries for it. Corrected the "tool does not appear" route, which pointed at a four-step install order that no longer exists. Source: kbsync (custom tool estate).
 - 2026-09-24: Added 14 routes for the 2026-09-24 sync, led by the Install-Step Gate and PDF layers. Every target section was written in the same sync. Source: kbsync.
 - 2026-09-24: Route check run as the mandatory closing step. Only the three known historical false positives are reported (01_CODE_GOVERNANCE.md, 40_PLAYBOOK.md, 83_MOBILE_UX_AUDIT.md). Source: kbsync audit.
+- 2026-09-29: Added 9 routes for the 2026-09-29 sync (Bulk Update Tools, API keys, admin login, notification emails, OrderHub stock, template changes vs existing projects, element rotation, PDP swap and custom_script, myPixfizz connections). Every target section was written in the same sync. Source: kbsync.

@@ -139,6 +139,16 @@ tell a client the checkbox changes what the shopper sees at checkout.
 
 - **BridgePay:** the TokenPay.js widget's ZIP field (used for AVS) is now enabled for all Shopper 24 sites. *Stated by the core developer, 2026-09-21.*
 - **PayU:** the success and failure webhook URLs are set in PayU admin → Developers → Webhooks and must be repointed by hand after any domain change, or order confirmations fail silently. *Stated on a client call, 2026-09-22.*
+## A Bare Child Site Shows No Delivery or Payment Until Four Things Hold
+
+Template-level (Shopper 24). Read from `pages/checkout` in the parent backup and proved on a test child site, 2026-09-25. After the address step the checkout shows **nothing**, with no delivery options, no payment section and no error, until all four hold:
+
+1. A shipping service exists (Admin → Shipping → Shipping Services).
+2. **Its Price Formula is not empty.** With an empty formula the service is not offered to the cart; `0` makes it a free option. *Verified live: empty gives no radio, `0` gives a radio.*
+3. `admin/checklist/display-shipping-options` = `TRUE` for ship-to-address carts. The parent ships it empty, so the shipping radios never render and `can_check_out` stays false while `cart.shipping_option` is nil. Alternative: `pickup-in-store` = `TRUE` plus a public pickup address, which takes the pickup branch instead.
+4. A payment method. For a test order with no card, `pay-in-store` or `cash-on-delivery` = `TRUE`. The payment section sits inside `{% if can_check_out %}`.
+
+On a child site, set the checklist keys with **Override Snippet** on the parent's key ("Add Snippet" opens the Override Snippet picker). The new override starts with an empty body.
 
 ## Changelog
 - 2026-02-26: Initial checkout policy content.
@@ -147,3 +157,4 @@ tell a client the checkbox changes what the shopper sees at checkout.
 - 2026-06-26: Added payment method selection (URL param priority, then first entry in checkout/available-payment-methods; radio only renders for 2+ methods) and label renaming via Translations. Source: claude-chat/fireflies-call.
 - 2026-09-09: Added the extra-fee VAT tax base defect — `pages/checkout` sums every extra fee into `taxable_total` with no reference to the per-fee Taxable checkbox, and the template is only given `fee.name`, `fee.amount` and `fee.code` so there is no `fee.taxable` to test; contained fix is exclusion by fee code, the block is inside the `vat-active == 'TRUE'` branch so US sales-tax sites are unaffected, and whether the checkbox reaches `cart.tax` server-side on a US site is still open. Source: claude-chat.
 - 2026-09-24: Added Kiosk Sessions (one-page checkout, Confirm Order is the only conversion, thank-you-page logout, guest recovery from Orders → Projects, per-site kiosk card payment switch-off) and Payment Gateway Notes (BridgePay ZIP field, PayU webhooks after a domain change). Source: fireflies-call, slack-message.
+- 2026-09-29: Added the four conditions a bare child site needs before checkout shows delivery and payment. Source: claude-chat.

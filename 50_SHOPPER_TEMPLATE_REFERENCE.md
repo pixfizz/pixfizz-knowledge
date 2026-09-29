@@ -625,6 +625,8 @@ Key elements in order:
 14. Ahrefs script, custom links
 15. Fonts (Google Fonts for Lato/Open Sans; custom via `style/fonts`)
 
+**The favicon is the site asset named exactly `favicon.png`.** `html.head` emits one icon link, pointing at that asset served as a 96px WebP (`.../thumbnail/96/-/format/webp/~/favicon.png`). An icon uploaded under any other name (for example `brand-favicon-512.png` or `apple-touch-icon.png`) is referenced by nothing, and the site keeps showing the default icon. Every site build ships a 512x512 transparent PNG of the brand mark named `favicon.png` (Website > Assets), and the install steps say so. After upload, check that the icon link in the live head points at the new file. Not verified: whether a child-level `favicon.png` takes over from one inherited from the parent without anything being removed first. Template-level (Shopper 24). *Verified by query (live DOM on a child site), 2026-09-25.*
+
 ---
 
 ## 10. Key Page Inventory
@@ -695,7 +697,7 @@ with Matjaz.
 - **Checklist changes:** Edit the `admin/checklist/<key>` snippet value. Boolean flags expect exactly `TRUE` or blank.
 - **New sections:** Use an existing section snippet from `sections/static/` or create a new one. Include in `pages/__home` or the relevant page.
 - **Email project previews:** Always include `share: orderline.project.share_code` in the preview URL.
-- **Font changes:** Set `admin/checklist/font-body` to `lato`, `open-sans`, `avenir`, or `custom`. For `custom`, populate `style/custom-body-font` with the font-family string.
+- **Font changes:** Set `admin/checklist/font-body` to `lato`, `open-sans`, `avenir`, or `custom`. For `custom`, populate `style/custom-body-font` with the font-family string **without a trailing semicolon** (`"Nunito Sans", sans-serif`). The parent `custom.css` page prints `{% snippet 'style/custom-body-font' %} !important;`, so a trailing semicolon ends the declaration early and the `!important` is dropped as an invalid declaration. The parent snippet's own Description says to include the semicolon; it is wrong (see `52_SNIPPET_INVENTORY.md`, Known Parent Defects). *Verified by reading source (shopper24 `pages/custom.css` and `style/px-tool-theme`), 2026-09-29.*
 - **Shared snippets:** If a snippet is used across multiple client sites, follow the Shared Snippet Contract Rule in `01_CODE_GOVERNANCE.md` — do not remove existing variables, IDs, or JS hooks.
 - **Custom home page content:** Place home page content in the snippet `website/homepage`. It is gated on the value snippet `admin/checklist/custom-home-page`, which `pages/__home` reads as:
 
@@ -740,6 +742,7 @@ How it works:
 Constraints:
 - Real CMS pages always take priority over Custom Type instances on the
   same path — always use a path that has no real page equivalent
+- **A collection landing route can already hold the path.** `/site/photo-prints` answered 200 with the prints collection landing page (rendered by `product/product-details-prints`) on a child site that had no Pages instance on that path. So `/site/<path>` can be taken by a collection or built-in page, not only `/site/shop/<path>`. Before choosing a `page_path`, load `/site/<path>` and confirm it returns 404. Which one wins when both exist is not verified; do not find out on a live site. Platform-level routing. *Verified live, 2026-09-25.*
 - **Nothing stops two instances having the same `page_path`.** Admin accepts a duplicate with no warning, and the storefront renders the **older** instance, so the new content never appears and it looks like caching. To replace a page, edit the existing instance; before pasting, list the instances for that path, and after pasting confirm a marker unique to the new content in the live DOM. *Verified live, 2026-09-22.*
 - Levels 1, 2 and 3 each have their own catch-all page. Each one builds
   `page_path` by joining its own path params with `/`, so a level 3
@@ -1015,6 +1018,24 @@ A `<button>` inside a form submits by default, but an attribute selector matches
 **Fix:** Resolve by class and visible text — `.add-to-cart-button`, or
 `/add[\s_-]*to[\s_-]*(cart|basket|bag)/i` — never by `button[type="submit"]` alone.
 
+### The photo upload window is a native modal `<dialog>`: no z-index paints over it (2026-09-28)
+**Status:** Confirmed live. Platform-level: the upload window is the same component on every site.
+**Symptom:** A site-wide overlay element (a custom cursor, a toast, a banner) set to the maximum z-index disappears while the photo upload window is open. On a site that sets `cursor: none` for a custom cursor, the shopper sees no cursor at all.
+**Cause:** The upload window is `<px-upload-dialog>` wrapping `<dialog class="px-upload-dialog">`, opened with `showModal()`. A modal dialog renders in the browser's **top layer**, which paints above every z-index on the page. Bootstrap `.modal` (z-index 1050) is not a top-layer element and is not affected.
+**Fix:** Move the element inside the open modal dialog while one is open, and back to `<body>` when none is. Run the check on the event that drives the element (for a cursor, `mousemove`) and keep the node reference in JS, so it is re-attached to `<body>` if the dialog leaves the DOM:
+
+```js
+var top = null;
+try { var open = document.querySelectorAll('dialog[open]');
+  for (var i = 0; i < open.length; i++) { if (open[i].matches(':modal')) { top = open[i]; } } } catch (e) {}
+var host = top || document.body;
+if (el.parentNode !== host) { host.appendChild(el); }
+```
+
+`position: fixed` children of the dialog still position against the viewport only while the dialog has no `transform`, `filter` or `contain`. `.px-upload-dialog` has none (verified by computed style); check before reusing this on another dialog.
+**Diagnosis in one call:** `document.querySelector('dialog:modal')`. Anything returned means the page is in top-layer territory and z-index is irrelevant.
+**Related:** with `html { scroll-behavior: smooth }` in the site CSS, setting `scrollBehavior = 'auto'` and calling `scrollTo` in the same tick still scrolls smoothly, because style has not been recomputed yet. Read `getComputedStyle(document.documentElement).scrollBehavior` before `scrollTo` to force it.
+
 ## The Add to Cart control
 
 Measured on a live Shopper product page, 10 Aug 2026.
@@ -1099,6 +1120,16 @@ For a flat base plus per-value adders it is exact. Beyond that, pull it. Same wa
 "do not divide total by quantity" rule above, and it applies with equal force.
 *Verified live on a child site (adult sizes billed at $17 against a $15 base while the button
 read $15 — a display fault only, the cart was correct), 2026-08-20.*
+
+### A price shown outside `px-product-price` must include default-variant surcharges (2026-09-27)
+
+On a collection-driven PDP (`product/details-filter-dual-mode`) each size is a separate sibling product, and reading a sibling's price in Liquid gives its **base** price. The figure the shopper sees in `px-product-price` is the base **plus** the surcharge of every preselected default variant. Where a default variant carries a surcharge (for example a mounting option preselected on the smaller sizes), a size pill or "from" label built from sibling base prices disagrees with the headline price on the same page.
+
+- Before shipping any price-in-pill or listing price, check whether any default variant carries a surcharge. Either add the default surcharges into the figure, or make the no-surcharge value the default (a commercial decision for the lab, not a template one).
+- When auditing a product, read which radios are checked, not only the base price.
+- **Quick check:** on the PDP, compare the `px-product-price` element's `initial` attribute with its shadow-root text. Different values mean a surcharged default.
+
+Template-level (Shopper 24). *Verified by query on live child PDPs, 2026-09-24 and 2026-09-27.*
 
 ### Gallery arrows and driving the platform gallery (2026-09-09)
 
@@ -1313,6 +1344,20 @@ The ordering in § 18 is not limited to generated color rules. The parent's `cus
 
 **Rule for a child theme:** prefix a global element or Bootstrap-class override with one extra type selector (`body h1`, `body .btn-primary`) to outrank the later parent rule. A class of the child's own is unaffected. Confirm with the live computed style, not by reading either file. *Verified by reading source, shopper24, 2026-09-23.*
 
+**The unscoped heading rule sits in the film builder block and does more than reset margins.** The parent `custom.css` page carries, inside the film builder (`pxfb`) CSS but not scoped to `.pxfb`:
+
+```css
+h1, h2, h3, h4 { color: inherit; font-family: var(--font-display); font-weight: var(--display-weight); letter-spacing: var(--display-tracking); line-height: 1.08; margin: 0; }
+```
+
+The three variables are defined only inside `.pxfb` scopes. Everywhere else they are undefined, so on every Shopper 24 page headings fall back to the inherited body font, `font-weight` falls back to normal (400), `margin` is 0 and `line-height` is 1.08. A child `h1, h2, h3 { font-family: ... }` loses to it at equal specificity.
+
+- **Child workaround:** define the variables on `:root` in the child `style/custom.css` (`--font-display: <display stack>; --display-weight: 700; --display-tracking: -0.01em;`). The `.pxfb` scopes still override them for the film builder. The `body h1` prefix above also works.
+- **Proper fix (parent, needs Alex):** scope the rule to `.pxfb h1, .pxfb h2, .pxfb h3, .pxfb h4`, then check Shopper 24 sites for headings that lost weight or spacing since the block was added.
+- Same file: at `max-width: 767.98px` the parent sets `.btn { font-size: 90% }`, which beats a child button class of equal specificity. Use `.btn.<class>` in child CSS.
+
+Template-level (Shopper 24 parent). *Verified by query (CSSOM rule list on a live child page) and by reading source (parent backup), 2026-09-29.*
+
 ## 19. Account v2 (`acv2`) Theming
 
 Applies to any Shopper site running the v2 account area (`admin/checklist/account-v2-*`).
@@ -1420,10 +1465,20 @@ as `theme.code:product.code` — a different SKU from every other event. The the
 `form_id=project_create` when a shopper launches the design tool — a "started designing" step
 with no tagging work.
 
+**More parent facts, from the 2026-09-28 parent backup** (verified by reading source):
+
+- `html.head` loads GTM when the container ID is set, and gtag.js plus `gtag('config')` when `website/gtag` is set, **independently**. Nothing stops both.
+- `integrations/google/event/view-item` calls `gtag()` and is included on `product/product-details`, `product/details-filter-dual-mode`, `product/product-details-filter` and `product/product-details-prints`. On a GTM-only site (the standard below) there is no `gtag` function, so it throws **`gtag is not defined`** in the console on every product page. Harmless to the dataLayer path, but noise in every console check.
+- gtag.js ignores the plain `dataLayer.push({event: ...})` objects Shopper emits, which is why a `website/gtag`-only site records nothing past product views.
+- The cookie banners (`cookie-consent/banner`, `gdpr-banner`) do **not** gate any tag, and there is no Consent Mode.
+- `integrations/google/ads-id` is not in the parent backup and `html.head` never reads it. An Ads ID entered there loads nothing; Google Ads goes through the container.
+- `ga_client_id` and `ga_session_id` are captured by `checkout/utm-cart-code`, which `pages/cart` includes. The UTM landing cookie `_pf_utm` is set by `integrations/google/utm-capture`. See `85_GA4_SERVER_SIDE_PURCHASE.md` § 2.
+
+**Rule:** the dataLayer is already complete, so a new ecommerce event is added as a `dataLayer.push` only, never as a parallel gtag snippet.
+
 ### The technical standard: GTM only (decided 2026-09-02)
 
-**Set the GTM container ID. Leave `website/gtag` blank.** Both fields sit in
-**Setup and Manage → Integrations**.
+**Set the GTM container ID. Leave `website/gtag` blank.** Both fields sit on the Shopper custom admin page `manage/integrations` (layout `shopper-admin`), which also carries `integrations/google/ads-id` and `website/meta-pixel`. `setup/integrations` has no Google fields, and the older `setup` and `setup/dashboard` pages hide the GA4 field with `d-none` and point to GTM. *Verified by reading source (shopper24 backup), 2026-09-28.* The admin menu path **"Setup and Manage → Integrations"** used in earlier notes is **not verified**: Alex did not recognise it (2026-09-28). Do not give it to a customer until the real click path is confirmed.
 
 | Field | Checklist key / snippet | Standard value |
 |---|---|---|
@@ -1543,6 +1598,8 @@ The action that creates a site-level version of a parent snippet is called **Ove
 Snippet**. Use that exact name in any instruction; the others send people looking for a control
 that is not there.
 
+What the action does, stated on client calls (2026-09-28): **Override Snippet** starts the site's copy from the parent snippet's current body, the override applies to that one site only, and it is live as soon as it is saved. A browser still showing the old version needs a hard refresh. Pages cannot be overridden or edited on a child at all (`13_TEMPLATE_BOUNDARIES.md`).
+
 Two consequences to state **every time** an override is instructed:
 
 - **An override pins that snippet.** The site stops inheriting parent changes to it, silently
@@ -1631,7 +1688,7 @@ applied to every child site, and the same classes recur on any new template work
 - **`collection/collection-filters` can filter on `category` with no custom field.** Its three-field syntax maps `filter_attribute` over `collection.static_products`, and `category` is a Product property the Static Product Importer already writes.
 - **The collection still needs a `collection_filters` custom field definition (snippet type)** on the site before any collection there can be given a filter.
 - **Collection paths are `/`-separated** (`film/processing`); `collection.path | split: '/' | first` gives the top-level parent.
-- Not yet verified: the query-string shape a nav link needs to pre-select a filter value from outside the collection page.
+- **Deep links that preselect every choice** on a collection rendered as a single product with filters (PDP layout): `<url_name>%5B%5D=<value>` per filter, for example `size%5B%5D=` and `orientation%5B%5D=`, with the filter value exactly as stored (including any stray text or trailing spaces, URL-encoded), plus `variants%5B<variant type>%5D%5Bvalue%5D=<variant value>` once per variant type. Portrait sizes resolved without the orientation parameter; landscape and square sizes needed it. Landing pages, emails and ads can link straight to a configured product. Platform-level. *Verified live on a child site, 2026-09-24.* Still not verified: the same shape on a three-field `collection/collection-filters` listing page.
 
 *Verified by reading source (shopper24, 2026-09-18 backup) and a live catalogue build, 2026-09-23.*
 
@@ -1650,3 +1707,4 @@ applied to every child site, and the same classes recur on any new template work
 - 2026-08-29: Added §18 generated CSS is appended after `style/custom.css` (nav colour overrides must out-specify `.navbar-light .navbar-nav .nav-link`, with the console diagnostic and the `text-transform: capitalize` companion). Added §19 Account v2 theming — specificity ladder, token list, the malformed `--acv2-accent-soft` platform defect, `!important` on `.btn-dark`/`.btn-primary`, inline styles in the parent dashboard, the typing animation, and the transition-masks-computed-values testing gotcha. Added §20 GA4 tagging defects on the parent — duplicate `view_item`, photo-prints emitting nothing, `purchase` re-firing on refresh, the `item_id` mismatch for design products, and the orphaned `integrations/google/gtag`. Added §17 gotchas: the trailing-newline value-snippet rule with its signature and generator fix, the `default-delivery-option` `public`/`private` value set, and three parent defects (lowercase-only `font-body`, inverted kiosk idle-screen logo test, double-prefixed checklist path). Corrected the custom home page gate to the `admin/checklist/custom-home-page` capture with no `| strip`, flagged pending on whether the Storefront Settings checkbox is also required. Amended the §16 kiosk status. Source: claude-chat.
 - 2026-09-09: Added §21 Parent-Safe Changes to Shopper 24 — the two `collection_filters` syntaxes (three fields for `collection/collection-filters`, five for `pdp_layout` via `product/details-filter-dual-mode`, with `snippet_args` consumed by `product/filter-controls` and `asset_images: true` requiring an asset filename); a free-form arguments string is an opt-in needing no code and no deploy, with the three properties that must be proven and the unverified `{% snippet %}` scope question; the admin action is Override Snippet, an override pins the snippet, and a promotion is unfinished until the override is removed; every parent port ships gated and off by default; a child overriding `pages/custom.css` wholesale inherits no parent CSS blocks, and the parent file is Liquid-rendered; a site-level checklist key set on the parent moves for every child. Added §22 SEO defects fixed at parent level. Added to §20 the GTM-only technical standard (`setup-google-tag-manager` set, `website/gtag` blank, both set is ~2x double counting, only `view_item` wired through gtag, Google Ads has no preset), the half-a-chain trap as the first check on any "connected but I see nothing" report, and the cross-reference to the myPixfizz server-side `purchase` pipeline including the double-count risk from leaving `purchase` in the GTM trigger regex and the missing `_ga` cookie landing purchases as Direct / (not set). Added to §16 the minimum kiosk-mode key set, the silent host-mismatch failure of `helpers/is-kiosk-mode`, and the fact that kiosk design tokens are defined on `.kiosk-touchscreen` inside `kiosk/style`. Added §17 gotchas: hide-don't-replace for a computed price with its drift conditions; always-visible gallery arrows and driving the platform gallery by dispatching a click on its own thumbnail; editor locale needs `editor`-namespace translations exported and imported. Source: claude-chat, slack-message, fireflies-call.
 - 2026-09-24: CSS delivery split by site: child → `style/custom.css` snippet override, parent → `custom.css` page; the parent wins at equal specificity (and new § 18.1 for the parent's own feature CSS). Pages Custom Type accepts duplicate `page_path` values silently. Static Product Importer: header rule, 64-character caps, case-insensitive codes, description not stored, the hang before collection assignment. Live `selectors:` re-renders are DOM patches. Added § 23 Static Product Collections. Source: claude-chat.
+- 2026-09-29: §9 favicon is the asset named exactly favicon.png. §13 custom-body-font takes no trailing semicolon. §14 check /site/<path> is a 404 before choosing a page_path. §17 native modal dialog top layer beats any z-index; move overlays inside the open dialog. §17 prices outside px-product-price must include default-variant surcharges. §18.1 the unscoped h1-h4 rule is in the pxfb block and strips heading font and weight; child :root workaround and parent fix. §20 CORRECTED where the GTM and GA4 fields live (manage/integrations); the Setup and Manage path is unverified. §20 view-item gtag include throws on GTM-only sites, no consent gating, ads-id unused, capture snippets named; new events go to the dataLayer only. §23 CLOSED the open item: query-string shape for deep links that preselect filters and variants. §21.3 Override Snippet copies the parent body, is per site, live on save, may need a hard refresh. Source: claude-chat, fireflies-call.

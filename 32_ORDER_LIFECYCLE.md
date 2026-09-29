@@ -77,6 +77,19 @@ Write conditionals against the letter, e.g. `{% if order.status == 'P' %}`, and 
 
 Each status transition can trigger an email notification (configured in admin: Settings > Email Notifications).
 
+### Which notification email fires when
+
+- **Order Pending** fires when the order is created in Pending, before payment is captured. It is an order-received or awaiting-payment message, never a confirmation (see the FAQ entry on confirmation emails for Pending orders in `90_FAQ.md`).
+- **Order Confirmed** fires when the order reaches Confirmed. It is the customer's real confirmation, and it can carry a **BCC** address so the lab receives an internal copy.
+- **Order Downloaded** and **Order Manufactured** follow production-tracking statuses.
+- **Order Fulfilled** and **Orderline Fulfilled** mean the production files are done, not that the order has shipped. Keep them internal (addressed to the lab) or off; the customer's dispatch message is **Order Shipped**. The legacy `email-notifications/content/orderline-fulfilled` snippet is described as gift card content (`52_SNIPPET_INVENTORY.md`), so check whether a site selling gift cards relies on it before switching it off.
+- **Order Error** goes to the team, not the customer. An error is something the lab has to act on.
+- **Checking what was sent:** the order's history in admin shows which notification emails fired for that order.
+- **Recovering a template:** a notification template can be restored from its saved versions after a bad edit.
+- **Photo print counts:** in the Order Confirmed email, show `orderline.cut_print_quantity` for a photo print line to give the true number of prints. `orderline.quantity` is the line quantity (`50_LIQUID_REFERENCE.md`; `31_FULFILLMENT_ENGINE.md` § jobs[]).
+
+*Stated by Alex on a client call, 2026-09-29. `orderline.cut_print_quantity` is verified in `50_LIQUID_REFERENCE.md`; its use in the email template is not verified. The Fulfilled meaning here differs from the status list above, which describes Fulfilled as delivered and complete; not yet reconciled.*
+
 ---
 
 ## Order Origination
@@ -131,6 +144,8 @@ Pixfizz supports configurable Liquid scripts (set in the Super Admin) that autom
 - Set **custom fields on individual orderlines** (orderline-level script)
 
 **Reading the customer inside these scripts:** use the `user` global (`user.custom.<field>`), never `order.user`, which does not exist (`50_LIQUID_REFERENCE.md`). `orderline.product.category` renders the plain category name, so `contains 'Film Processing'` is a valid film-only gate, and a snippet-type orderline custom field stores the script's output as written. *Verified by query, 2026-09-22.*
+
+**Named orderline fields and where they surface.** The orderline script can write any named custom field defined on the Orderline object, for example `film_instructions`. The values show in the orderline's Custom Fields in admin and in the fulfillment JSON, and the same mechanism is used for gift vouchers. The field definition must exist on the site first, or the value is dropped (`80_ONBOARDING.md` § Configuration Order on a New Site). *Stated on a client call, 2026-09-22. Partially verified: a test order the same day showed the fields empty, so confirm the values on a real order, in admin and in the job ticket, before relying on them in production.*
 
 ### Script execution order
 
@@ -242,9 +257,9 @@ Each order has one or more orderlines (individual products). Each shows:
 - Fulfillment Code (determines which destination receives assets)
 
 ### Other Admin Order Sections
-- **Abandoned Carts** — incomplete checkouts
+- **Abandoned Carts**: carts that never became an order. A cart is flagged abandoned about an hour after it was left. Only **Confirm Order** at checkout creates an order, so a customer who stops before it appears here and not in Orders; this is a repeated pattern on kiosks (`21_SHOPPER_CHECKOUT_POLICY.md` § Kiosk Sessions). *Stated on a client call, 2026-09-24.*
 - **Production Files** — production book files with project, page count, status
-- **Projects** — saved personalization projects
+- **Projects**: saved personalization projects. Every cart item becomes a project the moment it is added, for guests as well as registered customers, so a customer's files can be recovered here even when no order exists. *Stated on a client call, 2026-09-24.*
 - **Cross-Website Order Management** — Super Admin aggregates orders from all websites
 
 ---
@@ -446,3 +461,4 @@ _Verified by reading source, 2026-09-09._
 - 2026-08-21: Added rush/urgent order options section. Source: fireflies-call (Documentation call, Aug 14).
 - 2026-09-09: Added print-on-demand parent/child routing — the parent lab prices the outsourced line by product code and variant code against its own site, a mismatch inserts a zero price into automatic wholesale invoicing rather than rejecting the order, only outsourced items reach the parent, template-level variants cannot be resolved because the feed carries nothing from the template, and the discussed POD SKU property is not built; cross-referenced to semi-inheritance and the editable auto-populated product code in 16_PRODUCT_HIERARCHY.md. Added stock decrement timing (first entry to Confirmed or Draft, once only). Added that the server-side GA4 purchase event is sent only when `confirmed_at` is present, so brands whose orders never reach confirmed send nothing, cross-referenced to 85_GA4_SERVER_SIDE_PURCHASE.md, and that the order webhook payload carries only the numeric `product_id` and no `orderlines[].product_code`, which is what blocks item-level funnels. Added cart custom fields promoting to order custom fields at checkout (`cart[custom][x]` to `order.custom.x`). Source: fireflies-call, claude-chat.
 - 2026-09-24: Scripts read the customer from the `user` global, not `order.user`; `orderline.product.category` is a usable gate. Source: claude-chat.
+- 2026-09-29: Which notification email fires when: Pending before payment, Confirmed with BCC, Fulfilled/Orderline Fulfilled internal only, errors to the team, order history, template versions, cut_print_quantity in the confirmation. Abandoned Carts (flagged after about an hour, only Confirm Order creates an order) and Projects (every cart item, guest included, is a recoverable project). Orderline script writes named fields that surface in admin and fulfillment JSON (partially verified). Source: fireflies-call.

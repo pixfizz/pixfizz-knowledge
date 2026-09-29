@@ -133,6 +133,7 @@ Registering it on Product does not create it on Option. Like every other definit
 does not inherit from the Shopper parent, so a child site that has never run a custom
 tool does not have it. This is the single most likely cause of "the tool does not
 appear" on a new site. Verified by reading source, 9 September 2026.
+- **Product variants and variant values have no custom field schema.** The custom field schema list does not include them, so no custom field can be defined on a variant or a variant value. *Stated by Alex, 2026-09-26.*
 
 - **Install order for a custom design tool on a new site.** Getting this wrong produces
 a tool that never renders, with nothing in the console and nothing in admin to point at:
@@ -397,7 +398,7 @@ Reserved for platform-level features, production routing, and future functionali
 | preview_alt_tag | string | Alt text for gallery preview images |
 | promotion | snippet | Promotional content on cart page |
 | promotion_badge | string | Badge on product cards and PDP (e.g., 'On Sale') |
-| reverse_live_preview_on_shop | boolean | Swap front/back preview orientation on shop |
+| reverse_live_preview_on_shop | boolean | Swap front/back preview image on shop listings (read by `collection/collection-filters` and `search/index.json`). The second image then shows first on the listing, so on touch devices, which have no hover, the shopper sees the view that is normally the hover image. Behavior stated on a client call, 2026-09-24 |
 | shop_label | string | Custom label on product cards in shop |
 | style | string | Style category for sidebar filter matching |
 | url_parameter | string | Additional URL parameters for tracking |
@@ -1123,3 +1124,4 @@ hides it. Test on one collection before promising it to a client.
 - 2026-09-16: Pointed to the new Settings → Custom Fields site-wide definitions page for porting definitions. Source: notion-page (Dashboard).
 - 2026-09-19: Corrected the custom design tool install order — two steps, not four. Recorded that the per-tool product field families in the audit table (`bc_`, `pu_`, `framing_`, `sticker_`, `facefan_`, `gangup_`, `flyer_`, `dsn_`) are the retired configuration model, kept because live sites carry them, not because a new install needs them. Cross-referenced `26_CUSTOM_DESIGN_TOOLS.md`. Source: kbsync (custom tool estate).
 - 2026-09-24: Text-type fields cap at 256 characters (replaces the ~1KB estimate); multitext is a list field; a field type cannot be changed after creation. Added the 1,024-character product description limit that silently fails imports and admin saves. Source: claude-chat.
+- 2026-09-29: Design field reverse_live_preview_on_shop: what it does on touch devices. No custom field schema for variants or variant values. Source: fireflies-call.

@@ -334,12 +334,16 @@ Three substitution types target shape element borders:
 ### Image effects substitution
 
 A substitution type named **Image effects** applies a filter to image elements. Supported filters are **grayscale** and **sepia**.
+Sepia is the standard CSS `sepia` filter. *Stated by the core developer, 2026-09-28.*
 
 - Configuration gotcha: set the substitution's **Name** field to `placeholder`. An earlier build where this was misconfigured threw an application error in the design tool (Canvas and More views) that broke the whole design. The `placeholder` Name value is the correct, confirmed configuration.
 
 ### Admin preview and embedded inline page behavior
 
 Element substitutions now run on all admin page previews and on embedded inline pages. Previously, admin previews skipped element substitutions unless `fulfillment=true` was set, so a preview could look different from the actual customer-facing/fulfillment render. Deployed 2026-07-31. Source: slack-message (#development), commits dc282140, b406e757, 55667a2c.
+### Substitutions bind by element name
+
+A substitution targets an element by its name (for example `standoffs`, `placeholder`). A variant set exported from one product and imported onto another only acts where the target template's pages carry elements of those names, and any image it swaps in (a size-specific drawing) was made for the source template's geometry. Read the target template's element names before importing a variant set with substitutions. *Verified by reading source (a variant export), 2026-09-29; the no-match behavior is inferred, not verified by render.* See also `19_XML_TEMPLATE_REFERENCE.md` § Preview Sets for the background element name color substitution binds to.
 
 ### Known issue: colour substitutions import as black
 
@@ -961,6 +965,26 @@ _Verified by reading source, 2026-09-09._
 
 ---
 
+### Reading the product page from a tool (Shopper 24)
+
+- **Read the customer's option values the way the platform does:** call `values({skipInvalid: true, skipNoElementSubstitutions: true})` on every `px-option-selector` and merge the results. That is what `px-design-preview` sends to the render; the second flag leaves out variants that carry no element substitution. *Verified by reading the component source, 2026-09-26.*
+- **A PDP layout size or orientation change swaps the product in place, after the `change` event.** The product is replaced by AJAX: `theme_id` in the form changes, the option markup re-renders (a template option root is replaced), the gallery element stays. A `change` handler that reads `theme_id` sees the old template; watch `theme_id` itself. *Verified live, 2026-09-26.*
+- **Gallery state:** `.px-product-gallery[data-selected-idx]` is the selected slide (0-based), updated after the slide animation. A positioned element with no z-index inserted right after `.px-display` paints over the slides and under the arrows (`.px-next-arrow` has `z-index: 1`; `.px-prev-arrow` is `display: none` on slide 0). *Verified by query, 2026-09-26.*
+- **Theme ids without admin:** from a storefront tab, `GET /v1/themes/<id>` returns 200 for that site's themes and 403 for another site's. Behind a PDP layout collection, fetch the collection page with `?orientation[]=<o>&size[]=<s>` and read `theme_id` from the returned form. *Verified by query, 2026-09-27.*
+
+---
+
+### PDF pages longer than 200 in (roll goods)
+
+- **Acrobat caps a page side at 14,400 units (200 in).** That is an Acrobat limit, not a PDF rule.
+- **`/UserUnit` (PDF 1.6) is the standard way round it, but a reader that ignores it shows the page at a fraction of its size.** poppler (`pdftoppm`) renders a UserUnit 2 page of 36 x 263 in at 18 x 131.5 in. A RIP that ignored it would print and cut a half-size roll without complaint.
+- **A page written at full size in points** is read at the right size by every reader tested except Acrobat's display. A RIP that refuses it fails loudly on import.
+- Rule for a tool that writes its own PDF for roll goods: default to full size in points, keep UserUnit as a per-lab switch, and prove the lab's RIP with a file longer than 200 in before go-live.
+
+_Verified by test, 2026-09-28._
+
+---
+
 ### Build and install rules for a custom tool
 
 Carried from shipped builds. Each of these has cost time at least once.
@@ -1036,3 +1060,4 @@ _Verified by reading source, 2026-09-09._
 - 2026-09-16: Added login inside `<px-upload-dialog>` — four attributes, the underscore form for PhotoPrints config and the `upload-dialog-` prefix for `<px-image-upload>` / `<px-multi-image-upload>`; off by default. Missed in the 2026-08-17 sync. Source: notion-page (Dashboard).
 - 2026-09-19: Pointed the Custom Design Tools section at the new `26_CUSTOM_DESIGN_TOOLS.md` for the estate, configuration and install. Replaced the "create the two shared custom fields before the template import" build rule with the mount-argument-list rule decided 11 Sep 2026. Source: kbsync (custom tool estate).
 - 2026-09-24: Added "Show in the Editor, Never Print" (unedited placeholders are not fulfilled; the uneditable-placeholder technique), "Grouping Elements to Hide Them While Editing — View Settings", "Editor Buttons and Per-Site CSS" (autofill selector and states, the Design Tool Configuration Custom CSS field, AI filter credits) and "Mapped Previews". Source: fireflies-call, claude-chat, slack-message.
+- 2026-09-29: Sepia is the CSS sepia filter. Substitutions bind by element name. Reading option values, PDP layout swaps and gallery state from a tool; PDF pages over 200 in. Source: claude-chat, slack-message.

@@ -53,6 +53,7 @@ Options can be conditionally displayed based on kiosk mode:
 - If `option.custom.kiosk_mode_only` is truthy:
 	- Shopper checks kiosk mode (`helpers/is-kiosk-mode`)
 	- Only displays the option if `is_kiosk_mode == 'TRUE'`
+**Trap: a missing boolean definition hides the option on the website.** On a site with no boolean custom field definitions for the option flags (`kiosk_mode_only`, `edit_from_cart`, `hide_label`, `hide_pricing`, `hide_value_labels`), an imported option stores them as the text `"false"`, which Liquid reads as truthy, so `product/px-options` drops the option with no error. Seen on a custom-script mount option that was stored (visible in `/v1/themes/<id>`) and never rendered. Check: `JSON.stringify(option.custom.kiosk_mode_only)` must return `false`, not `"false"` in quotes. Fix: create the boolean definitions on the site's option object; the values then read as booleans. Platform-level (definitions per site) meeting template-level (Shopper 24 `product/px-options`). *Verified by query and by reading source (Shopper 24 parent), 2026-09-28.* See § Unset Booleans Export as the String `'false'`.
 
 ### 3.2 Triggered / child options (conditional logic)
 Options can have children (`option.children`), and child options can be shown based on a trigger:
@@ -229,6 +230,13 @@ Shopper renders a `<px-image-upload>` web component with:
 - optional image adjustments driven by admin checklist:
 	- `enable-image-filters-image-upload`
 	- `enable-image-color-image-upload`
+**Value and crop (platform-level, the `px-image-upload` web component):**
+- The upload lives in the component's `value` attribute as `db:<image id>`, optionally followed by crop data `@{l:..,t:..,r:..,z:..}`; no crop is plain `db:<id>`. `px-multi-image-upload` carries it the same way. The option code differs per template (`photo`, `upload-image`), so find the control by tag, scoped to its `px-option` where there are several. `px-option-selector` fires a bubbling `change` after an upload. *Verified by query and by reading source, 2026-09-26 and 2026-09-29.*
+- Setting `value` to `db:<existing image id>` from script updates the hidden input and fires that `change`, which tests an upload flow without the dialog. *Verified by query, 2026-09-26.*
+- **`crop-aspect-ratio` is an observed attribute.** Setting it on the page (`8in/10in`, `10in/8in`) changes the Adjust dialog's crop box at once, with no reload. One upload option can therefore serve several placeholder shapes (orientation, presentation) with the ratio set from the page; one upload option per shape loses the photo when the customer switches. A crop made for the old ratio stays in the value: reset it to `db:<id>` when the shape changes. *Verified live, 2026-09-29.*
+- **With no Crop Aspect Ratio on the option, Adjust shows no crop box at all**: the customer can only filter, rotate and reset, and the photo fills the placeholder centered. *Verified live, 2026-09-29.*
+- The Adjust dialog copies every `crop-*` attribute of the upload onto `px-image-adjust-tool` (prefix stripped) when it opens. `crop-rotation-mode` is also observed; its values are unknown.
+- Not verified: a crop moved by hand after a ratio change, end to end into the production file.
 
 ### 5.2 `file_upload` (`option.type == 'file_upload'`)
 Shopper renders a `<px-file-upload>` component.
@@ -586,6 +594,7 @@ template's options alone, not the whole `__print_product.yml` — accepts a blan
 `id:` and creates new records. The two traps in reusing an options export taken from
 another site, and the still-untested duplicate question, are in
 `51_CUSTOM_FIELDS_REFERENCE.md`.
+**Option trees with layout substitutions import in one go.** A `__template_options.yml` archive imported at the template's options import can hold a parent option with `children` (each with `trigger_value_code`) and values carrying `element_substitutions` of type layout; the whole tree is created. The option value edit page in admin has no element substitution UI, so import is the route for adding layout substitutions to template option values. The import answered with a 500 error but created everything: check the result with the option's own export, not the response. *Verified by use and by export, 2026-09-29.*
 
 ---
 
@@ -611,12 +620,18 @@ one `variant_types` list; each entry carries `variant_values`. Type-level keys s
 — see the blank-price section above.
 
 **Settled 2026-09-20: a variant-type import never updates in place.** A code collision appends `-1` to every code and value code in the imported set, the same create-only behavior as every other import (`01_CODE_GOVERNANCE_UPDATED.md` § Never Re-Import to Update). An export → edit → re-import round trip is not a bulk price-editing route. *Stated by Alex.*
+**Variant codes are not guaranteed to match across a size range.** Because variant types are per product, one range can use one set of codes on most sizes and different codes on another (seen: 54 sizes on one set, one size on different codes, one size with no mounting variant). A script, preview or mount keyed on variant codes must read the codes of every product in the range, not one sample. *Verified by query, 2026-09-28.*
+
+In a template export (`__print_product.yml`), each product's variant types carry `published` at type and value level, and `custom.hidden`; unpublished types and values travel with the rest. *Verified by reading source, 2026-09-29.*
+
+**Rolling a changed template option or variant set across a live range:** configure it on one template, then copy it to the others with the admin Bulk Update Tools (Advanced tab). Never hand-edit dozens of templates and never delete and re-import. See `18_ADMIN_NAVIGATION.md`. *Stated by Alex, 2026-09-26 and 2026-09-29.*
 
 ## Pricing and POS-Relevant Choices Belong on Variants, Not Template Options
 
 Anything that affects price, needs a customer choice, or would have to be entered by hand on a point of sale belongs on a **Product Attribute variant**. Manual and POS orders placed through the Order API pull **product variants only, never template options**, so a custom tool built only on template options cannot be re-created at a counter. Template options remain the right place for design-side inputs (photos, text) that do not change the price. *Stated by Alex, 2026-09-21 and 2026-09-22.*
 
 A Product Attribute links to **one** template; one template can be used by **many** Product Attributes. *Stated by Alex, 2026-09-22.*
+OrderHub custom orders read the same way: variants only. Production choices a counter has to re-create, such as canvas edge or wrap and mounting, must therefore be Product Attribute variants, not design or template options. *Stated by Alex on a call, 2026-09-29.*
 
 ## Changelog
 - 2026-06-19: Added section 4.8 `toggle` selector (2-value animated CSS-only switch on `product/px-options`), including the `toggle_hide_labels` bare-switch option, guard/fallback behavior, and primary-colour sourcing. Added cart-context note (7) that toggle is product-page only. Added `toggle` and `toggle_hide_labels` to the recognize-and-document list (8).
@@ -624,3 +639,4 @@ A Product Attribute links to **one** template; one template can be used by **man
 - 2026-08-29: Added the single-value variant type gotcha — one value is auto-selected and inherits the theme's selected-button styling, producing a large fixed pill that costs roughly 190 px per group; includes the markup tree, the `:only-child` CSS fix that reverts itself when a second value is added, and the two things that need an admin change rather than CSS. Added: unset booleans export as the quoted string `'false'` and read truthy in Liquid, affecting `hidden`, `read_only` and `hide_from_cart` inside `custom` — re-check both flags in admin after importing any option archive. Source: claude-chat.
 - 2026-09-09: Added the platform bug where a required file-upload option behind a trigger silently kills Add to Cart — symptom, cause, evidence table, the independent confirmation, the correction that `disable_required_form` does not fix it, the three workarounds and the two debugging techniques. Extended §4.6 `quick-quantity` with the no-`name` consequence for `px-option-selector` and `px-product-price` (display fault, cart correct), the three add-to-cart handler hardening rules, the cloned-button trap, the `getEventListeners` diagnostic and the missing `t: ns: 'variants'` translation filter. Added that `value.price` exports blank rather than zero, so `!= 0` renders `+$0.00` on free values, and the `| plus: 0` normalisation. Added the two rules for grouped value bands (order-independent collection, opt-in on the group field) and the recorded test failure where `== blank` dropped ungrouped values. Added the two `collection_filters` syntaxes. Added that blank ids in a standalone template-options import create new records. Added the variant type export shape and the shared-object price constraint, with the unverified update-in-place claim flagged. Source: claude-chat, fireflies-call.
 - 2026-09-24: Corrected "Variant Type Exports": variant types belong to one Product Attribute and are not shared; variant-type imports never update in place. Added "Pricing and POS-Relevant Choices Belong on Variants" and the one-template-per-Product-Attribute rule. Source: claude-chat, fireflies-call, slack-message.
+- 2026-09-29: `px-image-upload` value format, live crop-aspect-ratio, no crop box without a ratio. Kiosk_mode_only stored as text hides the option. Option trees with layout substitutions via options import. Variant codes differ per product in a range; template export carries published/hidden; bulk update pointer. OrderHub custom orders read variants only. Source: claude-chat, fireflies-call.

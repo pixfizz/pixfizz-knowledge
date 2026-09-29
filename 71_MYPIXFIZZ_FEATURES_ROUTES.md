@@ -98,6 +98,29 @@ _Last updated: 2026-03-26_
 | (global) | Keyboard Shortcuts | Task management hotkeys. |
 | `/admin/portal-preview/:orgId` | Portal Preview | Admin view of a specific customer's portal. |
 
+### Brand Connections and Catalog
+
+| Route | Feature | Notes |
+|---|---|---|
+| `/brands/:id?tab=connections` | Brand Connections | One card per connection: live orders (order webhook), GA4, Google Reviews, the Pixfizz admin API credential and others. The admin page, the customer portal and Portal Preview share the same brand page. |
+| `/admin/catalog-manager/:brandId` | Catalog Manager | Bulk view and edit of a storefront's products over the Pixfizz admin API. Staff only; reached from the storefront's Catalog link, which shows only when the brand has an API credential. |
+
+**Google Reviews**
+- Connect it on the brand's Connections tab. It needs the brand's Pixfizz admin API credential, which is moving from an admin login to an API key on an admin user.
+- Sync is manual (**Sync now**).
+- Reviews above the auto-approve star threshold (above 4 stars on current setups) arrive ready to publish, but still need **Publish**. Nothing goes live on its own.
+- Reviews publish as instances of a Shopper custom type. The review-ID custom field must exist in that type's schema, or publishing fails.
+- The product-page widget is switched on separately on the storefront, through its Integrations snippet (`52_SNIPPET_INVENTORY.md`, `integrations/google/product-page-rating-widget`). The widgets emit no review structured data (`81_SEO_AND_GEO_REFERENCE.md`).
+
+**Catalog Manager**
+- Needs an admin API credential on the brand. **Test connection** fails when the user behind it is not an admin.
+- Adjusts product prices in bulk by a percentage or a fixed amount, then publishes through the API with a read-back check of every row.
+- Variant prices are visible but read-only, because the API has no variant write (`61_PIXFIZZ_API.md` § 13g).
+- Stock editing is locked when the organization's stock is managed in OrderHub (`45_ORDERHUB.md` § Stock on OrderHub Sites).
+- After a verified write, the grid shows the value the site read back, not the value typed. The platform derives `price_formula` from the shape of the value written, so the two can differ.
+
+*Stated on calls, 2026-09-22, 2026-09-24 and 2026-09-29. Routes and the OrderHub stock lock verified by reading source, 2026-09-28 and 2026-09-29.*
+
 ---
 
 ## Customer Portal — Feature Map
@@ -132,3 +155,4 @@ When asking Lovable to modify or build features, always specify:
 
 ## Changelog
 - 2026-03-26: Initial version. Compiled from Lovable project summary.
+- 2026-09-29: Added Brand Connections and Catalog: routes, Google Reviews connector behavior, Catalog Manager behavior. Source: fireflies-call.

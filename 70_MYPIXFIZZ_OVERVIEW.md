@@ -82,6 +82,7 @@ The core execution unit. Tasks can belong to an org, brand, project, or be inter
 | **QuickBooks** | Invoice and payment sync. Token refresh. Webhooks for payment events. |
 | **GA4** | Server-side `purchase` via the GA4 Measurement Protocol, live since March 2026. Per-brand measurement id, API secret, enabled flag, debug flag and billing currency. The Pixfizz order webhook feeds an event outbox, which sends to the Measurement Protocol with per-order idempotency and attempt logging. Depends on the Shopper order custom fields `ga_client_id` and `ga_session_id` being present on the storefront. See `85_GA4_SERVER_SIDE_PURCHASE.md`. |
 | **Pixfizz Order Webhook** | Receives orders from the Pixfizz platform, processes for GA4 and reporting. |
+| **Google Reviews** | Customer-facing connector on the brand page's Connections tab. Uses the brand's Pixfizz admin API credential (`brand_api_credentials`). Reviews sync from Google into a review inbox and publish to the storefront as instances of a Shopper custom type, which the storefront widgets read. See `71_MYPIXFIZZ_FEATURES_ROUTES.md` § Brand Connections and Catalog. |
 | **Calendly** | Webhook ingestion of meeting events into the call log / CRM. |
 | **Email (Edge Functions)** | Transactional emails: forgot password, onboarding invites, support agent notifications, idea promotion alerts. |
 
@@ -125,6 +126,16 @@ pointed at an arbitrary destination.
 
 The customer-facing controls on the brand's Connectors section are set, masked, rotate, test and
 clear. The same card appears in the admin brand dialog.
+**API keys (2026-09-28).** The brand credential is either a Pixfizz admin API key (`pxk_...`, sent
+as the Basic-auth username with an empty password) or a legacy `username:password`, one per brand.
+Every Pixfizz caller builds its Authorization header through one shared helper
+(`_shared/pixfizz-auth.ts`), and only the first 12 characters of a key are ever stored outside
+the vault or displayed. The card is **Pixfizz API access** on the brand's Connections tab, with
+**Replace key**, **Test connection** and **Clear**; a brand still on a password shows an amber
+"Switch to an API key" pill. New connections use a key created on a dedicated API user in that
+site's admin, one key per integration (`61_PIXFIZZ_API.md` § 2). The Admin URL field converts a
+pasted `admin.pixfizz.com/site/<slug>/admin` link to the API base `https://<slug>.pixfizz.com` on
+Save. *Verified by reading source, and an end-to-end key test by query, 2026-09-28.*
 
 ---
 
@@ -156,6 +167,13 @@ them". *Each verified by reading source, and each was a live defect.*
 - **An email that invites a reply, sent from an address that cannot receive one.** A `noreply@` sender with no `Reply-To` turns "reply to this email" into a silent bounce.
 
 *Verified by reading source and by query, 2026-09-23.*
+
+### Operational rules from two outages and a stuck home-screen app (2026-09-29)
+
+- **Any every-minute pg_cron job needs a retention job for `cron.job_run_details` from day one.** Unbounded job history grew past 450 MB and starved the database twice (15 and 29 September): even `select 1` was cancelled. The fix is a nightly batched delete of history older than a few days, plus a vacuum. *Verified by query and logs, 2026-09-29.*
+- **A prevention step written in an incident doc is not done until a query shows it exists.** The 15 September prune job was prescribed and never created, which is why the same outage happened again.
+- **Never clear `ga4_event_outbox` to free space.** It is the order history behind Brand Performance and the brand comparisons; copy it elsewhere first.
+- **Never remove a shipped service worker by deleting its file.** Replace it at the same path with a self-destroying worker (skipWaiting on install; on activate delete every cache, unregister, reload open windows; no fetch handler) and keep that file permanently. A deleted worker path falls through to the SPA fallback and the old worker stays installed, so a home-screen install keeps running old code against live data. The cleanup code in the new app never runs on a device still controlled by the old worker. *Verified by reading source (git history), 2026-09-29; the fix on iOS is not yet verified.*
 
 ## RLS and Aggregates in Triggers — the Rule
 
@@ -247,3 +265,4 @@ re-checking against the current route.
 - 2026-08-29: Added Credential Storage — `brand_api_credentials` is the single store for Pixfizz admin access; a connector prompts for a login only when `credential_vault_id` is null and writes at brand level via `customer_set_brand_api_credentials`, with per-connector credentials as an override rather than the default. Source: claude-chat.
 - 2026-09-09: REPLACED the one-line GA4 row in the Integrations table with the full description of the server-side `purchase` pipeline (Measurement Protocol, live since March 2026; per-brand measurement id, API secret, enabled and debug flags, billing currency; order webhook into an event outbox with per-order idempotency and attempt logging; dependent on the Shopper order custom fields `ga_client_id` and `ga_session_id`), pointing at `85_GA4_SERVER_SIDE_PURCHASE.md`. Extended Credential Storage with what is held and where — secret in a vault, write-only from the client, base URL hardened to a Pixfizz host. Added Recurring Defect Patterns (self-referential RLS SELECT policy; edge function gated on an admin-role check; a 200 carrying `ok: false`; a test-connection probe on a different route family). Added the RLS-and-aggregates rule — a PL/pgSQL trigger without `SECURITY DEFINER` runs as the caller, so an aggregate inside it is RLS-filtered, which is why the bug is invisible to staff and reproduces only for customers; a sequence is the right fix; and the testing rule that a staff account cannot test anything gated by RLS. Added webhook endpoint design rules (401 for a bad key, 200 for everything else on purpose, and a query-string secret making the URL a credential that rotates with the provider entry, in that order). Added the mail transport rule versus mailbox forwarding for copying mail to an ingestion endpoint. Added Support Intake — intake moved off the previous helpdesk on 2026-09-09, which invalidates any article giving customers the old address. Source: claude-chat, fireflies-call.
 - 2026-09-24: Added three recurring defect patterns: empty state as error state, unpublished edge functions, reply-inviting mail with no Reply-To. Source: claude-chat.
+- 2026-09-29: Credential Storage: API keys supported (pxk_ or legacy user:pass, shared auth helper, 12-char hint only), UI labels, Admin URL normalization. Added Google Reviews to the Integrations Summary. Operational rules: pg_cron history retention, prevention steps verified by query, never clear ga4_event_outbox, service worker kill switch. Source: claude-chat.

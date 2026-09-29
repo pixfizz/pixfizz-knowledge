@@ -417,6 +417,19 @@ single invalid default typically produces several empty intersections at once.
 many child sites. Prove the fix as a site-level override first, then promote it
 to the parent.
 
+### Removing a product breaks every page whose default filter value points at it
+
+A collection page's `default_value` names a filter value that must exist on at least one product in the collection. Delete or move that product and the page breaks. Stated on a client call, 2026-09-29, and seen live the same day on a custom filter-static drilldown page.
+
+**The crash form (custom filter-static snippets).** A site-level filter-static snippet, since copied between sites, seeded the product variable with the paginated list: `{% assign product = static_products %}`. It is replaced with a real product only when every filter resolves. When the default (or the URL parameter) matches no product, the drilldown stops, `product` is still the Paginate object, `{% if product %}` is truthy, and `product.id` raises **`undefined method 'id' for CMS::Objects::Paginate`**: an application error page, not a blank PDP. *Verified by reading source; the live error was seen, the fix is not yet verified live, 2026-09-29.*
+
+**Fix:**
+
+1. Seed with `{% assign product = nil %}`. An unresolved drilldown then renders without price or Add to Cart instead of crashing.
+2. Set `default_value` to a filter value that exists on a product in the collection, byte-exact.
+
+**Rule:** before removing a product from a filter collection, check every page that uses one of its filter values as a `default_value`.
+
 ## Two rules for diagnosing platform problems
 
 ### A matching symptom is not a confirmed cause
@@ -588,6 +601,7 @@ with more than one admin user.
 
 Recorded from a client call, **not verified against the admin UI** — confirm the
 exact settings and where they live before walking a client through it.
+**Update 2026-09-28:** two of these are now platform behavior rather than per-site choices. The admin sits on its own host (`admin.pixfizz.com`, since 2026-09-23; the storefront `/admin` path redirects there), and admin login has a TOTP challenge with optional passkeys (rolling out from 2026-09-28). See `18_ADMIN_NAVIGATION.md` § Admin Login: Two-Factor and Passkeys.
 
 ## Add to Cart Does Nothing and No Network Request Is Issued — It Is Form Validation
 
@@ -732,6 +746,8 @@ A flag or redirect behaviour for this is **not built** — do not document or pr
 Stated on a client call and corroborated by an independent report; not verified by reading
 source.
 
+**Finding every hidden product on a site in one pass.** A product that exists but is not public still answers `/v1/products/<id>.json` with 200 while it is missing from `/v1/products.json`. Diff the full id list against the public list to find every hidden product; this found several dozen leftover hidden products after a double import on a child site. *Verified by query, 2026-09-25.*
+
 ## If It Sometimes Works and Sometimes Does Not, It Is a Bug — Not a Missing Link or a Missing SKU
 
 A configuration fault is deterministic. **A missing link, a missing SKU, an unpublished
@@ -853,3 +869,4 @@ last edited 2025-08-13.*
 - 2026-07-28: Added Collection Filter Drilldown blank-PDP entry — stale or invalid dependent filter values break the drilldown; fix is a three-tier selection cascade in `product/product-details-filter` and `product/details-filter-dual-mode`. Source: claude-chat.
 - 2026-08-29: Added Optimising 360-degree product spin GIFs — measured savings table (lossless gains nothing; lossy plus every-2nd-frame is roughly 87% smaller), the frame-dropping trap that silently speeds up the rotation and how to recompute the delay, and the larger win of serving a static first frame on collection grids. Added Recommended Admin Security Hardening (rename admin URLs, enforce 2FA, block admin via the main domain), flagged as unverified against the admin UI. Source: claude-chat, fireflies-call.
 - 2026-09-19: Added two entries. An AI-generated template that crashes the importer with no useful error, with the embedded-image resolution check (observed: a 305 MP asset) and WebP quality 90 as the replacement default. A customer's old project showing broken images because the images have been deleted on schedule (6 months after an ordered cut print, 3 years after any other ordered project), with the inactive-user and saved-cut-print routes to the same symptom. Source: slack-message (#development), notion-page (Deletion Policies).
+- 2026-09-29: Security hardening: separate admin host and 2FA are now platform behavior. Removing a product breaks pages whose default filter value names it; the Paginate NoMethodError form and its fix. Hidden-product detection by diffing /v1/products.json against per-id reads. Source: claude-chat, slack-message.

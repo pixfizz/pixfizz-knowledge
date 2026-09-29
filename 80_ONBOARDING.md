@@ -469,6 +469,8 @@ Use this checklist before declaring a site ready for launch.
 - [ ] Kiosk mode tested on intended hardware (if applicable)
 - [ ] Mobile experience reviewed on actual devices
 - [ ] Legal pages present (terms, privacy policy, returns policy)
+- [ ] Favicon uploaded as a site asset named exactly `favicon.png` (512x512, transparent) and the live head icon link points at it; see `50_SHOPPER_TEMPLATE_REFERENCE.md` § 9
+- [ ] `footer/logo` overridden on the site; the parent's points at an asset most child sites do not hold, so an un-overridden footer shows a broken image
 
 ---
 
@@ -550,8 +552,7 @@ hand today has to match it or it cannot be adopted later.
 
 ### The technical standard
 
-**Set the Tag Manager container id. Leave the GA4 tag id field blank.** Both are exposed in
-Setup and Manage → Integrations.
+**Set the Tag Manager container id. Leave the GA4 tag id field blank.** Both are on the Shopper custom admin page `manage/integrations` (verified by reading source, 2026-09-28). The admin menu path "Setup and Manage → Integrations" given in earlier notes is **not verified**; confirm the real click path before putting it in customer instructions. See `50_SHOPPER_TEMPLATE_REFERENCE.md` § 20.
 
 - The direct GA4 tag path cannot carry the funnel — it delivers page views and product views
   and nothing past them.
@@ -580,6 +581,18 @@ stream**. The customer creates it, the customer can revoke it, it cannot read th
 it gives access to nothing else in their Google account. It does not contradict the ownership
 standard above. Verified by reading source (Measurement Protocol documentation and the
 implementation), 2026-09-02.
+
+### Writing setup steps a customer can follow
+
+From Alex's review of the myPixfizz GA4 setup steps (2026-09-28). They failed because they said "the URL above" and "the same secret as below", did not say which system each step happened in, and gave no clicks for the Tag Manager change.
+
+- **Group the steps by the system they happen in**, named as a place: In Google Analytics / In your Pixfizz admin / In Google Tag Manager / Here in myPixfizz.
+- **Every step gives the click path** and puts the value to paste **inside the step**, with a copy button where the medium allows.
+- **Never refer to "above" or "below".** A reader who lands on one step must be able to complete it.
+- Mark optional steps as optional and give a fallback ("Ask Pixfizz to do this").
+- Where the system can show whether a step is done (last webhook received, a value present on the last order), show that status next to the step.
+
+*Stated by Alex, 2026-09-28.*
 
 ---
 
@@ -657,9 +670,13 @@ so one host serves every terminal.
 terminal-capture snippet on top of the above; without them the orders arrive with no terminal
 recorded. Verified by reading source (kiosk-mode helper and the checklist keys, 2026-09-08).
 
-**Do not document or offer the kiosk desktop application.** A Windows kiosk helper application
-exists, is **pre-1.0 and not distributable**, and nothing about it should reach a customer or
-an onboarding plan yet. The storefront configuration above is independent of it.
+**The Pixfizz Kiosk desktop app is optional and comes after the storefront setup.** The Windows
+app is downloaded from myPixfizz (Tools → Pixfizz Kiosk) and only works on a site with kiosk mode
+enabled. It locks the terminal to the kiosk domain, allows USB image import, and adds an idle reset
+(default 4 minutes, 0 turns it off), which is the only logout that does not depend on the customer
+reaching the thank-you page (`18_ADMIN_NAVIGATION.md` § Pixfizz Kiosk App,
+`21_SHOPPER_CHECKOUT_POLICY.md` § Kiosk Sessions). The storefront configuration above is
+independent of it and must be done first. *Stated on client calls, 2026-09-22 and 2026-09-24.*
 
 ---
 
@@ -711,3 +728,4 @@ After any domain change, repoint payment-provider webhooks that carry the old do
 - 2026-08-29: Added Post-Import Checks a Tar Cannot Cover — `no-index` ships `TRUE` on the parent and must be set to `FALSE` on a live store; assert the custom homepage wrapper class on the live root; confirm which navigation style actually renders because a tar cannot read or set that admin value; re-check checkout preselects after any wipe-and-replace import; and verify value-snippet trailing whitespace on generated bundles. Restated that a local render verifies the file and not the site. Source: claude-chat.
 - 2026-09-19: Custom design tool install order rewritten as two steps, with the third and fourth (product custom fields, checklist values) retired. Cross-referenced `26_CUSTOM_DESIGN_TOOLS.md`. Source: kbsync (custom tool estate).
 - 2026-09-24: Added "Staging and Production Share One Database" and "Custom Domain Setup". Source: claude-chat, fireflies-call.
+- 2026-09-29: CORRECTED where the GTM and GA4 fields live; Setup and Manage path unverified. Added the rule for customer setup steps (system named, click path, value inside the step, never above/below). Pre-launch checklist gains favicon.png and footer/logo override. Corrected the kiosk desktop app note: now distributed from myPixfizz Tools, optional, with domain lock, USB import and idle reset. Source: claude-chat, fireflies-call.

@@ -405,6 +405,20 @@ It's possible — email notifications can be configured to fire at the Pending s
 
 ---
 
+**Q: A kiosk customer says they ordered, but there is no order in admin.**
+_Applies to: Shopper (kiosk mode)_
+
+Only **Confirm Order** at checkout creates an order. A customer who fills in their details and walks away has placed nothing. Their photos and design are still saved: look under **Orders → Projects** (guest carts included) and in **Abandoned Carts**, where the cart appears about an hour later. See `21_SHOPPER_CHECKOUT_POLICY.md` § Kiosk Sessions.
+
+---
+
+**Q: On our kiosk, the next customer sees the previous customer's cart.**
+_Applies to: Shopper (kiosk mode)_
+
+Kiosk auto-logout runs only from the thank-you page, about 10 seconds after a completed order. If anyone navigates away before that, the session and its cart carry over. The Pixfizz Kiosk app's idle reset (default 4 minutes) is the other logout; a site that sets it to 0 has none. See `21_SHOPPER_CHECKOUT_POLICY.md` § Kiosk Sessions and `18_ADMIN_NAVIGATION.md` § Pixfizz Kiosk App.
+
+---
+
 **Q: Sorting on my site looks wrong — items aren't appearing in the order I set.**
 _Applies to: Shopper_
 
@@ -493,3 +507,4 @@ Not by a setting. It may be possible with inline pages but there is no confirmed
 - 2026-07-04: Added CMYK-JPEG upload caution to the image-upload Q&A (Section 3) — upload sRGB; reserve CMYK for fulfillment transformation. Source: Fireflies (2026-07-03).
 - 2026-07-31: Added per-template image upload visibility Q&A (Section 3) — use a separate Design Tool Configuration per template rather than a single global editor.css rule. Source: support ticket.
 - 2026-09-24: Added Section 12 Design Templates: unedited placeholders do not print, production-only layers, hiding layers while editing, mirrored output. Source: fireflies-call.
+- 2026-09-29: Two kiosk FAQs: no order because Confirm Order was never pressed; next customer inherits the session. Source: fireflies-call.
