@@ -1248,6 +1248,13 @@ Three conditions apply:
 | `project_create` | `product:`, `design:`, *`parent_orderline:` | Creates a project. Pass `parent_orderline` for child orderlines. |
 | `project_update` | `project:` | Updates a project's attributes |
 
+**Writing project custom fields from the product page.** Hidden inputs named `book[custom][<field_name>]` inside the `project_create` form store values on the new project's custom fields. Put them outside `<px-option-selector>` so they are not treated as options or written into the URL (`22_OPTION_VARIANT_RENDERING.md` § 6.2). Use for data the design does not render, such as generation prompts or metadata.
+
+- The definition must exist on the Projects (PrintBook) object and be ticked **Public**. A non-public field is saved for admins only, so it works while you test logged in as admin and silently stores nothing for shoppers.
+- All custom field data on one project is capped at 65,535 bytes in total (`51_CUSTOM_FIELDS_REFERENCE.md`).
+
+*Stated by the core developer, 2025-05; not re-tested by query.* Platform form, template-level placement (Shopper `product/design-now`).
+
 **Addresses**
 
 | Form Type | Required Params | Description |
@@ -1865,3 +1872,4 @@ tool never saw the product" in one paste, and nothing else does.
 - 2026-09-24: Recorded that `order.user` does not exist and that the `user` global carries the order's user inside order and orderline custom fields scripts. Source: claude-chat.
 - 2026-09-29: Website object: never use the undocumented website.products (admin-only objects, error hidden from admins). Source: claude-chat.
 - 2026-10-06: KNOWN CMS LIQUID QUIRKS: no `json` filter (unknown filters pass input through silently), `money` prints a bare number in emails, filters inside snippet arguments do not run, `{`/`}` in an email string literal fails the save silently. escape_json: build JSON by hand. snippet tag: scope note (email snippets get only named arguments plus `website`; Pages `page_content` case). Notes on Contexts: CORRECTED email context (Cart Abandoned gets `cart`), per-email variable table, other email-context behavior. Writing cart custom fields: no Cart object type, definitions live on Orders, test with a placed order. Request: `preview` query parameter is reserved and redirects to the editor. Website object: CORRECTED the parent `film/roll-builder` fix to pending. Paginate: every `website.*` list defaults to 20, exhaustive loops must set `page_size`, truncated-list symptom and `.size` diagnostic. Source: claude-chat.
+- 2026-10-06 (later): Projects forms: writing project custom fields with `book[custom][<field>]` hidden inputs in `project_create`, with the Public requirement and the 65,535-byte total. Source: gmail (core developer, 2025).

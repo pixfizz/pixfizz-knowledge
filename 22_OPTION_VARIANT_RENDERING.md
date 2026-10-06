@@ -322,6 +322,33 @@ Shopper passes these flags into many inputs/components:
 
 Meaning: **an option can exist purely for substitutions**, purely for pricing, both, or neither, and Shopper can explicitly tell Px components to ignore certain behaviors.
 
+### 6.1 `data-px-no-element-substitutions` keeps an input out of preview URLs
+
+When the attribute is on an option input, the preview widget does not use that input to build `/preview.svg` URLs. Shopper adds it when `option.has_element_substitutions` is false. To force it per option (for example long text the preview pages do not render), check a boolean custom field on the template option first, in `product/px-option`:
+
+```liquid
+{% if option.custom.skip_for_previews %}
+	data-px-no-element-substitutions
+{% else %}
+	{% unless option.has_element_substitutions %}data-px-no-element-substitutions{% endunless %}
+{% endif %}
+```
+
+- Create the boolean `skip_for_previews` definition on Template Options on the site first. The field name in admin must match the Liquid exactly: a near-miss name stores a value nothing reads.
+- Prefer this to intercepting the preview request to strip parameters.
+
+Template-level (Shopper `product/px-option`) over platform preview widget behavior. *Stated by the core developer, 2025-05; not re-tested by query.*
+
+### 6.2 Selected options are written into the page URL
+
+`<px-option-selector onchange="storeOptionSelectionIntoURL(this)">` in `product/design-now` writes every selected option into the page URL on change. This is what carries values across a product switch on the same product form.
+
+- Long text values (for example generated story paragraphs) make the URL too long: the product page crashes and the project can be saved corrupted. Short values are harmless (`27_LIVE_FINISH_AND_3D_PREVIEWS.md` observes it with `lf_mount`).
+- Do not remove the handler if shoppers switch products on the form. Exclude the long-value options from it (an ignore list in `product/design-now`), keep those values in a client store or in project custom fields (`50_LIQUID_REFERENCE.md` § Projects), and refill the inputs on `pageshow` and `px.fragmentsReloaded` (`17_DESIGN_TOOL.md` § Restoring Input Values After a Product Switch).
+- A text option value is capped at 1,024 characters regardless (`51_CUSTOM_FIELDS_REFERENCE.md` Key Notes).
+
+Template-level (Shopper `product/design-now`). *Stated by the core developer, 2025-05; not re-tested by query.*
+
 ---
 
 ## 7) Cart rendering differences (`product/px-option-cart`)
@@ -678,3 +705,4 @@ OrderHub custom orders read the same way: variants only. Production choices a co
 - 2026-09-24: Corrected "Variant Type Exports": variant types belong to one Product Attribute and are not shared; variant-type imports never update in place. Added "Pricing and POS-Relevant Choices Belong on Variants" and the one-template-per-Product-Attribute rule. Source: claude-chat, fireflies-call, slack-message.
 - 2026-09-29: `px-image-upload` value format, live crop-aspect-ratio, no crop box without a ratio. Kiosk_mode_only stored as text hides the option. Option trees with layout substitutions via options import. Variant codes differ per product in a range; template export carries published/hidden; bulk update pointer. OrderHub custom orders read variants only. Source: claude-chat, fireflies-call.
 - 2026-10-06: § 3.1: the string "false" trap arriving with a template export from another site, the blank-key clearing fix and the strip-undefined-keys prevention. New § Template Option Substitutions: Target Elements, Types and Limits (255-character `target_element_name`, comma-separated targets, tag targeting, substitution type list, color option behavior). § Variant Type Exports: conditional child variant types in a per-product archive. New § 4.9 `hide_value_labels`. § 5.1: an image upload crops to fill regardless of `crop="false"`, with the hidden `image_crop_flag` option fix. CORRECTED § Variant Type Exports: a variant types export does carry `hidden`, `read_only` and `hide_from_cart`; added the per-product variant types export and import routes. § Pricing and POS-Relevant Choices: `pos_hidden` pointer. Source: claude-chat, vault-doc.
+- 2026-10-06 (later): § 6.1 what `data-px-no-element-substitutions` does (keeps an input out of preview URLs) and the per-option `skip_for_previews` override. § 6.2 options written into the page URL by `storeOptionSelectionIntoURL`, the long-value crash and the ignore-list fix. Source: gmail (core developer, 2025).

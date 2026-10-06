@@ -839,6 +839,28 @@ before a bulk import. *Verified live on a client range, 2026-09-22.*
 
 ---
 
+## Slow Previews: Heavy Images in Options or Uploads
+
+**Symptom.** Product page previews are slow to appear or update.
+
+**Cause seen.** Images placed through options or uploads stored as large PNGs, over 2 MB even at 900 px. Every preview render fetches them.
+
+**Fix.** Convert to JPEG or WebP before upload. On the build where this was seen, the switch made image generation and previews much faster.
+
+Platform-level. *Stated by the core developer, 2025-05; the speed-up reported by the site builder.*
+
+---
+
+## Template Output Set to JPEG: Text No Longer Prints as 1-Color Black
+
+Switching a template's output format from vector to JPEG rasterizes the whole page, text included, so text can no longer print as 1-color (1c) black. Keep vector output wherever text must print 1c black.
+
+If production files fail preflight with "Compressed image data corrupt", regenerate the files from the order's print book in admin before changing the output format. In the one case seen, regenerated files were clean and the site went back to vector output.
+
+Platform-level (template output setting). *Observed 2025-07; not re-tested.*
+
+---
+
 ## A Customer's Old Project Shows Broken Images: The Assets Have Aged Out
 
 **Symptom.** A customer opens a saved project or an old order and the images are missing, or a
@@ -884,3 +906,4 @@ last edited 2025-08-13.*
 - 2026-09-19: Added two entries. An AI-generated template that crashes the importer with no useful error, with the embedded-image resolution check (observed: a 305 MP asset) and WebP quality 90 as the replacement default. A customer's old project showing broken images because the images have been deleted on schedule (6 months after an ordered cut print, 3 years after any other ordered project), with the inactive-user and saved-cut-print routes to the same symptom. Source: slack-message (#development), notion-page (Deletion Policies).
 - 2026-09-29: Security hardening: separate admin host and 2FA are now platform behavior. Removing a product breaks pages whose default filter value names it; the Paginate NoMethodError form and its fix. Hidden-product detection by diffing /v1/products.json against per-id reads. Source: claude-chat, slack-message.
 - 2026-10-06: `Price isn't valid`: a product price formula must evaluate at quantity 1, so a tier ladder must start at 1 (or 0). AI-generated template entry: shrinking a heavy archive by palette-quantizing overlay PNGs. Source: claude-chat, vault-doc.
+- 2026-10-06 (later): Added Slow Previews (heavy PNGs in options or uploads, convert to JPEG or WebP) and Template Output Set to JPEG (text cannot print 1c black; regenerate first on a corrupt-image preflight error). Source: gmail.

@@ -44,3 +44,15 @@ Platform questions for Matjaz are on the Notion Dashboard, Weekly Tasks, October
 
 ## Size
 Repo grows from 1.34 MB to 1.67 MB. Project knowledge goes to roughly 1.72 MB of the 2 MB cap before the closing step deletes the applied KB_PATCH docs from the project.
+
+## Addendum, later on 6 Oct: limits, product form and fulfillment hold
+
+Source: the core developer's 2025 email advice to an agency building an AI story book site and an image-upload site, checked against the KB, plus Alex's and the core developer's answers on 6 Oct. Client names scrubbed.
+
+- 51: CORRECTED the template option limit to 1,024 characters (was "~2KB"). Snippet type exists only for custom fields. New: 65,535-byte total for all custom field data on one object (projects, orders, products, users, custom type instances). Length limits summarized in one place.
+- 22: new § 6.1 (`data-px-no-element-substitutions` keeps an input out of preview URLs, `skip_for_previews` override) and § 6.2 (options written into the page URL; long values crash the product page; ignore-list fix).
+- 50 Liquid: writing project custom fields with `book[custom][<field>]` in `project_create`; the field must be Public.
+- 17: Restoring Input Values After a Product Switch (`pageshow` and `px.fragmentsReloaded`). 41: qualifier on the same event.
+- 40: Slow Previews (heavy PNGs) and Template Output Set to JPEG (no 1c black text).
+- 32: Fulfillment Hold (Super Admin) is in minutes.
+- 61: `/upload/image` `name` is optional.

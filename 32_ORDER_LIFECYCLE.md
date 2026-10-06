@@ -257,6 +257,10 @@ Define where production assets are delivered. Configured in Super Admin.
 - Single Page Output — each page as separate file
 - Multiple Cut Print Copies — generate copies for cut-print workflows
 
+### Fulfillment Hold (Super Admin)
+- Delays fulfillment after an order is confirmed. The value is in **minutes**: 5000 holds orders for 5,000 minutes, about 3.5 days. Use it when orders should not go to production straight after confirmation.
+- Platform-level. *Stated by Alex, 2026-10-06.* Not verified: whether the field is per website or per fulfillment destination.
+
 ### Filename Template
 Uses Liquid-style variables to dynamically name production files. Example:
 `{{ orderline.product.code }}.{{ order.code }}.{{ orderline.barcode }}_{{ page_output_name }}.{{ format }}`
@@ -499,3 +503,4 @@ nothing, because the cart stores the value freeform either way. Detail and the o
 - 2026-09-24: Scripts read the customer from the `user` global, not `order.user`; `orderline.product.category` is a usable gate. Source: claude-chat.
 - 2026-09-29: Which notification email fires when: Pending before payment, Confirmed with BCC, Fulfilled/Orderline Fulfilled internal only, errors to the team, order history, template versions, cut_print_quantity in the confirmation. Abandoned Carts (flagged after about an hour, only Confirm Order creates an order) and Projects (every cart item, guest included, is a recoverable project). Orderline script writes named fields that surface in admin and fulfillment JSON (partially verified). Source: fireflies-call.
 - 2026-10-06: CORRECTED the Fulfilled status meaning (internal production status, not delivered) and reconciled it with Which notification email fires when; Order Fulfilled and Orderline Fulfilled internal only; CORRECTED the gift card note (gift cards now issue through superadmin orderline scripts). Added Sign-in Token Renewed trigger. Added How notification email templates behave (per site, not inherited, 14 empty on a child, Enabled = non-empty Body, Orderline Fulfilled edit URL, Preview and Versions, Subject runs Liquid, Cart Abandoned needs a Schedule row, HTML only, no inline SVG, SendGrid sending-domain authentication). Added The Shopper email kit, including kit 1.1.0 cart reminders. Cart custom fields promotion: each field needs an Order definition, tested with a placed order. Source: claude-chat, vault-doc.
+- 2026-10-06 (later): Added Fulfillment Hold (Super Admin), in minutes. Source: claude-chat.

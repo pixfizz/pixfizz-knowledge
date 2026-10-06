@@ -1230,6 +1230,16 @@ _Verified by reading source, 2026-09-09._
 
 ---
 
+### Restoring Input Values After a Product Switch
+
+- Pixfizz fires a custom `px.fragmentsReloaded` event when the shopper switches products on the product form and the option markup is re-rendered.
+- Code that refills inputs from localStorage (or any client store) should run on `pageshow`, not `load` (`load` does not fire when the page returns from the back/forward cache), and again on `px.fragmentsReloaded`.
+- This is the product-form case. For checkout sections re-injected by `async: true` the event is not enough: use the `style onload` pattern (`41_IMPLEMENTATION_PATTERNS_UPDATED.md`).
+
+Platform event. *Stated by the core developer, 2025-05; not re-tested by query.*
+
+---
+
 ## Changelog
 - 2026-03-30: Created from master platform documentation export.
 - 2026-04-23: Added font licensing rule for editor embedding (digital/print embedding license required, not web font license).
@@ -1249,3 +1259,4 @@ _Verified by reading source, 2026-09-09._
 - 2026-09-24: Added "Show in the Editor, Never Print" (unedited placeholders are not fulfilled; the uneditable-placeholder technique), "Grouping Elements to Hide Them While Editing — View Settings", "Editor Buttons and Per-Site CSS" (autofill selector and states, the Design Tool Configuration Custom CSS field, AI filter credits) and "Mapped Previews". Source: fireflies-call, claude-chat, slack-message.
 - 2026-09-29: Sepia is the CSS sepia filter. Substitutions bind by element name. Reading option values, PDP layout swaps and gallery state from a tool; PDF pages over 200 in. Source: claude-chat, slack-message.
 - 2026-10-06: Editor CSS Customization: corrected the Custom CSS field to a list of files (URL, CMS page name, `@asset@`), not CSS text, with the Shopper child pair (`style/editor.css` override plus `editor.css` in the field); corrected the `@filename@` notes and the asset-reference table; added theming variables and selectors (brand color, selection ring, `.px-page-set` spacer trap, usage count, warnings) and the `unedited_warning` gate switch. Added Locking an Element (`edit="false"`). Added Driving the Editor From a Script (`editor/scripts.js` not loaded by default on a Shopper child, same-origin iframe, store paths, ordered autofill, the autofill return value and fillable rule, only the project gallery feeds the tray, `#project_create` needs `book[pages]` on every product). Element Substitution Types: name-and-tags matching, the image crop flag (image upload options crop to fill), a pointer to 22 for color options and multi-element targets. Mapped Previews: pointer to 27 and the copied GLB hash key trap. Corrected Design Theme Layouts import behaviour (a design import creates a new design and remaps ids). Custom tools: inline SVG ignores `el.hidden`. Source: claude-chat, vault-doc.
+- 2026-10-06 (later): Restoring Input Values After a Product Switch: `px.fragmentsReloaded` fires on a product switch on the product form; refill on `pageshow` and on that event. Source: gmail (core developer, 2025).
