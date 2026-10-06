@@ -687,6 +687,128 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 ### "myPixfizz Google Reviews / brand connections / Catalog Manager?"
 → **71_MYPIXFIZZ_FEATURES_ROUTES.md** § Brand Connections and Catalog
 
+## Routes added 2026-10-06
+
+### "Live Finish / lf_mount / metal or acrylic finish preview / tilt / room view?"
+→ **27_LIVE_FINISH_AND_3D_PREVIEWS.md** § 2 The Live Finish standard. New file: product previews are not custom design tools.
+
+### "Live Finish shows blank, 0 px, or not at all" / "which page is the print page (lf_page)?"
+→ **27_LIVE_FINISH_AND_3D_PREVIEWS.md** § 2.6 Gating and § 2.4 Geometry comes from the template; dark sites § 2.7
+
+### "3D preview / p3d_mount / mug preview / View in 3D / Blender / GLB model?"
+→ **27_LIVE_FINISH_AND_3D_PREVIEWS.md** § 3 The 3D Preview standard (§ 3.3 models built in Blender)
+
+### "Which product families have Live Finish or 3D today / known preview bugs / install a preview on a site?"
+→ **27_LIVE_FINISH_AND_3D_PREVIEWS.md** § 5 Status by product family, § 6 Known defects, § 7 Installing on a site
+
+### "Which custom design tools exist now / Uploader 2.0 / NCR forms / Wall Designer / Board Engraver / Gang Up trim and cut path?"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 2 registry and § 7 per-tool reference (updated 2026-10-06)
+
+### "Which option codes does a tool write for fulfillment / px_print_file / px_preview / legacy codes / FTP artwork paths?"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 3 The fulfillment contract, then **31_FULFILLMENT_ENGINE.md** § Custom Tool Fulfillment Standard
+
+### "Tool price ladder / price_forecast / cent rounding / tool on a store that prices with template options?"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 1 Price ladders read the platform price, § 4 Stores that price with template options; **30_PRICING_ENGINE.md** § Platform Price per Quantity and Cart Rounding
+
+### "Tool looks wrong on a dark site / pxt tokens / inline tool page layout / inches or mm?"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 3 The shared look, § 3 Page layout, § 4 Lengths accept inches and millimeters
+
+### "Every customer choice on a variant / pos_hidden / recall plan?"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 4 Every customer choice on a variant; **22_OPTION_VARIANT_RENDERING.md** § Pricing and POS-Relevant Choices Belong on Variants
+
+### "Tool's cart or checkout image is wrong?"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 6 The tool chooses its own cart image
+
+### "Open the upload dialog from a tool / photo prints intercept hooks (goToCropOptions)?"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 3 Open the platform upload dialog standalone; **41_IMPLEMENTATION_PATTERNS_UPDATED.md** § PhotoPrintsComponent hooks
+
+### "myPixfizz routes / sidebar / which page does X / portal preview?"
+→ **71_MYPIXFIZZ_FEATURES_ROUTES.md** (rewritten 2026-10-06 from the app source): § Routing Basics, § Admin Portal Navigation
+
+### "myPixfizz Marketing / Campaign Manager / Shopper Configure / kiosk staff / Shopify Style / Launch Plan / Blog / Shopper tools and upgrades?"
+→ **71_MYPIXFIZZ_FEATURES_ROUTES.md** § Marketing, § Shopper Configure, § Shopify Style, § Launch Plan, § Tools; tables in **72_MYPIXFIZZ_DATA_MODEL.md** § Tables Added September to October 2026
+
+### "myPixfizz support: urgent ticket / order error form / awaiting customer auto-resolve?"
+→ **71_MYPIXFIZZ_FEATURES_ROUTES.md** § Support
+
+### "Safe changes to myPixfizz / migrations hit live / publishing ships the whole queue / organization add-ons?"
+→ **70_MYPIXFIZZ_OVERVIEW.md** § Operational Rules for Changing myPixfizz, § Organization Add-ons
+
+### "Spine insertion into a cover / design import (__print_theme.yml) / linked layouts / edit page XML in place?"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Growing Spine, § Design Import, § Linked Layouts drive the layout picker, § Editing Design Pages and Layouts in Place
+
+### "shrink / valign / fontsize unit / crop=\"false\" / edit=\"false\" / lock a shape?"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Text Elements, § Image elements, § Element Permission Flags; **17_DESIGN_TOOL.md** § Locking an Element
+
+### "Logo cropped / image_crop_flag / substitution tags / target element 255 characters / color option?"
+→ **17_DESIGN_TOOL.md** § Element Substitution Types and § Image crop flag; **22_OPTION_VARIANT_RENDERING.md** § Template Option Substitutions
+
+### "Editor Custom CSS field / editor.css not loading / editor CSS variables / unedited placeholders gate?"
+→ **17_DESIGN_TOOL.md** § Editor CSS Customization (corrected 2026-10-06)
+
+### "Drive the editor from a script / autofill / iframe editor / images missing from the editor tray?"
+→ **17_DESIGN_TOOL.md** § Driving the Editor From a Script; **61_PIXFIZZ_API.md** § 6 (`/upload/image?gallery_id=`)
+
+### "Upload image endpoint / project gallery / user by external id / delete a gallery?"
+→ **61_PIXFIZZ_API.md** § 4, § 6 Add an image (corrected), § 7 Look up a user by external ID
+
+### "Custom type instance PUT or DELETE / asset replace or delete / child snippet override by API / cms_snippets write?"
+→ **61_PIXFIZZ_API.md** § 13c Custom types, § 13c Assets, § 13f CMS snippets
+
+### "Admin form writes / collection image, order or custom fields / variant create / add_themes / design custom fields?"
+→ **61_PIXFIZZ_API.md** § 13h Admin Form Writes From a Browser Session
+
+### "Template import routes / export_all / template provider and consumers / snippet edit page DELETE trap?"
+→ **18_ADMIN_NAVIGATION.md** § Bulk Update Tools (Import and publish routes) and § Template Provider and Template Consumers
+
+### "Partial template import / -1 after a failed import / Error Query / font remap / Price isn't valid at quantity 1?"
+→ **16_PRODUCT_HIERARCHY.md** § Import Behavior; **40_PLAYBOOK_UPDATED.md** § Error saving: Price isn't valid
+
+### "Imported option only shows in kiosk mode / string false from another site's export?"
+→ **22_OPTION_VARIANT_RENDERING.md** § 3.1 (amended 2026-10-06)
+
+### "Variant type export flags (hidden / read_only / hide_from_cart) / child variant types / hide_value_labels?"
+→ **22_OPTION_VARIANT_RENDERING.md** § Variant Type Exports (corrected 2026-10-06) and § 4.9
+
+### "Custom fields on variants / owner_type / false custom values stored as strings / multitext by API?"
+→ **51_CUSTOM_FIELDS_REFERENCE.md** Key Notes (amended 2026-10-06)
+
+### "Cut prints: variant value price per copy?"
+→ **30_PRICING_ENGINE.md** § Cut prints: a variant value price is not per copy unless the formula says so
+
+### "manage/* radio values / checklist token vs label / wrong value stored?"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 5; **01_CODE_GOVERNANCE_UPDATED.md** § A checklist value is the exact token, never the label
+
+### "Dark child site cart and checkout / form-control colors / ship.svg?"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 4 and § 18.2. Checkout is high risk: double-check every change.
+
+### "show_prices on size tiles / size tile order / homepage delivery rules / services/ 404 / Liquid inside page_content?"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 21.1, § 13, § 14; tile order follows collection order (**61_PIXFIZZ_API.md** § 13h)
+
+### "Klaviyo signup consent / free shipping bar / promotions fly-out / blog section?"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 20.1, § 12; **20_SHOPPER_CART_RULES.md**; **81_SEO_AND_GEO_REFERENCE.md** Part G
+
+### "Liquid json filter / escape_json / website.* list cut off at 20 / snippet variable scope?"
+→ **50_LIQUID_REFERENCE.md** (quirks, § Paginate)
+
+### "Kiosk associate tip / Pay in Store limit / carts per domain?"
+→ **21_SHOPPER_CHECKOUT_POLICY.md** (Kiosk associate tip; Pay in Store limit)
+
+### "Cart custom field missing on the order / Order custom field definition / add_print_product cart links?"
+→ **20_SHOPPER_CART_RULES.md**; **80_ONBOARDING.md** § Create Order custom field definitions for every cart field
+
+### "Email templates not inherited / email kit / cart reminders / SendGrid pxemail domain?"
+→ **32_ORDER_LIFECYCLE.md**; **80_ONBOARDING.md** § Email Notification Templates and § Phase 3
+
+### "Launch check: empty collections, zero-price products orderable / migrating a catalog from another platform / what not to ask a lab?"
+→ **80_ONBOARDING.md** § Launch Check: Empty Collections and Unpriced Products, § Phase 2, § Questions to put to the customer
+
+### "Shopify My Projects click does nothing / gallery create error?"
+→ **60_SHOPIFY_INTEGRATION.md** § 15 Troubleshooting My Projects and My Galleries
+
+### "Asset or snippet YAML import fails / folded long scalars / line_width?"
+→ **01_CODE_GOVERNANCE_UPDATED.md** § CMS Backup Tar Packaging Rule (Asset and snippet YAML must parse; Long plain scalars fold)
+
 ## Changelog
 - 2026-03-13: Added Shopify Integration section and Shopify scope warning.
 - 2026-03-26: Added MyPixfizz section pointing to 70/71/72 files.
@@ -714,3 +836,4 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 - 2026-09-24: Added 14 routes for the 2026-09-24 sync, led by the Install-Step Gate and PDF layers. Every target section was written in the same sync. Source: kbsync.
 - 2026-09-24: Route check run as the mandatory closing step. Only the three known historical false positives are reported (01_CODE_GOVERNANCE.md, 40_PLAYBOOK.md, 83_MOBILE_UX_AUDIT.md). Source: kbsync audit.
 - 2026-09-29: Added 9 routes for the 2026-09-29 sync (Bulk Update Tools, API keys, admin login, notification emails, OrderHub stock, template changes vs existing projects, element rotation, PDP swap and custom_script, myPixfizz connections). Every target section was written in the same sync. Source: kbsync.
+- 2026-10-06: Added 40 routes for the 2026-10-06 sync, led by the new 27_LIVE_FINISH_AND_3D_PREVIEWS.md, the refreshed custom design tool registry, the rebuilt myPixfizz route map, and the Admin Form Writes API section. Source: kbsync.

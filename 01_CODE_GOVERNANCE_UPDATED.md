@@ -233,6 +233,17 @@ renderer_type: 1
   layouts `0`.
 - Take the value from the seed backup for that exact file rather than guessing.
 
+### Asset and snippet YAML must parse: no ": " in an unquoted description
+
+Platform-level (Pixfizz CMS backup import). The `description:` value in `assets/<name>.yml` (and in snippet front matter) is a plain, unquoted YAML scalar. A colon followed by a space inside it ("negatives: dunes, ...") breaks the import with `Psych::SyntaxError: mapping values are not allowed in this context at line 3 column N`.
+
+- Write alt descriptions without ": " (use "showing ...", commas, "and"). Do not hand-quote the value to work around it unless quoting has been verified on baseline first.
+- Before delivering any tar, parse every `.yml` and every snippet front matter block with a YAML parser (for example `yaml.safe_load`) and fail the build on any error.
+
+**A failed load is not atomic.** *Verified by query, 2026-10-04.* The snippets in the tar were applied (the live homepage carried the new markup) but the new assets were not created, so their `asset_url` rendered as `src=""`. Existing assets stayed and served 200.
+
+Recovery: fix the YAML and load a corrected tar built from the backup taken **just before** the failed load. A backup taken after the failed load already contains the half-applied snippets, so anchor-based edits will not find their targets.
+
 ### Packaging is one atomic command
 
 tar → validate → distribute, never hand-assembled across separate shell steps.
@@ -303,7 +314,7 @@ __font_map: {}
 - Double-quote titles and descriptions — apostrophes are common and plain
   scalars are fragile.
 - Round-trip the YAML and assert byte-identical content before shipping.
-- Unconfirmed: whether `page_content` renders Liquid.
+- `page_content` renders Liquid: `{{ 'x' | asset_url }}` and `{{ 1234.5 | currency }}` resolve inside a Pages instance's `page_content` on a Shopper 24 child (verified by query, 2026-10-04). Variables set there did not reach a called snippet in a separate test (2026-09-17); see `50_SHOPPER_TEMPLATE_REFERENCE.md` § 14, "Liquid inside page_content". (Corrected 2026-10-06)
 
 The **per-product export archive** uses the same five-empty-directory `.tar.gz`
 convention and carries `__product.yml`. See `51_CUSTOM_FIELDS_REFERENCE.md` for
@@ -388,6 +399,10 @@ it was that none of the three stated the rule **at the point of use**. The place
 broken is when writing *deployment instructions*, not when writing Liquid, so it has to be
 stated where instructions are written, which is here. Verified by reading source (the failure
 was reproduced and corrected in a live build, 2026-09-01).
+
+### A checklist value is the exact token, never the label
+
+The value written to an `admin/checklist/*` snippet must match, case included, the token the storefront code compares (`MM` not `mm/dd/yyyy (US)`, `v2` not `Version 2`, `authorizedotnet` not `Authorize.net`). A label is display only. Every admin control must write the snippet the storefront actually reads: grep the template for the key before shipping a control. The manage/* pages broke both halves of this rule for at least 17 keys; the token table is in `50_SHOPPER_TEMPLATE_REFERENCE.md` § 5 and the wrong-key list in § 15. Template-level (Shopper 24). *Verified by reading source (shopper24 backup 2026-09-28) and by query on live sites, 2026-09-30.*
 
 ### Byte-exactness applies at the point of use too
 
@@ -550,6 +565,8 @@ Verified by reading source, 2026-09-09.
 ### Long plain scalars fold differently under Ruby 3.3 Psych
 
 Long **plain** (unquoted) scalars are affected as well as long double-quoted ones: Ruby 3.3 Psych emits a long plain scalar as a `>-` block scalar where the platform's export keeps it inline. Keep generated strings short, or force double quoting (a string ending `\r\n` is always double-quoted, which matches the platform's HTML descriptions), and assert that the output contains no `: >-` or `: |-`. In a Ruby post-pass, read regex captures before calling `String#index` with a regex: the call resets `$~` and can silently drop an edit. *Verified by byte-exact round trip against a real export, 2026-09-22.*
+
+**A folded scalar can fail an import silently.** A generated per-product archive whose long double-quoted description Ruby `to_yaml` had folded across lines did not import: the request redirected back to the referring page and no product was created, with no error. Re-emitted with `to_yaml(line_width: -1)` it imported. Emit generated archives with no line folding. *Verified by query, 2026-10-05.*
 
 ## Never Re-Import to Update
 
@@ -721,3 +738,4 @@ second; the alternative is trusting that nobody renamed anything.
 - 2026-08-29: Added the byte-exact value snippet rule for CMS tars — `capture` does not trim, so a trailing newline makes every compared flag fail silently while the tar imports cleanly; includes the generator fix and the instruction to error rather than warn. Added Archive Emission — the platform's Psych writes a trailing space after a nil scalar and Ruby 3.3 does not, so a modern Psych needs a post-pass; Psych also quotes ambiguous scalars and folds long double-quoted scalars differently from PyYAML (measured 87 differing lines in 3,118 for a Python emitter, byte-identical for Psych plus the nil post-pass). Added the Collections export format — archive shape, import path, the four record shapes in platform key order, the bare-numeric-asset-id convention with `__asset_map` Ruby symbol keys, and the fact that a collections export carries no site or owner field and so cannot answer inheritance. Source: claude-chat.
 - 2026-09-24: Added the Install-Step Gate (P0): every install instruction is checked for a "create a snippet" step before it is sent; unless the site is shopper24 it is rewritten as Override Snippet, a pages Custom Type instance, product data, or "contact Pixfizz support". Added "A CMS backup tar is always the full current backup". Widened "Never Re-Import to Update" to variant and template-option imports and to staging. Added the Ruby 3.3 Psych plain-scalar folding note. Source: claude-chat.
 - 2026-09-29: Resolved the untested asset-import question for template imports. Snippet Description rule: child overrides carry no Description (parent-only column). A child CMS backup does not contain Custom Type landing pages; audits need the instance export too. Source: claude-chat.
+- 2026-10-06: CMS Backup Tar Packaging Rule: asset and snippet YAML must parse (no ": " in an unquoted description); a failed load is not atomic, recover from the backup taken before it. Archive Emission: a folded long scalar makes a per-product archive import fail silently; emit with `to_yaml(line_width: -1)`. Checklist Snippet Creation Rule: a checklist value is the exact token, never the label. Custom Type Instance Archive: CORRECTED, `page_content` renders Liquid. Source: claude-chat, vault-doc.

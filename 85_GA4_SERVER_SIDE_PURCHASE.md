@@ -52,6 +52,8 @@ bootstrap — no GA4 initialization, therefore no `_ga` cookie — has nothing t
 
 **Where the capture happens (Shopper 24 parent).** `checkout/utm-cart-code`, included on `pages/cart`, writes `ga_client_id` and `ga_session_id` as cart custom fields, which promote to order custom fields at checkout. The UTM landing cookie `_pf_utm` is set by `integrations/google/utm-capture`. *Verified by reading source (shopper24 backup), 2026-09-28.* In the webhook payload the values sit at `raw_payload.custom.ga_client_id` and `raw_payload.custom.ga_session_id`; the client id is the `_ga` cookie value with the `GA1.1.` prefix stripped. *Verified by query of the event outbox, 2026-09-14.*
 
+**Check the Order custom field definitions on each site.** "Set up once, per site" means an Order custom field definition (text, Public) for each field above. Admin has no Cart object type, so the cart stores the values whether or not the definitions exist, and a checkout re-render proves nothing; one site was found with `ga_session_id` and `order_source` missing from its Order definitions while the values were reaching orders as undefined fields. Confirm on a placed order. See `20_SHOPPER_CART_RULES.md`. *Verified by reading admin on a client site, 2026-10-02.*
+
 ---
 
 ## 3. How the Webhook Function Decides
@@ -220,6 +222,8 @@ and it inflates rather than deflates, so it does not look like a fault.
 
 **Before enabling a brand, compare Measurement IDs.** Read the GA4 Measurement ID the live storefront actually loads (usually through its GTM container) and compare it with the Measurement ID on the myPixfizz brand. A mismatch sends server-side revenue to a different property from the browser events. One wired brand was found in this state. *Verified live in the browser, 2026-09-28.*
 
+**Storefront bridge, not deployed.** A GA4 bridge for sites that set only `website/gtag` is built but not deployed (status 2026-09-28). Its design includes a checkbox `admin/checklist/ga4-server-side-purchase` ("myPixfizz sends purchases to GA4") that stops the bridge forwarding `purchase`, to avoid exactly this double count. Do not describe the bridge or the checkbox as live. See `50_SHOPPER_TEMPLATE_REFERENCE.md` § 20.
+
 The storefront-side tagging standard, and the "a container with no GA4 event tags shows traffic
 and no revenue" trap that is its mirror image, are in `81_SEO_AND_GEO_REFERENCE.md` Part G and
 `50_SHOPPER_TEMPLATE_REFERENCE.md`.
@@ -258,3 +262,4 @@ order after checkout, which is not the storefront.
 ## Changelog
 - 2026-09-09: Created. Documents the server-side GA4 `purchase` pipeline, live since March 2026 and previously covered by one line in `70_MYPIXFIZZ_OVERVIEW.md`: the Shopper order custom fields the storefront must supply; brand resolution order; observe-then-enforce signature handling; the `confirmed_at` send rule; the two idempotency layers; billing-currency-only currency with a deliberate skip when it is missing; short-delay retry; the skip reasons and the `disabled` status; the admin GA4 Event Log; the three known defects (numeric `item_id` blocked on the webhook payload carrying no product code, a fabricated client id where the storefront captured no `_ga` cookie, and no event timestamp against GA4's 24-hour attribution window and 72-hour backdating cap); the double-count warning for wired brands; and the "read the system that would own it" research rule. Source: claude-chat.
 - 2026-09-29: §2 named the capture snippets and where the values land in the payload. §3 production resolves by website code only; duplicate brand rows and never hard-delete a brand. §5 where the webhook secret is set, and what Test Webhook does and does not prove. §7 compare the storefront's loaded Measurement ID with the brand's before enabling. Source: claude-chat.
+- 2026-10-06: §2 check the Order custom field definitions per site, confirmed on a placed order. §7 the storefront GA4 bridge and its `ga4-server-side-purchase` checkbox are built, not deployed. Source: claude-chat.

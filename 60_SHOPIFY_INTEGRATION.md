@@ -884,6 +884,17 @@ On Horizon (Shopify's newer theme architecture, and others like it), page templa
 - Saved projects page: `pixfizz-saved-projects.liquid` snippet, also requires the `page.pixfizz-product-api.liquid` template and a corresponding Shopify page
 - Gallery page: `page.pixfizz-galleries.liquid` — standalone template, no additional dependencies beyond `pixfizz-setup`
 
+### Troubleshooting My Projects and My Galleries
+
+Integration-level (Shopify + Pixfizz). *Verified by reading live source on a client store and on shopify-demo.pixfizz.com, fixed live and confirmed, 2026-09-30.*
+
+- **My Projects: clicking a card does nothing and the product title is missing.** The Shopify **page** with handle `pixfizz-product-api` is missing; the template alone is not enough. `Pixfizz.Shopify.launchSavedProject()` reads `product_data_loader.get(product_id)`, which fetches `/pages/pixfizz-product-api?page=N`. When that answers 404 with an HTML body, the loader stays `loading: true`, the promise never resolves and the editor never opens, while the project grid still renders. Fix: create the page under Online Store → Pages with handle `pixfizz-product-api`, visible, using the `page.pixfizz-product-api` template. Check: the URL answers 200 with valid JSON (250 products per page).
+- **My Galleries: "Something went wrong" on New gallery.** The create call used `Pixfizz.Shopify._user.uid`, the Shopify customer id. Use the Pixfizz user id from the `_mine.json` redirect (§ Pixfizz User ID vs Shopify Customer ID above), for example `r.url.match(/\/v1\/users\/(\d+)\//)`.
+- **`customer.css` 404 in the console.** Not only on Horizon: any theme that does not ship the asset (seen on a non-Dawn theme). Remove the `{{ 'customer.css' | asset_url | stylesheet_tag }}` line.
+- **Empty pages for a logged-out visitor are by design** (`_user` is null). Always test logged in.
+- **`options-to-cart` products never create saved projects.** They skip the editor and its Save button. Test My Projects with an `editor` product. Unconfirmed: whether a save-or-skip setting exists.
+- **Red herring: "Theme file is invalid" when saving.** Seen when editing an existing template in Shopify's newer admin code editor and renaming it to `.json`; the template itself was valid. `.liquid` page templates are allowed on Online Store 2.0 themes, so create these templates as Liquid (see the Horizon note above for when a same-named JSON template takes precedence).
+
 ---
 
 ## 16. Non-Pixfizz Product Passthrough (Static Products via Webhook)
@@ -967,3 +978,4 @@ Variant-value image swatches in the Shopify modal take the image's natural width
 - 2026-09-09: Added §10b — Shopify native variants cannot carry a Pixfizz option through to the editor (editor opens on the Pixfizz default, cart line shows two contradictory values, Shopify charges the right price while the wrong attribute reaches production), with the core developer's three-way decision rule: no design influence means remove the options from Pixfizz; design influence means either options-to-editor with the options modeled as separate Shopify products rather than variants, or one design per value mapped to each Shopify variant — options removed from Pixfizz either way. Added two §11 troubleshooting entries: a stale CMS page cache presents as an editor "Not Found" and the tell is empty product/theme ids in the POST that opens the editor (underlying core bug fixed 2026-09-08), and the open, unresolved intermittent theme "not found" symptom with the triage rule that intermittency means a bug rather than a missing link or SKU. Source: slack-message (#development), fireflies-call.
 - 2026-09-19: Added §11 troubleshooting entry for an order that reaches Shopify with no Pixfizz project, caused by any add-to-cart path that skips the Pixfizz product page and therefore the `_pixfizz_project_id` injection; the webhook then finds no project and fails silently. Source: slack-message (#development).
 - 2026-09-24: Added § 19 image swatch sizing in the personalization modal. Source: claude-chat.
+- 2026-10-06: § 15: Troubleshooting My Projects and My Galleries (missing `pixfizz-product-api` Shopify page hangs the project loader, gallery create needs the Pixfizz user id, `customer.css` 404 on any theme without it, logged-out empty states, `options-to-cart` creates no saved projects, the "Theme file is invalid" red herring). Source: claude-chat.

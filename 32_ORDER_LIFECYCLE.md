@@ -24,7 +24,7 @@ Every order moves through defined statuses:
 4. **Downloaded** — production assets downloaded
 5. **Manufactured** — production complete
 6. **Shipped** — order dispatched to customer
-7. **Fulfilled** — order delivered and complete
+7. **Fulfilled**: fulfillment complete on the production side. An internal status, not a customer delivery confirmation; the customer's dispatch message is Order Shipped (Corrected 2026-10-06: previously "order delivered and complete"; see Which notification email fires when)
 
 Exception statuses: **Payment Failed**, **Error**, **Canceled**, **Refunded**.
 
@@ -82,13 +82,44 @@ Each status transition can trigger an email notification (configured in admin: S
 - **Order Pending** fires when the order is created in Pending, before payment is captured. It is an order-received or awaiting-payment message, never a confirmation (see the FAQ entry on confirmation emails for Pending orders in `90_FAQ.md`).
 - **Order Confirmed** fires when the order reaches Confirmed. It is the customer's real confirmation, and it can carry a **BCC** address so the lab receives an internal copy.
 - **Order Downloaded** and **Order Manufactured** follow production-tracking statuses.
-- **Order Fulfilled** and **Orderline Fulfilled** mean the production files are done, not that the order has shipped. Keep them internal (addressed to the lab) or off; the customer's dispatch message is **Order Shipped**. The legacy `email-notifications/content/orderline-fulfilled` snippet is described as gift card content (`52_SNIPPET_INVENTORY.md`), so check whether a site selling gift cards relies on it before switching it off.
+- **Order Fulfilled** and **Orderline Fulfilled** mean the production files are done, not that the order has shipped. They are for internal fulfillment use only, never customer emails (stated by Alex, 2026-10-03); the customer's dispatch message is **Order Shipped**. Gift cards are now issued through the superadmin orderline custom scripts, not through the Orderline Fulfilled email, so the legacy gift card content snippet is no reason to keep that email on (Corrected 2026-10-06: the earlier advice was to check gift card sites before switching it off).
+- **Sign-in Token Renewed** fires when a customer clicks an expired sign-in link and asks for a new one. *Stated by Alex, 2026-10-03.*
 - **Order Error** goes to the team, not the customer. An error is something the lab has to act on.
 - **Checking what was sent:** the order's history in admin shows which notification emails fired for that order.
 - **Recovering a template:** a notification template can be restored from its saved versions after a bad edit.
 - **Photo print counts:** in the Order Confirmed email, show `orderline.cut_print_quantity` for a photo print line to give the true number of prints. `orderline.quantity` is the line quantity (`50_LIQUID_REFERENCE.md`; `31_FULFILLMENT_ENGINE.md` § jobs[]).
 
-*Stated by Alex on a client call, 2026-09-29. `orderline.cut_print_quantity` is verified in `50_LIQUID_REFERENCE.md`; its use in the email template is not verified. The Fulfilled meaning here differs from the status list above, which describes Fulfilled as delivered and complete; not yet reconciled.*
+*Stated by Alex on a client call, 2026-09-29. `orderline.cut_print_quantity` is verified in `50_LIQUID_REFERENCE.md`; its use in the email template is not verified. The Fulfilled meaning is reconciled with the status list above as of 2026-10-06 (stated by Alex, 2026-10-03).*
+
+### How notification email templates behave
+
+Platform-level unless marked. *Verified by query on admin and in Preview on baseline, 2026-10-03, unless marked.*
+
+- **Templates are per site and are not inherited from the Shopper parent.** A child site starts with **14 empty templates**. A parent snippet change reaches a site's emails only through snippets the template body calls at send time.
+- **Enabled means the Body is not empty.** On Settings > Email Notifications the Enabled tick reflects a non-empty Body; there is no separate switch. A template whose Body is empty never sends (stated by Alex).
+- **Orderline Fulfilled is missing from the list page** but has an edit page at `/admin/site/email/email_template/orderline-fulfilled`.
+- **Preview and Versions.** Each template has Preview (`.../email_template/<slug>/preview`, takes a test order code and can send a test email) and Versions. Preview runs `{% promocode %}` and creates a real code. In Preview `website.signin_tokens[token].signin_url` is blank; the token URL format is `https://<host>/v1/session?stok=<token>`.
+- **The Subject field runs Liquid**, including `{% snippet %}` calls. Liquid rules for email bodies (variables per email, snippet scope, `currency` not `money`, absolute asset URLs) are in `50_LIQUID_REFERENCE.md` (Notes on Contexts, KNOWN CMS LIQUID QUIRKS).
+- **Cart Abandoned sends nothing until its Schedule has at least one row** (admin help text; a test site had none). The admin form accepts several `settings_schedule[]` values in one save.
+- **HTML only.** With HTML Format on, emails are sent as HTML with no plain-text alternative part (stated by Alex).
+- **Inline SVG does not render in Gmail or Outlook.** The `icons/*.svg` snippets are no use in emails; use PNG. Template-level, verified by reading source.
+- **Sending domain.** CMS email goes out through SendGrid. Each lab domain is authenticated in the Pixfizz SendGrid account as `pxemail.<lab domain>` (Domain Authentication: Verified, Pending or Failed). A site's Default Email (From) must be on a domain with a Verified entry, or mail shows as unverified and risks spam. Free mailboxes (Gmail and the like) cannot be authenticated. *From a SendGrid screenshot supplied by Alex, 2026-10-03.*
+
+### The Shopper email kit (template-level)
+
+From 2026-10-03 the supported way to set up CMS notification emails on a Shopper site is the **email kit**: `email-kit/*` snippets on the shopper24 parent, with each site's 14 templates reduced to one-line Subjects and Bodies that call the kit's snippets. Kit 1.0.0 was installed on shopper24 on 2026-10-03 (76 snippets, verified by hash) and all 14 templates rendered from the real snippets in Preview on baseline. The kit's own reference document carries the full snippet list. The older `email-shopper/*` and `email-notifications/*` snippets are listed in `52_SNIPPET_INVENTORY.md`.
+
+**Cart reminders, kit 1.1.0** (on shopper24 2026-10-05, verified by query):
+
+- Sends 1 to 3 are handled; kit 1.0.0 handled sends 1 and 2 only, and a third Schedule row resent send 1.
+- Copy per send lives in plain-text snippets `email-kit/cart/subject-N`, `heading-N`, `preheader-N` and `email-kit/messages/cart-abandoned`, `-2`, `-3`. The token `{discount}` fills only on the send that carries the code.
+- `email-kit/settings/cart-discount-reminder` picks the send that carries the code: `2` (default) or `3`. `email-kit/settings/cart-discount` sets the discount offered: `5`, `10`, `15` or `20`.
+- `email-kit/settings/cart-help` = `TRUE` shows `email-kit/parts/help` on send 2: Call (store phone), Email us (store email), and one site link from `email-kit/cart/help-link-label` plus `email-kit/cart/help-link-url` (a path or a full URL). `FALSE` by default.
+- `email-kit/parts/message` writes "Hi there" when the customer has no first name, instead of "Hi {first_name}".
+- With defaults, a two-send site gets the same output as 1.0.0 (checked in Preview on baseline).
+- On the parent's own stock templates (before the kit), the Cart Abandoned Subject held `assign` code and rendered blank.
+
+**Kit setup notes** (platform-level, verified by query): when a child override of a parent snippet is created through the CMS snippets API, its Description is blank unless sent, so always send the parent's Description; the admin snippet create form accepts the content in the same request; content saved through the admin comes back with CRLF line endings, so compare content after normalizing line endings. API detail is in `61_PIXFIZZ_API.md`.
 
 ---
 
@@ -445,6 +476,11 @@ the cart.
 
 _Verified by reading source, 2026-09-09._
 
+**Each field needs an Order custom field definition on the site** (Public where the storefront
+writes it), created before go-live and tested with a placed order. A checkout re-render proves
+nothing, because the cart stores the value freeform either way. Detail and the open question in
+`20_SHOPPER_CART_RULES.md`. *Verified by reading admin on a client site, 2026-10-02.*
+
 ---
 
 ## Changelog
@@ -462,3 +498,4 @@ _Verified by reading source, 2026-09-09._
 - 2026-09-09: Added print-on-demand parent/child routing — the parent lab prices the outsourced line by product code and variant code against its own site, a mismatch inserts a zero price into automatic wholesale invoicing rather than rejecting the order, only outsourced items reach the parent, template-level variants cannot be resolved because the feed carries nothing from the template, and the discussed POD SKU property is not built; cross-referenced to semi-inheritance and the editable auto-populated product code in 16_PRODUCT_HIERARCHY.md. Added stock decrement timing (first entry to Confirmed or Draft, once only). Added that the server-side GA4 purchase event is sent only when `confirmed_at` is present, so brands whose orders never reach confirmed send nothing, cross-referenced to 85_GA4_SERVER_SIDE_PURCHASE.md, and that the order webhook payload carries only the numeric `product_id` and no `orderlines[].product_code`, which is what blocks item-level funnels. Added cart custom fields promoting to order custom fields at checkout (`cart[custom][x]` to `order.custom.x`). Source: fireflies-call, claude-chat.
 - 2026-09-24: Scripts read the customer from the `user` global, not `order.user`; `orderline.product.category` is a usable gate. Source: claude-chat.
 - 2026-09-29: Which notification email fires when: Pending before payment, Confirmed with BCC, Fulfilled/Orderline Fulfilled internal only, errors to the team, order history, template versions, cut_print_quantity in the confirmation. Abandoned Carts (flagged after about an hour, only Confirm Order creates an order) and Projects (every cart item, guest included, is a recoverable project). Orderline script writes named fields that surface in admin and fulfillment JSON (partially verified). Source: fireflies-call.
+- 2026-10-06: CORRECTED the Fulfilled status meaning (internal production status, not delivered) and reconciled it with Which notification email fires when; Order Fulfilled and Orderline Fulfilled internal only; CORRECTED the gift card note (gift cards now issue through superadmin orderline scripts). Added Sign-in Token Renewed trigger. Added How notification email templates behave (per site, not inherited, 14 empty on a child, Enabled = non-empty Body, Orderline Fulfilled edit URL, Preview and Versions, Subject runs Liquid, Cart Abandoned needs a Schedule row, HTML only, no inline SVG, SendGrid sending-domain authentication). Added The Shopper email kit, including kit 1.1.0 cart reminders. Cart custom fields promotion: each field needs an Order definition, tested with a placed order. Source: claude-chat, vault-doc.

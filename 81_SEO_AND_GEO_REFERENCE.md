@@ -157,7 +157,7 @@ This is the platform-truth section. Map each signal to what the platform and tem
 - `[PLATFORM]/[SHOPPER]` **Product schema** is supported. Enable site-wide via the `schema_loop_all_products` checklist key (`TRUE` = include all products in schema). See `50_SHOPPER_TEMPLATE_REFERENCE.md` § SEO & Metadata.
 - `[SHOPPER]` **LocalBusiness JSON-LD: placeholders exist** in the Shopper template. They are present but should not be assumed populated or emitted correctly by default. `[CONFIRM]` whether they are active out of the box, whether they include geo-coordinates and `sameAs`, and what configuration is required.
 - `[GAP]` **Review / AggregateRating schema: not currently emitted.** There is on-page review display (Google rating/review fields, `Google_Summary` custom field with `rating` and `review_count`) but no review structured-data output. This is a build opportunity (see Pending Confirmation).
-- `[CONFIRM]` **FAQPage, HowTo, Article JSON-LD**: output status unconfirmed. Do not tell customers Pixfizz emits these until confirmed.
+- `[CONFIRM]` **FAQPage, HowTo, Article JSON-LD**: output status unconfirmed. Do not tell customers Pixfizz emits these until confirmed. **Partly answered (2026-10-06):** the Shopper blog post page emits **BlogPosting** JSON-LD (verified by reading source, shopper24 backup 2026-09-24), with the escaping defect recorded in Part G. FAQPage and HowTo remain unconfirmed.
 - `[SHOPPER]` Per-object SEO meta fields exist: `meta_title` and `meta_description` on products, collections, subcollections, custom pages, blog posts, and services (see `51_CUSTOM_FIELDS_REFERENCE.md`). Site-level title/description via `update-website-title`, `update-website-description`, and the `seo-tdks` checklist key.
 - `[SHOPPER]`/`[GENERAL]` **High-fidelity product attributes**: the current Product schema is a sound baseline but emits only a fraction of what Google now recommends. See **Part F** for the current baseline, Google's required-vs-recommended set, and prioritized Shopper upgrades. A standalone **Schema Builder** tool (`pixfizz-schema-builder.html`) generates paste-ready JSON-LD for a site-wide Organization/policies block and for a full single Product block.
 
@@ -302,6 +302,27 @@ reading source and by crawler output** unless stated otherwise.
   that unlinked means uncrawled. This is the same rule as the unpublished-product case — removing
   the link does not remove the page.
 
+**Found after the window above (2026-09-30 to 2026-10-05), still open unless stated:**
+
+- **Footer sitemap link with no protocol.** Child footers copied from the parent carry
+  `href="{{ website.hostname }}/sitemap.xml"`, which resolves as a relative path and 404s. Use
+  `/sitemap.xml`. `/sitemap.xml` exists only after the first run of Admin > Website Crawls, so
+  run the crawler before launch. *Verified live on two child sites, 2026-10-05.*
+- **Unpublished blog posts are reachable.** The post page `/site/blog/<blog_path>` returns 200
+  for a post marked `blog_unpublished`; only the listing hides it. The homepage blog section
+  (`sections/dynamic/blog`) lists every post, unpublished and future-dated included. Anything
+  reachable is crawlable. *Verified live, 2026-09-30.*
+- **BlogPosting JSON-LD is unescaped.** The post page prints `blog_title` and
+  `blog_description` without `escape_json`, so a double quote in either invalidates the block.
+  *Verified by reading source, 2026-09-30.*
+- **No `json` filter in Pixfizz Liquid.** `{{ x | json }}` passes the value through silently;
+  in one JSON-LD block it printed an array as `MondayTuesday...` and made the whole `@graph`
+  invalid. Build JSON-LD arrays by hand with `escape_json` (`50_LIQUID_REFERENCE.md`).
+  *Verified live, 2026-09-30.* Validate any new JSON-LD in the Rich Results Test on the live URL.
+- **Social sharing image.** The head reads the asset `og-preview-image.jpg` (uploaded by
+  `setup/seo`); the manage/seo "Social sharing image" control uploaded a differently named asset
+  that nothing reads. *Verified by reading source, 2026-09-30.*
+
 ### Search Console verification branches on container presence
 
 **Verified by reading source (the setup standard, 2026-09-02).** How a Shopper site verifies with
@@ -347,7 +368,7 @@ For the storefront tagging standard itself and the server-side revenue path, see
 ## Pending Confirmation (for Matjaz / team)
 
 - Shopper LocalBusiness JSON-LD: are the placeholders populated and emitted by default, and do they include geo-coordinates and `sameAs`? What configuration is required?
-- FAQPage / HowTo / Article JSON-LD: does the platform or Shopper emit any of these today?
+- FAQPage / HowTo JSON-LD: does the platform or Shopper emit either today? (BlogPosting on the blog post page is confirmed, 2026-10-06.)
 - Review / AggregateRating schema: confirmed not emitted; candidate build (auto-generate from existing review/`Google_Summary` data).
 - llms.txt: low priority (Google states no direct AI-search visibility impact); decide whether to support at platform level as an agent-navigation aid only.
 - Product schema rendering: does the Shopper product schema snippet render server-side (in the initial HTML), or could any of it depend on JavaScript? Merchant listings require server-side markup.
@@ -371,3 +392,4 @@ For the storefront tagging standard itself and the server-side revenue path, see
 - 2026-06-18: Added Part F (Product Schema: High-Fidelity Attributes), researched against Google Search Central's product / merchant-listing / product-snippet structured-data docs. Documents the current Shopper baseline, Google's required-vs-recommended set, prioritized Shopper upgrade tiers (Tier 1 ratings + return/shipping + attributes; Tier 2 variants, unit pricing, `additionalProperty`; Tier 3 Organization/Brand/`sameAs`, FAQPage), Pixfizz cautions (server-side rendering, match-visible-content, GTIN validity, `from_pricing`, loyalty/`validForMemberTier`), and two correctness flags on the current snippet (`priceValidUntil` inside a `{% dynamic %}` block; `http` vs `https` context). Added the standalone Schema Builder authoring tool. Updated the Quick capability summary, Pending Confirmation, and Build Opportunities to match. Source: claude-chat (web-verified against developers.google.com).
 - 2026-07-25: Documented the v2 manage-admin noindex key mismatch (writes `launch-no-index`, `html.head` reads `no-index`) — the hide-from-search toggle silently does nothing. Source: claude-chat.
 - 2026-09-09: Added Part G — Shopper parent SEO defects found and fixed this window (paginated listings invisible to crawlers; a footer link hard-coded to `http://` multiplying into hundreds of phantom broken pages; the Google reviews widget shipping without structured-data markup, which makes the existing help article on that integration incomplete; `h3` headings with no `h1`, fixed with a hidden `h1`; preview modules and pop-up design tools not recognized as product imagery, so ship two or three static images alongside; sitemap and robots.txt needing explicit enabling, plus the AI-search settings in Shopper admin; legacy kiosk landing pages crawled and scored as broken). Added the Search Console verification branch on GTM container presence, with the wizard marked not built; the half-a-chain trap (a container with no GA4 event tags shows traffic and no revenue); and the enumerate-before-you-create rule. Source: fireflies-call, claude-chat.
+- 2026-10-06: Part D: BlogPosting JSON-LD confirmed on the blog post page (Article question partly answered). Part G: added footer sitemap link with no protocol and /sitemap.xml existing only after the first crawl, unpublished blog posts reachable and listed by the homepage section, unescaped BlogPosting JSON-LD, no `json` filter breaking JSON-LD, social sharing image asset name. Pending Confirmation narrowed to FAQPage / HowTo. Source: claude-chat.

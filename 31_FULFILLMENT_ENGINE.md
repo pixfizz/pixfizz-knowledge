@@ -2,7 +2,7 @@
 
 **Authority Scope:** Job ticket schema and generated file logic only.
 
-_Last updated: 2026-09-09_
+_Last updated: 2026-10-06_
 
 ---
 
@@ -293,9 +293,9 @@ Keep the Pixfizz Default schema simple, then implement these as adapter-level tr
 
 ---
 
-## Worked Example — QR Code Element + Fulfillment Transformation (Oxford & Rose)
+## Worked Example — QR Code Element + Fulfillment Transformation (stationery client)
 
-Source: Oxford & Rose, 2026-04-01. Concrete example of using a design element plus
+Source: a stationery client project, 2026-04-01. Concrete example of using a design element plus
 a fulfillment transformation to inject a **per-order unique value** into the
 production artwork at fulfillment time — without requiring the shopper to do
 anything at design time.
@@ -835,6 +835,153 @@ Establish a naming convention at the start of each FTP integration and apply it 
 ## Custom Tool Print Files — Name the Option, Not a List
 
 In `_additional_files.json` and the filename template, identify a custom tool's print-file options by a **token in the option code**, not by a maintained list of codes: a print-file option's code contains `_print_` (`bc_print_front`, `stk_print_sheet`), and a cart-thumbnail-only option's code contains `preview`. A new tool then needs no edit to the fulfillment template. The document and booklet uploaders (`du_file`, `bu_file`) do not follow the convention yet and must be special-cased until they are renamed. `_additional_files.json` and the main filename template must describe the same destination path and be edited as a pair. *File-verified with python-liquid, not yet verified on a live order.*
+The standard files of 3 to 4 Oct (file-verified only) handle the old tool codes with a legacy
+list, and every tool moves to the generic `px_` codes: see the next section.
+
+## Custom Tool Fulfillment Standard (3 to 4 Oct 2026)
+
+One standard for how every custom design tool hands production files to fulfillment, so an
+order mixing a sticker, a brochure, business cards and a photo print goes out correctly on any
+site, whatever its route. Decided by Alex, 3 and 4 Oct 2026. Live Finish and preview-only
+extensions are out of scope: they make no production file.
+
+**Status: file-verified only.** The three standard files were rendered with python-liquid
+(below). They are not installed on any client site and **no live order has gone through
+them**. The next step is a baseline mixed order (photo, business cards, sticker, document)
+into a Pixfizz test destination, with the FTP listing read to see where files land.
+
+### The tool side
+
+Every tool writes the same generic codes on file-upload template options: `px_print_file`
+(production file), `px_print_<part>` for a second production file on the same line
+(`px_print_cut`, `px_print_cover`), `px_preview` (cart thumbnail), and a text option `px_spec`
+(job record, `key=value; key=value`, starting `tool=<prefix>; v=<version>;`). Customer
+originals keep any other code. Every set in the template XML is `fulfillment="false"`, so the
+`px_print_` option is the only production source. The full contract and the retirement of the
+old per-tool codes are in `26_CUSTOM_DESIGN_TOOLS.md` § 3.
+
+### One token rule in every route
+
+| Code contains | Meaning | FTP | OrderHub Desktop | HTTP push |
+|---|---|---|---|---|
+| `_print_` | production file | `artwork/<order code>/` | the line folder | `production_files` |
+| `preview` | cart thumbnail | not written | not written | `preview` |
+| neither (a file upload) | customer original | `artwork/<order code>/original-files/` | line folder `original-files/` | `original_files` |
+
+`<part>` is whatever follows `_print_` (`px_print_file` gives `file`, `px_print_cut` gives
+`cut`). The extension comes from the uploaded file name (pdf, png, jpg, jpeg, tif, tiff) and
+falls back to pdf. Both template options and variants are read. **A new tool needs no site
+change**, because the files key on `_print_` and `preview` only. All three files use the
+`af_first` comma pattern (the separator goes before an entry, see § The trailing-comma
+failure).
+
+### One file set per route, chosen once per site
+
+| Route | Install as |
+|---|---|
+| FTP | template `_additional_files`, extension `json` |
+| OrderHub Desktop | templates `_additional_files` and `%order_code%`, both extension `json`, **always edited as a pair** |
+| HTTP push | template body of an HTTP destination, content type `application/json` |
+
+Template settings: `_additional_files` with Description in Dir on and Skip if empty off;
+`%order_code%` with a blank file name, Description in Dir on and Skip if empty off. Fulfillment
+templates are edited in Super Admin; every customer company has at least one person with Super
+Admin access to its own destinations and templates (stated by Alex, 5 Oct).
+
+**FTP names** (decided by Alex, 3 and 4 Oct):
+- Production: `artwork/<order code>/<order code>_<line barcode>_Q<qty>_<product code>_<part>.<ext>`
+- Customer original: `artwork/<order code>/original-files/<line barcode>_<option code>_<original filename>`
+- Project photo: `artwork/<order code>/original-files/<line barcode>_<n>-<filename>` (the index
+  keeps two same-named phone photos apart)
+- No line id in any folder. Cart previews go nowhere. The root `artwork` is one variable,
+  `af_root`, at the top of the file. A leading slash on `af_root` starts at the FTP root; none
+  stays inside the destination folder. Which one a site needs is **not verified** until the
+  baseline test shows where `artwork/` lands.
+
+**OrderHub Desktop names** (line-id layout, following how the platform names its own files for
+the same line, verified by query):
+- Production: `<order code>_<line id>/<order code>_<line id>_Q<qty>_<part>.<ext>`
+- Original: `<order code>_<line id>/original-files/<option code>-<original filename>`
+- Photo: `<order code>_<line id>/original-files/<n>-<filename>`
+- The production path expression is the same text in `_additional_files.json` (destination)
+  and `order_code.json` (`filename`); the test harness asserts it byte for byte. Sites on
+  OrderHub Desktop today write tool production files to
+  `<order>/<product>.<order>.Q<qty>.<barcode>_design.pdf`, so moving a live site to the new
+  path means replacing **both** of its templates together.
+
+**HTTP push payload:** per order `order`, then `lines[]`. Per line: `id`, `barcode`,
+`product_code`, `quantity`, `production_files[]` (each `source`, `part`, `filename`, `url`,
+`quantity`), `original_files[]`, `preview`, and `spec` (the `_spec` text split into keys; `;`
+or `; ` separators). Platform-rendered files appear in `production_files` with
+`source: generated` and the file name only. **Not verified** on a live HTTP order: `opt.value`
+as the text of a template option, and any URL property on a generated file; if either is
+missing, `spec` comes out empty and generated files carry no URL.
+
+**OrderHub (cloud)** is answered as FTP: it reads the store's normal FTP route and needs no
+file pair of its own. *Unconfirmed: stated by Alex, 5 Oct, not tested; the baseline test
+should include one OrderHub (cloud) site.*
+
+### Old codes: the legacy list
+
+`af_legacy` (FTP and OrderHub additional files), `oh_legacy` (OrderHub job file) and
+`http_legacy` are empty in the standard. On a site that still has an old tool code, fill the
+same `code:part` list in every file for that site, for example
+`du_file:file,bu_file:file,sticker_artwork:file,sticker_cutfile:cut,gangup_artwork:file,gangup_cutfile:cut`.
+Remove a pair when that site's templates have been updated to the `px_` codes. **Without the
+list an old code is treated as a customer original** and no production file is written for
+that line (harness shape 12).
+
+### What the standard fixes over the earlier live files
+
+1. A tool print option without `_print_` (`du_file`, `bu_file`, `sticker_artwork`,
+   `gangup_artwork` and similar) no longer falls into originals once it is in the legacy list.
+2. Two print options on one line no longer overwrite each other: the part is in the name.
+3. A PNG print file (Gang Up) keeps its extension.
+4. Production files on **variants** are read, which the earlier generic file did not do.
+5. Order code, barcode and option codes are escaped in destinations.
+6. Quoted or backslashed file names stay valid JSON in every file.
+
+### How it was tested (python-liquid harness)
+
+All four templates were rendered for 13 order shapes and every output run through
+`json.loads`: 0 failures. Shapes: photo prints only; tool only with no generated files;
+photo line then tool line; cut print with quantity per file; empty line; two `_print_`
+options on one line (two distinct names); a file upload on a variant; artwork attached with
+no print file yet (no production entry); adversarial (nil template option, nil project, blank
+URL, quote and backslash in file names, product code and order code); a mixed order on `px_`
+codes (nothing duplicated, no preview written, the OrderHub pair agrees); the same product
+twice on one order with the same uploaded file name (two distinct names via the line
+barcode); old codes with the legacy list set; the same order with the list empty. Invariants
+asserted on every shape: no duplicate destination; every FTP production path is exactly
+`artwork/<order>/<file>`; every FTP original starts with a line barcode; every OrderHub tool
+file name is an additional-files destination.
+
+**Engine caveat:** python-liquid treats `nil != blank` as true and Ruby Liquid does not. The
+files avoid the difference for upload URLs by assigning `url | default: ''` and comparing to
+`''`. The `lab_size` / `size` / `"None"` cascade copied from the earlier live file renders
+`""` in the harness where the platform renders `None` (not verified on the platform).
+
+### Not covered by these files
+
+- **The platform's own rendered files** (photo prints, books) are named by the destination's
+  file name template and directory template, not by these files. For the FTP route to put
+  photo files in `artwork/<order code>/` too, the destination needs `directory_template` set
+  to `{{ order.code }}` and a flat file name template carrying the line barcode. Whether
+  `_additional_files.json` destinations resolve against the same base as `directory_template`
+  is **not verified**. Destination settings are Super Admin changes per site.
+- JSON preflight records kept in file-upload options (`bc_preflight`, `pu_preflight`) are
+  neither a print file nor a preview, so they land in `original-files/`. Harmless.
+
+### Rolling it out
+
+Per site, one at a time: the site's fulfillment files first (standard file set for its route,
+legacy list filled from its live template codes), one test order with a tool line, then that
+site's tool templates move to the `px_` codes with the bulk updater and the legacy pairs come
+out. Sites on OrderHub Desktop move to the line-id path with both templates replaced together.
+A one-time, per-store setup wizard in myPixfizz (route, paste current files, updated files with
+a plain diff, paste back, test order) is at prototype stage; it must not reach customers before
+the baseline test passes, and every comment in the standard files must read as customer-facing
+text first.
 
 ## Where No Production File Is Rendered At All
 
@@ -913,3 +1060,4 @@ _Verified by reading source, 2026-09-09._
 - 2026-07-31: Renamed "Enable Perfectly Clear" billing field to "Enable AI Tokens" — confirms shift from Perfectly Clear-specific billing to a generic AI token model (OpenAI/Gemini). Source: slack-message (#development), commit 8aeec021.
 - 2026-09-09: Restated the trailing-comma rule at its point of failure — a `_additional_files.json` suppressing the comma with `forloop.last and forloop.parentloop.last` emits invalid JSON on any order whose final orderline has zero project images, surfacing as `Failed generating files: unexpected token at ']'` and reproducible with `JSON.parse` on the rendered job ticket. Added the four source buckets a complete template must cover (project images, the tool's generated print file, `file_upload` options, `file_upload` variants), the exclusion-list pattern for keeping cart thumbnails off the FTP, and the production-versus-originals destination conventions (production filename marked as a proposal). Added that where every `<set>` is `fulfillment="false"` no production file is rendered at all, cross-referenced to 19_XML_TEMPLATE_REFERENCE.md. Added that files left on the Pixfizz FTP drop are auto-deleted after a week. Added the fail-open rule for custom tools, with `production.fallback_reason` as the diagnostic. Cross-referenced `project.page_count` on upload-driven products to the pricing consequence now in 30_PRICING_ENGINE.md. Source: claude-chat, slack-message.
 - 2026-09-24: Added "Routing One Customer Group's Files Separately" and the `_print_` / `preview` option-code convention for custom tool print files (file-verified only). Source: fireflies-call, claude-chat.
+- 2026-10-06: Added "Custom Tool Fulfillment Standard": the `px_` code contract, one token rule across FTP, OrderHub Desktop and HTTP push, file sets and names per route, the legacy list for old codes, the fixes over earlier files, the harness test, what is not covered, and rollout (file-verified only, no live order yet). Pointer from "Custom Tool Print Files". Scrubbed the client name from the QR code worked example heading. Source: claude-chat.

@@ -719,6 +719,63 @@ and the `.px-btn-cart` button — is `pages/prints`, and its hook is
 `extra-prints-code`. Anything that has to observe the prints component or its cart
 button belongs on `extra-prints-code`.
 
+# PhotoPrintsComponent hooks (client-side intercept points in the photo prints flow)
+
+Platform-level component, minified bundle. *Hook surface verified by test on a live bundle
+(dist/prod/20260909171200), 2026-09-10; behavior above the quantity threshold verified by
+reading source only, pending a live test with uploaded photos.*
+
+Any requirement of the form "do something when the customer moves from photo selection to
+Cropping & Options" (minimum quantity gates, review-and-confirm modals, upsell prompts,
+analytics events) has a clean interception point. Do not scrape the DOM around `.px-btn-cart`.
+
+`Px.CMS.PhotoPrintsComponent` is a **MobX** component. `window.mobx` is global on the page
+(`mobx.autorun`, `mobx.runInAction`). The mounted instance is `window.photo_prints`.
+
+| Member | Kind | Use |
+|---|---|---|
+| `goToCropOptions(e)` | plain prototype method | Wrap it to gate the transition to Cropping & Options. This is the hard guard: it blocks the screen change however it was triggered. |
+| `goToCropOptionsButtonEnabled` | MobX computed | Shadow it on the instance with `Object.defineProperty` so the platform renders the button disabled itself. No CSS class dependency. |
+| `totalPrintsQuantity` | MobX computed | Total prints across the flow; reactive inside `mobx.autorun`. |
+| `sizeTotalQuantity(sizeKey)` | prototype method | Per-size total, summed from `state.size_selections`. |
+| `addToCartButtonEnabled` | MobX computed | Same pattern, for the Add to Cart step. |
+| `addToCart`, `goToPhotoSelection`, `openCropTool`, `saveCrop` | prototype methods | Same wrapping pattern. |
+| `state.screen` | observable | `"photo-selection"` or `"crop-options"`. |
+| `state.size_selections` | observable map | `Map<sizeKey, Map<imageGuid, qty>>`. |
+
+`PhotoPrintsComponent.properties` is the full declared property list. As of this build it has
+**no minimum-quantity, maximum-quantity or order-threshold property**: any minimum order rule
+on photo prints is custom code, not configuration (see `20_SHOPPER_CART_RULES.md` § Photo
+prints).
+
+Rules:
+
+- **Wrap the prototype method for enforcement; shadow the computed for presentation.** The
+  method wrap is what blocks; the computed shadow only changes how the button renders.
+- **Never call the original getter from inside a shadowing getter.** The MobX computed
+  accessor reads back through the same key and recurses to a stack overflow. Return a
+  self-contained expression. A minimum-quantity threshold is stricter than the platform's own
+  "at least one print" rule, so nothing is lost.
+- **The platform already disables the button at zero prints**, so a modal hung off the click
+  never fires at zero. Cover zero with a persistent counter or instruction and let the modal
+  handle 1 through the threshold.
+- **Always assert on init.** If `window.photo_prints`, `window.mobx` or `goToCropOptions` is
+  absent, log an explicit console error and leave the flow untouched. These names live in a
+  minified parent-maintained bundle and an update can rename them; fail open and visibly.
+- **Client-side guards are not enforcement.** Devtools defeats them, and re-entering an
+  existing project via `cart_mode` bypasses them. Anything that must genuinely hold needs a
+  second check at cart or checkout.
+
+Where the code goes: on Full Pixfizz, `product/extra-prints-code` on `pages/prints` (the flow
+itself; `product/custom-prints-code` is the collection landing page only, see the table in the
+section above). On Shopify + Pixfizz, inline on the `site/shopify/photo-prints` page, after
+`window.photo_prints.mount(...)`.
+
+Session key: the Shopify photo-prints page sets `session_key: "{{ collection.id }}"`, so one
+collection per print size gives each size its own isolated session; a per-collection minimum
+and a total minimum are then the same number. A supported way to model per-size minimums
+without per-size logic.
+
 # A Closing `</style>` Inside an Inlined CSS Snippet Breaks the Page
 
 Some snippets carry their own CSS in a companion snippet inlined by the markup
@@ -1103,3 +1160,4 @@ kit), 2026-09-09._
 - 2026-08-29: **Corrected the image-pipeline rule** — the `format:` filter is WebP-capped, which is not a format ban; pre-encoded AVIF uploads and serves through `<picture>` and has shipped since 2026-08-16. Current rule is AVIF + WebP with WebP as the `<img>` fallback, keeping AVIF only where it measures smaller. Added: canvas export requires `crossOrigin = 'anonymous'` or `toBlob` throws `SecurityError` after a perfect-looking preview; the iOS Safari 16,777,216-pixel canvas ceiling as a go/no-go test for browser-built print files; writing to the cart from a custom tool (`cart_add_product` per product, disabled inputs as the mechanism, sequential queue in `sessionStorage`, assert `cart.orderlines_total` grew); collection filter params are arrays, so `?type=Roll` silently no-ops; a snippet's own `data-*-mount` default is a label rather than evidence, with the two photo-prints routes; a literal `</style>` inside an inlined CSS snippet ends the element early and dumps the stylesheet onto the page; and five browser PDF preflight rules (pdf.js exposes only the CropBox, never infer trim from page size, cMap config, text-trigram page matching, `pdf-lib copyPages` fidelity). Source: claude-chat.
 - 2026-09-09: Added adding a capability to a shared parent snippet without touching any site — the free-form arguments string as an admin-data opt-in, the three properties that make it parent-safe (opt-in proven by grep, byte-identical degradation, parallel-array alignment preserved by pushing outside the conditional), the negative-diff proof standard against a live URL, the unresolved snippet-scope question, and Override Snippet vocabulary with the pinning consequence. Added the four-step custom-tool install order on a new site, the no-useful-error failure, and the two options-import traps; cross-referenced 51_CUSTOM_FIELDS_REFERENCE.md. Added the two-stage feature-flag pattern for a parent snippet that must stay inert on most children — data condition first, then a checklist switch defaulting off, read with an empty fallback and stripped before an exact TRUE comparison, created on the parent with Allow Override. Added that a byte-identical render harness needs per-fixture marker assertions or it proves nothing, with the silently-dropped-values and filter-in-an-if traps and the capture whitespace rule, plus python-liquid treating an undefined key as != blank and how to control for it. Added that progress UI must live in the panel the customer is looking at and must yield a frame before a blocking step. Added that a visually-hidden radio must use opacity 0, never display none. Added no-JavaScript as a defence against AJAX re-injection. Added preview canvas view anchoring, bleed legibility and canvas sizing, with the direction-and-pixel test assertions. Added how to verify which version of a parent asset is actually live — hash-compare against the build kit and confirm by the absence of the new symbol, not the version string. Source: claude-chat, fireflies-call.
 - 2026-09-19: Custom-tool install order cut from four steps to two. Product custom field definitions and checklist values are retired as install steps — configuration rides in the mount argument list. Cross-referenced `26_CUSTOM_DESIGN_TOOLS.md`. Source: kbsync (custom tool estate).
+- 2026-10-06: Added PhotoPrintsComponent hooks: the MobX instance and the members to wrap or shadow (goToCropOptions, goToCropOptionsButtonEnabled, totalPrintsQuantity and others), the five rules (wrap for enforcement, never call the original getter, zero prints already disabled, assert on init and fail open, client guards are not enforcement), where the code goes per deployment, and per-size minimums via the Shopify session key. Source: claude-chat.

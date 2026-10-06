@@ -40,6 +40,7 @@ The root element of every XML template definition.
 | `add` | The increment by which pages are added when a user adds pages to the project. |
 | `max` | Maximum total page count for the product. |
 | `trimbox` | `true` embeds PDF trimbox metadata in the output file. Used for prepress workflows where the receiver needs trim information embedded in the PDF. |
+| `background-transparent` | Seen as `output="png" background-transparent="true"` on a live clear-crystal product. With it, the design previews in WebP and PNG return alpha 0 outside the design; JPEG previews fill white (`61_PIXFIZZ_API.md` § 9). *Verified by query, 2026-09-29; the production file's alpha was not checked.* |
 
 ---
 
@@ -119,6 +120,42 @@ The map is defined separately in the XML definition:
 - The `<filter>` must be nested inside the cover `<page>` element.
 - The `map` attribute value must match the `name` attribute on the corresponding `<map>` element.
 - **Every value the filter looks up must fall inside a key range.** A value with no range fails the render with `PrintBook::TemplateError (Entry for N not found in map "binding")`, where N is the value that had no entry (seen for 29 and 33 on a live photobook range). Fix it by adding the missing range to the template's `<map name="binding">`, and check that the ranges leave no gap between them. Adding the `<filter>` alone does not fix it. *Stated by the core developer ("95% sure", 2026-09-24); the errors cleared once the missing entries were added, 2026-09-25. Not verified by reading source.*
+
+#### How the spine is inserted into a cover at render
+
+The `binding` filter inserts the spine at the centre line of the cover page when it renders,
+so the rendered cover is the cover page width plus the spine width for the project's page
+count (in the storefront editor, `svg.px-page` viewBox width = cover width + spine). Element
+coordinates in the cover XML are written against the cover without the spine. Then:
+
+1. An element wholly in the back half (right edge at or left of the centre line) moves left by spine/2.
+2. An element wholly in the front half (left edge at or right of the centre line) moves right by spine/2.
+3. An element that crosses the centre line keeps its authored position and size. It is **not
+   stretched**. It covers the spine only where it overlaps it, and a full-spread element ends
+   spine/2 short of both outer edges.
+4. Any part of the spine no element covers shows the page background.
+
+Consequences for cover designs and layouts:
+
+- A two-tone cover drawn as "back shape up to the centre line" leaves the spine in the page
+  background color, not the back color.
+- To color the spine, add a centre strip of the spine color, crossing the centre line, with
+  half-width S at least the largest spine / 2 (plus about 1 mm), behind everything. Front and
+  back elements sit above it.
+- To ground the whole cover in one color: back-half shape + front-half shape + the same
+  centre strip. One full-spread shape falls short of the outer edges.
+- A full-spread (wraparound) photo frame: oversize it by S on each side (`x = -S`,
+  `width = W + 2S`) so it reaches the edges at every spine width. The photo then runs
+  continuously across the spine, so the middle of the photo lands on the spine: sample and
+  default photos for a wraparound cover should have no central subject.
+- A cover page background color cannot be set from a layout (§ Element Permission Flags);
+  draw it as shapes.
+- **Check the spine in the storefront editor, not the admin design tool.** The admin design
+  tool (`/v1/editor?theme_templates=...`) does not insert the spine. In the storefront editor,
+  `.px-binding` and `.px-hinge` are editor overlays at 0.5 opacity, not print.
+
+*Verified by query in the storefront editor on a hardcover photobook template at 40 and 160
+pages, 2026-10-02.*
 
 ### Layflat Spread Page Break
 
@@ -515,6 +552,18 @@ top  = (refH / 2 - regionCenterY) / refH * 100
 
 The case that settled it: panel pages with an `<ipage>` onto one wall page. With the sign flipped, the two outer panels rendered each other's artwork; symmetric panel sets hide the error. *`left` verified by render on a test template, 2026-09-27. `top` assumed to follow the same convention, not verified.*
 
+### Image elements: `crop="false"` fits, the default fills
+
+On an image element, `crop="false"` fits the image inside the frame (the setting for
+logos); the default crops it to fill the frame. **An image upload option overrides this** and
+crops to fill unless an `image_crop_flag` substitution turns cropping off
+(`17_DESIGN_TOOL.md` § Image crop flag, `22_OPTION_VARIANT_RENDERING.md` § 5.1).
+`target_element_name` limits and substitution types: `22_OPTION_VARIANT_RENDERING.md`
+§ Template Option Substitutions. A template import, like a design import (§ Design Import),
+adds the archive's fonts to the site under new ids and remaps `font=` in the page XML
+(`16_PRODUCT_HIERARCHY.md` § Import Behavior). *Verified by query on baseline.pixfizz.com,
+2026-10-05.*
+
 ## Template Import — `products[].price` Validates Presence
 
 Verified 2026-08-28 by a real import of `__print_product.yml` (Manage Products →
@@ -661,6 +710,14 @@ _Verified by reading source (layout definition of a live template)._
 `src="db:<id>"` on a page image resolves a WebP asset — the platform already renders WebP
 from template data. _Verified by reading source, not by render._
 
+### On clear products, the page mask is the print area, not the outline
+
+A page mask defines where ink goes. On clear or cut products (acrylic, crystal) the print
+mask can be smaller than the physical piece: on one round crystal ornament the mask was
+87.7% of the page and the lab's facet overlay 96.9%. Do not use the mask as the product
+outline in a preview. Where the mask image itself is needed, the SVG design preview carries
+its CDN URL (`61_PIXFIZZ_API.md` § 9). _Verified by query, 2026-09-29._
+
 ### Preview scene scale is derivable from the ipage
 
 The preview page's `ipage` width in mm, against the trim it represents in inches, gives
@@ -786,6 +843,55 @@ A template can hold several named layouts (for example `full` and `matted` for t
 
 *Verified by render, 2026-09-29. Not verified: the Adjust crop dialog and the production file for a rotated placeholder (needs a test order).*
 
+## Element Permission Flags
+
+**Platform-level (Pixfizz CMS).** The element flags seen across real design exports are
+`edit`, `layout`, `move`, `resize`, `eborder`, `ebordercolor`, `eborderradius`, `eopacity`,
+`erotation`, `elayer`, `emask` and `z`. There is **no `ecolor` flag**: to stop a customer
+recoloring or deleting a shape, use `edit="false"`. `move="false" resize="false"` alone do
+not stop either. Editor behavior of a locked element: `17_DESIGN_TOOL.md` § Locking an
+Element.
+
+A locked background shape in a layout looks like:
+
+```
+edit="false" layout="true" move="false" resize="false" z="-31"
+```
+
+- **Shape `opacity`** (e.g. `opacity="0.023"`) is rendered by the editor as a group opacity
+  and honored by the fulfillment renderer. Stacked translucent locked shapes make a gradient
+  that prints. *Verified by query (editor and fulfillment render), 2026-10-04.*
+- **`bgcolor` on a layout's page tag is not applied on a layout swap.** The page keeps the
+  design's background color, so a background color that must change with the layout has to
+  be drawn as shapes. *Verified by query, 2026-10-02.*
+
+*Flag list verified by reading 16 design exports; locked-element behavior verified by query
+in the storefront editor, 2026-10-02.*
+
+## Text Elements: `shrink`, `valign` and Font Size
+
+**Platform-level (Pixfizz CMS).**
+
+- **`fontsize` uses the page geometry unit** (millimetres, like `x`, `y`, `width`,
+  `height`). *Verified by query, comparing to rendered proofs, 2026-10-04.*
+- **`shrink="true"` renders the text at the largest size at which the wrapped text fits the
+  box.** In a name box one line high and 48 mm wide: a short name prints full size, a longer
+  name slightly smaller on one line, a very long name wraps to two lines at about half size;
+  long job titles dropped to about 6 pt. Size the box and the option's `max_length` together
+  so the longest accepted text still prints at a readable size (9 pt or more is the working
+  floor). *Verified by server render on baseline.pixfizz.com, 2026-10-05.*
+- **`valign="top|center|bottom"`** sets vertical alignment in the box; the default is `top`.
+  With `valign="center"` and `shrink="true"`, one line and two wrapped lines both sit
+  centered. *Verified by reading source (editor bundle 20261002143509) and by server render
+  on baseline.pixfizz.com, 2026-10-06.*
+
+## Mug Wrap Designs: The Readable Front Zone
+
+**Template-level (the Pixfizz Templates mug range).** Content a customer must read sits
+within page centre ± 0.83 × mug radius, about 48 degrees each side of the front. That is
+2.7 in wide on an 11oz mug (3.25 in diameter) and 2.82 in on a 15oz mug (3.4 in diameter).
+*Rule set for the mug template range, 2026-10-05.*
+
 ## Layouts Travel With a Template Export
 
 **Corrected 2026-09-24.** The entry previously here said a template export does not carry the layouts linked to the template. That is wrong for the admin template export.
@@ -800,6 +906,35 @@ What still holds:
 - **Deleting layouts from designs removes the links to them.** A design can use layouts linked from another design on the same template, and in some cases from another template. A scripted cleanup that deleted layouts from a range's designs left the linked layouts unlinked, and relinking them by hand took about two hours. Export the template before any scripted layout cleanup. *Observed on a client range and stated by the core developer, #development, 2026-09-22.*
 
 *Verified by reading source (a real template export, 2026-09-22) and stated on a client call, 2026-09-22. The 2026-09-12 #development statement this replaces was probably describing a layout shared from another theme, or the API.*
+
+### Linked Layouts drive the layout picker, separately from `layout_id`
+
+What the customer editor offers in its layout picker comes from the design's **Linked
+Layouts** (admin, design page, Linked Layouts > Link). A link is to a whole source design:
+every layout in it is offered, and Unlink removes them all ("Unlink all layouts from
+<design>").
+
+- **A design import does not create these links,** even when every page carries a correct
+  `layout_id`. Imported designs show no layouts in the picker until they are linked.
+- Deleting a layout from the source design removes it from every design that links that
+  source.
+- **Deleting a design is a soft delete.** Its admin page still opens by URL, its code is
+  cleared, and it stays in the Link Layouts modal list with a blank code. **Links to a
+  deleted source design are not removed:** designs that linked it keep offering its layouts.
+  After deleting a layouts source, unlink it from every design that linked it. Never link a
+  row with a blank code in the Link Layouts modal: it is a deleted design.
+- Admin form endpoints (paths relative to `admin.pixfizz.com/site/<site>/`), as called by the
+  modal and the Unlink buttons:
+  - Link: `POST admin/print_theme/link_layouts?theme=<design id>&inherited_print_theme_id=<source id>`.
+    Returns 200; returns 500 when that source is already linked.
+  - Unlink: `POST admin/print_theme/unlink_layouts/<design id>?inherited_print_theme_id=<source id>`
+    (the form on each Linked Layouts row; send its inputs).
+  - Read back: count the `form[action*="unlink_layouts/"]` per `inherited_print_theme_id` on
+    the design page.
+  - The Link Layouts button (`button[data-onclick=openLinkLayoutsModal]`) stays disabled
+    until the page previews load.
+
+*Verified by query, 2026-10-02.*
 ## Template Changes Do Not Reach Existing Projects
 
 **Platform-level (Pixfizz CMS).** A project keeps the page geometry it was created with. Changing the template afterwards (page size, bleed) does not update projects that already exist:
@@ -812,6 +947,83 @@ What still holds:
 The same holds when a design is copied to a new size: its layouts stay at the old size until **Resize** is used on the layouts.
 
 *Stated by the core developer (#development, 2026-09-25) and on calls, 2026-09-28 and 2026-09-29. Not verified by test.*
+
+**Design pages do not follow a size change either.** Changing a size on a template that
+already has designs leaves every design page and layout at the old geometry, each to be
+edited on its own. Changing the hardcover size on one existing photobook template meant
+editing about 500 pages individually. Cost a size change on a live range before agreeing
+to it. The page XML can be rewritten by script through the admin page form (§ Editing
+Design Pages and Layouts in Place), which turns the work into a batch job; that has not
+yet been done for a size change. *Reported by Alex (kbsync Phase 1 scan, October 2026). Not verified by test.*
+
+## Editing Design Pages and Layouts in Place
+
+**Platform-level (Pixfizz CMS).** A design page or layout can be changed without
+re-importing the design:
+
+- Read: `GET /site/<site>/admin/print_pages/<id>/edit`. The XML is in the Ace mount script as
+  `const content = "..."` (a JSON string), not in a textarea.
+- Write: `POST /site/<site>/admin/print_pages/<id>` with `_method=patch`, the
+  `authenticity_token` from that page's form, and `page[data]`. Route list:
+  `18_ADMIN_NAVIGATION.md`.
+- Layouts in a layouts design are print pages, so the same path edits them.
+- The saved XML comes back with CRLF line endings. Normalize before diffing.
+
+*Verified by query, 2026-10-03 and 2026-10-04.*
+
+## Design Import (`__print_theme.yml`)
+
+**Platform-level (Pixfizz CMS).** A design is imported from the template page's **Import
+Design** button (form `POST /site/<site>/admin/print_theme/import_print_theme/<template id>`,
+field `exported_file`).
+
+### Format
+
+*Verified by reading a real design export, 2026-09-29.*
+
+- A `.tar.gz` holding `./assets/`, `./fonts/`, `./glb_files/`, `./images/` and `./pdfs/`
+  (files named by id), plus `./__print_theme.yml` at the root.
+- `__print_theme.yml` is **one design mapping** at the root (the same keys as one entry of
+  `print_themes` in a template export), followed by `__asset_map`, `__image_map`,
+  `__pdf_map` and `__font_map`.
+- Map keys are quoted ids; inner keys are Ruby symbols written unquoted (`:name:`,
+  `:original_filename:`, `:description:`). A quoted `':name'` loads as a string, not a
+  symbol.
+
+### What an import does
+
+*Verified by query (designs imported, re-exported and read back), 2026-09-29, 2026-10-02 and
+2026-10-05.*
+
+- Creates a **new design with a new id**. Page, image, asset and font ids in the tar are
+  remapped. Layouts carried inside the tar get new ids, so a page cannot link to them by
+  `layout_id` in the same tar.
+- **Fonts:** files in `fonts/` with `__font_map` entries are created as site fonts (named
+  from `__font_map`), and `font=` attributes in the page XML are rewritten to the new site
+  font ids. A font whose name matches an existing site font is not duplicated. With `font=`
+  already set to the site's own font ids and the entries under the existing names, the ids
+  come back unchanged and no new fonts are created.
+- **Images:** every `db:<id>` image is copied to a new id, including an image that already
+  exists on the site. Element substitutions match by element name, so the copy does no harm.
+- **`layout_id`** on a page is kept when it points at a layout already on the site.
+- `linked_assets` + `__asset_map` become the design's preview images; `preview_img` (an
+  asset name) becomes the design preview.
+- `edit="false"` and the `e*` element flags are kept verbatim.
+- An import does **not** create Linked Layouts (§ Layouts Travel With a Template Export).
+
+### Workflow for a generated batch of designs
+
+1. Import one design first, carrying every new font. Read the new font ids from
+   Admin > Fonts, then build the rest with `font=` set to those site ids and only the fonts
+   each design uses. Never ship the same new font in 30 tars before the first import has
+   created it.
+2. If the designs use new layouts: import the layouts design first, export it (or the
+   template with that design) and read the new layout ids.
+3. Build the designs with each page's `layout_id` set to those ids (or to layouts already on
+   the site) and every layout element carrying `layout="true"`.
+4. Import the designs and read one back by export.
+5. Link the layouts designs to every new design under Linked Layouts, unlink any deleted or
+   superseded source, and read the links back from each design page.
 
 ## Open Platform Question — `fulfillment` on Layers
 
@@ -839,3 +1051,4 @@ documented above. There is no layer-level `fulfillment` attribute. Do not docume
 - 2026-09-19: Added that layouts are excluded from template exports and that the API cannot manage or transfer them, so layouts must be recreated and relinked after any template import; a design theme export (`__print_theme.yml`) is the route for a bulk layout move. Source: slack-message (#development).
 - 2026-09-24: Added "PDF Layers in Practice": the three jobs a layer does (design aid, production-only, split file), View Settings for hiding layers while editing, replacing an element on a layer, the pointer to the uneditable-placeholder technique for show-but-never-print, and front/back acrylic marked unconfirmed. Replaced "Layouts Do Not Travel With a Template Export" with the corrected rule: the template export carries layouts. Added the `output-name` JPEG duplicate-filename rule and the `layout="true"` + `layout_id` requirement for layout swaps. Source: fireflies-call, claude-chat.
 - 2026-09-29: Binding map missing-entry error and fix. `<ipage>` left/top sign convention. Canvas fold inside trim vs bleed; render draws the wrap into the bleed. `rotate="90"` element rotation. Layout links break when layouts are deleted from designs. Template changes do not update existing projects; refulfill resends old geometry. Source: claude-chat, slack-message.
+- 2026-10-06: Added `background-transparent` to definition attributes. Growing Spine: how the spine is inserted at render and the consequences for cover designs. Preview Sets: the page mask is the print area, not the outline, on clear products. Added Element Permission Flags (flag list, no `ecolor`, shape `opacity`, `bgcolor` not applied on layout swap), Text Elements (`shrink`, `valign`, `fontsize` unit) and the mug readable front zone. Layouts: Linked Layouts drive the picker, import does not create them, soft-deleted designs keep their links, link/unlink endpoints. Template Changes: design pages do not follow a size change. Canvas Wrap Geometry: image elements, `crop="false"` fits and image upload options override it. Added Editing Design Pages and Layouts in Place, and Design Import (`__print_theme.yml` format, id remapping, fonts, batch workflow). Source: claude-chat, vault-doc.

@@ -236,6 +236,13 @@ If a product in the cart has shipping or pickup marked as unavailable via its cu
 
 ---
 
+**Q: Can I set a different tax rate for some products, or make some products tax-exempt?**
+_Applies to: Full Pixfizz_
+
+No. Tax applies to the whole store and is set by location, not by product. Pixfizz cannot charge a different rate on individual products or exempt them. During setup we only need your store's tax rate (or your location rules).
+
+---
+
 **Q: How does digital-only delivery work?**
 _Applies to: Full Pixfizz / Shopper_
 
@@ -309,7 +316,7 @@ _Applies to: All_
 | Downloaded | Production assets downloaded by production team |
 | Manufactured | Production complete |
 | Shipped | Order dispatched to customer |
-| Fulfilled | Order delivered and complete |
+| Fulfilled | Fulfillment complete on the production side (production files done). An internal status, not a delivery confirmation; Order Fulfilled and Orderline Fulfilled emails are internal only, and the customer's dispatch email is Order Shipped. (Corrected 2026-10-06.) See `32_ORDER_LIFECYCLE.md` § Which notification email fires when |
 | Payment Failed | Payment was not successfully captured |
 | Error | An error occurred — check the order history log |
 | Canceled | Order canceled |
@@ -479,6 +486,11 @@ cause. One line of cause, then where the detail lives.
 | A regex written against a template export matches nothing at all | **Export attribute order is alphabetical**, not the order the attributes were authored in | `19_XML_TEMPLATE_REFERENCE.md` |
 | An outsourced print-on-demand line invoices at zero | **Product or variant code mismatch** against the parent lab's site. A mismatch inserts a zero price rather than rejecting the order | `45_ORDERHUB.md` |
 | The editor opens in the wrong language, though the language is enabled | **Editor-namespace translations are absent on the site.** Enabling a language does not create them | `18_ADMIN_NAVIGATION.md` |
+| An option brought in with a template export never appears on the website (a custom tool never mounts), but shows in kiosk mode | The source site's option custom keys have **no definition on this site**, so they were stored as the string `"false"` and `kiosk_mode_only` reads as true | `22_OPTION_VARIANT_RENDERING.md` |
+| A template import fails, and the retry gives every code a `-1` suffix | **A template import is not atomic.** The failed attempt left a partial template behind; delete it before importing again | `16_PRODUCT_HIERARCHY.md` |
+| A generated product archive import returns to the same page and creates nothing | A **long scalar folded across lines** in the YAML | `01_CODE_GOVERNANCE_UPDATED.md` |
+| A collection link opens a blank shop page with no error | The **top-level collection is empty**, and a top-level collection cannot be unpublished | `80_ONBOARDING.md`, `16_PRODUCT_HIERARCHY.md` |
+| Shopify My Projects: clicking a saved project does nothing | The **Shopify page with handle `pixfizz-product-api` is missing**, so the product loader never resolves | `60_SHOPIFY_INTEGRATION.md` |
 
 If a report matches one of these, check the cause before anything else. Every one of them has
 cost at least one debugging session that started somewhere else.
@@ -508,3 +520,4 @@ Not by a setting. It may be possible with inline pages but there is no confirmed
 - 2026-07-31: Added per-template image upload visibility Q&A (Section 3) — use a separate Design Tool Configuration per template rather than a single global editor.css rule. Source: support ticket.
 - 2026-09-24: Added Section 12 Design Templates: unedited placeholders do not print, production-only layers, hiding layers while editing, mirrored output. Source: fireflies-call.
 - 2026-09-29: Two kiosk FAQs: no order because Confirm Order was never pressed; next customer inherits the session. Source: fireflies-call.
+- 2026-10-06: Section 5: tax cannot be set per product. Section 11: five silent failures (imported option hidden by string "false", non-atomic template import, folded scalar in a generated archive, blank empty top-level collection page, Shopify My Projects loader hang). Section 7: CORRECTED the Fulfilled status meaning (internal production status, not delivered). Source: claude-chat, vault-doc.

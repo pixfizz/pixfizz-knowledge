@@ -200,20 +200,38 @@ The editor can be re-themed with CSS. Where the CSS lives depends on deployment:
 - Full Pixfizz / Shopper: the `editor.css` page.
 - Shopify integration: the `shopify/custom-styles` snippet (loaded into the editor
   from the Pixfizz side, not the Shopify theme).
-- Either path: the Custom CSS field in the Design Tool Configuration.
+- Either path: a file named in the **Custom CSS** field of the Design Tool
+  Configuration (see below).
 
 Storefront `style/custom.css` does NOT reach inside the editor iframe. Use one of
 the locations above instead.
+
+**The Custom CSS field is a list of files, not a CSS text box** (Corrected 2026-10-06).
+Its admin help text: "A list of custom CSS files to inject into the Editor. Each file can be
+given as an absolute URL, name of a CMS page, or name of an asset wrapped in @ characters."
+With the field empty, no custom stylesheet is loaded, even when the `editor.css` page
+exists. On a Shopper child the working pair is:
+
+1. an Override Snippet of `style/editor.css` (the parent's `editor.css` page renders it at
+   `/site/editor.css`), and
+2. `editor.css` in the configuration's Custom CSS field.
+
+The editor shell then carries `<link rel="stylesheet" href="https://<site>/site/editor.css">`.
+Iterate by editing the override and reloading the editor. Roll back by deleting the override
+(the parent content returns) and clearing the field. *Verified by query on
+experience.pixfizz.com (shopper24 child), 2026-10-02. Whether the Shopify
+`shopify/custom-styles` route also needs naming in the field is not verified.*
 
 Reusable techniques confirmed in production:
 
 - Variable aliasing. The editor exposes internal CSS custom properties (for
   example `--bright-sky-blue`, `--seaweed`). Repointing them to the brand palette
   re-themes the whole editor without targeting individual elements.
-- Asset URL syntax. Inside editor CSS, wrap an uploaded asset filename in @ signs
-  (for example `@Beatrice-Regular.woff2@`). The platform replaces it with the full
-  asset path at render time. This is the editor equivalent of the storefront
-  asset_url convention.
+- Asset references. `@filename@` (an uploaded asset name wrapped in @ signs) is how the
+  Custom CSS field names an asset file to inject (Corrected 2026-10-06). The earlier note
+  here called it an in-CSS URL helper that the platform replaces at render time (seen as
+  `@Beatrice-Regular.woff2@` for a font). Unconfirmed: whether `@name@` inside CSS text is
+  also replaced. See § Asset references below.
 - Button classes. Editor buttons carry both legacy classes (`px-blue`, `px-green`)
   and newer classes (`px-primary-color`, `px-secondary-color`). Target both to
   reskin all buttons reliably.
@@ -251,6 +269,56 @@ Reusable techniques confirmed in production:
   the category container (same flex-`order` idiom as option reordering above); the
   underlying order is not configurable in admin.
 
+### Theming variables and selectors (editor bundle 20261001104917)
+
+Read from the live DOM and `editor_bundle.css` on desktop. *Verified by query, 2026-10-02,
+unless marked.*
+
+- **Variables:** `--editor-selection-color`, `--mobile-editor-selection-color`,
+  `--icon-background-highlight-color`, `--icon-warning-color` (`--yellow`),
+  `--icon-danger-color`, `--editor-background-color`, `--primary-*`, `--secondary-*` and
+  `--action-button-*`, `--gallery-sidebar-width` (276px), `--thumb-size` (96px),
+  `--caption-height` (24px), `--standard-fonts` (`Satoshi, "Open Sans"`). They join the
+  aliasable set above.
+- **Brand color.** The configuration's brand color field (`editor_configuration[brand_color]`)
+  emits an inline `:root { --brand-color }` in the editor shell, so CSS built on
+  `var(--brand-color)` follows each site's own setting.
+- **Selection ring.** The page SVG writes `stroke="var(--editor-selection-color)"` on
+  `rect.selected`, so one variable recolors the selection box, handles and move/rotate
+  discs. The same variable colors the ring on the open spread in the page strip
+  (`.px-page-set[data-selected=true] .px-page-thumbs`, stock).
+- **Trap: never set `border-color` on `.px-page-set`.** Its `border-right: 12px solid
+  transparent` is the spacer between spreads; coloring it draws a solid block.
+- **Open panel tile:** `--icon-background-highlight-color` plus
+  `.px-inspector-sidebar .px-tab[data-expanded="true"]`.
+- **Photo usage.** The editor renders one `<a data-page-id>` per placement inside
+  `.px-gallery-item .px-image-usage` ("Used on: Page 1"), which is the stock hover overlay;
+  its links already go to the page. A usage count can be drawn in CSS: `counter-reset` on
+  the item, `counter-increment` on each `a`, `content: counter()` on
+  `.px-gallery-item:has(.px-image-usage a)::after`, and hide `svg.px-tick-mark`. Count 1
+  verified; a count of two or more not yet seen live.
+- **Square gallery tiles:** `.px-thumbnail { height: 100% }` with `img { object-fit: cover }`.
+- **Image source tabs** are `button[data-tab-id="device"]`, `button[data-tab-id="albums"]`,
+  selected state `data-selected`.
+- **Page chrome:** page shadow on `.px-page-display-page > svg.px-page`, nav arrows
+  `.px-page-prev button` / `.px-page-next button`, bleed guide `svg.px-page rect.px-bleed`.
+- **Warnings today:** low resolution is a `g.px-element-icon` on the element plus a
+  notification when selected; bleed and safe-area are a timed notification only; text
+  overflow is a notification when selected. No badge carries a number, so a DPI figure or
+  a count needs script (§ Driving the Editor From a Script). Warning wording is
+  translatable through `Px.t` keys.
+- **`editor_bundle.css` is cross-origin:** `document.styleSheets[].cssRules` throws on it;
+  `fetch()` the file to read its rules.
+
+### The "unedited placeholders" gate is a configuration switch
+
+`editor_configuration[unedited_warning]` on the Design Tool Configuration controls the
+"You have unedited placeholders" confirmation (stock buttons "Cancel and Fix", `.px-cancel`,
+and "Continue Anyway", `.px-ok`, in `.px-confirmation-modal`). With it at `0`, the cart
+button went straight to the cart with an empty cover photo frame and untouched title text.
+Check this field before demonstrating error handling on a site. *Verified by query (gate
+off), 2026-10-02. The gate's behavior with the field on was not tested in that session.*
+
 ---
 ## Show in the Editor, Never Print — the Uneditable Placeholder
 
@@ -268,6 +336,28 @@ The reverse job, **print but never show**, is a PDF layer with `visibility="fulf
 
 *Verified live in the admin design tool with a photo lab client, 2026-09-24.*
 
+## Locking an Element: `edit="false"`
+
+**Platform-level (Pixfizz CMS design tool).** How a locked element behaves for the customer
+in the storefront editor:
+
+- An element with `edit="false"` renders normally, but a click on it selects nothing: no
+  selection box, no Edit Shape panel, no delete button. The editor gives locked elements
+  `pointer-events: none`, so elements above it stay fully editable, and a locked overlay
+  placed above a photo does not stop the customer selecting the photo.
+- `move="false" resize="false"` alone do **not** lock an element. The same shape with
+  `edit="true"` still opens Edit Shape (color, border, radius, opacity, rotation) and shows
+  a delete button.
+- Layout swaps work in every direction (locked to unlocked, unlocked to locked, locked to
+  locked): the old layout's elements are removed and the new ones placed.
+- A design import keeps `edit="false"` and the `e*` permission flags verbatim.
+- **Do not combine `edit="false"` with `placeholder="true"` on artwork that must print.**
+  That pair is the uneditable placeholder above, which production drops. Confirm on the
+  first proof that locked backgrounds print.
+
+The XML side (the flag list, shape opacity) is in `19_XML_TEMPLATE_REFERENCE.md` § Element
+Permission Flags. *Verified by query in the storefront editor, 2026-10-02 and 2026-10-04.*
+
 ## Grouping Elements to Hide Them While Editing — View Settings
 
 Elements can be assigned to named layers (for example `background`, `artwork`, `ribbon`) and each layer switched on or off under **View Settings** at the top of the design tool. This is only a working aid for whoever is building the design: it gets covered elements out of the way so they can be selected without nudging the element on top. It changes nothing for the customer and nothing in production. The layers themselves are declared in the XML template definition; see `19_XML_TEMPLATE_REFERENCE.md` § PDF Layers.
@@ -277,14 +367,82 @@ Elements can be assigned to named layers (for example `background`, `artwork`, `
 ## Editor Buttons and Per-Site CSS
 
 - **Autofill button.** Desktop: `.px-project-gallery-panel .px-gallery-actions .px-action-buttons button[data-onclick="autofill"]` (no class of its own). The mobile editor uses a different element, `button.px-autofill`. It renders only when Autofill is on in the Design Tool Configuration, outside cut-print mode, and when the project gallery has images; it is `disabled` when every uploaded image is already placed, so a faint button usually means all photos are used. Stock styling is a low-visibility text link. `.px-gallery-actions` is flex, so `flex-wrap: wrap` plus `flex: 0 0 100%` on `.px-action-buttons` gives a full-width button. View-size toggles are `.px-gallery-actions .px-gallery-size button[data-size]`, selected state `[data-selected=true]`. *Verified by reading source; the styling recipe was tested on a mock, not yet on a live project.*
-- **Where the CSS goes.** The Design Tool Configuration has its own **Custom CSS** field. Per-site editor styling such as the autofill button goes there, with no template change. See § Editor CSS Customization for which asset syntax that field accepts.
+- **Where the CSS goes.** Per-site editor styling such as the autofill button goes in a stylesheet that the Design Tool Configuration's **Custom CSS** field names, with no template change. The field takes file names, not CSS text (Corrected 2026-10-06); on a Shopper child that is an Override Snippet of `style/editor.css` plus `editor.css` in the field. See § Editor CSS Customization.
 - **AI photo filters** in the design tool consume AI credits billed to the merchant; the merchant can cap daily uses per customer. *Stated on a client call, 2026-09-24.*
+
+## Driving the Editor From a Script
+
+**Platform-level (Pixfizz editor).** Everything here uses internal editor objects. Underscore
+methods are internal and a bundle update can rename them: record the bundle stamp
+(`cdn.pixfizz.com/dist/prod/<stamp>/editor_bundle.js`) with every test. *Verified by query on
+a shopper24 child, bundle 20261002143509, 2026-10-03, unless marked.*
+
+### Where a script can run
+
+- **`editor/scripts.js` is not loaded by default on a Shopper child.** The snippet renders
+  inside the parent page `/site/editor-scripts.js`, and the editor loads that page only when
+  a staff-only Design Tool Configuration field names it. Check the editor HTML for the script
+  tag before planning a feature on that snippet. This mirrors the Custom CSS field above.
+- **A same-origin iframe works without any editor hook.** `/v1/editor?book=<id>` sends
+  `X-Frame-Options: SAMEORIGIN` and `frame-ancestors 'self' <site host>`, so a page on the
+  same storefront host can load the editor in an iframe and reach
+  `iframe.contentWindow.editor.store`. This is enough to prefill a project from a storefront
+  page.
+
+### Store paths
+
+- Editor store: `window.editor.store`. `editor.store.ui` holds UI state
+  (`expandTab`, `showNotification`).
+- Project image store: `store.galleries.project` (an object with `project`, `user`,
+  `clipart`, `groups`, `pdfs`, `theme_resources`). `store.galleries.image_sources` lists the
+  configured upload sources. (An earlier note read it with
+  `Array.from(store.galleries.values())`; that is wrong on this bundle.)
+- Pages: `store.project.page_sets[].pages[]`, each with `image_elements[]`,
+  `unedited_elements` and `fillable_placeholders`. An image element's
+  `dpi_resolutions` is its effective `[x, y]` dpi; `store.project.minimum_dpi` is the
+  floor from the definition. *Verified by query, bundle 20261001104917, 2026-10-02.*
+
+### Autofill in a chosen order
+
+The editor's own autofill can be driven with any photo order; gallery order does not matter.
+
+1. Per image, in the wanted order: `item = galleries.project._addDbImage(imgJson)` gives
+   id `db:<id>`; then `store.images.register(item.id, item.data)`. Skipping `register`
+   fills the frames but they render blank.
+2. `store.project.autofill(ids)` fills placeholders in array order.
+3. Overflow: `store._autofillWithNewPages(rest)` adds spreads without a prompt.
+   `store.autofill(ids)` with leftovers raises a browser `confirm()` ("Add more pages?").
+4. `await store.saveProject()` persists. Read back with `GET /v1/books/<id>/pages.json`
+   (20 pages per response).
+
+- A design image without `placeholder="true"` (a typical cover photo) is skipped by
+  autofill. Call `el.update({placeholder: true})` on it first.
+- Text: `textElement.update({text})` persists on save.
+
+Not verified: layout of pages added by `_autofillWithNewPages`, and logged-in projects.
+
+Further detail, *verified by query, bundle 20261002143509, 2026-10-04*:
+
+- `store.project.autofill(ids)` fills in page order and **returns the ids it could not
+  place**; pass those to `store._autofillWithNewPages(rest)`. A placeholder is fillable when
+  `is_editable_master_element && replace && (placeholder || id === null)`.
+- In a hidden same-origin iframe, wait for `loaded` and `galleries.project.loaded` before
+  touching the store. It works even when the browser tab itself is hidden.
+- **Only the project's own gallery feeds the editor tray.** Images in the project gallery
+  (`GET /v1/books/<id>/gallery.json`) appear in the tray for that project. `_addDbImage`
+  plus `saveProject()` does **not** add an image to the project gallery on the server: the
+  image can be placed on a page but is missing from the tray on reopen. There is no
+  server-side copy between galleries; upload the images to the project gallery with
+  `POST /upload/image?gallery_id=` (`61_PIXFIZZ_API.md`).
+- **Creating a project by posting the product page's `#project_create` hidden inputs needs
+  the `book[pages]` select on every product's page.** One product lacked it until fixed;
+  check every product in the flow, not just one.
 
 ## Mapped Previews — What "Use Mapped Preview" Actually Is
 
 A mapped preview is not a full 3D model. Each entry in the print product's mapped previews pairs a background photo (`bg_url`) with a small GLB mesh (`glb_url`, served from `/fz/...` with open CORS): a partial surface plus a camera, used to warp the flat production artwork onto the photo at render time. The mapped previews travel with the template export as `glb_files/`, referenced from `__print_product.yml` by `mapped_preview` and `glb_blob_hash_key`. `GET /v1/themes/<id>/preview.<ext>?...&preview_section=left|center|right` returns the rendered composite for a named preview section; `template_name=<page>` returns the flat production page. A `.glb` cannot be uploaded as an ordinary site asset; the mapped-preview upload on the print product is the route that accepts it.
 
-The older per-size "preview section" configuration used for mug previews (arc, rotation, scale per size) cannot be copied between sizes and has to be rebuilt by hand when a size is missing it. It is being replaced by code-built 3D previews.
+The older per-size "preview section" configuration used for mug previews (arc, rotation, scale per size) cannot be copied between sizes and has to be rebuilt by hand when a size is missing it. It is being replaced by 3D Preview: see `27_LIVE_FINISH_AND_3D_PREVIEWS.md`. A template copied from another size can carry that size's mapped-preview GLB hash keys and render on the wrong model; compare `glb_blob_hash_key` values across sizes. *Verified by reading source, 2026-10-05.*
 
 *Verified by query (a live mug product, 2026-09-24); the legacy-mechanism note is stated by Alex, 2026-09-22.*
 
@@ -344,6 +502,23 @@ Element substitutions now run on all admin page previews and on embedded inline 
 ### Substitutions bind by element name
 
 A substitution targets an element by its name (for example `standoffs`, `placeholder`). A variant set exported from one product and imported onto another only acts where the target template's pages carry elements of those names, and any image it swaps in (a size-specific drawing) was made for the source template's geometry. Read the target template's element names before importing a variant set with substitutions. *Verified by reading source (a variant export), 2026-09-29; the no-match behavior is inferred, not verified by render.* See also `19_XML_TEMPLATE_REFERENCE.md` § Preview Sets for the background element name color substitution binds to.
+
+**Name and tags.** In the editor a substitution key has the form `name@[tag1,tag2]`: an element matches when it has that name (if one is given) **and** every listed tag. Tags come from the element's `tags` attribute (a comma list). *Verified by reading source (editor bundle 20261002143509), 2026-10-06. Server-side matching by tags is not verified.*
+
+### Image crop flag (`image_crop_flag`)
+
+**An image upload option crops the customer's image to fill, whatever the element says.** The upload option stores `db:<id>`, with any crop props appended as `db:<id>@{l:..,t:..,z:..,r:..,crop:0,...}`. With no props, the server crops to fill even when the page XML element carries `crop="false"`. *Verified on baseline.pixfizz.com (server preview, design tool, saved project page XML), 2026-10-05.*
+
+The fix that travels with the template: a hidden multiple-choice template option with one default value (for example `fit`), whose value carries an **image_crop_flag** element substitution with Cropping Enabled off, targeting the element name or element tags. Wide, tall and transparent logos then fit whole, and the saved project page carries `crop="false"` with the customer image, which is what production reads. A value written as `db:<id>@{crop:0}` also works. *Verified on baseline.pixfizz.com by server render and saved page XML, 2026-10-06; the production PDF was not rendered.*
+
+- In the editor, image_crop_flag sets crop on or off; the "off" value also resets left, top and zoom to 0. *Verified by reading source, 2026-10-06.*
+- image_crop_flag is offered only on option values and Website substitutions. An image upload option has no substitution panel (the new-substitution form returns 500 for it); color options offer only color types; text options offer only text and `qrcode_content`.
+- Admin route: `GET /admin/element_substitutions/new?owner_type=TemplateOptionValue&owner_id=<value id>&substitution_type=image_crop_flag`, fields element name, element tags, content (checkbox, `0` = cropping off).
+- Crop Aspect Ratio and the customer's crop box: `22_OPTION_VARIANT_RENDERING.md` § 5.1. Its interaction with image_crop_flag is not tested.
+
+### Color options and multi-element targets
+
+Color option behavior, comma-separated Target Element Names, the 255-character `target_element_name` limit and the full substitution type list: `22_OPTION_VARIANT_RENDERING.md` § Template Option Substitutions. One comma-separated image target reached 43 tiles by server render on baseline.pixfizz.com, 2026-10-05.
 
 ### Known issue: colour substitutions import as black
 
@@ -483,15 +658,14 @@ Liquid-rendered, not the house style for all editor CSS.
 |---|---|---|
 | `editor.css` page (Full Pixfizz / Shopper) | Yes — CMS page | `asset_url` |
 | `shopify/custom-styles` snippet (Shopify) | Yes — CMS snippet | `asset_url` |
-| Custom CSS field on the Design Tool Configuration | **No** — admin field on the config record | `@filename@` |
+| Custom CSS field on the Design Tool Configuration | **No**, and it holds file names, not CSS (Corrected 2026-10-06) | `@filename@` names an asset file to load |
 
-**Status: inferred, NOT confirmed.** Two checks close it: paste a Liquid
-`asset_url` call into `editor.css` and confirm the rendered stylesheet at
-`/site/editor.css` carries a resolved URL rather than literal Liquid; and paste
-`@filename@` into the Design Tool Configuration Custom CSS field and confirm it
-resolves for an **image** — the only evidenced use of that syntax is for a font.
-Until both are checked: pick one location and use its own syntax, never mix the
-two in one block.
+**Status.** The Custom CSS field row is verified from the field's admin help text
+(2026-10-02). Still unconfirmed: that a Liquid `asset_url` call in `editor.css`
+renders as a resolved URL at `/site/editor.css`, and whether `@filename@` written
+inside CSS text is replaced (the only evidenced use is a font). Until checked: use
+`asset_url` in the Liquid-rendered locations and never mix the two syntaxes in one
+block.
 
 ## Design Theme Layouts — Export Format
 
@@ -513,15 +687,17 @@ Verified 2026-08-26 against two real design-theme exports.
   16-frame layout carries it and there is no `5 photos` string. Generating a tag
   string creates a picker group of one.
 
-**Import behaviour.** A design-theme import overwrites by id — verified.
-`__print_product.yml` does **not** remap `layout_id`; import creates new records
-there. Whether a blank or invented **layout** `id:` creates a new record is **not
-verified** (blank `id:` is documented as accepted at template, template-option and
-print-theme level, but nobody has proven it one level down). The workflow that
-sidesteps the unknown: have the site owner create N empty layouts in admin and
-export, so every blank carries a real platform id before the re-import. Also open:
-whether re-importing a design theme whose `code` already exists updates in place
-or duplicates.
+**Import behaviour.** (Corrected 2026-10-06.) A design import through the template's
+Import Design button creates a **new design with a new id**, and remaps the page,
+layout, image, asset and font ids carried in the tar. Layouts inside the tar get new
+ids, so the earlier workaround of creating empty layouts in admin first is not
+needed. A page's `layout_id` is kept only when it points at a layout already on the
+site. *Verified by query (several imports re-exported and read back), 2026-09-29 and
+2026-10-02.* The earlier statement here that a design-theme import overwrites by id
+is withdrawn. Format, fonts, and the Linked Layouts step that an import does not do:
+`19_XML_TEMPLATE_REFERENCE.md` § Design Import. `__print_product.yml` (template
+import) does **not** remap `layout_id`; import creates new records there. Still open:
+whether importing a design whose `code` already exists on the site duplicates it.
 
 ## Mobile Editor CSS
 
@@ -591,7 +767,8 @@ snaps into place — the observed "wrong until I rotate, then perfect" symptom.
 
 ### Recipe — persistent bottom page strip on mobile
 
-Verified on device. Goes in the Design Tool Configuration Custom CSS field, the
+Verified on device. Goes in a stylesheet named in the Design Tool Configuration
+Custom CSS field (the field lists files, not CSS text; Corrected 2026-10-06), the
 `shopify/custom-styles` snippet, or the `editor.css` page — storefront
 `style/custom.css` does not reach the editor.
 
@@ -974,6 +1151,16 @@ _Verified by reading source, 2026-09-09._
 
 ---
 
+### An inline `<svg>` ignores `el.hidden = false`
+
+`hidden` is an `HTMLElement` property. On an `SVGElement` the assignment only sets a plain
+JS property and the `hidden` attribute stays, so an SVG overlay (guide lines, a hang guide)
+never appears. Toggle it with `setAttribute('hidden', '')` and `removeAttribute('hidden')`.
+
+_Verified by render, 2026-10-06._
+
+---
+
 ### PDF pages longer than 200 in (roll goods)
 
 - **Acrobat caps a page side at 14,400 units (200 in).** That is an Acrobat limit, not a PDF rule.
@@ -1061,3 +1248,4 @@ _Verified by reading source, 2026-09-09._
 - 2026-09-19: Pointed the Custom Design Tools section at the new `26_CUSTOM_DESIGN_TOOLS.md` for the estate, configuration and install. Replaced the "create the two shared custom fields before the template import" build rule with the mount-argument-list rule decided 11 Sep 2026. Source: kbsync (custom tool estate).
 - 2026-09-24: Added "Show in the Editor, Never Print" (unedited placeholders are not fulfilled; the uneditable-placeholder technique), "Grouping Elements to Hide Them While Editing — View Settings", "Editor Buttons and Per-Site CSS" (autofill selector and states, the Design Tool Configuration Custom CSS field, AI filter credits) and "Mapped Previews". Source: fireflies-call, claude-chat, slack-message.
 - 2026-09-29: Sepia is the CSS sepia filter. Substitutions bind by element name. Reading option values, PDP layout swaps and gallery state from a tool; PDF pages over 200 in. Source: claude-chat, slack-message.
+- 2026-10-06: Editor CSS Customization: corrected the Custom CSS field to a list of files (URL, CMS page name, `@asset@`), not CSS text, with the Shopper child pair (`style/editor.css` override plus `editor.css` in the field); corrected the `@filename@` notes and the asset-reference table; added theming variables and selectors (brand color, selection ring, `.px-page-set` spacer trap, usage count, warnings) and the `unedited_warning` gate switch. Added Locking an Element (`edit="false"`). Added Driving the Editor From a Script (`editor/scripts.js` not loaded by default on a Shopper child, same-origin iframe, store paths, ordered autofill, the autofill return value and fillable rule, only the project gallery feeds the tray, `#project_create` needs `book[pages]` on every product). Element Substitution Types: name-and-tags matching, the image crop flag (image upload options crop to fill), a pointer to 22 for color options and multi-element targets. Mapped Previews: pointer to 27 and the copied GLB hash key trap. Corrected Design Theme Layouts import behaviour (a design import creates a new design and remaps ids). Custom tools: inline SVG ignores `el.hidden`. Source: claude-chat, vault-doc.

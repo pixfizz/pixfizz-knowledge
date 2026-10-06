@@ -654,6 +654,17 @@ Items on the current page can be iterated with `{% for %}`.
 {% endfor %}
 ```
 
+**Every `website.*` list is a Paginate: an exhaustive loop must set `page_size`.** `website.all_collections`, `website.collections`, `website.design_products`, `website.static_products`, `website.galleries`, `website.public_addresses` and `website.calendars` all return a Paginate with the default page size of 20 (`website.countries` is the exception, 300). A bare `{% for x in website.all_collections %}` renders page 1 only, the first 20 items alphabetically by path, with no error. Set the page size at assignment:
+
+```liquid
+{% assign all_collections = website.all_collections | page_size: 1000 %}
+{% for collection in all_collections %}
+  ...
+{% endfor %}
+```
+
+**Symptom:** an admin dropdown, sitemap, nav builder or export that shows a plausible but alphabetically truncated list (one showed 20 of 79 collections and stopped in the letter "t"). **Diagnostic:** render `{{ all_collections.size }}` next to the control; `.size` on a Paginate is the total across all pages, so the mismatch shows at once. Platform-level. *Verified live on shopper24, 2026-09-18.*
+
 ---
 
 ## Product
@@ -744,6 +755,8 @@ Contains information about the current HTTP request. Available globally as `requ
 | `request.query_string` | Query string |
 | `request.params` | Proxy for query parameters. Access with `request.params.book_id` or `request.params['param-name']` |
 | `request.locale` | Two-letter code of active language |
+
+> **`preview` is reserved by the platform.** A storefront request carrying `preview` as a query parameter is taken over by the editor preview: `/?preview=new` and `/site/?preview=new` redirect to `/v1/editor?preview=new&target=%2Fsite%2F` and return 404. The CMS page never renders, so a switch such as `{% if request.params.preview == 'new' %}` is never evaluated. Any other name works (`/?v2=1` returns 200 and renders). When gating a new page version behind a query parameter for review, use a site-specific name, never `preview`. Platform-level, every storefront. *Verified by query, 2026-09-30.*
 
 ---
 
@@ -879,7 +892,7 @@ Contains general website information. Available globally as `website` in all ren
 | `website.authorizedotnet_public_client_key` | Authorize.net Public Client Key |
 | `website.authorizedotnet_sandbox_mode` | `true` if Authorize.net sandbox mode |
 
-**Never use `website.products`.** It is not a documented property. On live Shopper 24 sites `website.products | page_size: 2000` returned admin-only objects, and every logged-out visitor got `Liquid error: Object CMS::Objects::Admin::Product is only available to admin users` in place of the page body. **An admin session hides the error completely**: the page renders normally for anyone logged in as admin. Use `website.static_products`, `website.design_products` or a collection's lists, and test any page that lists products **logged out**. The parent `film/roll-builder` used it and was fixed on 2026-09-25 by switching to `website.static_products`. *Verified by query (guest requests on several sites); fix stated by Alex, 2026-09-25.*
+**Never use `website.products`.** It is not a documented property. On live Shopper 24 sites `website.products | page_size: 2000` returned admin-only objects, and every logged-out visitor got `Liquid error: Object CMS::Objects::Admin::Product is only available to admin users` in place of the page body. **An admin session hides the error completely**: the page renders normally for anyone logged in as admin. Use `website.static_products`, `website.design_products` or a collection's lists, and test any page that lists products **logged out**. The parent `film/roll-builder` used it. The parent `film/roll-builder` fix is **pending** (Corrected 2026-10-06): on 2026-10-03 children without an override still showed the admin-only Liquid error to logged-out visitors (verified by query). Workaround and launch check: `52_SNIPPET_INVENTORY.md` § Known Parent Defects. *Verified by query (guest requests on several sites), 2026-09-25 and 2026-10-03.*
 
 ### Website Redirects — config shape
 
@@ -988,6 +1001,8 @@ Escapes a string for use inside JSON by replacing double quotes, newlines, etc. 
 ```liquid
 var json = ["{{ my_string | escape_json }}"];
 ```
+
+There is **no `json` filter** to serialize a whole object or array (see KNOWN CMS LIQUID QUIRKS). Build JSON by hand: loop, quote each string with `escape_json`, join with commas. The same applies to arrays inside JSON-LD.
 
 ---
 
@@ -1137,6 +1152,8 @@ Renders a CMS snippet by name. Additional keyword parameters become variables in
 
 **Note:** If the snippet is not found, an error is thrown unless `fallback_content` is provided.
 
+**Scope.** In email templates a snippet receives only its named arguments plus the `website` global; variables assigned by the caller do not reach it (verified by query, 2026-10-03, see Notes on Contexts). Whether storefront snippets behave the same is not verified; until it is, namespace argument names (`50_SHOPPER_TEMPLATE_REFERENCE.md` § 21.2). One storefront case is known to differ from both readings: inside a Pages Custom Type `page_content` field, values passed as keyword arguments also arrived empty in the called snippet (verified live, 2026-09-17), see `50_SHOPPER_TEMPLATE_REFERENCE.md` § 14.
+
 **CMS import behaviour:** The CMS importer silently skips any snippet file that contains a Liquid syntax error. The snippet will simply not exist after import — no error is shown during the import process itself. This makes syntax errors in snippet files especially dangerous: they appear as mysterious "Snippet not found" errors at render time, even though the file was present in the tar.
 
 ---
@@ -1211,7 +1228,12 @@ These three forms are easy to confuse. Choose by what you want to keep:
 Three conditions apply:
 
 - The field must already exist as a custom field on that site. Custom fields do
-  not inherit parent to child.
+  not inherit parent to child. Admin → Custom Fields has **no Cart object type**:
+  the definition is made on **Orders**, ticked **Public** where the storefront
+  writes it. Without an Order definition the cart still stores the value (it
+  re-renders after a reload), so a checkout re-render proves nothing; test with a
+  placed order (see `20_SHOPPER_CART_RULES.md`). *Verified by reading admin on a
+  client site, 2026-10-02.*
 - Where the value comes from a helper snippet capture, always `| strip` before
   comparing. Helper snippets render with a trailing newline; an unstripped
   comparison never matches, which turns a guarded auto-submit into a submit loop.
@@ -1312,7 +1334,19 @@ Specialized tags for authentication tokens, promo codes, and payment setup.
 ## Notes on Contexts
 
 - **CMS** (pages, layouts, snippets): Full access to all objects and filters.
-- **Email/SMS templates**: `order`, `user`, `website` available. No `request`, no `cart`.
+- **Email/SMS templates**: `website` is global; the rest depends on the email. No `request`. (Corrected 2026-10-06: the earlier text said no `cart`, but Cart Abandoned receives `cart`.) Variables per email, verified by query in admin Preview on baseline, 2026-10-03:
+
+  | Email | Variables |
+  |---|---|
+  | Order emails | `order`, `user` |
+  | Orderline Fulfilled | `order`, `user`, `orderline` |
+  | Cart Abandoned | `cart`, `user`, `sequence_number` |
+  | Password Reset | `reset_url`, `user` |
+  | User Signup | `user` |
+  | Sign-in Token Renewed | `signin_token` (`signin_token.signin_url`, `signin_token.target_url`), `user` |
+
+- **Snippets called from an email template receive only what is passed.** A variable assigned in the template Body before `{% snippet %}` does not reach the snippet; pass it as an argument: `{% snippet 'x', order: order, user: user %}`. Only `website` is global inside the snippet. *Verified by query, 2026-10-03.*
+- **Other email-context behavior** (all verified by query, 2026-10-03): the Subject field runs Liquid, including `{% snippet %}` calls; `website.title` is blank, use the `website/contact/title` snippet instead, while `website.hostname` works; `asset_url` with `cdn: false` returns an absolute `https://<host>/fz/...` URL, so images load; a missing snippet prints `Liquid error: Snippet not found` into the sent email; admin Preview runs `{% promocode %}` and creates a real code.
 - **Fulfillment templates**: `order`, `orderlines`, `user`, `website` available. `orderline.generated_files` only available here.
 - Project previews in email **must include the share code**: `share: orderline.project.share_code`
 
@@ -1334,6 +1368,10 @@ These behaviours differ from standard Liquid or Shopify Liquid. Confirmed throug
 | `product.custom.x != blank` to test whether a field was set | `{% assign v = product.custom.x \| default: '' \| strip %}{% if v != '' %}`. Comparing against the empty string behaves identically everywhere; `!= blank` does not |
 | A filter inside an `{% if %}` condition — `{% if flag \| strip == 'TRUE' %}` | **Syntax error, not a no-op.** `{% assign %}` first, then compare. See *Authoring Traps in Parent Snippets* below (verified by test, 2026-09-08) |
 | `{% if value.price != 0 %}` to test whether a value is free | `{% assign p = value.price \| plus: 0 %}{% if p > 0 %}`. Numbers arrive from Liquid as strings and `value.price` exports blank rather than zero, so `!= 0` passes and renders `+$0.00` on free values (verified by reading a variant export, 2026-08-20) |
+| `\| json` to hand an object or array to JavaScript or JSON-LD | **There is no `json` filter.** An unknown filter does not error: it returns its input (or empty) and nothing on the page warns you. An array of hashes printed this way comes out as Ruby hash text run together (`{"code"=>"white", ...}{"code"=>"clear", ...}`), so `JSON.parse` fails; an array of strings comes out joined with no separator (`MondayTuesday...`), which made a whole JSON-LD `@graph` invalid. Write each value into its own escaped `data-` attribute, or loop and build the JSON by hand with `escape_json` on every string, joining items with commas. Platform-level. *Verified live on a child site, 2026-09-30* |
+| `\| money` in an email template | Prints a bare number (`127.8`). Use `\| currency` (verified by query in email Preview, 2026-10-03) |
+| A filter inside a `{% snippet %}` argument, such as `subject: 'Welcome to ' \| append: website.title` | The filter does not run. `{% assign %}` the value first, then pass the variable (verified by query in email templates, 2026-10-03) |
+| A string literal containing `{` or `}` in an email template body | The body save fails silently. Build such strings with `{% capture %}` (verified by query, 2026-10-03) |
 
 ---
 
@@ -1826,3 +1864,4 @@ tool never saw the product" in one paste, and nothing else does.
 - 2026-09-19: Corrected the `address_create` form options. Only one of `assign_to_user` and `assign_to_cart` may be `false`; the previous text said the two were independent and described setting both to `false`, which the platform does not accept. Corrected in both the FORMS section and the Form Types table, and added the signature. Source: AdeB (platform signature).
 - 2026-09-24: Recorded that `order.user` does not exist and that the `user` global carries the order's user inside order and orderline custom fields scripts. Source: claude-chat.
 - 2026-09-29: Website object: never use the undocumented website.products (admin-only objects, error hidden from admins). Source: claude-chat.
+- 2026-10-06: KNOWN CMS LIQUID QUIRKS: no `json` filter (unknown filters pass input through silently), `money` prints a bare number in emails, filters inside snippet arguments do not run, `{`/`}` in an email string literal fails the save silently. escape_json: build JSON by hand. snippet tag: scope note (email snippets get only named arguments plus `website`; Pages `page_content` case). Notes on Contexts: CORRECTED email context (Cart Abandoned gets `cart`), per-email variable table, other email-context behavior. Writing cart custom fields: no Cart object type, definitions live on Orders, test with a placed order. Request: `preview` query parameter is reserved and redirects to the editor. Website object: CORRECTED the parent `film/roll-builder` fix to pending. Paginate: every `website.*` list defaults to 20, exhaustive loops must set `page_size`, truncated-list symptom and `.size` diagnostic. Source: claude-chat.

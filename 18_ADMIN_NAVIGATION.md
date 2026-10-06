@@ -2,7 +2,7 @@
 
 **Authority Scope:** Pixfizz Core admin interface sections and settings only.
 
-_Last updated: 2026-09-24_
+_Last updated: 2026-10-06_
 
 ---
 
@@ -72,9 +72,13 @@ Customer accounts and access management.
 - **Templates** — production specifications. Includes a bulk **Text Upgrade** action (shipped 2026-03-05) that applies text-box vertical alignment fixes across all templates in one step — use when migrating older templates that pre-date the current text rendering.
   - **Template option `custom_script`** is an Ace editor over a hidden textarea, `template_option_type[custom][custom_script]`. Save it with the **Custom Fields** Save button on the option page, not the top form's Save. The value is stored and exported with CRLF line ends (a browser form submit sends CRLF), while the textarea in the page shows LF; compare mounts after folding CRLF to LF. *Verified live, 2026-09-25 and 2026-09-26.*
 - **Collections** — product groupings for storefront
+  - **The collection show page is also its edit page**, at `/site/<site>/admin/theme_categories/<id>`. The `/edit` path returns 500. *Verified by query, 2026-10-05.*
+  - **The collection image is the collection's `asset_name`**: any asset on the site, WebP included.
+  - The **Design Products** table on that page is rearrangeable: Move to Top and Move to Bottom each resend the whole row order, so a whole collection can be re-sorted in one request. Script routes for the image, custom fields, product order and removing a product are in `61_PIXFIZZ_API.md` § 13h.
 - **Fonts** / **Font Palettes** / **Color Palettes** — typography and color management
   - **Gotcha:** the default font palette tooltip implies fonts are auto-assigned, but fonts must be **manually assigned** to a palette. If a design shows fallback typography, check the palette assignment rather than assuming the admin auto-populated it.
 - **Variant Types** — the commercial option types a product offers. **Variant price formulas are edited on the variant type, not on the product attribute**, at `/site/<site>/admin/variant_types/<id>/edit`. That field runs its own validator, which is narrower than Ruby — see `30_PRICING_ENGINE.md`. Verified by reading source (live admin test, 2026-09-08).
+  - New variant types are created from the product (`/site/<site>/admin/products/<id>/variant_types`) and their values from the type (`/site/<site>/admin/variant_types/<id>/variant_values`). There is no API write for variants; the form routes are in `61_PIXFIZZ_API.md` § 13h. *Verified by query, 2026-10-05.*
 - **Element Substitutions** — swap rules
 - **Calendars** — calendar product configuration
 - **Inventory tracking** — see the dedicated Inventory Management section below.
@@ -90,6 +94,7 @@ Manages storefront content. What's visible depends on Shopper vs standalone CMS:
 - **Assets** — file manager for images, fonts, media
 - **Crawler** — website crawl management for sitemaps and product feeds. Accessed at `{domain}/admin/website_crawls`. Each crawl run lists every URL the crawler followed, with response status (200, 404, etc.) and the page that contained the link (shown in the rightmost column). Use this to track down broken internal links — the linking page column tells you exactly which snippet or page to fix.
     - **Sitemap:** generated at `{domain}/sitemap.xml`. Product feed at `{domain}/product-feed.json`. Both are platform-level features, not Shopper-specific.
+    - **`/sitemap.xml` returns 404 until the first crawl has run.** Seen on a new site with an empty storefront search index and no crawl yet. *Verified by query, 2026-09-30.*
     - **Gotcha:** the sitemap is **not** at `/site/sitemap`. Do not invent this URL. Confirm against the live admin.
     - **Gotcha (2026-02-02):** product XML feed URLs have shipped with an explicit `:80` port in the URL, making them unreachable for some consumers (Google Merchant Center rejected ~915 URLs on one site). If you see products missing from a feed with no obvious cause, inspect the raw XML for `:80` in the URLs before looking elsewhere.
 
@@ -241,6 +246,9 @@ own custom fields screen.
 
 - It moves **definitions**, not values.
 - **Resolved 2026-09-21: the site-wide export carries the object type.** Every definition has an `owner_type` key (the per-object archive described below still does not). Admin label → class: Product Attributes → `Product`, Collections → `ThemeCategory`, Designs → `PrintTheme`, Template Options → `TemplateOptionType`, Template Option Values → `TemplateOptionValue`, Orders and carts → `Order`, Order Lines → `Orderline`, Users → `User`, Addresses (pickup locations) → `Location`, Pages → `Page`, Projects → `PrintBook`. Not yet seen: Galleries, Templates. *Verified by reading source.*
+- **Variants and Variant Values are on this page too** (Corrected 2026-10-06): owner_type `VariantType` and `VariantValue`. A site-wide export from a live site held 23 `VariantType` and 3 `VariantValue` rows. *Verified by reading source (export), 2026-10-03.* See `51_CUSTOM_FIELDS_REFERENCE.md` § Key Notes.
+- **`Page` rows do not import.** Definitions with `owner_type: Page` in an import file were not kept: no Pages count appeared on one site after import, and on another the importer consumed two ids for them and created neither. Do not ship Page definitions in a site-wide import file. *Verified by reading source (export ids), 2026-10-03.*
+- **The importer honors `owner_type`.** One site-wide import created Product through Projects definitions in a single unbroken id run, each row on its own object. Not verified: whether an import run from one object's own custom fields page overrides `owner_type`.
 - **Re-importing the same site-wide file changes nothing.** It is refused with *No custom fields were imported. They may already exist on this site.* Existing definitions are skipped, never duplicated and never updated: a changed type, description or Public flag does not propagate by re-import. *Verified live, 2026-09-21.*
 
 ### Custom type definition export/import
@@ -282,6 +290,10 @@ object types creates the fields on both.** Import at the wrong screen and the fi
 but not on the object the code reads. Verified by reading source (archive contents,
 2026-09-09). See `51_CUSTOM_FIELDS_REFERENCE.md` for the per-object field inventories.
 
+This applies to the **per-object** archives only. The Settings → Custom Fields site-wide
+export carries `owner_type` on every row and its import honors it (above). Prefer the
+site-wide file when porting definitions between sites.
+
 ### Bulk export and import
 
 - **Price variables** can be bulk exported and imported from admin — a full export of every
@@ -318,14 +330,36 @@ in one pass. Platform-level (Pixfizz CMS).
   - Add a design page: the page row's Copy form, `POST /print_theme/copy_page/<design>?page=<page id>`,
     creates a copy with the same name. Find it by its new id, rename it with
     `PATCH /print_pages/<id>` (`page[name]`) and set its XML with `PATCH /print_pages/<id>` (`page[data]`).
+  - Read a page's current XML from `GET /print_pages/<id>/edit`: it is in the Ace mount script as `const content = "..."` (a JSON string). Write with `POST /print_pages/<id>`, `_method=patch`, the page form's `authenticity_token`, and `page[data]`. Layouts are print pages, so the same route edits them. The saved XML comes back with CRLF line endings. See `19_XML_TEMPLATE_REFERENCE.md` § Editing Design Pages and Layouts in Place, and § Linked Layouts drive the layout picker for the link and unlink endpoints. *Verified by query, 2026-10-03 to 2026-10-04.*
   - Preview flag on a design page: `PUT /print_theme/set_page_as_preview/<design>` with
     `page=<page id>` and `preview=1` (what the Preview checkbox does).
   - Template option custom fields (for example `custom_script`): `PATCH /templates/<t>/options/<option>`
     with **every** `template_option_type[custom][...]` field (checkboxes as a hidden 0 plus 1 when
     on). The form is rendered client-side, so build the field list from a rendered edit page, not
     from a fetch, or the fields left out are blanked.
+    Unconfirmed (conflicting test, 2026-10-05): posting only `template_option_type[custom][<key>]=`
+    (blank) per key with `_method=patch` deleted those keys and **kept** `custom_script`, which
+    suggests the form merges. Possibly both hold (a blank value deletes, an omitted key is kept).
+    Keep sending every field until this is tested. See `22_OPTION_VARIANT_RENDERING.md` § 3.1.
   - The template option edit page's only server-rendered form is the **DELETE** form
     (`_method=delete`). Never script-submit a form found on that page.
+  - **Design options** share the template option routes. Edit: `/templates/<template>/options/<option>/edit`; the main form posts `template_option[...]` (name, code, placeholder, min_length, max_length, pattern, crop_aspect_ratio, target_element_name, required, published). Custom fields are a separate `template_option_type[custom][...]` form. New design option: `GET /templates/<t>/options/new?print_theme_id=<design>`. *Verified by query on baseline.pixfizz.com, 2026-10-06.*
+  - Export one option: `GET /templates/<t>/options/<o>/export` (a tar.gz with `__template_options.yml`, values and value substitutions included). Import onto a design: `POST /templates/<t>/options/import?print_theme_id=<design>` (field `exported_file`). *Verified by query on baseline.pixfizz.com, 2026-10-06.*
+  - **Element substitutions:** a new substitution on a template option value is `GET /element_substitutions/new?owner_type=TemplateOptionValue&owner_id=<value id>&substitution_type=<type>`. Image upload options have no substitution panel (the form returns 500). See `17_DESIGN_TOOL.md` § Image crop flag. *Verified on baseline.pixfizz.com, 2026-10-05.*
+  - Template options and variants created by form POST, and collection writes: `61_PIXFIZZ_API.md` § 13h.
+  - **Per-object export and import:** template options export at `/templates/<id>/options/export_all`; a product's variant types export at `/products/<id>/variant_types/export_all` (returns `__variant_types.yml`, including the `custom` flags) and import onto one product at `/products/<id>/variant_types/import`. *Verified by query, 2026-09-29.* Tool install use: `26_CUSTOM_DESIGN_TOOLS.md`.
+  - **Snippet and template option edit pages have a DELETE form first.** On a snippet edit page the first form carrying `_method` is the DELETE form (`button_to`); submit only the form whose `_method` is `patch`. Ace-editor values read from these pages carry `<\/script>`, which must be unescaped before posting back. Details: `61_PIXFIZZ_API.md` § 13h. *Verified by query, 2026-10-06.*
+
+### Import and publish routes (admin tab, logged in)
+
+Platform-level (Pixfizz CMS). Paths are on the admin host.
+
+- **Full template import:** `POST /site/<site>/admin/print_theme/import_print_product`, multipart field `exported_file` (a `.tar.gz`). A tar can be built in page JS (CompressionStream), so nobody has to pick a local file. *Verified by query, 2026-10-06.*
+- **Design-only import:** `print_theme/import_print_theme/<template>`, expects `__print_theme.yml`. **Product-only import:** `products/import?print_product_id=<template>`, expects `__product.yml`. Each is the matching section of a template export moved to the top level, followed by the `__asset_map`/`__image_map`/`__pdf_map`/`__font_map` keys. *Stated in install notes, 2026-10-06; not separately verified per route.*
+- **Per-product archive import:** Admin → Products → Product Attributes (`/site/<site>/admin/products/product_attributes`). The file input `exported_file` (accepts `.gz`) auto-submits and posts to `admin/products/import`; the page redirects to the new product. A multipart `POST` to `/site/<site>/admin/products/import` from page JS works too, with no authenticity token taken from the form; the response URL is the new product. A failure redirects back to the referring page with no product and no error (see `01_CODE_GOVERNANCE_UPDATED.md` § Archive Emission for one cause). *Verified by query, 2026-10-05.*
+- **Add a static product to a collection:** `GET /site/<site>/admin/theme_categories/<collection id>/add_products?products[]=<product id>`. Rows append in call order. *Verified by query, 2026-10-05.*
+- **Publish design products to a collection without the wizard:** `POST /admin/theme_categories/add_themes.json` with `product_id`, `category_ids[]`, `theme_ids[]` and the CSRF token (for example `$j.ajax`). Design products only; static products use `add_products` above. It can answer `{"error":"Not Found"}` and still have added the designs, so re-read the collection rows (`61_PIXFIZZ_API.md` § 13h). *Verified by query, 2026-10-05 and 2026-10-06.*
+- A failed full import answers 500 and leaves a partial template; the 500 page gives a reference to look up under Admin → Error Query (`16_PRODUCT_HIERARCHY.md` § Import Behavior).
 
 *Bulk Update Tools scope stated by Alex, 2026-09-26 and 2026-09-29. The per-template routes
 verified live on a 90-template range, 2026-09-27.*
@@ -389,6 +423,17 @@ Once the site has been added:
 
 Stated on a client call, not independently verified against the Super Admin screen.
 
+### Template Provider and Template Consumers
+
+A site can be set up as a **Template provider**: Super Admin → Websites → open the site →
+**Danger Area** → Template provider. A provider site has a **Template consumers** list. Adding a
+site to that list makes **every** template on the provider appear in the consumer site's Product
+Attribute **Template** dropdown. On one consumer site the dropdown went from 234 to 521 options
+after it was added to a provider. Platform-level (Pixfizz CMS). *Verified live, 2026-10-05.*
+
+This is whole-library sharing, set on the provider. Semi-inheritance (above) grants one
+template at a time.
+
 ### AI Tokens (Super Admin)
  
 AI token access is **off by default on every website**. It is a Super Admin
@@ -424,3 +469,4 @@ per organization.
 - 2026-09-19: Added Automatic Discounts to the Marketing section, with the note that it is not under Promotions. Source: AdeB.
 - 2026-09-24: Resolved the pending question on the Settings → Custom Fields site-wide export: it carries owner_type (mapping listed) and re-import is refused, never updating. Added Website Settings Worth Knowing (Crawler, robots.txt, Redirects JSON shape, Search CMS, super-admin password reset bug) and the Pixfizz Kiosk app idle timeout. Source: claude-chat, fireflies-call, slack-message.
 - 2026-09-29: Admin now on admin.pixfizz.com/site/<slug>/admin (site /admin 301s there); htmx conversion; API unchanged. Replaced the 'not shipped' warning. Users: API Keys section on each user page, and the user page section order. Published Products: 'Add Product' button renamed 'Publish Product'. Templates: custom_script is an Ace field saved by the Custom Fields Save button; stored with CRLF. Corrected the variant bundle re-import bullet (never updates in place); added Bulk Update Tools (copy variants, template options, design options across live templates) and the per-template edit routes. Added Admin Login: TOTP via login.pixfizz.com, passkeys (device-bound, required once registered unless an authenticator app is also registered), 30-minute impersonation timeout. Super Admin moved to admin.pixfizz.com/superadmin; old login.pixfizz.com/superadmin links are dead. Source: claude-chat, slack-message.
+- 2026-10-06: Settings → Custom Fields: Variants (`VariantType`) and Variant Values (`VariantValue`) are custom field objects; `Page` rows do not import; the importer honors `owner_type`; the no-object-key archive note is limited to per-object archives. Products → Collections: show page is the edit page (`/edit` 500), collection image is `asset_name`, Design Products order resent whole. Variant Types: create routes. Super Admin: Template provider and Template consumers (whole-library template sharing). Bulk Update Tools per-template routes: read and write a design page's or layout's XML, design option edit, new, export and import routes, element substitution route (from group A spill). Import and publish routes (full template, design-only, product-only, per-product archive, add static products, add_themes.json) and an unconfirmed note on whether the template option custom fields form merges (from group D2 spill). From late spills: per-object export and import routes, snippet edit page DELETE-form trap and Ace `<\/script>` unescape (group B2); `/sitemap.xml` 404 until the first crawl (group C). Source: claude-chat, vault-doc.

@@ -690,6 +690,12 @@ and rejected constructs are recorded in `30_PRICING_ENGINE.md`. Verified by live
 2026-09-08. Note that **a save proves the validator accepts the string, not that the engine
 prices it**; confirm in the cart.
 
+**Check the first range before bisecting.** The product price formula has to evaluate at
+quantity 1. A tier ladder whose first range starts above 1 (`{100..250=>0.29, ...}.find{...}.last`)
+is refused with `Validation failed: Price isn't valid` even when the product's minimum quantity
+is 100. Start the first range at 1 (or at 0, per `30_PRICING_ENGINE.md`). *Verified by query,
+2026-10-06.*
+
 ## "Analytics Is Connected but I See Nothing" — Check the Container for GA4 Event Tags
 
 **Symptom.** The customer can see the tag manager container loading on the site, and GA4
@@ -822,6 +828,13 @@ info panel misreports both color mode and DPI, and has caused wrong diagnoses be
 at quality 90 is the working default. It holds up visually and lands well under a megabyte
 where the PNG equivalent is 2 to 3 MB.
 
+**Shrinking a heavy template archive without changing its look.** Large RGBA overlay PNGs
+(texture grids, shadows) quantized to a 256-color palette at full resolution (PIL
+`quantize(method=FASTOCTREE)`) took one canvas template archive from 13 MB to 2.3 MB and were
+visually identical once composited. Repack replacing only those members so
+`__print_product.yml` is untouched, and check one preview in admin (design page → Pages)
+before a bulk import. *Verified live on a client range, 2026-09-22.*
+
 *Stated in #development, week of 2026-09-12. Not independently verified.*
 
 ---
@@ -870,3 +883,4 @@ last edited 2025-08-13.*
 - 2026-08-29: Added Optimising 360-degree product spin GIFs — measured savings table (lossless gains nothing; lossy plus every-2nd-frame is roughly 87% smaller), the frame-dropping trap that silently speeds up the rotation and how to recompute the delay, and the larger win of serving a static first frame on collection grids. Added Recommended Admin Security Hardening (rename admin URLs, enforce 2FA, block admin via the main domain), flagged as unverified against the admin UI. Source: claude-chat, fireflies-call.
 - 2026-09-19: Added two entries. An AI-generated template that crashes the importer with no useful error, with the embedded-image resolution check (observed: a 305 MP asset) and WebP quality 90 as the replacement default. A customer's old project showing broken images because the images have been deleted on schedule (6 months after an ordered cut print, 3 years after any other ordered project), with the inactive-user and saved-cut-print routes to the same symptom. Source: slack-message (#development), notion-page (Deletion Policies).
 - 2026-09-29: Security hardening: separate admin host and 2FA are now platform behavior. Removing a product breaks pages whose default filter value names it; the Paginate NoMethodError form and its fix. Hidden-product detection by diffing /v1/products.json against per-id reads. Source: claude-chat, slack-message.
+- 2026-10-06: `Price isn't valid`: a product price formula must evaluate at quantity 1, so a tier ladder must start at 1 (or 0). AI-generated template entry: shrinking a heavy archive by palette-quantizing overlay PNGs. Source: claude-chat, vault-doc.

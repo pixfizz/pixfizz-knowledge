@@ -170,17 +170,21 @@ _Longest phase. Can run in parallel with Phase 1 if assets are ready._
 - Upload product imagery and preview designs
 - For stores with large static product catalogs (standard print sizes, fixed products without personalization), use the bulk static product CSV importer at **Custom Admin → manage/tools/product-importer**. Download the CSV template directly from that page.
 
+**Migrating a catalog from another platform.** Where the old store publishes a full price list page, start there: it is usually the fastest complete source of sizes and prices. Then cross-check it against what the old store actually lets a customer order, because lines that appear only on a price list, or are marked as supplier-unavailable, may not be orderable; confirm them with the lab before building them. Never carry an unexplained price line (for example a negative "no upgrade" upcharge) into Pixfizz pricing without asking the lab. Shipping, tax, member pricing and coupon rules are not visible on the old storefront without a checkout; ask the lab for them. *Learned on a client migration, 2026-10-03.*
+
 **Blockers:** Complete product catalog, pricing structure, and product images from customer. Pricing must be fully confirmed before launch — changes after go-live cause friction.
 
 ### Phase 3: Checkout Configuration
 
 - Connect payment gateway (Stripe typical)
 - Configure shipping rules and rates
-- Set up tax handling (VAT, sales tax)
+- Set up tax handling (VAT, sales tax). Tax applies store-wide by location (`21_SHOPPER_CHECKOUT_POLICY.md` § Tax model); Pixfizz cannot set a different rate per product or exempt individual products. Ask the customer for the store's rate, never which products are taxable. *Stated by Alex, 2026-10-04.*
 - Configure order confirmation and notification emails (14 templates available — see Email Notifications section below)
 - Set minimum order amounts if required
 
 **Email delivery:** Shopper email notifications are sent via SendGrid. Deliverability problems are almost always caused by missing or misconfigured SPF/DKIM DNS records on the customer's sending domain. Verify email authentication DNS records during this phase and send test notifications before launch.
+
+Each lab domain is authenticated in the Pixfizz SendGrid account as `pxemail.<lab domain>` (Domain Authentication status Verified, Pending or Failed). The site's Default Email (From) must be on a domain with a Verified entry, or mail shows as unverified and risks spam. Free mailboxes (Gmail and the like) cannot be authenticated, so a lab sending from one needs its own domain first. *From a SendGrid account screenshot, 2026-10-03.*
 
 **Blockers:** Payment gateway credentials, shipping rate structure, tax registration info.
 
@@ -201,6 +205,7 @@ _Longest phase. Can run in parallel with Phase 1 if assets are ready._
 - Confirm payment capture and production routing
 - Verify all email notifications fire correctly
 - Content completeness check — all products and pages have descriptions (see Content Completeness section below)
+- Launch check for empty collections and unpriced products (see Launch Check: Empty Collections and Unpriced Products below)
 - SEO setup — redirects configured if migrating from an existing site (see SEO Migration section below)
 - Soft launch (restricted access or internal only)
 - Fix any issues found in soft launch
@@ -388,6 +393,20 @@ These are the most common reasons a phase stalls. Flagging them early saves week
 | Phase 5 | Customer unavailable to approve test orders |
 | Phase 5 | Missing content — product descriptions, about page, terms and conditions |
 
+### Questions to put to the customer
+
+Every question in a customer email costs a round trip. Before including one, check that it is
+a question only the customer can answer **and** that the platform can act on the answer. If
+Pixfizz cannot do it, or the answer is obvious from the business, leave it out.
+
+- **Tax:** ask for the store's rate only. Never ask which products are taxable or which rate
+  applies to which product; Pixfizz cannot set tax per product.
+- **Pickup:** a photo lab offers in-store pickup at its own address. Do not ask about curbside
+  pickup, drive-through or similar retail-chain options. A "curbside pick-up" page on the old
+  store is a legacy page to redirect, not a question for the customer.
+
+*Stated by Alex, 2026-10-04.*
+
 ---
 
 ## Vertical-Specific Notes
@@ -436,6 +455,33 @@ Add a description check to the final pre-launch validation step for all deployme
 
 ---
 
+## Launch Check: Empty Collections and Unpriced Products
+
+Platform-level (Pixfizz CMS). Both checks run from the public API with no admin login.
+
+- **A product priced at 0.00 that sits in a collection is live and free to buy.** Price it or
+  take it out of the collection before launch. *Observed on a client launch, 2026-10-02.*
+- **A product never added to any collection has no storefront URL**, so unpriced products that
+  were never published need no action. Do not add them to a collection until they are priced
+  (`16_PRODUCT_HIERARCHY.md` § Unpublishing Does Not Make a Product Unreachable).
+- **Empty collections cannot be unpublished away.** A top-level collection has no verified
+  unpublish flag, and an empty one renders a blank shop page with status 200
+  (`16_PRODUCT_HIERARCHY.md` § Collections). The check instead:
+  1. Crawl the homepage and key pages logged out and collect every `/site/shop/<path>` link.
+  2. Compare them against `/v1/theme_categories.json`. Each entry carries `themes` and
+     `static_products` arrays; both empty means an empty collection.
+  3. Remove or repoint those links in the navigation, footer, homepage and page content.
+- **Reading the whole catalog:** `/v1/products.json?per_page=500` returned every product of a
+  238-product site in one call (without `per_page` it pages at 20). Each product carries
+  `category`, `price` and `print_product_id` (null means a static product).
+  `/v1/products/<id>/variants.json` and `/v1/products/<id>/price_forecast.json` are public too;
+  a static product with a base price of 0 forecasts 0 until variants are applied, which is
+  normal for roll builder products.
+
+*Verified by query on a client site, 2026-10-02 and 2026-10-04.*
+
+---
+
 ## SEO Migration: Sitemap and 301 Redirects
 
 When migrating a customer from an existing website to Pixfizz, SEO continuity requires three things:
@@ -445,6 +491,8 @@ When migrating a customer from an existing website to Pixfizz, SEO continuity re
 3. **Sitemap submission** — once the new site is live, submit the new sitemap to Google Search Console. Monitor indexing for the first 2–4 weeks to catch any missed redirects.
 
 System paths (cart, checkout, account, order-confirmation) do not need redirects — they are handled by the platform.
+
+Redirects are entered in admin under **Advanced → Redirects**; the JSON shape is also recorded in `18_ADMIN_NAVIGATION.md` § Website Settings Worth Knowing.
 
 Start the URL mapping exercise early in the onboarding process. It is the customer's responsibility to provide the existing URL list, but Pixfizz should prompt for it and explain why it matters.
 
@@ -458,12 +506,13 @@ Use this checklist before declaring a site ready for launch.
 - [ ] Payment capture confirmed (real test transaction, not test mode only)
 - [ ] Production files generated and approved for each product type
 - [ ] All email notification templates reviewed — active ones customized for customer brand
-- [ ] Email delivery verified — SPF/DKIM DNS records confirmed for SendGrid deliverability
+- [ ] Email delivery verified — SPF/DKIM DNS records confirmed for SendGrid deliverability, and the Default Email (From) domain shows Verified as `pxemail.<lab domain>` in SendGrid
 - [ ] Custom domain live with SSL confirmed
 - [ ] Navigation and homepage signed off by customer
 - [ ] Pricing confirmed and validated against customer's agreed rate card
 - [ ] Shipping rules tested with real address(es)
 - [ ] All products and pages have descriptions populated
+- [ ] No product priced 0.00 in any collection, and no link to an empty collection (§ Launch Check: Empty Collections and Unpriced Products)
 - [ ] 301 redirects configured and tested (if migrating from existing site)
 - [ ] Sitemap submitted to Google Search Console (if applicable)
 - [ ] Kiosk mode tested on intended hardware (if applicable)
@@ -476,7 +525,7 @@ Use this checklist before declaring a site ready for launch.
 
 ## Email Notification Templates
 
-Pixfizz includes 14 email templates mapped to the order lifecycle. Configured in Admin → Settings → Email Notifications. Each can be enabled or disabled individually.
+Pixfizz includes 14 email templates mapped to the order lifecycle. Configured in Admin → Settings → Email Notifications. The templates are **per site and not inherited** from the Shopper parent: a new child site starts with 14 **empty** templates. "Enabled" means the Body is not empty; there is no separate switch, and a template with an empty Body never sends (stated by Alex). From 2026-10-03 the supported set-up on a Shopper site is the **email kit** (`email-kit/*` on shopper24), which reduces each template to a one-line Subject and Body. Cart Abandoned sends nothing until its Schedule has at least one row. *Verified by query (admin and Preview on baseline), 2026-10-03.* See `32_ORDER_LIFECYCLE.md` (How notification email templates behave; The Shopper email kit). (Corrected 2026-10-06: previously said each template can be enabled or disabled individually.)
 
 **Order lifecycle emails:**
 - Order Pending
@@ -627,6 +676,10 @@ Two things that make this worse than it sounds:
 Verified by reading source (archive contents and a field-by-field audit against the parent
 template, 2026-09-09). Field inventories per object are in `51_CUSTOM_FIELDS_REFERENCE.md`.
 
+### Create Order custom field definitions for every cart field
+
+Any feature that writes `cart[custom][x]` and expects it on the order (kiosk associate tip, terminal capture `order_source`, `kiosk_mode`, GA4 `ga_client_id` / `ga_session_id`) needs an **Order** custom field definition (text, Public) on the site, created before go-live. Admin has no Cart object type, so a checkout re-render proves nothing: test with a placed order. See `20_SHOPPER_CART_RULES.md`. *Verified by reading admin on a client site, 2026-10-02.*
+
 ### Custom design tool install order
 
 Installing a custom design tool on a new site is **two steps**, and **getting the order
@@ -728,4 +781,5 @@ After any domain change, repoint payment-provider webhooks that carry the old do
 - 2026-08-29: Added Post-Import Checks a Tar Cannot Cover — `no-index` ships `TRUE` on the parent and must be set to `FALSE` on a live store; assert the custom homepage wrapper class on the live root; confirm which navigation style actually renders because a tar cannot read or set that admin value; re-check checkout preselects after any wipe-and-replace import; and verify value-snippet trailing whitespace on generated bundles. Restated that a local render verifies the file and not the site. Source: claude-chat.
 - 2026-09-19: Custom design tool install order rewritten as two steps, with the third and fourth (product custom fields, checklist values) retired. Cross-referenced `26_CUSTOM_DESIGN_TOOLS.md`. Source: kbsync (custom tool estate).
 - 2026-09-24: Added "Staging and Production Share One Database" and "Custom Domain Setup". Source: claude-chat, fireflies-call.
+- 2026-10-06: Phase 2: migrating a catalog from another platform. Phase 3: tax is store-wide, never per product. Common Blockers: Questions to put to the customer (tax, pickup). New Launch Check: Empty Collections and Unpriced Products, linked from Phase 5 and the pre-launch checklist. SEO Migration: Advanced → Redirects pointer to 18. Email Notification Templates: CORRECTED, templates are per site, not inherited, enabled means a non-empty Body, email kit, Cart Abandoned Schedule. Phase 3 and pre-launch checklist: SendGrid `pxemail.<lab domain>` authentication. Configuration Order: Order custom field definitions for every cart field. Source: claude-chat.
 - 2026-09-29: CORRECTED where the GTM and GA4 fields live; Setup and Manage path unverified. Added the rule for customer setup steps (system named, click path, value inside the step, never above/below). Pre-launch checklist gains favicon.png and footer/logo override. Corrected the kiosk desktop app note: now distributed from myPixfizz Tools, optional, with domain lock, USB import and idle reset. Source: claude-chat, fireflies-call.

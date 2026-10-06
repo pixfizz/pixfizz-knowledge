@@ -2,7 +2,7 @@
 
 **Authority Scope:** Ruby pricing formulas and price variables only.
 
-_Last updated: 2026-09-09_
+_Last updated: 2026-10-06_
 
 ---
 
@@ -27,10 +27,12 @@ Pricing formulas are set on the **Product Attribute** in the admin:
 - **A formula referencing a price variable will not save until that variable exists.**
   Create the price variables first, then paste the formula; the save is rejected otherwise.
   Verified live, 2026-09-08.
-- **Price Variables have an experimental read/write API** (announced 2026-09-16), which
+- **Price Variables have a read/write API** (announced 2026-09-16), which
   supersedes the 2026-09-07 statement that none existed. Endpoints and parameters are in
-  `61_PIXFIZZ_API.md` § 13f. **Staging only** — not on production, verified by test on
-  2026-09-16. On production sites, admin bulk export/import (below) is still the only bulk route.
+  `61_PIXFIZZ_API.md` § 13f. **Read and update are confirmed on production** (verified by
+  query, 2026-09-23; Corrected 2026-10-06, previously "staging only"). Create and delete were
+  exercised only on the staging host, which writes to the production database
+  (`61_PIXFIZZ_API.md` § 13e). Admin bulk export/import (below) remains the safe bulk route.
 - House convention for tier variables: store **multipliers**, not percentages off.
 
 ## Keep formulas basic
@@ -93,6 +95,30 @@ Use when the first unit has a higher base price and each additional unit costs l
 The `/ quantity` is required because Pixfizz multiplies the returned value by quantity —
 the formula must return a **per-unit price**, not a total.
 Use `15.0` (not `15`) to force float division and avoid Ruby integer rounding errors.
+
+### Cut prints: a variant value price is not per copy unless the formula says so
+
+On a cut print product priced `<unit price> * cut_print_quantity`, a **flat** price on a
+variant value (a paper or finish upgrade, say) is **not** charged per copy. To charge it per
+copy, give the variant value a price formula of the form:
+
+```
+<delta> * cut_print_quantity
+```
+
+The admin variant value form accepts it, and the price forecast multiplies it per copy.
+Illustrative numbers only (not real prices): a unit price of 2.00 and a delta of 1.00, at 3
+copies, forecast `2.00 * 3 + 1.00 * 3 = 9.00`.
+
+- The Photo Prints component receives the variant value price **evaluated at one copy**, so its
+  per-print display shows the single-copy delta.
+- The same applies wherever the prints flow runs: `/site/prints?collection=<path>` runs it on any
+  collection of cut-print designs, and one design can sit in two collections.
+
+Platform-level (pricing engine), with the prints flow template-level (Shopper 24). *Verified by
+query (price forecast) on a client site, 2026-10-05.* Not verified: a cart and orderline test
+of the same formula; run one before reporting a product as done (see the save-is-not-proof note
+in § `value` and `quantity` Are Both In Scope).
 
 ---
 
@@ -269,6 +295,36 @@ by wrapping the lookup in `[1, x].max`.
 formula that is known to save, add one construct at a time, and save after each. Four saves
 located the failure above; guessing at it first cost two rounds, including one confident
 wrong diagnosis (the range cap) that a single test disproved in seconds.
+
+### A product price formula must cover quantity 1
+
+A range-hash formula whose first range starts above 1 (`{100..250=>...}`) fails to save with
+`Price isn't valid` (`ActiveRecord::RecordInvalid`), even when the product only sells from 100.
+Start the first range at 1, and restrict the quantities the customer can choose with the
+product's `unit_intervals` (a list such as `100,250,500,1000`). *Verified by query, 2026-10-06.*
+
+---
+
+## Platform Price per Quantity and Cart Rounding
+
+Platform-level (Pixfizz CMS).
+
+- **`price_forecast.json` is the platform's own price for a given quantity.**
+  `GET /v1/products/<product id>/price_forecast.json?print_theme_id=<design id>&variants[<CODE>]=<value>&...&quantity=<n>`
+  returns `{ parameters, price, variants_applied: { <CODE>: amount }, template_options_applied }`.
+  `price` is the unit price. It accepts `template_options[code]` exactly like `variants[code]`.
+  Variant amounts add to the base unit price; an amount whose formula contains `/quantity`
+  changes with quantity. Same-origin only, about 160 ms per call. It is what Shopper's
+  `px-product-price` uses. Tool usage: `26_CUSTOM_DESIGN_TOOLS.md` § 1. *Verified by query,
+  2026-10-03.*
+- **Cart line total is `round(price * quantity, 2)`; the unit is not rounded first.** At quantity
+  500, a unit of 1.0078727 gave a 503.94 line, where rounding the unit first would give 505.00.
+  A price ladder shown on the page must compute the same way to match the cart. *Verified by
+  query, 2026-10-03.*
+- **Unconfirmed: how the platform rounds inside a Ruby pricing formula.** A JS reimplementation
+  that must match a formula to the cent should know that Ruby `Array#sum` uses compensated
+  (Kahan-Babuska) summation and JS `+` does not; round at 9 decimals before rounding to the cent
+  on both sides (`26_CUSTOM_DESIGN_TOOLS.md` § 1).
 
 ---
 
@@ -778,3 +834,4 @@ Stated from client calls, not independently verified.
 - 2026-09-16: Replaced 'Price Variables are not reachable via the API' with a pointer to the new experimental Price Variables API in `61_PIXFIZZ_API.md` § 13f. Source: notion-page (Dashboard).
 - 2026-09-19: Confirmed the Automatic Discounts admin location as Marketing → Automatic Discounts, replacing the open "confirm with Matjaz" note. Source: AdeB.
 - 2026-09-24: The API write path skips the formula validator; reserved names for Price Variables (not engine-tested). Source: claude-chat.
+- 2026-10-06: Price Variables: corrected the stale "staging only" API note (read and update confirmed on production 2026-09-23). Photo Prints: a flat variant value price on a cut print is not per copy; use a `<delta> * cut_print_quantity` variant value formula (price forecast multiplies per copy; the Photo Prints component shows the one-copy price), with illustrative numbers. From group B2 spill: a product price formula must cover quantity 1 (use `unit_intervals`); new section Platform Price per Quantity and Cart Rounding (`price_forecast.json`, cart line rounding, unconfirmed formula rounding). Source: claude-chat, vault-doc.

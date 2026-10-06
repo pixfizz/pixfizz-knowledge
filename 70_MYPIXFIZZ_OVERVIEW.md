@@ -2,7 +2,7 @@
 
 **Authority Scope:** System identity, architecture, portals, tech stack, and integrations for my.pixfizz.com.
 
-_Last updated: 2026-09-09_
+_Last updated: 2026-10-06_
 
 ---
 
@@ -21,27 +21,27 @@ Two audiences:
 - **Frontend:** React + Vite + Tailwind CSS
 - **Backend:** Lovable Cloud (Supabase under the hood — Postgres + Edge Functions + RLS)
 - **Design style:** Dark-mode-first, Apple-inspired minimal SaaS UX
-- **Auth:** OTP and password-based sign-in via Supabase Auth
-- **Key external integrations:** Fireflies, QuickBooks, GA4, Pixfizz Order Webhook, Calendly
+- **Auth:** Supabase Auth. The sign-in screen offers Password, Email code and Magic link (Corrected 2026-10-06).
+- **Key external integrations:** Fireflies, QuickBooks, GA4, Pixfizz Order Webhook, Pixfizz admin API (per brand), Klaviyo (read only), Slack (urgent support alerts), Calendly
 
 ---
 
 ## Portal Structure
 
 ### Admin Portal
-Routes: `/dashboard`, `/pipeline`, `/leads`, `/organizations`, `/contacts`, `/brands`, `/projects`, `/tasks`, `/onboarding`, `/invoices`, `/costs`, `/suppliers`, `/ideas`, `/roadmap`, `/product-intelligence`, `/call-log`, `/executive`, `/infrastructure`, `/admin/support`, `/admin/events`, `/admin/portal-preview/:orgId`
+Main routes: `/admin/support` (Support Overview, the staff landing page), `/admin/support-inbox`, `/executive`, `/assistant`, `/organizations`, `/contacts`, `/brands`, `/performance`, `/admin/onboarding`, `/projects`, `/call-log`, `/pipeline`, `/lead-inbox`, `/targets`, `/product/ideas`, `/product/roadmap`, `/product/intelligence`, `/admin/marketing`, `/admin/ga4-events`, `/admin/events`, `/announcements`, `/admin/videos`, `/admin/catalog-manager`, `/admin/pod-catalog`, `/admin/tools`, `/admin/reviews`, `/billing`, `/invoices`, `/suppliers`, `/private/costs`, `/users`, `/admin/portal-access`, `/admin/settings/support-contacts`, `/infrastructure`. On a phone, staff use the mobile support app at `/m/support`. (Corrected 2026-10-06: the old list named `/dashboard`, `/leads`, `/tasks`, `/onboarding`, `/ideas`, `/roadmap` and `/product-intelligence` as admin routes. Full map in `71_MYPIXFIZZ_FEATURES_ROUTES.md`.)
 
 Full access for Pixfizz staff. No org-scoping — sees all data.
 
 ### Customer Portal
-Routes: `/portal/*`
+Routes sit at the root, not under `/portal` (Corrected 2026-10-06): `/dashboard`, `/marketing`, `/events`, `/support`, `/call-log-portal`, `/whats-new`, `/videos`, `/roadmap`, `/brand`, `/assets`, `/tools` and the tool pages under `/tools/*`. Before kickoff a customer lands on `/welcome`.
 
 Scoped strictly to the user's own organization. Customers cannot see other orgs' data. RLS enforced at DB level.
 
 ### Admin Portal Preview
 Route: `/admin/portal-preview/:orgId`
 
-Lets a Pixfizz admin impersonate a customer's portal view — see exactly what that customer sees. Used for support and onboarding.
+Lets a Pixfizz admin impersonate a customer's portal view — see exactly what that customer sees. Used for support and onboarding. Every customer route is mirrored under `/admin/portal-preview/:orgId/...`.
 
 ---
 
@@ -63,6 +63,8 @@ The master record for a Pixfizz customer (a photo lab or print business). Has a 
 ### Brand
 A brand within an organization. An org can have multiple brands. Each brand has its own logo, brand guide assets, GA4 config, and billing currency. Revenue data rolls up to brand level.
 
+A brand is one **storefront**; the app uses both words for the same record. Each has a storefront type (Shopper, Shopify + Pixfizz, Custom setup or Custom CMS) that decides which brand page tabs it gets; once set, only staff can change it. Brands are archived, never hard-deleted, and a duplicate is merged into the brand kept through `/brands/merge`. *Verified by reading source (Lovable, commit d6290ee), 2026-10-06.*
+
 ### Project
 An internal Pixfizz project record for work being done for an org — e.g. a site build, integration, or feature rollout. Has notes, meetings, links, Loom videos, and a client-visibility toggle per item.
 
@@ -83,6 +85,9 @@ The core execution unit. Tasks can belong to an org, brand, project, or be inter
 | **GA4** | Server-side `purchase` via the GA4 Measurement Protocol, live since March 2026. Per-brand measurement id, API secret, enabled flag, debug flag and billing currency. The Pixfizz order webhook feeds an event outbox, which sends to the Measurement Protocol with per-order idempotency and attempt logging. Depends on the Shopper order custom fields `ga_client_id` and `ga_session_id` being present on the storefront. See `85_GA4_SERVER_SIDE_PURCHASE.md`. |
 | **Pixfizz Order Webhook** | Receives orders from the Pixfizz platform, processes for GA4 and reporting. |
 | **Google Reviews** | Customer-facing connector on the brand page's Connections tab. Uses the brand's Pixfizz admin API credential (`brand_api_credentials`). Reviews sync from Google into a review inbox and publish to the storefront as instances of a Shopper custom type, which the storefront widgets read. See `71_MYPIXFIZZ_FEATURES_ROUTES.md` § Brand Connections and Catalog. |
+| **Pixfizz admin API** | Per-brand credential (§ Credential Storage). Used by Catalog Manager, Shopper Configure, Shopify Style, Blog, Merge users, Static Product Uploader, Store health check, Promo codes, Customer export and Shopper Upgrades. Every write is read back before it counts as done. |
+| **Klaviyo** | Per-brand private key for Marketing, kept in the vault (`brand_klaviyo_credentials`), set and cleared only through a backend function, never sent to the browser. Read only in the current build (scheduled emails, flows, lists). *Verified by reading source, 2026-10-06.* |
+| **Slack** | Urgent (blocking) support cases post an alert that mentions staff with a Slack user id (`71_MYPIXFIZZ_FEATURES_ROUTES.md` § Support). |
 | **Calendly** | Webhook ingestion of meeting events into the call log / CRM. |
 | **Email (Edge Functions)** | Transactional emails: forgot password, onboarding invites, support agent notifications, idea promotion alerts. |
 
@@ -164,6 +169,7 @@ them". *Each verified by reading source, and each was a live defect.*
 
 - **An empty state that doubles as the error state.** A failed query and a genuinely empty list render the same UI, so a broken query looks like "no records yet" for days. Every list whose query can fail needs a distinct error branch.
 - **An edge function fix is not live until it is published.** Functions ship on publish, not on commit. The stored shape of the data a function writes is evidence of which version ran.
+  Unconfirmed (2026-10-06): two later builds report the opposite for this project, that edge functions, migrations and pg_cron jobs take effect on build and only the front end waits for Publish (§ Operational Rules for Changing myPixfizz). Until this is settled, check the deployed function's behavior or stored output before assuming either way.
 - **An email that invites a reply, sent from an address that cannot receive one.** A `noreply@` sender with no `Reply-To` turns "reply to this email" into a silent bounce.
 
 *Verified by reading source and by query, 2026-09-23.*
@@ -174,6 +180,34 @@ them". *Each verified by reading source, and each was a live defect.*
 - **A prevention step written in an incident doc is not done until a query shows it exists.** The 15 September prune job was prescribed and never created, which is why the same outage happened again.
 - **Never clear `ga4_event_outbox` to free space.** It is the order history behind Brand Performance and the brand comparisons; copy it elsewhere first.
 - **Never remove a shipped service worker by deleting its file.** Replace it at the same path with a self-destroying worker (skipWaiting on install; on activate delete every cache, unregister, reload open windows; no fetch handler) and keep that file permanently. A deleted worker path falls through to the SPA fallback and the old worker stays installed, so a home-screen install keeps running old code against live data. The cleanup code in the new app never runs on a device still controlled by the old worker. *Verified by reading source (git history), 2026-09-29; the fix on iOS is not yet verified.*
+
+### More recurring defect patterns (2026-10-06)
+
+- **A customer page that resolves the organization from `organization_members` by user id, or links to a bare customer path, breaks portal preview.** In preview the signed-in user is staff, so the page loads the staff member's own organization (an order code then "matches none of your sites"), and a bare link such as `/support` drops staff out of the preview into their own portal, which looks like a logout. Every customer-facing page takes its organization from `useCustomerOrg()` and builds every internal link with `usePortalBasePath()`. *Verified by reading source and a fix tested in preview, 2026-09-30.*
+
+---
+
+## Operational Rules for Changing myPixfizz
+
+Lovable Cloud behavior that decides how a change reaches the live site. *Verified by query and by reading source, 2026-09-29 to 2026-10-01, unless marked.*
+
+- **The preview and my.pixfizz.com share one database.** Migrations apply to production the moment Lovable builds them. Front-end code reaches my.pixfizz.com only on Publish. On 29 Sep the database half of a stability build (indexes, grants, timeouts, realtime changes) was live hours before its front end was published.
+- **Every migration must work with the front end that is currently published.** To tighten a constraint or rename stored values, first ship and publish code that writes the new values, then tighten the database in a later change. On 30 Sep a tightened `brands_storefront_type_check` made brand creation and every store type change fail on the live site with a raw check-constraint error while the preview worked, because the published code still sent the old labels.
+- **Until a build is published, test user-facing changes in the Lovable preview,** not on my.pixfizz.com.
+- **Publishing ships every unpublished build in the queue at once.** A small fix that lands on top of an unfinished batch cannot go live on its own; check what else is queued before promising when a fix will be live.
+- **Database jobs and what they send are live on build.** pg_cron jobs, triggers and the support notification outbox ran on production before the matching front end was published (the awaiting-customer reminders first went out on 1 Oct, the morning they were built). Test such changes in a rolled-back transaction, or with throwaway rows deleted before the per-minute sender runs.
+- **A fix made directly in the shared database needs a matching migration file,** or rebuilding from the repo brings the old version back. Example: the Klaviyo key check was relaxed directly in the database on 30 Sep while the repo migration still holds the old pattern. *Verified by reading source (commit d6290ee).*
+- **Stability baseline (29 Sep).** `nightly_maintenance()` runs at 01:17 UTC: it keeps 7 days of `cron.job_run_details` and 60 days of `infrastructure_checks`, deletes in batches of 2,000, stops itself on a batch slower than 5 s, and writes each run to `maintenance_log`; a vacuum follows at 02:47 UTC (verified by reading source). `service_role` has a 30 s statement timeout, with longer limits set only inside the few long jobs; realtime is on `notifications` only; signed-out EXECUTE was revoked from the SECURITY DEFINER functions except `has_role`; and a test fails the build on any query refetch interval under 30 s (verified by query and from the build report, 29 Sep).
+- **Default privileges now revoke EXECUTE from PUBLIC.** Any new function needs an explicit GRANT to the roles that call it, and an RPC that signed-out visitors call needs `GRANT EXECUTE ... TO anon`.
+- **Anything new that polls, adds realtime, or adds a table that grows every day states its retention and interval** in the request. The pg_cron history rule above is the case that caused two outages.
+
+---
+
+## Organization Add-ons
+
+Add-ons are recorded per organization in `organization_addons`. The accepted `addon_key` values are `orderhub`, `point_of_sale`, `pixfizz_conversations` and `s3_storage`; members of an organization can read their own add-ons. *Verified by reading source (migration of 2026-09-30).* Pixfizz Conversations is the website chat; how it works is in `45_ORDERHUB.md` § Website Chat (Twilio Conversations). Prices and packaging are not covered in this knowledge base.
+
+---
 
 ## RLS and Aggregates in Triggers — the Rule
 
@@ -266,3 +300,4 @@ re-checking against the current route.
 - 2026-09-09: REPLACED the one-line GA4 row in the Integrations table with the full description of the server-side `purchase` pipeline (Measurement Protocol, live since March 2026; per-brand measurement id, API secret, enabled and debug flags, billing currency; order webhook into an event outbox with per-order idempotency and attempt logging; dependent on the Shopper order custom fields `ga_client_id` and `ga_session_id`), pointing at `85_GA4_SERVER_SIDE_PURCHASE.md`. Extended Credential Storage with what is held and where — secret in a vault, write-only from the client, base URL hardened to a Pixfizz host. Added Recurring Defect Patterns (self-referential RLS SELECT policy; edge function gated on an admin-role check; a 200 carrying `ok: false`; a test-connection probe on a different route family). Added the RLS-and-aggregates rule — a PL/pgSQL trigger without `SECURITY DEFINER` runs as the caller, so an aggregate inside it is RLS-filtered, which is why the bug is invisible to staff and reproduces only for customers; a sequence is the right fix; and the testing rule that a staff account cannot test anything gated by RLS. Added webhook endpoint design rules (401 for a bad key, 200 for everything else on purpose, and a query-string secret making the URL a credential that rotates with the provider entry, in that order). Added the mail transport rule versus mailbox forwarding for copying mail to an ingestion endpoint. Added Support Intake — intake moved off the previous helpdesk on 2026-09-09, which invalidates any article giving customers the old address. Source: claude-chat, fireflies-call.
 - 2026-09-24: Added three recurring defect patterns: empty state as error state, unpublished edge functions, reply-inviting mail with no Reply-To. Source: claude-chat.
 - 2026-09-29: Credential Storage: API keys supported (pxk_ or legacy user:pass, shared auth helper, 12-char hint only), UI labels, Admin URL normalization. Added Google Reviews to the Integrations Summary. Operational rules: pg_cron history retention, prevention steps verified by query, never clear ga4_event_outbox, service worker kill switch. Source: claude-chat.
+- 2026-10-06: Corrected Portal Structure to the current routes (no `/portal` prefix; staff land on Support Overview; mobile support app) and the sign-in methods. Brand concept: storefront types, archive not delete, merge. Integrations: Pixfizz admin API, Klaviyo (read only, key in vault), Slack urgent alerts. Added a defect pattern (customer pages must use `useCustomerOrg()` and `usePortalBasePath()` or portal preview breaks), the Operational Rules for Changing myPixfizz section (shared database, migrations live on build, publish ships the whole queue, database jobs live on build, direct database fixes need a migration file, stability baseline, default privileges), and Organization Add-ons (keys only, cross-reference to 45). Flagged the edge-functions-ship-on-publish line as conflicting with later builds. Source: claude-chat.

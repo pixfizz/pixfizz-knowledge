@@ -63,6 +63,8 @@ Grouping mechanism for publishing products to the storefront.
 
 Publishing a product = adding it to a Collection. Storefront URL structure: `/shop/:collection/:product/:design`.
 
+**A top-level collection has no verified unpublish flag.** The `unpublished` collection custom field works on sub-collections only. An empty top-level collection renders a blank shop page at `/site/shop/<path>` with status 200, so "unpublish the empty collections" is not a launch step; remove or repoint the links to them instead (`80_ONBOARDING.md` § Launch Check: Empty Collections and Unpriced Products). *Verified by query, 2026-10-04.*
+
 ---
 
 ## Variants vs Options
@@ -120,6 +122,26 @@ template page opens a modal; the underlying URL is
 `/print_theme/export_print_product/<template>?print_theme_ids[]=<design>&product_ids[]=<product>`.
 Without those two parameters the archive has `products: []` and `print_themes: []`. Design ids
 are the `print_theme/theme/<id>` links on the template's page. *Verified by query, 2026-09-26.*
+
+**A template import is not atomic.** The full import creates the template and its options
+first, then the designs and products. When a later record fails, everything created before it
+stays on the site: a design that failed left the template, its options and the earlier
+designs behind; a product that failed validation answered 500 and left the template with no
+products and no designs. **Delete the partial template before importing again**, or every
+code in the second import gets a `-1` suffix. The 500 page gives a reference; Admin → Error
+Query with that reference shows the exception. *Verified by query, 2026-10-05 and 2026-10-06.*
+
+**Design names must be unique per site.** When a second template carries designs whose names
+match designs already on the site, the importer appends `-1` to the **name** only; codes are
+untouched. Rename them afterwards on the design page; the platform accepts the duplicate name
+on edit. The storefront URL slug keeps the `-1` (`theme=<id>-name-badge-1`), which is harmless.
+*Verified by query, 2026-10-05.*
+
+**Fonts and images in the archive are added to the site under new ids**, and `font=` in the
+page XML is remapped to them. *Verified by query, 2026-10-05.*
+
+The admin import routes, including design-only and product-only imports, are in
+`18_ADMIN_NAVIGATION.md`.
 
 ---
 
@@ -211,6 +233,12 @@ Suppression that exists today:
 
 A flag or redirect behavior for this is **not built**. Do not document it as existing.
 
+**A product that was never added to any collection has no storefront URL**
+(`/site/product/<id>` returns 404). So unpriced products that were never published need no
+action before launch; just never add them to a collection until they are priced. The
+reachability problem above applies only to a product that was published and crawled first.
+*Verified by query, 2026-10-04.*
+
 ---
 
 ## Semi-Inheritance: Publishing a Parent Lab's Templates
@@ -269,3 +297,4 @@ Beyond the core hierarchy:
 - 2026-09-09: Added platform import behavior — ids in an import tar are not honored and duplicate codes/names are auto-suffixed `-1`, `-2`, so a re-import duplicates rather than updates and can break code-referencing Liquid or collection paths. Added the size naming convention (catalog notation regardless of orientation, orientation carried by `custom.orientation`, orientation token in the code only). Added that inventory is tracked per product, not per variant, and is decremented once on first Confirmed or Draft. Added that one design cannot render several product variations, with the live-preview versus per-product-image trade-off and the one-template-per-variation architecture. Added product cloning via the per-product export archive rather than the Static Product Importer CSV. Added that unpublished and de-collectioned products stay purchasable via their old URL, with the two suppression routes that exist today. Added semi-inheritance of a parent lab's templates and the editable auto-populated product code. Added that Custom Type instances sort by the custom field's declared type. Added that the photo-prints component cannot deliver a pack of N different photos. Source: claude-chat, fireflies-call, slack-message.
 - 2026-09-24: Added the rule that a custom design tool product is always a design product, and "Paper Is a Variant, Not a Template Per Paper". Source: claude-chat.
 - 2026-09-29: Import: __asset_map ids that exist on the site are reused (importer creates assets from assets/); template export needs print_theme_ids[] and product_ids[] to carry design and product. Template and design options are one object; code unique across both; template options reach every product on the template. Hub-shared templates are listed on the hub. Source: claude-chat.
+- 2026-10-06: Collections: a top-level collection has no verified unpublish flag and an empty one renders a blank 200 page. Import Behavior: template import is not atomic (delete the partial template first, Error Query reference), design names get `-1` on a name clash, fonts and images get new ids with `font=` remapped. Unpublishing: a never-collected product has no storefront URL. Source: claude-chat, vault-doc.

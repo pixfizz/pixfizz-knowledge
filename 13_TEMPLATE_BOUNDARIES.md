@@ -83,6 +83,21 @@ A Shopper child site overrides **snippets and assets** only. It cannot override 
 
 **Open, needs confirmation:** `50_SHOPPER_TEMPLATE_REFERENCE.md` § 21.5 describes a child overriding `pages/custom.css`. Either `custom.css` is a special case or § 21.5 is describing the `style/custom.css` snippet override. Do not rely on either reading until confirmed.
 
+## Custom Types Are Per Site: Export and Import Them
+
+Like custom fields, a **Custom Type** (its definition and its instances) belongs to one site and is not inherited parent to child. Where a parent page reads a Custom Type, a child needs that type on its own site before the page can work there: for example `/site/services/<path>` needs the Service Custom Type and one record per page (`50_SHOPPER_TEMPLATE_REFERENCE.md` § 14).
+
+Moving a type between sites (platform-level, admin routes, *verified by query, 2026-10-04*):
+
+- **Export:** `GET /site/<slug>/admin/custom_types/export_all?custom_type_ids[]=<id>` returns a `.tar.gz` holding `__custom_types.yml`.
+- **Import:** `POST /site/<slug>/admin/custom_types/import`, multipart field `exported_file`. No CSRF token is needed with an admin session. A Pages type was imported from shopper24 onto a child this way.
+
+Importing a type onto a child changes that child's data model: treat it as a deliberate change that needs the site owner's sign-off, and never import in the other direction, from a child onto the parent.
+
+## Email Notification Templates Are Per Site
+
+The 14 notification email templates (Settings > Email Notifications) are **not inherited** from the Shopper parent. A child site starts with 14 empty templates, and a parent change reaches a child's emails only through snippets the child's template bodies call at send time. That is why the Shopper email kit keeps each template body to one line that calls parent snippets. *Verified by query, 2026-10-03.* See `32_ORDER_LIFECYCLE.md`.
+
 ## A Child Site's Snippet List Shows Only Its Overrides
 
 On a child site, **Website → Snippets lists only the snippets that site has overridden**, not the roughly one thousand it inherits from the parent. A snippet that "does not exist" in a child's list usually exists on the parent. Use `52_SNIPPET_INVENTORY.md`, or the **Search CMS** box on the Snippets toolbar (full-text search of snippet content), to find it. *Stated on a client call, 2026-09-24.*
@@ -92,3 +107,4 @@ On a child site, **Website → Snippets lists only the snippets that site has ov
 - 2026-07-25: Added Site Assets — No Parent→Child Inheritance, including the silent-failure mode for JS assets and the version-marker practice for confirming a deployed build past browser cache. Source: claude-chat.
 - 2026-07-28: Corrected Site Assets section — assets ARE inherited parent to child; the silent failure previously attributed to asset inheritance is a child override of `integrations/custom-body-scripts`. Added Parent-First Rule scope note (snippets only, not template options or variants). Source: claude-chat.
 - 2026-09-24: Pointed the Parent-First Rule at the new Install-Step Gate. Added "Pages Are Parent-Only" (with the open § 21.5 question) and "A Child Site's Snippet List Shows Only Its Overrides". Source: claude-chat, fireflies-call.
+- 2026-10-06: Added Custom Types Are Per Site (export and import routes, never child to parent) and Email Notification Templates Are Per Site. Source: claude-chat.

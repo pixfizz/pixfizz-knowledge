@@ -26,9 +26,24 @@ Two limitations apply, and both fail silently:
 ## Photo prints
 - Quantity not editable in cart.
 - Quantity is per-photo in Photo Prints UI; orderline priced via `cut_print_quantity`.
+- The photo prints component has **no minimum-quantity, maximum-quantity or order-threshold property**. A minimum order rule on photo prints is custom code, hooked into the component's client-side methods, and is a client-side guard only: anything that must genuinely hold needs a second check at cart or checkout. Hook surface and mount points: `41_IMPLEMENTATION_PATTERNS_UPDATED.md` (PhotoPrintsComponent hooks) and `52_SNIPPET_INVENTORY.md` annotations. *Verified by test on a live bundle, 2026-09-10.*
 
 ## Pricing display
 - Pricing generally visible; tiered pricing may show strikethrough.
+
+## The free shipping progress bar is display only
+
+`sections/dynamic/free_shipping_progress_bar` (gated by `admin/checklist/activate-free-shipping-progress-bar`) hard-codes its threshold to `99` in the parent snippet. It is **not linked to the shipping rules**: changing a shipping method's free threshold does not move the bar. A different threshold needs a site **Override Snippet** of the section, kept in step with the shipping method by hand. The snippet also reads `config/free-shipping-note`, which does not exist on the parent. Template-level (Shopper 24). *Verified by reading source, shopper24 backups of 2026-09-24 and 2026-09-28.*
+
+## Cart links and adding to the cart from outside the product page
+
+**GET links.** `/site/add-to-cart?book=<project_id>&quantity=` and `/site/cart?add_print_product=<project_id>` add a **saved project** only. No GET link adds a static product, and no URL parameter applies a promo code. Template-level (Shopper 24). *Verified by reading source, shopper24 backup 2026-09-24.*
+
+**A saved project can be added without opening the editor** (platform-level). The editor's own Add to Cart saves the project, then submits a plain form: `POST /cart/add_print_product` with `print_book_id`, `quantity`, `sum_quantities=false` and `target=/site/cart` (plus `parent_orderline_id` when the URL carries `parent_orderline`). No CSRF token. The same POST from a custom tool on the same origin added a saved, already-filled project that no shopper had opened in the editor; the response redirects to the cart. The project must already be saved and filled. A custom cart page or `cart_target` in the editor config changes where the editor goes afterwards; the POST does not depend on it. Concurrent posts race on the cart (`22_OPTION_VARIANT_RENDERING.md`). *Verified by reading the editor bundle and by query, bundle 20261002143509, 2026-10-04. Internal endpoint: re-check after platform updates.*
+
+## A guest who signs in keeps projects and cart lines
+
+When a guest signs in, the guest's projects, saved and unsaved, move to the account, and the guest's cart lines move with them. A custom tool can therefore let a guest start immediately and ask for sign-in later without losing the project, the uploads or the cart. Signing in through the upload dialog's own form does not reload the page, so in-page tool state also survives. Platform-level. *Verified by query, 2026-10-04.*
 
 ## Digital-only
 - No special cart behavior.
@@ -90,6 +105,13 @@ that is not the tool's own. **That test passes on a dead block.** Adding a token
 list that is never read is byte-identical for every shape, including the tool's own.
 Four tools were installed through this check and none of them caught it.
 
+**A custom tool chooses its own cart image.** `checkout/orderline-preview` draws any option
+whose code contains `_preview` and carries an uploaded file, ahead of `static_preview` and
+`px-project-preview` (verified by reading source, shopper24 backup 2026-09-24). So a request to
+show the product image in checkout is a tool change (the tool writes the catalog image as its
+preview file, with a fallback), not a checkout change. See `26_CUSTOM_DESIGN_TOOLS.md` § 6,
+*The tool chooses its own cart image*.
+
 **Rule: when extending a preview-code list, assert that the tool's own line now
 renders an `<img>` with the expected URL.** The no-regression assertion is necessary
 and is not sufficient — assert the customer-visible outcome, not the input.
@@ -103,10 +125,23 @@ lists, or confirming it is deliberate.
 
 A custom field written on the cart as `cart[custom][x]` becomes `order.custom.x` when the cart
 converts to an order. It is then available in order management, in exports and in email
-templates with no extra work and no mapping step.
+templates with no mapping step, **provided the site has an Order custom field definition for
+`x`**. (Corrected 2026-10-06: the earlier text said "with no extra work".)
 
 **Order and Cart are the same custom-field object.** There is no separate Cart object to
 register a field against — register the field once and it serves both.
+
+**The definition is a per-site install step.** Admin → Custom Fields has no Cart object type,
+and cart custom values are stored freeform, so a value re-renders on the cart after a reload
+whether or not a definition exists. That makes a checkout re-render useless as a test. Existing
+Order definitions carry descriptions of the form "Required if ... Must be Public", which is the
+platform pattern: one Order definition per field, type text, **Public** ticked where the
+storefront writes it. Any feature or install guide that writes `cart[custom][x]` and expects it
+on the order must create those definitions on each site before go-live, and test with a
+**placed order**. Custom fields do not inherit parent to child (`13_TEMPLATE_BOUNDARIES.md`).
+*Verified by reading admin on a client site, 2026-10-02.* Not verified: whether a value with no
+definition is dropped at order creation or kept as an undefined field. Fields on the same site
+were observed "reaching orders as undefined values" before definitions were added.
 
 This is the mechanism a cart-level Extra Fee already relies on: a storefront snippet writes
 `cart[custom][rush]`, the Extra Fee formula reads `cart.custom.rush` at pricing time (see
@@ -172,22 +207,26 @@ The `chosen_template_options` loop is verified by reading source (see the cart f
 block above). That static products cannot carry template options is stated in a build spec and
 is **not independently verified**.
 
-## Gate Add to Cart with `data-requires-design`, never `requires_design: true`
+## Gate Add to Cart with `data-requires-design` on the tool root
 
 To hold Add to Cart shut until a custom tool has attached artwork, put `data-requires-design`
 on the **tool root** element.
 
-**Never set `requires_design: true` on the product.** It disables the button and never
-re-enables it, because it waits on a *design record* — and a tool that attaches file uploads
-never creates one. The result is a store whose Add to Cart button is permanently dead, with
-nothing in the console to explain it.
+**`requires_design: true` on the product is safe and correct on tool-driven and file-upload
+products** (Corrected 2026-10-06: this section previously said never to set it). A dead Add to
+Cart on such a product has been traced to the tool not releasing the button before clicking it,
+never to the flag: a field-by-field diff of a working and a failing product on the same site
+found zero differing fields, both with `requires_design: true` (verified by query, 2026-08-10).
+See `51_CUSTOM_FIELDS_REFERENCE.md` § `requires_design` on custom-design-tool products. Do not
+set `requires_design: false` as a workaround.
 
 **The gate must fail open.** Release the button whenever the tool cannot tell whether artwork
 is attached. Letting one unconfigured line through is recoverable; holding a live store's Add
 to Cart shut is not.
 
-The `requires_design: true` failure is verified live. The `data-requires-design` gate is
-stated in a build spec as the established pattern.
+The `data-requires-design` gate is stated in a build spec as the established pattern.
+(Corrected 2026-10-06: the earlier "`requires_design: true` failure is verified live" claim is
+withdrawn; see above.)
 
 ## Changelog
 - 2026-07-28: Added hide_from_cart section covering the variant/template-option cart filter and its two silent limitations (editable-cart branch, child orderlines). Source: claude-chat.
@@ -195,3 +234,4 @@ stated in a build spec as the established pattern.
 - 2026-09-09: Added that cart custom fields promote to order custom fields at checkout — `cart[custom][x]` becomes `order.custom.x`, and Order and Cart are the same custom-field object with no separate Cart object. Source: claude-chat.
 - 2026-09-09: Added the silent Add to Cart blocker — a `required` file-upload option on a variant branch the customer did not select stops the form submitting with no error and no network request, and `disable_required_form` does not clear it; cross-referenced to 22_OPTION_VARIANT_RENDERING.md for the full detail. Added the diagnostic rule that Add to Cart doing nothing with no network request is form validation, to be resolved with `form.checkValidity()` and by resolving each invalid element to its enclosing `PX-OPTION`. Source: claude-chat + fireflies-call.
 - 2026-09-09: Added that a custom-tool product must be a design product, because static products cannot carry template options and every preview block loops `chosen_template_options`; and that Add to Cart must be gated with `data-requires-design` on the tool root and never `requires_design: true` on the product, with the gate failing open. Source: claude-chat.
+- 2026-10-06: Photo prints: no min/max quantity property, minimums are client-side custom code. Added free shipping progress bar is display only (hard-coded 99). Added cart links (GET links add saved projects only, no promo-code URL parameter) and adding a saved project via `POST /cart/add_print_product`. Added a guest who signs in keeps projects and cart lines. CORRECTED cart-to-order promotion: needs an Order custom field definition per site, Public, tested with a placed order. CORRECTED the Add to Cart gate section: `requires_design: true` is safe on tool-driven and file-upload products (the 2026-09-09 "never set it" advice is withdrawn). Added that a custom tool chooses its own cart image via a `_preview` option. Source: claude-chat.

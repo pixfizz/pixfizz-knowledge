@@ -2,7 +2,13 @@
 
 **Authority Scope:** Supabase database schema for my.pixfizz.com.
 
-_Last updated: 2026-03-26_
+_Last updated: 2026-10-06_
+
+> **Coverage.** The Table Reference below is the March 2026 export (88 tables). The database had
+> 162 public tables by 29 September 2026. § Tables Added September to October 2026 covers the
+> tables and columns behind the features in `71_MYPIXFIZZ_FEATURES_ROUTES.md`, read from
+> `supabase/migrations` (Lovable, commit d6290ee). Tables added between April and mid-September
+> are not all listed; read the migrations before relying on this file for those.
 
 ---
 
@@ -200,6 +206,17 @@ Customer brands/storefronts, each linked to an organization.
 | webhook_secret | text, nullable | |
 | created_at | timestamptz | |
 | updated_at | timestamptz | |
+| archived_at | timestamptz, nullable | Added 2026-09-28. Brands are archived, never deleted (DELETE revoked from anon and authenticated). Archived brands are hidden from portal, admin lists and the performance roll-up. |
+| merged_into | uuid, nullable | Added 2026-09-28. FK → brands. Set on the duplicate by a merge. |
+| billing_website_code | text, nullable | Added 2026-09-28. Billing code used to match billing product data; readers fall back to `subdomain`. |
+| platform | text | Added 2026-09-30. `shopper`, `shopify` or `custom_api`. Derived from `storefront_type` by trigger `brands_derive_platform`; app code reads `storefront_type`. |
+
+Rules on `brands` (added 2026-09-28 to 2026-09-30, verified by reading the migrations):
+- `storefront_type` is NULL or one of `shopper`, `shopify_standard`, `custom_setup`, `custom_cms` (check `brands_storefront_type_check`). Older labels were mapped once by migration.
+- Only admins can change `organization_id`, `subdomain`, `website_code` or `billing_website_code`, and only admins can change a `storefront_type` that is already set (trigger `guard_brand_identity_fields`).
+- Only admins can archive or merge (triggers `guard_brand_archive_fields`, `guard_brand_archive_insert`).
+- Partial unique index `brands_org_website_code_active_uq` on `(organization_id, lower(website_code))` where the code is set and the brand is not archived.
+- RPCs: `link_or_create_brand_for_profile`, `archive_brand`, `merge_brands_preview`, `merge_brands` (log in `brand_merge_log`).
 
 ---
 
@@ -1315,6 +1332,24 @@ Customer support tickets and bug reports with SLA tracking.
 | sla_resolution_hours | numeric, nullable | |
 | created_at | timestamptz | |
 | updated_at | timestamptz | |
+| inbound_message_id | text, nullable | Added 2026-09-29. Unique when set; de-duplicates inbound email. Same column on `support_messages` and `support_inbound_unmatched`. |
+| order_codes | text[], nullable | Added 2026-09-30. Order error form. |
+| shopify_order_numbers | text[], nullable | Added 2026-09-30. |
+| impact | text, nullable | Answer to "How urgent is this?": `nothing_urgent`, `something_wrong`, `ordering`, `fulfillment`; legacy `one_order`, `production`, `website`. |
+| tried | text[], nullable | Added 2026-09-30. "What have you tried?" |
+| error_text | text, nullable | Added 2026-09-30. Error shown on the order. |
+| matched_solution_id | uuid, nullable | Added 2026-09-30. FK → order_error_solutions. |
+| urgent_reason | text, nullable | Added 2026-10-01. At most 200 characters. |
+| urgent_alerted_at, urgent_realerted_at, urgent_answered_at | timestamptz, nullable | Added 2026-10-01. Urgent alert clock. Customers cannot change these. |
+| urgent_downgraded_at, urgent_downgraded_by | timestamptz / uuid, nullable | Added 2026-10-01. Set by `support_downgrade_urgent` (staff only). |
+| awaiting_customer_since | timestamptz, nullable | Added 2026-10-01. Set when the status becomes `awaiting_customer`; reset by an external staff reply. |
+| awaiting_reminder_sent_at | timestamptz, nullable | Added 2026-10-01. |
+
+Support rules added 2026-10-01 (verified by reading the migrations):
+- A blocking case gets `urgent_alerted_at` and priority `high`, and queues an `urgent_new` outbox event. `support_urgent_realert_sweep` (run by the support notification sender) queues one `urgent_realert` after 30 minutes with no external staff reply and no assignee.
+- `support_awaiting_customer_sweep` runs hourly: it resolves cases whose reminder is 7 days old (`auto_resolved` event, system line, no normal resolved email) and sends a reminder to cases waiting 7 days (`awaiting_reminder` event).
+- Outbox events (`support_notification_outbox.event`): `created`, `reply`, `resolved`, `agent_reply`, `agent_new`, `mention`, `awaiting_reminder`, `auto_resolved`, `urgent_new`, `urgent_realert`, `urgent_downgraded`. Status adds `skipped`.
+- Customers may reopen a resolved case (status back to `in_progress`); closed cases stay locked.
 
 ---
 
@@ -1482,6 +1517,118 @@ Weekly win/goal items per user.
 
 ---
 
+## Tables Added September to October 2026
+
+Read from `supabase/migrations` dated 2026-09-28 to 2026-10-03. *Verified by reading source
+(Lovable, commit d6290ee), 2026-10-06.* RLS shorthand: **staff** = `has_role(auth.uid(),'admin')`;
+**brand members** = `is_brand_org_member(brand_id)`; **org members** = a row in
+`organization_members` for the organization. Every table also grants all to `service_role`.
+
+### Brands, performance and targets
+
+| Table | Purpose | Key columns | Access |
+|---|---|---|---|
+| `brand_merge_log` | One row per brand merge | survivor_id, duplicate_id, merged_by, merged_at, moved_counts, copied_fields, conflicts (jsonb) | Staff read |
+| `brand_targets` | Sales target per brand | brand_id, metric (default `net_sales_12m`), period_start, target_value, source (`recommended`/`custom`), set_by, set_at. Unique (brand_id, metric, period_start) | Staff or brand members read, insert, update |
+| `brand_long_goals` | One long-term goal per brand | brand_id (unique), kind (`special`/`custom`), name, multiplier (above 1, at most 50), baseline_end, target_end (first of a month) | Staff manage; brand members read, and add, edit or delete only `custom` |
+| `msp_designs` | Optional list of MSP card designs for the ranking | code (unique), name, kind (`holiday`/`graduation`) | Staff manage |
+| `brand_features` | Per-brand feature switches (betas) | brand_id, feature_key (lowercase, e.g. `marketing`), enabled, enabled_by, enabled_at, notes. Unique (brand_id, feature_key) | Staff manage; brand members read |
+
+`brand_api_credentials` gained `credential_kind` (`api_key` or `password`), `credential_hint`
+(first 12 characters of a key) and `last_verify_ms`; `review_domains` gained the matching
+`admin_credential_kind`, `admin_credential_hint`, `last_verify_ms` (2026-09-28). RPCs:
+`brand_monthly_sales`, `brand_benchmarks` (cohort of at least 20 accounts, else all stores),
+`brand_top_designs`, `msp_card_ranking` (only for organizations that are IPI members and MSP
+subscribers).
+
+### Tools
+
+| Table | Purpose | Key columns | Access |
+|---|---|---|---|
+| `user_merge_log` | Merge users history | brand_id, keep_id, remove_id, snapshots, status, ok, response_excerpt, remove_gone, performed_by | Staff and org members of the brand read |
+| `static_upload_jobs`, `static_upload_rows` | Static Product Uploader runs | job: brand_id, status, phase (`create`/`collection`/`done`), counts, collection fields, heartbeat_at. Row: seq, row_number, name, code, payload, status (`pending`/`created`/`skipped`/`failed`/`left_out`), product_id | Staff and brand members read |
+| `store_health_runs`, `store_health_findings`, `store_health_settings` | Store health check | run: trigger (`manual`/`weekly`), status, phase, counts, state, emailed_at. Finding: check_id, severity (`fix`/`look`/`good`), grp (`buying`/`look`/`google`), items, fix. Settings: weekly_enabled | Staff and brand members read; members can set their own settings. Last 10 runs kept per brand |
+| `promo_batches`, `promo_batch_codes` | Promo codes | batch: kind (`shared`/`batch`), discount_type (`percentage`/`amount`), discount_value, starts_on, ends_on, prefix, requested_count (1 to 5,000), counts, used_count. Code: code (unique per brand), status, pixfizz_id, used | Staff and brand members read |
+| `customer_export_log` | One row per customer export | brand_id, exported_by, row_count, columns, filters | Staff read |
+| `shopper_upgrades` | Shopper Upgrades catalog | slug (unique), name, category (`preview`/`tool`/`extra`), blurb, benefits, works_with, version, minutes, status (`available`/`coming_soon`/`hidden`), is_new, setup_route, video_url, images | Signed-in users read non-hidden rows; staff manage. Pictures in storage bucket `shopper-upgrades` |
+| `upgrade_installs` | Upgrades per organization and site | organization_id, upgrade_id, site_host, version, settings, templates, status (`files_ready`/`live`/`partly_live`/`removed`), check_result | Staff and org members manage |
+| `shopper_tool_setups` | Shopper tools catalog setups | brand_id, tool_id, data. Unique (brand_id, tool_id) | Staff and brand members read, insert, update; no delete; no anon |
+| `catalog_push_rows.field` | Catalog Manager writes | values `price`, `current_inventory`, `track_inventory`, `max_units`, `variable_value`, `variable_create`, `variable_delete` | Brand members read, insert and update their own push jobs and rows (2026-09-30) |
+
+### Storefront configuration
+
+| Table | Purpose | Key columns | Access |
+|---|---|---|---|
+| `shopper_configure_settings` | Last saved Shopper Configure values per brand | brand_id (PK), values, live_saved_at, updated_by | Staff manage; brand members read (writes go through the `shopper-configure` function) |
+| `shopper_configure_history` | One row per Configure save | brand_id, changes, summary, created_by, created_by_name | Staff manage; brand members read |
+| `shopify_style_settings` | Shopify Style settings per brand | brand_id (PK), settings, live_saved_at | Staff manage; brand members read, insert, update |
+| `shopify_style_history` | One row per Shopify Style save | brand_id, settings, summary, created_by, created_by_name | Staff manage; brand members read and add their own |
+
+### Blog
+
+| Table | Purpose | Key columns |
+|---|---|---|
+| `blog_posts` | Posts | brand_id, title, slug, body_html, meta_description, search_phrase, category, author_id, image_url, image_asset_name, image_alt, status (`planned`/`draft`/`review`/`scheduled`/`published`/`failed`), publish_at, published_at, pixfizz_instance_id, source (`manual`/`ai`), facts, idea_id, last_error |
+| `blog_authors` | Authors | brand_id, name, role, bio |
+| `blog_settings` | Per-brand settings | brand_id (PK), cadence (`weekly`/`biweekly`/`monthly`), weekday, publish_hour, timezone, ai_enabled, categories, limit_ideas, limit_drafts, limit_images |
+| `blog_ideas` | AI idea batches | brand_id, batch_id, type, title, search_phrase, why_now, publish_by, links, outline, alt_titles, status (`new`/`planned`/`written`/`dismissed`) |
+| `blog_ai_usage` | AI use log | brand_id, month, action (`ideas`/`draft`/`image`/`rewrite`/`suggest`), count, tokens, images, ok, model |
+| `blog_publish_log` | Every publish attempt | post_id, brand_id, action, http_status, ok, message |
+| `blog_catalog_cache` | Cached product list per brand | brand_id, payload, fetched_at (service role only) |
+
+Access: staff or brand members on posts, authors and settings; read only on ideas (status change
+allowed), usage and the log. Triggers: only the publishing service can set `published`/`failed`,
+`pixfizz_instance_id` or `published_at`; customers can change only an idea's status; usage limits
+are staff only.
+
+### Marketing
+
+| Table | Purpose | Key columns |
+|---|---|---|
+| `marketing_occasions` | Seeded season calendar | key (PK), name, event_rule (jsonb: fixed date or nth weekday), window_start_offset, window_end_offset, collections_hint, copy_templates, sort, active |
+| `marketing_campaigns` | Campaign plans | brand_id, preset_key, name, goal, starts_on, ends_on, order_by_dates, offer, website, emails, posts (jsonb), status (`draft`/`approved`/`scheduled`/`live`/`ended`/`paused`), approved_by, approved_at, confirmations |
+| `marketing_campaign_items` | One row per outbound action (for the write phase) | campaign_id, kind (`promo_code`/`promotion_bar`/`promotions_entry`/`klaviyo_email`/`post`), payload, status, external_id, previous_value, executed_at, error |
+| `marketing_dismissals` | "Not now" per season | brand_id, preset_key, season_year (unique together), reason |
+| `brand_klaviyo_credentials` | Klaviyo private key status | brand_id (PK), key_vault_id, key_hint, verify_status (`unverified`/`ok`/`failed`), verify_error, last_verified_at |
+
+Access: staff manage; brand members read and work on their own campaigns only while the brand has
+`marketing` on in `brand_features`, and can create, edit or delete only drafts. Trigger
+`guard_marketing_campaign` refuses an approval without all three confirmations (`discount`,
+`order_by`, `stacking`). The Klaviyo key is set and cleared only by service-role functions, and
+`get_brand_klaviyo_key` is callable only by the service role.
+
+### Launch plans and project requests
+
+- **Launch plans reuse the onboarding tables** (2026-09-30): `onboarding_templates.platform`;
+  `onboarding_template_tasks.customer_visible` and `action` (`none`/`upload`/`howto`);
+  `onboarding_projects.brand_id`, `kickoff_date`, `target_go_live`, `next_call_title`,
+  `next_call_at`, `contact_user_id`, status `active`/`launched`/`archived` (one active per brand);
+  `onboarding_tasks.customer_visible`, `action`, `howto_url`, `source_call_log_id`, `source_label`.
+  Owners are `customer`, `pixfizz` or `together`. Customers read only customer-visible items and can
+  only mark their own items done (trigger `guard_launch_item_customer_update`). RPCs:
+  `launch_plan_for_brand`, `launch_plan_summaries`, `launch_plan_create`, `launch_staff_options`.
+- `launch_plan_suggestions`: call action items awaiting staff review (plan_id, call_log_id, title,
+  quote, quote_seconds, owner, due_date, target_phase_id, status `pending`/`added`/`dismissed`,
+  created_task_id). Staff only. `launch_plan_suggestion_runs` records each (call, plan) checked.
+- `project_requests` (ref_number from a sequence, organization_id, brand_id, kind
+  `setup`/`feature`/`training`, title, description, needed_by, status `requested` through `done`,
+  `declined`, `cancelled`), `project_request_quotes` (versioned; status `draft`/`sent`/`approved`/
+  `declined`/`superseded`), `project_request_messages`, `project_request_people`. Staff manage;
+  org members read, create requests, read quotes once sent, and can only approve or decline a sent
+  quote.
+
+### Support and other
+
+| Table | Purpose | Key columns | Access |
+|---|---|---|---|
+| `order_error_solutions` | Known order errors library | title, match_patterns, explanation, fix_steps, customer_can_fix, published, sort_order | Signed-in users read published rows; staff manage |
+| `order_error_deflections` | "That fixed it" log | organization_id, user_id, solution_id, order_codes | Users insert their own; staff read |
+| `maintenance_log` | Nightly maintenance runs | run_started_at, table_name, rows_deleted, batches, slowest_batch_ms, stopped_early, note | Staff read |
+| `user_preferences` | Per-user flags | user_id (PK), claude_setup_confirmed_at | Users read and write their own; staff read |
+| `organization_addons.addon_key` | Add-ons per organization | values `orderhub`, `point_of_sale`, `pixfizz_conversations`, `s3_storage` | Org members read their own |
+
+---
+
 ## Two Postgres / Supabase Rules That Cost a Month of Silent Breakage
 
 Established 2026-08-25 while fixing a wizard that had been unusable since 22 July.
@@ -1523,3 +1670,4 @@ Adding a **second** foreign key from table A to table B makes every bare embed o
 - 2026-03-26: Full schema populated from Lovable export. 88 tables documented.
 - 2026-08-29: Added two Postgres/Supabase rules — an RLS policy on a table must not call a helper that re-reads that same table, because `INSERT … RETURNING` cannot see its own row and Postgres misreports the failure as a WITH CHECK violation on the innocent INSERT policy (isolate by running the insert without `RETURNING` in a rolled-back transaction); and any column PostgREST upserts on needs a non-partial unique index, or `onConflict` fails with `42P10`. Source: claude-chat.
 - 2026-09-24: Added rule 3: a second foreign key to an embedded table breaks existing PostgREST embeds. Source: claude-chat.
+- 2026-10-06: Added a coverage note, new `brands` columns and rules (archive, merge, billing code, derived platform, storefront type values, identity guards), new `support_cases` columns and support rules (order error fields, urgency, urgent alert clock, awaiting-customer sweep, outbox events), and § Tables Added September to October 2026 (brands and performance, tools, storefront configuration, blog, marketing, launch plans and project requests, support and other), all read from the migrations at commit d6290ee. Source: claude-chat.

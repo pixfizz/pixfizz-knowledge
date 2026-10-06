@@ -55,6 +55,13 @@ Options can be conditionally displayed based on kiosk mode:
 	- Only displays the option if `is_kiosk_mode == 'TRUE'`
 **Trap: a missing boolean definition hides the option on the website.** On a site with no boolean custom field definitions for the option flags (`kiosk_mode_only`, `edit_from_cart`, `hide_label`, `hide_pricing`, `hide_value_labels`), an imported option stores them as the text `"false"`, which Liquid reads as truthy, so `product/px-options` drops the option with no error. Seen on a custom-script mount option that was stored (visible in `/v1/themes/<id>`) and never rendered. Check: `JSON.stringify(option.custom.kiosk_mode_only)` must return `false`, not `"false"` in quotes. Fix: create the boolean definitions on the site's option object; the values then read as booleans. Platform-level (definitions per site) meeting template-level (Shopper 24 `product/px-options`). *Verified by query and by reading source (Shopper 24 parent), 2026-09-28.* See § Unset Booleans Export as the String `'false'`.
 
+**The same trap arrives with a template export from another site.** An export carries the source site's option custom keys (seen: `kiosk_mode_only`, `hide_label`, `hide_pricing`, `edit_from_cart`, `hide_value_labels`, `fill_placeholder_text`, all `false`). A target site with no definitions for those keys stores each as the string `"false"`, so the option, including a `custom_script` mount, renders in kiosk mode only and the tool never mounts on the website, with no error anywhere. Two ways out:
+
+- **Clear the keys:** post the option's custom form with each key blank (`template_option_type[custom][<key>]=`), plus `_method=patch` and the page token. A blank value deletes the key; in the verified case the other keys (`custom_script`) were kept. Unconfirmed: `18_ADMIN_NAVIGATION.md` § Bulk Update Tools says fields left out of this form are blanked, so read the option back after posting.
+- **Prevent it:** before importing a template or option export, strip every option custom key the target site has no definition for. The site's definitions are listed at `/site/<site>/admin/custom_field_definitions?type=TemplateOptionType`.
+
+*Verified by query on a shopper24 child, 2026-10-05.*
+
 ### 3.2 Triggered / child options (conditional logic)
 Options can have children (`option.children`), and child options can be shown based on a trigger:
 
@@ -215,6 +222,19 @@ These are configured in the admin under the option type's settings (Max Length f
 
 **Where it lives:** `toggle` is a branch added to the Shopper snippet `product/px-options` (template layer). Add it on the parent (`shopper24`) to make it available everywhere, or override `product/px-options` on a single site to scope it. The CSS belongs in that site's `style/custom.css`.
 
+### 4.9 `hide_value_labels` (hide the text under image thumbnails)
+
+Template-level (Shopper 24 `product/px-options`). *Verified by reading source, 2026-09-10.*
+
+`product/px-options` renders a value label under every thumbnail on an image-based multiple choice option. The per-option boolean custom field `hide_value_labels` (Variant Options object) hides those labels. Ticked hides them; unticked (default) shows them. No effect on options whose values have no image: there the label is the control.
+
+- `option.custom.hide_label` hides the option title, not the value labels. `option.custom.hide_pricing` hides the price overlay only.
+- `admin/checklist/hide-color-label` (site-wide, `TRUE`) covers only the two color branches (`option.color_palette` swatches and `option.custom.selector == 'color'`). An option whose code contains "color" but whose values are asset images renders through the generic image branch, inherits the color font sizing, and is not reached by the color checklist. Use `hide_value_labels` there.
+- Read it as `option.custom.hide_value_labels and option.custom.hide_value_labels != 'false'` (§ Unset Booleans Export as the String `'false'`).
+- The custom field definition must exist on the site's option object before it can be ticked. An Override Snippet of `product/px-options` on a child site pins the old snippet and never receives the parent change.
+
+Snippet Description (for the custom field): "Hides the text label under each thumbnail on an image-based multiple choice option. Ticked hides the labels, unticked (default) shows them. Has no effect on options whose values have no image."
+
 ---
 
 ## 5) Upload-specific behaviors
@@ -237,6 +257,7 @@ Shopper renders a `<px-image-upload>` web component with:
 - **With no Crop Aspect Ratio on the option, Adjust shows no crop box at all**: the customer can only filter, rotate and reset, and the photo fills the placeholder centered. *Verified live, 2026-09-29.*
 - The Adjust dialog copies every `crop-*` attribute of the upload onto `px-image-adjust-tool` (prefix stripped) when it opens. `crop-rotation-mode` is also observed; its values are unknown.
 - Not verified: a crop moved by hand after a ratio change, end to end into the production file.
+- **An image upload option crops the customer's image to fill, whatever the element says.** With no crop props on the `db:<id>` value, the server crops to fill even when the page XML element has `crop="false"`. To keep a logo whole, add a hidden multiple-choice option whose single default value carries an `image_crop_flag` element substitution with cropping off; image upload options have no substitution panel of their own. Whether the option's Crop Aspect Ratio field also drives this is not tested. Platform-level. *Verified on baseline.pixfizz.com, 2026-10-05.* Details: `17_DESIGN_TOOL.md` § Image crop flag.
 
 ### 5.2 `file_upload` (`option.type == 'file_upload'`)
 Shopper renders a `<px-file-upload>` component.
@@ -584,6 +605,18 @@ filename**, not a label.
 
 ---
 
+## Template Option Substitutions: Target Elements, Types and Limits
+
+Platform-level (Pixfizz CMS). Applies to template options and design options alike.
+
+- **`target_element_name` is a 255-character column.** A longer comma list fails the **whole template import** with `Mysql2::Error: Data too long for column 'target_element_name'`. Keep element names short when one upload fills many elements (`t1,t2,...`). *Verified by query, 2026-10-05.* A failed import leaves a partial template behind; see `16_PRODUCT_HIERARCHY.md` § Import Behavior.
+- **An image upload's Target Element Name accepts several names separated by commas** (admin help text).
+- **Substitution keys can target tags:** `name@[tag1,tag2]`, with the name optional. Elements carry `tags="a,b"` in page XML. Not separately verified.
+- **Element substitution types offered by the admin form:** `image`, `image_mask`, `image_color`, `image_effect`, `image_crop_flag`, `image_border_width`, `image_border_color`, `image_border_radius`, `text`, `text_color`, `text_font`, `text_font_size`, `qrcode_content`, `shape_color`, `shape_border_width`, `shape_border_color`, `shape_border_radius`, `inline_page_mask`, `inline_page_border_radius`, `element_opacity`, `element_blend_mode`, `background_color`, `layout`, `page_mask`.
+- **A `color` option applies the customer's color to every substitution it carries**; the substitution's own content is not used (read from the editor bundle). Color substitutions on a color option import with their color intact, not reset to black. *Verified by query, 2026-10-05.*
+
+---
+
 ## Template-Options Import: Blank Ids Create New Records
 
 **Verified live, 9 September 2026 — two templates on one site, first attempt, no
@@ -602,7 +635,7 @@ another site, and the still-untested duplicate question, are in
 
 **Verified by reading source — a Finish variant type export, 2 September 2026.**
 
-**Corrected 2026-09-20.** A variant type belongs to **one Product Attribute** and is **not shared** across products. Two products on the same site can carry the same variant code at different prices. It is created at **Products Attributes → Product: `<name>` → New Variant** (`/admin/products/<product_id>/variant_types/new`). Fields: Name, Code, Description, Image, Type, Page Names, Required, Published. Types: Multiple Choice, Text, Number, Color, Font, Image Upload, File Upload. Hidden, Read only and Hide from cart are set in admin and do not appear in the export, so a hand-built export must not assume they travel.
+**Corrected 2026-09-20.** A variant type belongs to **one Product Attribute** and is **not shared** across products. Two products on the same site can carry the same variant code at different prices. It is created at **Products Attributes → Product: `<name>` → New Variant** (`/admin/products/<product_id>/variant_types/new`). Fields: Name, Code, Description, Image, Type, Page Names, Required, Published. Types: Multiple Choice, Text, Number, Color, Font, Image Upload, File Upload. Hidden, Read only and Hide from cart are set in admin. A product's variant types export (`/admin/products/<id>/variant_types/export_all`, returns `__variant_types.yml`) **does** carry them, in `custom` (`hidden`, `read_only`, `hide_from_cart`). *Verified by query, 2026-09-29.* (Corrected 2026-10-06: previously said they do not appear in the export.) A variant type set imports onto one product at `/admin/products/<id>/variant_types/import`; blank ids create new records.
 
 The earlier text here called a variant type a shared object with one price list for every product using it. That was read from the shape of an export file and was wrong: an export's shape is not proof of how the platform uses it. Confirm against the admin screen. *Verified by reading source (admin) and stated by Alex, 2026-09-20.*
 
@@ -624,6 +657,8 @@ one `variant_types` list; each entry carries `variant_values`. Type-level keys s
 
 In a template export (`__print_product.yml`), each product's variant types carry `published` at type and value level, and `custom.hidden`; unpublished types and values travel with the rest. *Verified by reading source, 2026-09-29.*
 
+**Conditional (child) variant types in a per-product archive.** A variant type that shows only for one value of another type sits **inside its parent type's `children:` list**, with `trigger_value_code: <parent value code>` placed after `custom: {}` and before `variant_values:`. `order` counts across parents and children together, and a value with no price is `price: ''`. Read from the storefront, the child carries `parent_id` and `trigger_value_id`, and `price_forecast` adds the parent value's price and the child value's price. Generated archives with children import cleanly (8 products, 111 price checks, 0 mismatches). Platform-level. *Verified by query against a real export, 2026-10-05.*
+
 **Rolling a changed template option or variant set across a live range:** configure it on one template, then copy it to the others with the admin Bulk Update Tools (Advanced tab). Never hand-edit dozens of templates and never delete and re-import. See `18_ADMIN_NAVIGATION.md`. *Stated by Alex, 2026-09-26 and 2026-09-29.*
 
 ## Pricing and POS-Relevant Choices Belong on Variants, Not Template Options
@@ -633,6 +668,8 @@ Anything that affects price, needs a customer choice, or would have to be entere
 A Product Attribute links to **one** template; one template can be used by **many** Product Attributes. *Stated by Alex, 2026-09-22.*
 OrderHub custom orders read the same way: variants only. Production choices a counter has to re-create, such as canvas edge or wrap and mounting, must therefore be Product Attribute variants, not design or template options. *Stated by Alex on a call, 2026-09-29.*
 
+**`pos_hidden`** is the standard boolean custom field on the VariantType for hiding a variant in the POS: choice variants leave it unchecked, tool-written values (a tool's price, page count, spec and mount) have it checked. A site needs the `pos_hidden` and `hidden` definitions on VariantType before it can take a product built this way. Detail in `26_CUSTOM_DESIGN_TOOLS.md` § Every customer choice on a variant. *Stated by Alex, 2026-09-26.*
+
 ## Changelog
 - 2026-06-19: Added section 4.8 `toggle` selector (2-value animated CSS-only switch on `product/px-options`), including the `toggle_hide_labels` bare-switch option, guard/fallback behavior, and primary-colour sourcing. Added cart-context note (7) that toggle is product-page only. Added `toggle` and `toggle_hide_labels` to the recognize-and-document list (8).
 - 2026-07-28: Added 5.2c — option input names differ between the product page (`variants[code]`) and project-edit (`book[options][code]`); scripts must suffix-match and must handle hidden inputs. Source: claude-chat.
@@ -640,3 +677,4 @@ OrderHub custom orders read the same way: variants only. Production choices a co
 - 2026-09-09: Added the platform bug where a required file-upload option behind a trigger silently kills Add to Cart — symptom, cause, evidence table, the independent confirmation, the correction that `disable_required_form` does not fix it, the three workarounds and the two debugging techniques. Extended §4.6 `quick-quantity` with the no-`name` consequence for `px-option-selector` and `px-product-price` (display fault, cart correct), the three add-to-cart handler hardening rules, the cloned-button trap, the `getEventListeners` diagnostic and the missing `t: ns: 'variants'` translation filter. Added that `value.price` exports blank rather than zero, so `!= 0` renders `+$0.00` on free values, and the `| plus: 0` normalisation. Added the two rules for grouped value bands (order-independent collection, opt-in on the group field) and the recorded test failure where `== blank` dropped ungrouped values. Added the two `collection_filters` syntaxes. Added that blank ids in a standalone template-options import create new records. Added the variant type export shape and the shared-object price constraint, with the unverified update-in-place claim flagged. Source: claude-chat, fireflies-call.
 - 2026-09-24: Corrected "Variant Type Exports": variant types belong to one Product Attribute and are not shared; variant-type imports never update in place. Added "Pricing and POS-Relevant Choices Belong on Variants" and the one-template-per-Product-Attribute rule. Source: claude-chat, fireflies-call, slack-message.
 - 2026-09-29: `px-image-upload` value format, live crop-aspect-ratio, no crop box without a ratio. Kiosk_mode_only stored as text hides the option. Option trees with layout substitutions via options import. Variant codes differ per product in a range; template export carries published/hidden; bulk update pointer. OrderHub custom orders read variants only. Source: claude-chat, fireflies-call.
+- 2026-10-06: § 3.1: the string "false" trap arriving with a template export from another site, the blank-key clearing fix and the strip-undefined-keys prevention. New § Template Option Substitutions: Target Elements, Types and Limits (255-character `target_element_name`, comma-separated targets, tag targeting, substitution type list, color option behavior). § Variant Type Exports: conditional child variant types in a per-product archive. New § 4.9 `hide_value_labels`. § 5.1: an image upload crops to fill regardless of `crop="false"`, with the hidden `image_crop_flag` option fix. CORRECTED § Variant Type Exports: a variant types export does carry `hidden`, `read_only` and `hide_from_cart`; added the per-product variant types export and import routes. § Pricing and POS-Relevant Choices: `pos_hidden` pointer. Source: claude-chat, vault-doc.

@@ -113,11 +113,16 @@ This reference documents **30 object access patterns** mapping to approximately 
 
 - **Settings → Custom Fields is now a site-wide definitions page** (announced 2026-09-16) with
 all-or-subset export and import across object types. Use it instead of per-object exports when
-porting definitions between sites. Whether its export records the object type is pending
-confirmation; see `18_ADMIN_NAVIGATION.md` § Custom Fields, Schema Order and Bulk
+porting definitions between sites. **Its export carries `owner_type` on every row, and the
+import honors it** (Corrected 2026-10-06; previously "pending confirmation"): one site-wide
+import created Product through Projects definitions in a single unbroken id run, each row on
+its own object. Not verified: whether an import run from one object's own custom fields page
+overrides `owner_type`. See `18_ADMIN_NAVIGATION.md` § Custom Fields, Schema Order and Bulk
 Export/Import.
 
-- **A custom field definition archive contains no object-type key.** Verified by reading
+- **A per-object custom field definition archive contains no object-type key.** (Corrected
+2026-10-06: this applies to the per-object archives only, not to the Settings → Custom Fields
+site-wide export above.) Verified by reading
 source, 9 September 2026. Every `custom_fields_*.tar.gz` contains exactly one member,
 `./__custom_field_definitions.yml`, and the YAML is a flat `custom_field_definitions:`
 list of `id` / `field_name` / `field_type` / `public` / `description`. There is no
@@ -133,7 +138,15 @@ Registering it on Product does not create it on Option. Like every other definit
 does not inherit from the Shopper parent, so a child site that has never run a custom
 tool does not have it. This is the single most likely cause of "the tool does not
 appear" on a new site. Verified by reading source, 9 September 2026.
-- **Product variants and variant values have no custom field schema.** The custom field schema list does not include them, so no custom field can be defined on a variant or a variant value. *Stated by Alex, 2026-09-26.*
+- **Variants and Variant Values are Settings → Custom Fields objects** (Corrected 2026-10-06; replaces "product variants and variant values have no custom field schema", 2026-09-26). Their owner types are `VariantType` and `VariantValue`. A site-wide export from a live site held 23 `VariantType` and 3 `VariantValue` rows. Rule: Variants carry the same field list and types as Template Options, and Variant Values the same as Template Option Values. *Stated by Alex, 2026-10-02; verified by reading source (site-wide export), 2026-10-03.*
+
+- **Pages is not a Settings → Custom Fields object.** Definitions with `owner_type: Page` in a site-wide import file are not kept: one site showed no Pages count after import, and another consumed two ids for them and created neither. Leave Page rows out of any import file. *Verified by reading source (export ids), 2026-10-03.*
+
+- **With no definition, an imported custom value is stored as a plain string.** A site with no custom field definitions for an object keeps imported values as text, so a boolean exported as `false` arrives as the string `"false"`, which Liquid reads as truthy. On template options this hides the option (`kiosk_mode_only`) or the variant in the cart (`hide_from_cart`), and affects `hide_label` the same way. **When packaging any import file, export only the custom keys that are true or carry a value; strip every key whose value is false.** Platform-level (definitions per site). *Verified by query, 2026-10-02.* Rendering detail: `22_OPTION_VARIANT_RENDERING.md` § 3.1.
+
+- **Collection filters read any field by name.** Shopper's `collection/collection-filters` filters with `where: filter_attribute`, and the attribute path comes from the collection's `collection_filters` text. A field used only as a filter attribute never shows up in a grep for `.custom.<name>`, so filter fields (`category`, `style`, `ratio`, `shop_by_price`, `occasion`, `num_of_photos`) look unused and are not. A `multitext` field works as a filter attribute too, including as a product-page filter that cascades (`product/details-filter-dual-mode`). Template-level (Shopper 24). *Verified by reading source (Shopper 24 parent backup), 2026-10-02; multitext filter verified live logged out, 2026-10-05.*
+
+- **Writing a `multitext` field over the API needs the array form**, `product[custom][<field>][]=<value>`. The scalar form returns 200 and stores `[]`. See `61_PIXFIZZ_API.md` § 13c. *Verified by query, 2026-10-05.*
 
 - **Install order for a custom design tool on a new site.** Getting this wrong produces
 a tool that never renders, with nothing in the console and nothing in admin to point at:
@@ -164,7 +177,13 @@ patterns on one object, not two objects.
 `ga_session_id` on Order, which are written server-side for GA4. **Do not prune a field
 because a grep of the Liquid tree says it is unused** — the tree shows what the template
 *reads*, which is not the same set as what the platform and fulfillment consume. Verified
-by query against a parent template tree, 9 September 2026.
+by query against a parent template tree, 9 September 2026. The Shopper site kit (Pixfizz's
+standard set of custom field definitions imported onto Shopper sites; v2.0.0, 2026-10-03)
+keeps all six for that reason. Filter-only fields are the other blind spot of a
+grep (see *Collection filters read any field by name* above).
+
+- **Kiosk tip Order fields.** `associate_name`, `tip_amount`, `tip_other`, `tip_percent`:
+text, Public, on Order. Shipped in the Shopper site kit from v2.0.0 (2026-10-03).
 
 - **New products start with blank custom field values**: field *definitions* exist on the site, but values default to blank (and boolean fields to false) on every newly created product. An export showing empty custom fields is expected behaviour, not a failed export.
 
@@ -314,6 +333,8 @@ Reserved for platform-level features, production routing, and future functionali
 ---
 
 ### Collection (53 fields)
+
+**Where two collection fields render on a filtered collection (template-level, Shopper 24 `collection/collection-filters`):** `banner_html` renders inside the grid column above the H1 row. `collection_footer` renders after the grid, in `div.my-6.col-12` with `col-md-10 offset-md-2`, whenever `collection_filters` is not blank, even with `hide_collection_filters` on. *Verified by query, 2026-10-05.* Writing these fields by script: `61_PIXFIZZ_API.md` § 13h (they are not in the admin page's static HTML, and `collection_filters` must be resent on every save).
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -964,6 +985,9 @@ as the Custom Type instance archive):
 - **Unset custom fields simply do not appear.** The `custom:` hash of a fresh
   product contains only the boolean schema fields at `false`. Absence is not an
   error and is not the same as an empty string.
+- **`price` can be a Ruby formula string.** A generated archive with blank ids, the five empty media directories, `__product.yml`, a formula string in `price` and multiple-choice variant types with priced values imports cleanly; the platform sets `price_formula: true` itself. *Verified by query, 2026-10-05.*
+- **Conditional (child) variant types** go inside the parent type's `children:` list with `trigger_value_code`; shape in `22_OPTION_VARIANT_RENDERING.md` § Variant Type Exports. *Verified by query, 2026-10-05.*
+- **Emit with no line folding** (`to_yaml(line_width: -1)`): a folded long description made one import fail silently (`01_CODE_GOVERNANCE_UPDATED.md` § Archive Emission). The import routes are in `18_ADMIN_NAVIGATION.md` § Bulk Update Tools, *Import and publish routes*.
 
 **A product description over 1,024 characters fails silently.** In a per-product archive import, 1,024 characters imports (stored as 1,023 after `\r\n` normalization) and 1,025 or more throws a bare *Application error* naming no field. In the admin product form, saving an existing product with a description over 1,024 characters returns 200 and **silently fails the whole save**, not just the description: in one catalogue 94 of 169 products kept no description and no URL path for this reason. Keep `description` at 1,024 characters or fewer in any generator and assert it; longer copy belongs in a snippet-type custom field. *Verified by live bisection and by query, 2026-09-23.*
 
@@ -1125,3 +1149,4 @@ hides it. Test on one collection before promising it to a client.
 - 2026-09-19: Corrected the custom design tool install order — two steps, not four. Recorded that the per-tool product field families in the audit table (`bc_`, `pu_`, `framing_`, `sticker_`, `facefan_`, `gangup_`, `flyer_`, `dsn_`) are the retired configuration model, kept because live sites carry them, not because a new install needs them. Cross-referenced `26_CUSTOM_DESIGN_TOOLS.md`. Source: kbsync (custom tool estate).
 - 2026-09-24: Text-type fields cap at 256 characters (replaces the ~1KB estimate); multitext is a list field; a field type cannot be changed after creation. Added the 1,024-character product description limit that silently fails imports and admin saves. Source: claude-chat.
 - 2026-09-29: Design field reverse_live_preview_on_shop: what it does on touch devices. No custom field schema for variants or variant values. Source: fireflies-call.
+- 2026-10-06: Key Notes: corrected "variants have no custom field schema" (Variants `VariantType` and Variant Values `VariantValue` are Settings → Custom Fields objects, same fields as Template Options and Template Option Values); site-wide export carries `owner_type` and the importer honors it; the no-object-key note limited to per-object archives; Pages is not an importable custom field object; values with no definition are stored as strings, so strip false keys before packaging; collection filters read any field by name (filter-only fields look unused), multitext works as a filter; multitext API writes need the array form; site kit keeps the platform-consumed fields; kiosk tip Order fields. Collection: where `banner_html` and `collection_footer` render on a filtered collection. Per-product archive: `price` may be a formula string, child variant types go in `children:`, emit with no line folding (from group D2 spill). Source: claude-chat, vault-doc.

@@ -72,7 +72,7 @@ Page: shop/:collection-level-1
 
 ### "As low as" pricing on collection cards
 
-Already built into the parent `collection/collection-filters` snippet. The pricing block checks `product.custom.from_pricing` — if populated, renders "As low as {price}" automatically. No override needed; just populate the `from_pricing` custom field on the product.
+Already built into the parent collection snippets, but the two differ (Corrected 2026-10-06; verified by query, 2026-10-03): `collection/collection-load-more` prints "As low as" + `product.custom.from_pricing` **whenever** `from_pricing` is set, while `collection/collection-filters` uses `from_pricing` **only when `product.price == 0`**. Collection `load_more` switches the page to the load-more snippet. No override needed; populate the `from_pricing` custom field on the product. `from_pricing` is static text: re-check it whenever the lab changes prices.
 
 Pricing display priority on design product cards:
 1. `product.custom.from_pricing` → "As low as {price}"
@@ -280,7 +280,7 @@ Fully documented in `50_SHOPPER_TEMPLATE_REFERENCE.md` Section 5. Not repeated h
 
 | Snippet | Description |
 |---|---|
-| `editor/scripts.js` | Custom JS injected into the design tool editor iframe |
+| `editor/scripts.js` | Custom JS for the design tool. Renders inside the parent page `/site/editor-scripts.js`, which the editor loads only when a staff-only Design Tool Configuration field names it; not loaded by default on a Shopper child (Corrected 2026-10-06; verified by query on a shopper24 child, 2026-10-03). See `17_DESIGN_TOOL.md` § Driving the Editor From a Script. |
 
 ---
 
@@ -324,6 +324,12 @@ Fully documented in `50_SHOPPER_TEMPLATE_REFERENCE.md` Section 5. Not repeated h
 | `email-shopper/templates/password-reset` | Password reset email template |
 | `email-shopper/templates/user-signup` | User signup email template |
 | `email-shopper/trust-block` | Email trust/credibility block |
+
+---
+
+## `email-kit/`: Shopper Email Kit (added 2026-10-03, not in the 2026-05-27 scan)
+
+The supported way to set up the 14 CMS notification emails from 2026-10-03. Kit 1.0.0 installed 76 `email-kit/*` snippets on shopper24 (verified by hash); kit 1.1.0 (2026-10-05) added cart reminder sends 1 to 3 with copy in `email-kit/cart/subject-N`, `heading-N`, `preheader-N` and `email-kit/messages/cart-abandoned`, `-2`, `-3`, settings under `email-kit/settings/*` (`cart-discount-reminder`, `cart-discount`, `cart-help`) and the help block `email-kit/parts/help`. Each site's template bodies are one line calling `email-kit/templates/<email>`. The full list lives in the kit's own reference; behavior is in `32_ORDER_LIFECYCLE.md`. It supersedes the `email-shopper/` and `email-notifications/` namespaces below for new set-ups.
 
 ---
 
@@ -406,6 +412,7 @@ Not listed individually — 182 SVG icons. Browse the namespace or search by ico
 
 | Snippet | Description |
 |---|---|
+| `kiosk/associate-tip` | Kiosk checkout panel: the customer picks the staff member who helped and a tip tile; writes `associate_name`, `tip_percent`, `tip_amount`, `tip_other` to the cart for an Extra Fee. Gated by `kiosk-tip-enabled`. See `21_SHOPPER_CHECKOUT_POLICY.md`. *Added 2026-10-06; not in the 2026-05-27 backup scan.* |
 | `kiosk/home` | Kiosk home screen (product tiles) |
 | `kiosk/idle-screen` | Kiosk idle/attractor screen |
 | `kiosk/style` | Kiosk CSS, including the `--k-*` design tokens. Tokens are **declared on `.kiosk-touchscreen`**, so kiosk-mode-only features resolve none of them. *Added 2026-09-09; not in the 2026-05-27 backup scan.* |
@@ -647,7 +654,7 @@ Fully documented in `50_SHOPPER_TEMPLATE_REFERENCE.md` Section 4. Each snippet c
 
 **Layout (3):** `footer-color-background`, `footer-color-font`, `header-class`, `scroll-to-top-color-background`
 
-**Custom CSS (2):** `custom.css` (per-site custom CSS — blank on parent), `editor.css` (custom CSS for design tool)
+**Custom CSS (2):** `custom.css` (per-site custom CSS — blank on parent), `editor.css` (custom CSS for design tool; loaded by the editor only when `editor.css` is named in the Design Tool Configuration's Custom CSS field, which takes a list of files, not CSS text. On a child: Override Snippet of `style/editor.css` plus `editor.css` in that field. See `17_DESIGN_TOOL.md` § Editor CSS Customization. Verified by query, 2026-10-02)
 
 ---
 
@@ -723,6 +730,19 @@ Added 2026-09-09. These expand rows whose one-line description understates what 
 | `integrations/google/reviews-widget`, `integrations/google/rating-widget`, `integrations/google/product-page-rating-widget` | The widgets render and connect correctly but ship **without structured-data markup**, so they are never picked up as a rich snippet. Switched on by the checklist keys `activate-google-reviews-ai-widget-domain` and `google-reviews-ai-widget-domain`, plus `google-review-link`. |
 | `product/additional-each-pricing` | Its Description column shipped **blank** and was filled in on 2026-09-01. The table it renders is a **hand-maintained mirror** of the product's Ruby pricing formula and nothing enforces that they agree — one wrong-numbers-on-screen incident already came from a table generated against a different product's formula. Any change to a tiered product's formula must be mirrored into `quantity_price_table` in the same sitting. |
 
+Added 2026-10-06.
+
+| Snippet | Annotation |
+|---|---|
+| `product/filter-controls`, `product/details-filter-dual-mode` | Since 2026-10-04 both support `show_prices: true` on a `collection_filters` line (radio tiles and dropdowns), rendering `.px-filter-price`; the standard is to set it on every `pdp_layout` size line. A site with its own override of either snippet does not get it. Size tiles render in the collection's Design Products order. See `50_SHOPPER_TEMPLATE_REFERENCE.md` § 21.1. |
+| `sections/dynamic/blog` | Lists **every** `blog_post` instance sorted by `custom.blog_title`, with no unpublished or date filter. See `50_SHOPPER_TEMPLATE_REFERENCE.md` § 12. |
+| `sections/dynamic/free_shipping_progress_bar` | Threshold hard-coded to `99`; display only and not linked to shipping rules. Also reads `config/free-shipping-note`, which is missing on the parent. See `20_SHOPPER_CART_RULES.md`. |
+| `modals/promotions` | Reads the Custom Type `promotions` (`promo_name`, `promo_message`, `promo_code`, `promo_cta`, `promo_link`, `promo_img`, `promo_start_date`, `promo_end_date`) and shows only entries dated for today. |
+| `integrations/klaviyo/added-to-cart`, `integrations/klaviyo/viewed-product` | The Added to Cart code actually runs **inline in `pages/cart`** and fires on every cart page view; Viewed Product is included only from `product/design-now`. Field defects in `50_SHOPPER_TEMPLATE_REFERENCE.md` § 20.1. |
+| `kiosk/style` | Since 2026-10-02 also carries the kiosk checkout store location cards, the opening hours button and modal, and the associate tip CSS (with the corrected tile selector). See `50_SHOPPER_TEMPLATE_REFERENCE.md` § 16 and `21_SHOPPER_CHECKOUT_POLICY.md`. |
+| `email-shopper/*`, `email-notifications/*` | Superseded for new set-ups by the `email-kit/` namespace (2026-10-03). Notification templates are per site, so a site only uses these if its own template bodies call them. |
+| `website/google-review-link` | **Not read by the reviews widget**, which reads `admin/checklist/google-review-link`. |
+
 ---
 
 ## Known Parent Defects
@@ -739,7 +759,25 @@ a live fault, not a description.
 | Parent-level custom tools | A parent tool serving multiple storefronts had **three customer-visible partner names burned into its strings**. A parent tool must read **every customer-visible name from a snippet**, the way its numeric settings already do — burning one in makes the tool undeployable to a second storefront without an edit. *Verified by reading source, 2026-09-09.* |
 | `footer/logo` | Points at a white logo asset belonging to one particular storefront. A child that has not overridden `footer/logo` and does not hold that asset shows a **broken image** in the footer. Override `footer/logo` on every rebrand and site build. *Verified by query on a live child site, 2026-09-29.* |
 | `style/custom-body-font` | Its Description says to end the font stack with a semicolon. The parent `custom.css` page appends ` !important;` after the snippet, so the semicolon ends the declaration early and the `!important` is lost. Enter the stack **without** a semicolon; the Description needs correcting on the parent. *Verified by reading source, 2026-09-29.* |
-| `film/roll-builder` | **Fixed 2026-09-25.** Built its product lookup from the undocumented `website.products`, so logged-out visitors got a Liquid error (admin-only object) instead of the film page while admins saw it working. Now reads `website.static_products`. See `50_LIQUID_REFERENCE.md`, Website object. *Verified by query as a guest; fix stated by Alex, 2026-09-25.* |
+| `navigation/style3` | Wraps the **search** icon in `<span id="cart-link-icon">` ahead of the cart icon, so the cart tooltip bound by `modals/cart-notification` targets the search icon on every site with search on. Fix: remove the id from non-cart icons in every `navigation/*` style. See `50_SHOPPER_TEMPLATE_REFERENCE.md` § 2. *Verified by query, 2026-09-30.* |
+| `icons/ship.svg` | Paths carry no `fill`, so the truck renders black on a dark child (`icons/store.svg` uses `fill="currentColor"`). See `50_SHOPPER_TEMPLATE_REFERENCE.md` § 18.2. *Verified live, 2026-10-01.* |
+| `modals/product`, `product/product-quickview` | Include `px-option`, which does not exist; the snippet is `product/px-option`. Quickview option rendering needs a check. *Verified by reading source, 2026-09-30.* |
+| `product/film-builder` | Reads `admin/checklist/film-lab-name`, `film-hero-image` and `film-hero-align`, none of which exist on the parent, so no child can override them to set them. *Verified by reading source, 2026-09-30.* |
+| `header/bottom-promotion-bar` | Exists, but no layout includes it, so the Sub-Nav Promotion Bar setting does nothing. *Verified by reading source, 2026-09-30.* |
+| `style/color-announcement-bar` | The only rule that reads it is commented out in the parent `custom.css`, so the setting changes nothing. *Verified live, 2026-09-30.* |
+| `checkout/rush-button2` | The checkout always renders the second rush choice, even when this snippet is empty, so a site cannot offer only one rush choice. *Verified by reading source, 2026-09-30.* |
+| `campaign/landing` | Where installed, writes `data-deadlines="{{ b.deadlines \| json \| escape }}"`, but Pixfizz Liquid has no `json` filter, so the countdown is likely broken (`50_LIQUID_REFERENCE.md`). Grep `b2b/landing` and `bundles/landing` for `\| json` before their next edit. *Inferred from a verified live failure of the same pattern, 2026-09-30; the countdown itself is not verified.* |
+| `blog` post page (BlogPosting JSON-LD) | Prints `blog_title` and `blog_description` without `escape_json`. *Verified by reading source, 2026-09-30.* |
+| `film/roll-builder` | **Fix pending on the parent (Corrected 2026-10-06).** Built its product lookup from the undocumented `website.products`, so logged-out visitors get a Liquid error (admin-only object) instead of the film page while admins see it working. The 2026-09-25 fix was applied on one child only. On 2026-10-03 every child without its own override showed `Liquid error: Object CMS::Objects::Admin::Product is only available to admin users` to logged-out visitors (three child sites, including experience.pixfizz.com); still seen on another child 2026-10-05. *Verified by query, 2026-10-03 and 2026-10-05.* Child workaround and launch check below the table. See `50_LIQUID_REFERENCE.md`, Website object. |
+
+**`film/roll-builder` child workaround** (verified on one child since 2026-09-25, and on another 2026-10-05): override `film/roll-builder` and replace the `frb_all` line with
+
+```
+{%- assign frb_col = website.all_collections | page_size: 1000 | where: 'path', 'film-processing' | first -%}
+{%- if frb_col -%}{%- assign frb_all = frb_col.static_products | page_size: 200 -%}{%- else -%}{%- assign frb_all = website.static_products | page_size: 2000 -%}{%- endif -%}
+```
+
+The film products must sit in the `film-processing` collection. The override forks the child from later parent changes. **Launch check for any film site:** load the film page logged out and count `data-frb-product` nodes; admin sessions hide the error.
 
 ## Changelog
 
@@ -748,3 +786,4 @@ a live fault, not a description.
 - 2026-09-09: Added a *Creating a New Snippet* section — a net-new snippet cannot be created on a child site, it is created on the parent with the off value and Allow Override ticked and then overridden `TRUE` on the child, and a snippet Description is a real column that is never blank. Added rows for `product/additional-each-pricing`, `product/px-notify-boot`, `integrations/google/product-page-rating-widget`, `kiosk/style` and `kiosk/terminal-capture`. Added a second Annotations block expanding `product/inventory` (stock badge tiers and its two include sites), `product/design-now` (the stock gate and `window.pxInventoryOutOfStock`), `product/details-filter-dual-mode` and `product/filter-controls` (the five-field `collection_filters` syntax and `snippet_args`), `helpers/is-kiosk-mode` (silent host-mismatch failure), `integrations/google/tag-manager` (the GTM-only standard) and the three Google reviews widgets (no structured-data markup). Added a Known Parent Defects section — `product/details-filter-dual-mode` never calls `product/inventory`, `kiosk/style` carries a stray `}`, the parent ships a placeholder phone number that is a real person's number and reverts a client's correction on every rebuild, and a parent-level tool had customer-visible partner names burned into its strings. Source: claude-chat, fireflies-call.
 - 2026-09-24: Pointed the How-to-Use list at the Install-Step Gate in 01_CODE_GOVERNANCE_UPDATED.md. Source: claude-chat.
 - 2026-09-29: Known Parent Defects: dual-mode stock badge row gains the exact fix placement. Known Parent Defects: footer/logo broken image, custom-body-font Description, film/roll-builder website.products (fixed). Source: claude-chat.
+- 2026-10-06: Added `kiosk/associate-tip` row and an `email-kit/` namespace section (kit 1.0.0 and 1.1.0). Added a third Annotations block (`show_prices` in filter-controls and dual-mode, unfiltered `sections/dynamic/blog`, hard-coded free shipping bar, `modals/promotions` Custom Type, Klaviyo snippets, `kiosk/style` additions, email-shopper superseded, `website/google-review-link` unread). Known Parent Defects: `navigation/style3` `#cart-link-icon`, `icons/ship.svg` no fill, quickview includes a missing `px-option`, film-builder reads missing keys, bottom promotion bar never included, `style/color-announcement-bar` dead, `checkout/rush-button2` always renders, `campaign/landing` uses the nonexistent `json` filter, blog JSON-LD unescaped. CORRECTED `film/roll-builder` to fix pending on the parent, with the child workaround and logged-out launch check. CORRECTED "As low as" (load-more prints `from_pricing` whenever set; collection-filters only when price is 0). CORRECTED `editor/scripts.js` (loaded only when named in the Design Tool Configuration) and noted how `style/editor.css` is loaded. Source: claude-chat.

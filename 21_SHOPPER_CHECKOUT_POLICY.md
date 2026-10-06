@@ -14,6 +14,22 @@ Shopper checkout resolves UI/flow by computing derived flags from cart orderline
 - Alternate kiosk domain + helper snippet detection.
 - Pay-in-store can be shown only in kiosk mode.
 - Auto-logout after successful checkout.
+- **Carts are per domain.** Changing `admin/checklist/kiosk-mode-domain` to a new host moves kiosk mode to that host only; the old host returns to the normal storefront, terminal launch URLs must move to the new host, and carts do not follow. *Verified live on a client kiosk, 2026-10-02.*
+
+### Kiosk associate tip (`kiosk/associate-tip`)
+
+Template-level (Shopper 24 parent snippet, kiosk mode). The customer picks the staff member who helped them and a tip tile; the tip is charged as an **Extra Fee** whose formula reads the cart custom fields.
+
+- **Gates.** `admin/checklist/kiosk-tip-enabled` = `TRUE` outputs `.kiosk-at-tipwrap`; the tiles show once a named staff member (not the shared option) is selected. `kiosk-tip-fixed-below` switches between fixed-amount tiles (cart subtotal below the value) and percentage tiles.
+- **Fields written:** `cart[custom][associate_name]`, `tip_percent`, `tip_amount`, `tip_other`. The Extra Fee formula takes `tip_other` first, then `tip_amount`, then `tip_percent`.
+- **Stale-mode defect, fixed 2026-10-02.** The Save form submitted only the current mode's field plus `tip_other`, so after the cart crossed `kiosk-tip-fixed-below` (or the setting changed) an old fixed amount stayed on the cart and beat the new percentage: one test order carried `tip_percent` 20 and `tip_amount` 3 and was charged the fixed amount. Fix on the parent, inserted after the hidden `tip_other` input, marker comment `kat-clear-other-mode`:
+
+  `{%- if px_at_usefixed -%}<input type="hidden" name="cart[custom][tip_percent]" value="0">{%- else -%}<input type="hidden" name="cart[custom][tip_amount]" value="0">{%- endif -%}`
+
+  *Snippet save verified by reload; rendered panel and order fields not yet verified with a placed order.*
+- **Dead CSS selector, fixed 2026-10-02.** The install CSS showed the tiles with `.kiosk-at-form:has(.kiosk-at-radio-staff:checked) .kiosk-at-tipwrap`, but the markup never emits `kiosk-at-radio-staff` (every associate radio is `kiosk-at-radio kiosk-at-who`, and the shared option sits inside `.kiosk-at-card.kiosk-at-card-shared`), so the tiles never showed. The parent `kiosk/style` now uses `.kiosk-at-form:has(.kiosk-at-card:not(.kiosk-at-card-shared) .kiosk-at-who:checked) .kiosk-at-tipwrap`. Any older install guide or source copy carrying the old selector is wrong. *Verified live, 2026-10-02.*
+- **Order custom field definitions are an install step.** Each site needs Order definitions (text, Public) for `associate_name`, `tip_percent`, `tip_amount`, `tip_other`, and for `order_source` and `kiosk_mode` when terminal capture is on; otherwise the fee lands on the order but who earned it may not (see `20_SHOPPER_CART_RULES.md`). Test with a placed order.
+- **Lesson.** When a CSS block ships with a Liquid snippet, check that every class the CSS keys on exists in the **rendered** markup, by querying the live DOM rather than reading the guide.
 
 ## Shipping unavailable
 If any orderline has:
@@ -135,6 +151,33 @@ tell a client the checkbox changes what the shopper sees at checkout.
 
 *Stated and demonstrated live on a client call, 2026-09-24, except where marked.*
 
+## Pay in Store maximum cart total (`max-cart-total-pay-in-store`)
+
+Template-level (Shopper 24, `pages/checkout`). The standard checkout gained a Pay in Store limit between 2026-09-28 and 2026-09-30 (*verified by comparing the live parent page by content hash, 2026-09-30*). It replaces an older forked checkout page that hard-coded the limit and that should be retired wherever it survives.
+
+As designed and pasted (*verified by reading source; live behavior above and below the limit, in normal and kiosk mode, not yet verified*):
+
+- `admin/checklist/max-cart-total-pay-in-store` holds a **number only**. It is coerced with `| plus: 0`; anything that coerces to `0` (a currency symbol, a label) leaves the gate off rather than hiding Pay in Store on every cart.
+- **Inclusive boundary.** With `15.0`, Pay in Store shows at a total of exactly 15.00 and hides at 15.01.
+- **Blank or missing disables the limit**, so sites that never set it see no change.
+- It compares `cart.total`, which on a Pay in Store cart (public address, so no shipping) is what the customer hands over: extra fees, rush, tax and discounts included.
+
+```liquid
+if enable_pay_in_store and pay_in_store_threshold != blank
+    assign pay_in_store_max = pay_in_store_threshold | plus: 0
+    assign pay_in_store_cart_total = cart.total | round: 2
+    if pay_in_store_max > 0 and pay_in_store_cart_total > pay_in_store_max
+        assign enable_pay_in_store = false
+    endif
+endif
+```
+
+**Rule: payment availability is decided once, in the `{% liquid %}` resolution block, never in the render.** The checkout builds `available_payment_methods` from the `enable_*` flags and clears `selected_payment_method` when the requested method is not in the list, so gating `enable_pay_in_store` there cascades to the method count, the selector, the default selection, the `?payment-method=` URL parameter and the Confirm Order button, in kiosk and normal mode alike. The old fork gated only the radio label inside `{% if payment_method_count > 1 %}`, so with Pay in Store as the only method (the usual kiosk set-up) the limit did nothing, and with two or more methods the URL parameter still selected it.
+
+**Rush field differs between the two pages.** In special-rush mode the standard checkout writes `cart[custom][rush_option]` with `none` / `standard` / `sameday`; the old fork wrote `cart[custom][rush_sameday]`. Check fulfillment, reports and OrderHub views that read the old field before moving a site off the fork. *Verified by reading source, 2026-09-10.*
+
+**`checkout/rush-button2` always renders.** The checkout renders the second rush choice (button or dropdown option) even when the snippet is empty, so there is no way to offer only one rush choice. *Verified by reading source (`pages/checkout`), 2026-09-30.*
+
 ## Payment Gateway Notes
 
 - **BridgePay:** the TokenPay.js widget's ZIP field (used for AVS) is now enabled for all Shopper 24 sites. *Stated by the core developer, 2026-09-21.*
@@ -158,3 +201,4 @@ On a child site, set the checklist keys with **Override Snippet** on the parent'
 - 2026-09-09: Added the extra-fee VAT tax base defect — `pages/checkout` sums every extra fee into `taxable_total` with no reference to the per-fee Taxable checkbox, and the template is only given `fee.name`, `fee.amount` and `fee.code` so there is no `fee.taxable` to test; contained fix is exclusion by fee code, the block is inside the `vat-active == 'TRUE'` branch so US sales-tax sites are unaffected, and whether the checkbox reaches `cart.tax` server-side on a US site is still open. Source: claude-chat.
 - 2026-09-24: Added Kiosk Sessions (one-page checkout, Confirm Order is the only conversion, thank-you-page logout, guest recovery from Orders → Projects, per-site kiosk card payment switch-off) and Payment Gateway Notes (BridgePay ZIP field, PayU webhooks after a domain change). Source: fireflies-call, slack-message.
 - 2026-09-29: Added the four conditions a bare child site needs before checkout shows delivery and payment. Source: claude-chat.
+- 2026-10-06: Kiosk mode: carts are per domain. Added Kiosk associate tip (gates, fields, fee precedence, stale-mode fix, dead CSS selector fix, Order definitions as an install step). Added Pay in Store maximum cart total (number only, inclusive, blank disables, decided in the resolution block), the `rush_option` vs `rush_sameday` field difference, and `checkout/rush-button2` always rendering. Source: claude-chat.
