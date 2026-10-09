@@ -201,6 +201,14 @@ Lovable Cloud behavior that decides how a change reaches the live site. *Verifie
 - **Default privileges now revoke EXECUTE from PUBLIC.** Any new function needs an explicit GRANT to the roles that call it, and an RPC that signed-out visitors call needs `GRANT EXECUTE ... TO anon`.
 - **Anything new that polls, adds realtime, or adds a table that grows every day states its retention and interval** in the request. The pg_cron history rule above is the case that caused two outages.
 
+From 2026-10-08 (verified by query):
+- **Before adding any retention or delete rule, list every database function, view and edge function that reads the table,** and read what each uses it for. `ga4_event_outbox` looked like a send queue but is the order history behind Brand Performance; a 30-day rule deleted 9,838 orders on 2026-10-08. Tables used to dedupe alerts (`sla_breach` notifications and similar) must be left out of age-based cleanup, or the alerts fire again.
+- **A Postgres PROCEDURE with a `SET` clause cannot `COMMIT`** ("invalid transaction termination"). Batched maintenance procedures leave the `SET` clause out and schema-qualify every table. This stopped `nightly_maintenance` for a week without anyone noticing.
+- **Never call a table empty or an index unused from statistics alone.** `pg_stat_user_tables` showed 0 live rows on a table with 139. Count rows for real. A Lovable "unreferenced table" search covers only `src/` and `supabase/functions`: six of nine tables it flagged were used by database functions or views (check `pg_proc.prosrc` and view dependencies).
+- **Lovable Cloud blocks `DROP TABLE`** until "Execute backward incompatible database migrations" is set to "Ask each time" in the Cloud tool preferences.
+- **A queue claim changes status inside the locked update** (`status = 'sending'`, `claimed_at`), not only `FOR UPDATE SKIP LOCKED`; otherwise a second run can re-claim the rows after the first commits and send them twice (found in `claim_support_notifications`).
+- **Latest status per item belongs on the parent row** (`last_*` columns kept by a trigger), not reduced in the browser from the newest child rows.
+
 ---
 
 ## Organization Add-ons
@@ -301,3 +309,4 @@ re-checking against the current route.
 - 2026-09-24: Added three recurring defect patterns: empty state as error state, unpublished edge functions, reply-inviting mail with no Reply-To. Source: claude-chat.
 - 2026-09-29: Credential Storage: API keys supported (pxk_ or legacy user:pass, shared auth helper, 12-char hint only), UI labels, Admin URL normalization. Added Google Reviews to the Integrations Summary. Operational rules: pg_cron history retention, prevention steps verified by query, never clear ga4_event_outbox, service worker kill switch. Source: claude-chat.
 - 2026-10-06: Corrected Portal Structure to the current routes (no `/portal` prefix; staff land on Support Overview; mobile support app) and the sign-in methods. Brand concept: storefront types, archive not delete, merge. Integrations: Pixfizz admin API, Klaviyo (read only, key in vault), Slack urgent alerts. Added a defect pattern (customer pages must use `useCustomerOrg()` and `usePortalBasePath()` or portal preview breaks), the Operational Rules for Changing myPixfizz section (shared database, migrations live on build, publish ships the whole queue, database jobs live on build, direct database fixes need a migration file, stability baseline, default privileges), and Organization Add-ons (keys only, cross-reference to 45). Flagged the edge-functions-ship-on-publish line as conflicting with later builds. Source: claude-chat.
+- 2026-10-09: Operational rules from 2026-10-08: list every reader before a retention rule (the ga4_event_outbox deletion), PROCEDURE with SET cannot COMMIT, statistics are not row counts, Lovable DROP TABLE preference, queue claims inside the locked update, latest status on the parent row. Source: claude-chat.

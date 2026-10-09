@@ -369,6 +369,7 @@ Elements can be assigned to named layers (for example `background`, `artwork`, `
 - **Autofill button.** Desktop: `.px-project-gallery-panel .px-gallery-actions .px-action-buttons button[data-onclick="autofill"]` (no class of its own). The mobile editor uses a different element, `button.px-autofill`. It renders only when Autofill is on in the Design Tool Configuration, outside cut-print mode, and when the project gallery has images; it is `disabled` when every uploaded image is already placed, so a faint button usually means all photos are used. Stock styling is a low-visibility text link. `.px-gallery-actions` is flex, so `flex-wrap: wrap` plus `flex: 0 0 100%` on `.px-action-buttons` gives a full-width button. View-size toggles are `.px-gallery-actions .px-gallery-size button[data-size]`, selected state `[data-selected=true]`. *Verified by reading source; the styling recipe was tested on a mock, not yet on a live project.*
 - **Where the CSS goes.** Per-site editor styling such as the autofill button goes in a stylesheet that the Design Tool Configuration's **Custom CSS** field names, with no template change. The field takes file names, not CSS text (Corrected 2026-10-06); on a Shopper child that is an Override Snippet of `style/editor.css` plus `editor.css` in the field. See § Editor CSS Customization.
 - **AI photo filters** in the design tool consume AI credits billed to the merchant; the merchant can cap daily uses per customer. *Stated on a client call, 2026-09-24.*
+- **Text labels on the desktop add-element buttons.** The desktop page toolbar (`.px-page-display .px-page-toolbar .px-left`) renders the add buttons with stable `data-tool-id` values: `add-qrcode`, `add-shape`, `add-text`, `add-image` (undo and redo are `undo` and `redo`). Stock width is a fixed 40 px per button. Add a label with `::after { content: "..." }` per `data-tool-id` and `width: auto` on the button; the icons stay 27 x 27 and a click on the label fires the button. Do not use `attr(data-px-tooltip)`: the tooltip text changes when a button is disabled ("Cannot add text to this page") and sites rename it. Switch the labels off by the width of `.px-page-display`, not the viewport width, because opening the inspector shrinks the canvas area (1024 px window: 692 px closed, 427 px open); four labelled buttons need about 662 px. Declaring `.px-editor .px-page-display` a size container did not change its width. The mobile editor's toolbar (`.px-mobile-toolbar`) already has labels. *Verified by reading source and by query, bundle 20261007100426, 2026-10-08.*
 
 ## Driving the Editor From a Script
 
@@ -505,6 +506,8 @@ A substitution targets an element by its name (for example `standoffs`, `placeho
 
 **Name and tags.** In the editor a substitution key has the form `name@[tag1,tag2]`: an element matches when it has that name (if one is given) **and** every listed tag. Tags come from the element's `tags` attribute (a comma list). *Verified by reading source (editor bundle 20261002143509), 2026-10-06. Server-side matching by tags is not verified.*
 
+**Tag-only targeting works in the storefront editor.** A design option value with `shape_color` and `text_color` substitutions, element name blank and element tags set, recolored every element carrying that tag in a new project. *Verified by query, 2026-10-08.* The production render with tag-only targeting is still not verified. Admin route: `GET /element_substitutions/new?owner_type=TemplateOptionValue&owner_id=<value>&substitution_type=shape_color` (or `text_color`), fields element name, element tags and content (a hex color). An option export shows them as `element_tags:` and `content:`.
+
 ### Image crop flag (`image_crop_flag`)
 
 **An image upload option crops the customer's image to fill, whatever the element says.** The upload option stores `db:<id>`, with any crop props appended as `db:<id>@{l:..,t:..,z:..,r:..,crop:0,...}`. With no props, the server crops to fill even when the page XML element carries `crop="false"`. *Verified on baseline.pixfizz.com (server preview, design tool, saved project page XML), 2026-10-05.*
@@ -515,6 +518,18 @@ The fix that travels with the template: a hidden multiple-choice template option
 - image_crop_flag is offered only on option values and Website substitutions. An image upload option has no substitution panel (the new-substitution form returns 500 for it); color options offer only color types; text options offer only text and `qrcode_content`.
 - Admin route: `GET /admin/element_substitutions/new?owner_type=TemplateOptionValue&owner_id=<value id>&substitution_type=image_crop_flag`, fields element name, element tags, content (checkbox, `0` = cropping off).
 - Crop Aspect Ratio and the customer's crop box: `22_OPTION_VARIANT_RENDERING.md` § 5.1. Its interaction with image_crop_flag is not tested.
+
+### Image crop state: `zoom`, `left`, `top`
+
+Platform-level (design editor). *Verified by reading the editor bundle (20261007100426) and by query on a test project, 2026-10-08 and 2026-10-09.*
+
+- An image element stores its crop as `zoom`, `left` and `top` attributes on `<image>` in the page XML.
+- **`zoom` is a percent:** the photo is scaled by `1 + zoom/100`. `zoom="0.5"` means 0.5 percent larger, not 1.5x.
+- With `crop="true"` the photo first covers the frame (cover fit), then the zoom scale applies.
+- **`left` and `top` are percents of the photo's displayed size.** The photo is centred, then moved by `width x left / 100` and `height x top / 100`. Positive `left` moves it right; 0 is centred.
+- Both are clamped to plus or minus `(photo size - frame size) / 2 x 100 / photo size`. A value outside that range is kept internally but reads back clamped, so an out-of-range offset is cut back silently.
+- From a script in the editor, `element.update({zoom, left, top})` on an image element followed by `store.saveProject()` persists all three (§ Driving the Editor From a Script).
+- A tool whose own preview must match the print stores these three numbers per photo and draws the same geometry: cover fit, scale, centre, offset.
 
 ### Color options and multi-element targets
 
@@ -1170,6 +1185,20 @@ _Verified by render, 2026-10-06._
 
 _Verified by test, 2026-09-28._
 
+### A tool mounted by `custom_script` lives inside the variant selector
+
+Template-level (Shopper 24). *Read live on two client sites, 2026-10-06 and 2026-10-08, unless marked.*
+
+- **Where it renders.** A template option's `custom_script` output sits in `form#project_create .variant-selector px-option-selector`, not inside the `px-option`. Hidden template options and single-value variants carry `style="display:none"` on their `px-option`. `px-option-selector` is `display: inline`, so a tool root must make its parent block. A test harness must copy this DOM shape.
+- **It inherits the selector's rules.** Shopper 24 sets `.variant-selector label { display: block }` (specificity 0,1,1), which beats a one-class tool rule: flex labels go block, a switch track collapses to 0 px, a checkbox drops out of its row. Write tool label rules at 0,2,1 or above (`.pxt-<tool> label.<class>`). Number inputs pick up the theme border, 12 px radius and spinners; reset them.
+- **Every bubbling `change` copies the options into the URL.** The selector carries `onchange="storeOptionSelectionIntoURL(this)"` (`22_OPTION_VARIANT_RENDERING.md` § 6.2), so a tool's own sliders, checkboxes and file inputs write every option, file URLs included, into the page URL. Stop `change` and `input` propagation at the tool root, and set template option text values without dispatching `change`. Variant writes keep their `change` event: the price needs it.
+- **Never push or pop browser history.** The product page re-renders the product on `popstate`, which wipes the `custom_script` mount and leaves the plain product with its Design button. A tool that calls `history.pushState` when a modal opens and `history.back()` when it closes triggers exactly that. No `pushState`, `replaceState`, `back()` or `popstate` handling in a tool; close modals with their own button and Escape. *Verified live, 2026-10-08.*
+- **A product with Select quantity off renders no `quantity` field at all.** A tool quantity stepper then has nothing to mirror: hide that step rather than invent a field.
+- **Theme classes reach unprefixed tool classes.** Bootstrap `.btn`, `.btn-sm` and `.toast` (opacity 0), and the Shopper 24 theme's `.grid`, `.price`, `.body` and `.line` (`position: absolute; width: 200px`) all apply to a tool class of the same name. Prefix every class. The theme's `#scrollToTopBtn` is fixed 20 px from the bottom and covers a pinned price bar on phones; lift it on tool pages.
+- **Two `px-tool-theme` class names are taken:** `.pxt-step` and `.pxt-shell` (`26_CUSTOM_DESIGN_TOOLS.md` § The shared look).
+- **A drag surface must not capture its own buttons.** A stage that calls `setPointerCapture` on `pointerdown` swallows the click of any button inside it; leave buttons, links, inputs, labels and overlay cards out of the drag start. *Verified live, 2026-10-08.*
+- **Confirm the snippet that is live.** After pasting a tool's snippet on the parent, check that the live page source carries the new snippet's version marker. A new asset and style with the old product snippet still in place ran the tool on built-in defaults and ignored the mount.
+
 ---
 
 ### Build and install rules for a custom tool
@@ -1202,6 +1231,12 @@ Carried from shipped builds. Each of these has cost time at least once.
   embedded DPI. **None of them are visible in a proof.**
 - **Place one real order end to end before handing over. Every defect found on this platform
   so far survived every check short of that.**
+- **One filename per tool asset, for good.** Replace the file on the existing asset (Assets,
+  the asset, Edit, choose file, Save): same id, same name, and `asset_url` follows with a new
+  hash, so nothing serves the old file. Uploading a new asset with the same name does not
+  replace the old one. Never ship versioned filenames (`tool-0-1-2.js`); they pile up in
+  Assets. The version lives inside the file. *Stated by Alex and verified by query,
+  2026-10-07.*
 
 _Verified by build and by live order, 2026-09-08 / 2026-09-09._
 
@@ -1260,3 +1295,4 @@ Platform event. *Stated by the core developer, 2025-05; not re-tested by query.*
 - 2026-09-29: Sepia is the CSS sepia filter. Substitutions bind by element name. Reading option values, PDP layout swaps and gallery state from a tool; PDF pages over 200 in. Source: claude-chat, slack-message.
 - 2026-10-06: Editor CSS Customization: corrected the Custom CSS field to a list of files (URL, CMS page name, `@asset@`), not CSS text, with the Shopper child pair (`style/editor.css` override plus `editor.css` in the field); corrected the `@filename@` notes and the asset-reference table; added theming variables and selectors (brand color, selection ring, `.px-page-set` spacer trap, usage count, warnings) and the `unedited_warning` gate switch. Added Locking an Element (`edit="false"`). Added Driving the Editor From a Script (`editor/scripts.js` not loaded by default on a Shopper child, same-origin iframe, store paths, ordered autofill, the autofill return value and fillable rule, only the project gallery feeds the tray, `#project_create` needs `book[pages]` on every product). Element Substitution Types: name-and-tags matching, the image crop flag (image upload options crop to fill), a pointer to 22 for color options and multi-element targets. Mapped Previews: pointer to 27 and the copied GLB hash key trap. Corrected Design Theme Layouts import behaviour (a design import creates a new design and remaps ids). Custom tools: inline SVG ignores `el.hidden`. Source: claude-chat, vault-doc.
 - 2026-10-06 (later): Restoring Input Values After a Product Switch: `px.fragmentsReloaded` fires on a product switch on the product form; refill on `pageshow` and on that event. Source: gmail (core developer, 2025).
+- 2026-10-09: Tag-only substitution targeting verified in the storefront editor (production still not verified), with the admin route. New § Image crop state (`zoom` is a percent, `left`/`top` are percents of the displayed photo, clamping, persisting from a script). Editor Buttons: text labels on the desktop add-element buttons by `data-tool-id`. New § A tool mounted by `custom_script` lives inside the variant selector (where it renders, label specificity, change events copying options into the URL, never touch browser history, no quantity field, theme class collisions, pointer capture, check the live snippet version). Build rules: one filename per tool asset. Source: claude-chat.

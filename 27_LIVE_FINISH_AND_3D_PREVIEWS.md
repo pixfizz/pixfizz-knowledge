@@ -136,6 +136,12 @@ Every value is a quoted string. Lengths carry their unit (`0.75in`, `6mm`). `lf_
   true scale. The room photos are AI generated.
 - **Material looks are tuned by eye**, not against lab photos. Treat every look, thickness
   and depth as an assumption until the lab confirms it.
+- **Canvas texture reads as a fine weave:** high-frequency grain (threads at 1 px or finer at
+  screen scale), low opacity, multiply. A repeating line grid a few pixels apart reads as graph
+  paper and was rejected. Canvas sides stay a plain cloth color with shading, no texture.
+  *Stated by Alex, 2026-10-07.*
+- **Metal prints always draw rounded corners** (default 1/8 in radius, at least 3 px on
+  screen), in close-up and in the room view. *Stated by Alex, 2026-10-07.*
 
 ### 2.4 Geometry comes from the template, never from the mount
 
@@ -394,6 +400,20 @@ a row, read the version from the live console (§ 3.5).
   tick). Collection grid previews paint blank for 5 to 25 s. Until it is fixed: never
   report a preview as missing from a screenshot taken without scrolling; scroll one tick
   and wait 3 s. *Verified live on one site, 29 Sep 2026; other Shopper sites not verified.*
+- **In a collection grid some design previews never load (platform, open).** With
+  `loading="lazy"`, `px-design-preview` observes its own shadow `<img>`, which is 0 x 0 until
+  it has a src. In a Shopper 24 grid at 1440 px the third column never intersected, so 16 of
+  40 cards stayed blank permanently, not just late; the same SVG URLs render on their own.
+  Site workaround (verified by injection, 40 of 40): observe the whole `.card`, set
+  `has_intersected` and `is_visible`, then call `scheduleUpdate()`. The proper fix belongs in
+  the component (observe the host box, or give the img a minimum size). *Verified by query on
+  a client site, 2026-10-06.*
+- **The wall view overflows on oversize prints (Live Finish 0.17.1).** Rooms are calibrated to
+  a real wall width and the print hangs at true scale with no zoom-out, so a print wider than
+  the room's calibrated span (seen at 48 x 96 in) fills and overflows the photo. A range above
+  roughly 60 in wide needs a room that covers it or a zoom-out rule before it ships with the
+  wall view on. A zoom-out that only triggers where true scale fails is built in 0.18.0, not
+  installed. *Verified by query, 2026-10-09.*
 - **Crop-ratio swap with a landscape upload.** Uploading a landscape image into the live
   preview swaps the crop ratio. Reported 29 Sep 2026; cause and fix not recorded.
 - **Canvas still needs fixes** for finishes, stretched edges and frames (reported).
@@ -477,6 +497,16 @@ never as a tar.
    and every preview family in its best version, alongside any customer install, for
    sales calls, tests, webinars and recordings.
 
+**MSP products share msphub's templates.** On a lab site an MSP product's template link points
+at the msphub site's own template, so a template option added there (`lf_mount`, `p3d_mount`)
+reaches every site listed under **Product Attributes on Other Sites** on that msphub template
+page (one holiday card template already carried `lf_mount` on 23 sites). Enumerate that list
+before adding any mount to an MSP template. *Verified by query, 2026-10-06.*
+
+**Test a mount before installing it:** on the live product page, build `#lf-root` or
+`#p3d-root` with the mount's data attributes inside the product form's `px-option-selector`,
+load the parent asset and call its init. Nothing is written to admin. *Verified 2026-10-06.*
+
 The myPixfizz **Live Finish setup tool** (Tools, `/tools/live-finish`) reads an uploaded
 template export, detects the product type (folded card, ornament, card, canvas, metal,
 print), asks only what the file cannot answer (finished canvas size, bar depth, which
@@ -511,3 +541,4 @@ A preview is not finished until all of this is true.
 ## Changelog
 
 - 2026-10-06: New file. Product Previews had no home in this knowledge base. Added § 1 what a product preview is and how it differs from custom design tools, mapped previews and template room-scene pages; § 2 the Live Finish standard (parts, mount keys, looks and mountings, geometry from the template, page behavior, gallery-slide gating, dark sites, reserved query parameters, use outside Shopper); § 3 the 3D Preview standard (architecture, mount and rim rules, Blender models, wrap design rules, version standard); § 4 platform facts both rely on; § 5 status by product family; § 6 known defects, open issues and CSS 3D / three.js lessons; § 7 install pattern; § 8 definition of done. Also § 2.2 declare every core mount key (0.17.1 errors on undeclared keys) and § 2.6 the string "false" flag trap on imported mount options. Source: claude-chat, vault-doc.
+- 2026-10-09: § 2.3 canvas weave and metal corner rules. § 6 grid design previews that never load (lazy observer on a 0 x 0 img) and the wall view overflow on oversize prints (0.17.1). § 7 MSP templates are shared from msphub, enumerate the sites before a mount; test a mount on the live page before installing. Source: claude-chat.

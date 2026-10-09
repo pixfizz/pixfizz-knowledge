@@ -939,6 +939,8 @@ Renders a URL to a website asset. Input: asset name string or `Asset` object.
 - `format`: `"jpeg"`, `"png"`, or `"webp"` (images only)
 - `cdn: false` — disable CDN (use for OG/metadata/ld+json URLs)
 
+**A missing asset renders an empty string, with no error.** `{{ 'name.ext' | asset_url }}` for an asset that exists on neither the child nor the parent returns `""`, so an `<img>` gets `src=""` and silently shows nothing. Check every new asset name on the live page (empty `src` or `naturalWidth` 0). Platform-level. *Verified by query, 2026-10-08.*
+
 ---
 
 ## barcode_datauri
@@ -1873,3 +1875,4 @@ tool never saw the product" in one paste, and nothing else does.
 - 2026-09-29: Website object: never use the undocumented website.products (admin-only objects, error hidden from admins). Source: claude-chat.
 - 2026-10-06: KNOWN CMS LIQUID QUIRKS: no `json` filter (unknown filters pass input through silently), `money` prints a bare number in emails, filters inside snippet arguments do not run, `{`/`}` in an email string literal fails the save silently. escape_json: build JSON by hand. snippet tag: scope note (email snippets get only named arguments plus `website`; Pages `page_content` case). Notes on Contexts: CORRECTED email context (Cart Abandoned gets `cart`), per-email variable table, other email-context behavior. Writing cart custom fields: no Cart object type, definitions live on Orders, test with a placed order. Request: `preview` query parameter is reserved and redirects to the editor. Website object: CORRECTED the parent `film/roll-builder` fix to pending. Paginate: every `website.*` list defaults to 20, exhaustive loops must set `page_size`, truncated-list symptom and `.size` diagnostic. Source: claude-chat.
 - 2026-10-06 (later): Projects forms: writing project custom fields with `book[custom][<field>]` hidden inputs in `project_create`, with the Public requirement and the 65,535-byte total. Source: gmail (core developer, 2025).
+- 2026-10-09: asset_url: a missing asset renders an empty string with no error. Source: claude-chat.

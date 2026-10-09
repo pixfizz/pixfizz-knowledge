@@ -917,6 +917,15 @@ or `; ` separators). Platform-rendered files appear in `production_files` with
 as the text of a template option, and any URL property on a generated file; if either is
 missing, `spec` comes out empty and generated files carry no URL.
 
+**One cart line can become many supplier items.** A supplier that needs one item per printed
+piece does not force one cart line per piece. The HTTP template loops the line's `px_print_`
+file options and emits one item per file, each with its own id suffix, item code and image;
+the customer keeps one line to edit as a whole. The per-piece supplier code rides in the
+tool's `px_spec` (`p01=<code>; p02=<code>`), written from mount arguments, so the codes travel
+with the template and the fulfillment file needs no product map. Use a separator-before-entry
+flag rather than `forloop.last`, because a line can emit zero, one or many items. *File-verified
+only (python-liquid, 10 shapes, mutants fail as expected), 2026-10-06; no live order.*
+
 **OrderHub (cloud)** is answered as FTP: it reads the store's normal FTP route and needs no
 file pair of its own. *Unconfirmed: stated by Alex, 5 Oct, not tested; the baseline test
 should include one OrderHub (cloud) site.*
@@ -1061,3 +1070,4 @@ _Verified by reading source, 2026-09-09._
 - 2026-09-09: Restated the trailing-comma rule at its point of failure — a `_additional_files.json` suppressing the comma with `forloop.last and forloop.parentloop.last` emits invalid JSON on any order whose final orderline has zero project images, surfacing as `Failed generating files: unexpected token at ']'` and reproducible with `JSON.parse` on the rendered job ticket. Added the four source buckets a complete template must cover (project images, the tool's generated print file, `file_upload` options, `file_upload` variants), the exclusion-list pattern for keeping cart thumbnails off the FTP, and the production-versus-originals destination conventions (production filename marked as a proposal). Added that where every `<set>` is `fulfillment="false"` no production file is rendered at all, cross-referenced to 19_XML_TEMPLATE_REFERENCE.md. Added that files left on the Pixfizz FTP drop are auto-deleted after a week. Added the fail-open rule for custom tools, with `production.fallback_reason` as the diagnostic. Cross-referenced `project.page_count` on upload-driven products to the pricing consequence now in 30_PRICING_ENGINE.md. Source: claude-chat, slack-message.
 - 2026-09-24: Added "Routing One Customer Group's Files Separately" and the `_print_` / `preview` option-code convention for custom tool print files (file-verified only). Source: fireflies-call, claude-chat.
 - 2026-10-06: Added "Custom Tool Fulfillment Standard": the `px_` code contract, one token rule across FTP, OrderHub Desktop and HTTP push, file sets and names per route, the legacy list for old codes, the fixes over earlier files, the harness test, what is not covered, and rollout (file-verified only, no live order yet). Pointer from "Custom Tool Print Files". Scrubbed the client name from the QR code worked example heading. Source: claude-chat.
+- 2026-10-09: HTTP push: one cart line can become many supplier items (loop the `px_print_` files, per-piece codes in `px_spec`, separator-before-entry flag). File-verified only. Source: claude-chat.

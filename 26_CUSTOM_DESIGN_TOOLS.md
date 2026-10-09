@@ -274,6 +274,15 @@ tokens declared in `:where(.pxt)`, and a per-site retoken through `.pxt-<tool>` 
 out light on white and are unreadable. *Verified by query on a dark-theme child site,
 30 Sep 2026.* Check `style/color-font` before installing any `pxt` tool on a dark site.
 
+**Two contract class names are taken.** `style/px-tool-theme` defines `.pxt-step` (an 18 px
+numbered circle) and `.pxt-shell` (the modal shell, with radius and shadow) on `:where(.pxt)`.
+A tool that uses either name for its own layout inherits those rules and its panel collapses.
+Use the tool prefix for layout classes (`fan-step`, `fan-shell`); use `.pxt-*` only for the
+contract components as the contract defines them. A local harness must load the real
+`style/px-tool-theme`, not a stub. *Found 2026-10-06 and 2026-10-08.* The other DOM rules a
+mounted tool lives under are in `17_DESIGN_TOOL.md` § A tool mounted by `custom_script` lives
+inside the variant selector.
+
 **Retoken every `.pxt` element, not the tool root.** A tool can put `.pxt` on several separate
 elements, and each re-declares the tokens through `:where(.pxt)`, so an override on one never
 inherits into another. Target them with a descendant selector. The site fix used for a
@@ -1132,3 +1141,4 @@ once.
 - 2026-09-24: Added the dedicated hidden mount option standard (`<prefix>_mount`) and the counter test; widened "Shopper choice" to every customer selection and commercial value. Source: claude-chat, fireflies-call.
 - 2026-09-29: Pointer: roll a mount across a live range with Bulk Update Tools; custom_script stored with CRLF. §4 a PDP swap keeps the custom_script root and rewrites its attributes; tools must re-read config on attribute change. Install step 1 must include boolean option flag definitions. Source: claude-chat.
 - 2026-10-06: §2 registry and §7 per-tool reference brought up to current state (versions read on shopper24 3 to 6 Oct, install footprint from the 29 Sep sweep, new rows for Uploader 2.0 with forms mode, Wall Designer, Board Engraver, Custom Framing; Gang Up 1.2.0 auto-trim, cut path and planned preview background; Business Cards 2.0.0 in-place recall; uploader and sticker known defects; Flyer / Brochure install gaps; Custom Sized Prints scope); §2 how the install list is found, pointer to 27 for Live Finish and 3D previews. §1 price ladders read price_forecast; tool-computed prices with a Ruby formula oracle and 9-decimal rounding. §3 the px_ fulfillment code contract, the shared px-tool-theme look and dark-site ink, page layout rules (inline, owns the page, obvious first action, one set of controls). §4 the variant recall standard with pos_hidden, stores that price with template options, inches and millimeters, writing back a mount with a JSON script. §5 first price range starts at 1, installing from another site's live template, myPixfizz self-install direction. §6 the tool chooses its own cart image. §8 new done items. Applied spills: Product Previews pointer (B1); §5 px-option override check and strip-false-keys rule (D1); §3 open the platform upload dialog standalone, with events, gallery routing and sign-in behavior (C). Source: claude-chat, fireflies-call, vault-doc.
+- 2026-10-09: § 3 the shared look: `.pxt-step` and `.pxt-shell` are contract names a tool must not reuse; pointer to the variant-selector rules in 17. Source: claude-chat.

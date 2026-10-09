@@ -2,7 +2,9 @@
 
 **Authority Scope:** OrderHub operational configuration, Jobs, Production Board, Processes, Locations, integrations, and notifications. For the core Pixfizz order lifecycle see `32_ORDER_LIFECYCLE.md`.
 
-_Last updated: 2026-09-09_
+_Last updated: 2026-10-09_
+
+**The OrderHub help articles are mirrored in `orderhub/`** (one file per article, index in `orderhub/README.md`), regenerated every night from OrderHub. OrderHub is the source of truth for them: never edit `orderhub/` by hand. This file is the curated overview plus the rules that only come from calls, Slack and tickets. Sections that only repeated an article were cut to a pointer on 2026-10-09. Where this file and an article disagree, both are kept and the point is listed for the OrderHub owner to confirm.
 
 ---
 
@@ -20,23 +22,11 @@ OrderHub accepts orders from multiple sources:
 
 ## Jobs
 
-Jobs are the individual line items within an order. Each job represents one product/service to be produced.
-
-### Job Statuses
-
-Standard status flow: **New → In Production → Completed**
-
-- **New** — job received, not yet started
-- **In Production** — work underway
-- **Completed** — production finished
+Jobs are the line items of an order, one per product or service to produce. The standard status flow (New, In Production, Completed) and the order status cascade when every job completes: `orderhub/jobs/jobs-overview.md`, `orderhub/orders/order-status-s.md`.
 
 ### Custom Statuses
 
 Each Process can define up to **2 custom statuses**. Custom statuses act as sub-states of **New** — they slot into the workflow between New and In Production. They are useful for multi-step pre-production stages (e.g. "Awaiting Materials", "Sorted").
-
-### Automated Order Status Cascade
-
-When all jobs in an order reach **Completed**, OrderHub automatically updates the parent order status. This cascade eliminates manual order-level status management.
 
 ### Job Detail Fields
 
@@ -61,7 +51,7 @@ Thumbnails are generated via a Pixfizz Webhook and appear in the Jobs interface 
 
 ## Production Board
 
-Kanban-style interface for visualising and managing all active jobs.
+Kanban-style interface for all active jobs: `orderhub/general/production-board.md`.
 
 ### Views
 
@@ -79,15 +69,7 @@ Dragging a card updates the corresponding field instantly — no confirmation di
 
 ## Processes
 
-Processes define production workflows. Each job is assigned to a Process when it arrives in OrderHub.
-
-### Process Configuration
-
-Each Process has:
-- **Name** and **colour** (for Production Board display)
-- **Default print size** and **copies**
-- **OHD flag** — whether jobs in this Process are pushed to the OrderHub Downloader desktop app
-- **Location overrides** — per-location settings that differ from the Process default
+Processes define production workflows; each job is assigned one when it arrives. Process settings (name, colour, default print size and copies, the OrderHub Desktop toggle, location overrides): `orderhub/general/processes.md`.
 
 ### Category–Process Linking
 
@@ -108,7 +90,7 @@ OrderHub Desktop maps an orderline to the correct output by reading the **varian
 
 ## Locations
 
-Locations represent physical sites or branches of the organisation.
+Locations represent physical sites or branches of the organisation. Full settings: `orderhub/general/locations.md`.
 
 ### Location Configuration
 
@@ -126,15 +108,7 @@ Locations are managed in **Settings → Locations** within OrderHub.
 
 ## PDF Layout Studio
 
-Visual drag-and-drop editor for designing printed production documents.
-
-### Supported Document Types
-
-- **Production Job tickets** — per-job work orders for the production floor
-- **Order Summaries** — full order rundowns
-- **Shipping Labels** — address labels for outbound shipments
-- **Packing Slips** — pick-and-pack documents
-- **QC Checklists** — quality control forms
+Visual drag-and-drop editor for printed production documents (job tickets, order summaries, shipping labels, packing slips, QC checklists): `orderhub/general/pdf-designer-overview.md`.
 
 ### Key Features
 
@@ -149,27 +123,13 @@ Accessed via **Settings → PDF Designer** in OrderHub.
 
 ## PrintNode Integration
 
-PrintNode is the bridge between OrderHub's PDF Layout Studio and physical printers on the lab floor.
-
-### Architecture
-
-Two-layer system:
-1. **Named Printers** — logical roles defined in OrderHub (e.g. "Front Desk Printer", "Production Printer"). These are stable identifiers used in PDF Layout Studio auto-print rules.
-2. **PrintNode connection** — each Named Printer is mapped to a physical printer connected via the PrintNode desktop agent on a lab computer.
+PrintNode connects PDF Layout Studio to the printers on the lab floor through Named Printers mapped per location. It is free for Pixfizz customers, and purchased EasyPost labels can auto-print through it: `orderhub/general/printing-pdf-tickets.md`, `orderhub/general/printnode-automated-printing-of-pdf-tickets.md`, `orderhub/general/locations.md`.
 
 ### Setup
 
 1. Install the PrintNode desktop agent on each production computer
 2. In OrderHub **Settings → Locations**, assign a computer and map Named Printer roles to physical PrintNode printers
 3. PDF Layout Studio auto-print rules reference Named Printers, not physical printer names
-
-### Cost
-
-PrintNode is **free for Pixfizz customers** — no separate PrintNode subscription required.
-
-### EasyPost Shipping Label Auto-Print
-
-When EasyPost is configured, purchased shipping labels can also auto-print via PrintNode. Configured per location.
 
 ### Troubleshooting: invoice/document not auto-printing
 Invoice and document auto-print depends on both sides being aligned: the OrderHub Named Printer role must be mapped to a live PrintNode printer for that location, and the PDF Layout Studio auto-print rule must reference that Named Printer. If invoices are not printing, check for gaps between the OrderHub-side mapping and the PrintNode-side printer/agent configuration — a missing or mismatched mapping silently prevents printing. Source: Fireflies (2026-07-02).
@@ -178,7 +138,7 @@ Invoice and document auto-print depends on both sides being aligned: the OrderHu
 
 ## Film Scans Module
 
-Dedicated module for managing scanned negatives workflow.
+Dedicated module for managing scanned negatives workflow. The current articles describe the newer Film Development workflow (`orderhub/film-developing-workflow/`), which hides this legacy Film Scans page; the subsections below describe the legacy module and no article backs them.
 
 ### Storage
 
@@ -214,7 +174,7 @@ Because the print jobs are generated from roll quantities rather than from the o
 
 ## OrderHub Downloader (OHD)
 
-Desktop application for photo lab operators to receive, prepare, and route print jobs to local production equipment.
+Windows application (now called OrderHub Desktop in the articles) for lab operators to receive, prepare and route print jobs to local production equipment: `orderhub/orderhub-desktop/what-is-orderhub-desktop.md`, setup in `orderhub/orderhub-desktop/setting-up-orderhub-desktop.md`.
 
 ### What it does
 
@@ -228,32 +188,13 @@ OHD runs on a lab's local machine and continuously polls OrderHub for new jobs f
 - Offers **AI-powered upscaling** for low-resolution images
 - Updates job status back in OrderHub once downloaded and processed
 
-### Polling Behaviour
+### Polling, batching and the status API
 
-OHD polls for **New** jobs not yet received. If multiple OHD instances are running (e.g. across different workstations), job delivery is **first-come-first-served** — a job is only sent to one instance. Instances can be filtered by location.
+Polling (first come, first served across several instances, filterable by location), batching prints to an Epson Order Controller, and the job status API OHD reports to: `orderhub/jobs/jobs-overview.md`, `orderhub/orderhub-desktop/setting-up-an-epson-surelab-print-controller.md`.
 
 ### Auto-Update
 
 OHD auto-update notifications are delivered via OrderHub. Labs always run the latest version without manual update steps.
-
-### Batching prints to an Epson Order Controller
-
-To have OrderHub Desktop send prints to an Epson Order Controller in batches: open **Settings → Routing**, edit the Epson Order Controller entry, set **Maximum prints per job**, and tick **Send Batches Automatically**.
-
-*Stated once, in a support reply drafted by Richard, 2026-09-29. Not verified.*
-
-### API Integration
-
-OHD uses the OrderHub API to report job status changes back to the platform:
-
-```
-POST /functions/v1/update-job-status
-Headers: X-API-Key: <api_key>
-```
-
-This keeps the OrderHub web UI in sync with local production progress.
-
-> OHD is a companion tool to OrderHub — not standalone. Requires an active OrderHub connection and API key.
 
 ### Known issue: film scan folders stuck in the OHD watch folder
 
@@ -278,17 +219,7 @@ that belongs in the order record or in the lab's own storage.
 
 ## EasyPost Shipping Integration
 
-EasyPost provides shipping label generation within OrderHub.
-
-### Setup
-
-Connected via **Manage My Organisation → Shipping** tab.
-
-Toggle between **Production** (live) and **Test** environments during setup and testing.
-
-### Auto-Print
-
-Purchased shipping labels can be automatically printed via PrintNode. Configured per location in Location settings.
+Shipping labels inside OrderHub, with test and production modes and auto-print through PrintNode: `orderhub/general/setting-up-easypost-integration.md`, `orderhub/ship-desk/ship-desk-shipping-integrations.md`.
 
 ---
 
@@ -302,7 +233,7 @@ The current build version is displayed at the **bottom of the login screen** whe
 
 ### Screensaver
 
-A screensaver activates after **5 minutes** of inactivity. This is intentional — it prevents burn-in on always-on till displays. It is not a session timeout and does not log the operator out.
+Burn-in protection, not a logout; 5 minutes by default and set per till: `orderhub/point-of-sale-pos/the-till-screensaver.md`.
 
 ### Receipt Printer Paper Size
 
@@ -334,23 +265,7 @@ Configure the allowed categories in **Settings → Point of Sale** within OrderH
 
 ## Assigning Pixfizz Categories to Production Processes
 
-When Pixfizz website orders arrive in OrderHub, the platform auto-creates **categories** based on the product types in those orders. Each category must be manually linked to a **Production Process** for correct routing, Production Board display, and job tracking.
-
-### Unassigned Categories Alert
-
-If any categories are unassigned, an **amber alert banner** appears on the Orders page:
-
-> "X categories need process assignment"
-
-Click **View Details** to see the dialog showing each unassigned category, its source website, and creation date.
-
-### Assignment Path
-
-1. Click **View Details** in the amber banner
-2. Click **Configure in Organisations**
-3. Go to **Organisations page → organisation settings → Pixfizz Websites section**
-4. Select the relevant website (e.g. MYLAB)
-5. In the **Categories list**, use the dropdown to select a Process for each unassigned category
+Pixfizz website orders create categories automatically, and each one must be linked to a Production Process; unlinked categories raise an alert. Steps: `orderhub/general/assigning-pixfizz-categories-to-production-processes.md`. The articles disagree with each other on where the alert shows (the Orders page or the Dashboard).
 
 ---
 
@@ -362,16 +277,7 @@ Marking an order as **shipped** in OrderHub also updates it as **shipped** in Pi
 
 ## Email & SMS/RCS Notifications
 
-OrderHub can automatically notify customers when an order is shipped or completed. Both channels are configured in the **Notify tab** of Organisation settings.
-
-### Notification Triggers
-
-| Trigger | When it fires |
-|---|---|
-| Shipped | After a shipping label is purchased via EasyPost, or when an order is manually moved to "shipped" status |
-| Completed | When an order is manually moved to "completed" status |
-
-Each trigger has an independent **Send on Shipped** / **Send on Completed** toggle.
+OrderHub notifies customers by email and SMS/RCS when an order is shipped or completed. Setup, triggers, the n8n and SendGrid email pipeline and its branding order, template placeholders, two-way SMS with its Twilio webhook, the notification log and test sends: `orderhub/general/email-and-sms-rcs-notifications.md`. The sections kept below are the parts not in that article.
 
 ### Pixfizz Notification Suppression
 
@@ -386,21 +292,6 @@ When OrderHub notifications are enabled, OrderHub passes `sendNotifications: fal
 | Manual status change with "Notify" unchecked | Neither sends |
 
 **Use OrderHub for order-confirmation and download emails; separate emails cannot be merged.** When OrderHub notifications are enabled, route order-confirmation and file-download emails through OrderHub. Combining multiple separate emails (e.g. confirmation + download) into a single message is not technically feasible — each remains its own message. Source: Fireflies (2026-06-29, 2026-07-02).
-
-### Email Notifications
-
-Emails are sent via an **n8n / SendGrid pipeline**.
-
-**Prerequisites:**
-- An n8n webhook URL configured in Organisation API secrets
-- At least one active Pixfizz website linked to the organisation (for branding)
-
-**Branding priority chain:**
-1. The Pixfizz website linked directly to the order
-2. The Pixfizz website linked to the order's pickup location
-3. The organisation's first active Pixfizz website (fallback)
-
-**Email settings:** From Name, Reply-To, BCC, subject line and body for each trigger.
 
 ### SMS/RCS Notifications
 
@@ -421,37 +312,6 @@ Twilio API will be accepted before it is sent.
 
 **RCS:** Toggle available to enable RCS messaging. Falls back to standard SMS automatically if the recipient's device doesn't support RCS.
 
-### Template Placeholders
-
-These work in both email and SMS templates:
-
-| Placeholder | Replaced with |
-|---|---|
-| `{{customer_name}}` | Customer name from order |
-| `{{order_number}}` | Order number |
-| `{{tracking_url}}` | Tracking link (shipped orders only) |
-| `{{website_name}}` | Website/brand name |
-| `{{customer_email}}` | Customer's email address |
-
-### Two-Way SMS (Inbound)
-
-OrderHub supports inbound SMS via a Twilio webhook, enabling two-way customer conversations.
-
-**Twilio Messaging Webhook URL:**
-```
-https://nazkcvruighrhpgcarxg.supabase.co/functions/v1/twilio-inbound-webhook
-```
-
-Customer replies appear in the **SMS Conversation panel** on the order detail page.
-
-**Automated keyword responses:**
-
-| Keyword | Behaviour |
-|---|---|
-| `STATUS [order#]` | Looks up the order and replies with current status |
-| `STOP` | Handled by Twilio (opt-out compliance) |
-| Custom keywords | Configured via Auto-Replies in the Notify settings |
-
 ### Website Chat (Twilio Conversations)
 
 OrderHub can also run a website chat built on Twilio Conversations.
@@ -461,14 +321,6 @@ OrderHub can also run a website chat built on Twilio Conversations.
 - **A chat can be assigned to a task**, so a customer request becomes tracked work.
 
 *Stated on calls, 2026-09-25 and 2026-09-28. Not verified by reading source.*
-
-### Notification Log
-
-Every notification attempt is logged on the order in the `notification_log` field, recording: channel (email/SMS), trigger, timestamp, success/failure status, and error details.
-
-### Testing
-
-Both the Email and SMS tabs include a **Send Test** button. Enter any email or phone number and choose a template (shipped or completed). Test notifications use placeholder values ("Order #TEST-001", "Test Customer") — no real order required.
 
 ---
 
@@ -587,7 +439,7 @@ Anything that needs either of these has to route through admin by hand. See
 - **OrderHub can expose either one primary location's stock or the sum of all locations** to Core.
 - **On these sites, edit stock only in OrderHub.** The myPixfizz Catalog Manager locks stock editing when the organization's stock is managed in OrderHub (`71_MYPIXFIZZ_FEATURES_ROUTES.md`). The admin API inventory write is an absolute set with no compare-and-set (`61_PIXFIZZ_API.md` § 13g), so no tool can merge its change with a sale.
 
-*Stated by Richard (OrderHub) on a call, 2026-09-25. The Catalog Manager lock is verified by reading source, 2026-09-29. Where the primary-location or sum choice is set is not verified.*
+*Stated by Richard (OrderHub) on a call, 2026-09-25. The Catalog Manager lock is verified by reading source, 2026-09-29. The primary-location or sum choice is set under Settings → Inventory in OrderHub (`orderhub/products/inventory.md`).*
 
 ---
 
@@ -622,3 +474,4 @@ verified by reading configuration**.
 - 2026-09-09: Added that files left on the Pixfizz FTP drop are auto-deleted after a week, so a multi-location workflow can copy and leave rather than retrieve-and-delete. Added Print-on-Demand Routing to a Parent Lab's OrderHub — whole order to the child's own fulfillment, outsourced items only to the parent, price looked up by product and variant code against the parent's site at the parent's wholesale value, a mismatch inserting a zero price into automatic wholesale invoicing, and the product feed carrying nothing from the template. Added the Twilio prerequisite of three prescribed policy pages plus a validation step, marked not verified end to end. Added that there is no template import endpoint and that price variables are not reachable via the API. Noted that a Windows kiosk helper application exists and is not yet released. Source: fireflies-call, slack-message.
 - 2026-08-29: Added Kiosk and Online Are Separate Catalogues — separate products and pricing for kiosk versus web, with location-specific order routing through OrderHub; the kiosk-to-location binding is not yet verified by reading configuration. Source: fireflies-call (2x repeat signal).
 - 2026-09-29: Corrected the kiosk app line: distributed from myPixfizz Tools, not unreleased. Stock on OrderHub sites: OrderHub overwrites Core stock on each sale, primary location or sum, edit stock only in OrderHub. Superseded the stale 'price variables not in the API' line, pointing at 61 § 13f. Website chat on Twilio Conversations: snippet override under Integrations, chats and replies in OrderHub, assignable to a task. OHD batching to an Epson Order Controller (Settings → Routing, Maximum prints per job, Send Batches Automatically). Source: claude-chat, fireflies-call, slack-message.
+- 2026-10-09: First pass under the orderhub/ rule. Added the pointer to the `orderhub/` mirror at the top. Cut to pointers the sections that only repeated an article: job statuses and the status cascade, Production Board intro, Process configuration, PDF Layout Studio document types, PrintNode architecture, cost and EasyPost auto-print, OHD polling, Epson batching (its not-verified note is resolved by the article) and the status API, EasyPost, the till screensaver, assigning categories to processes, and the notification triggers, email pipeline, placeholders, two-way SMS, log and testing. Resolved where the stock primary-or-sum choice is set. Kept unchanged, and listed for the OrderHub owner, the points where this file and an article disagree: custom statuses scope, Lead time and Production days meaning, the PDF Layout Studio path, PrintNode install scope, OHD updates, where OHD gets print files, the POS category filter path, the Production Board filters. Source: orderhub-article.

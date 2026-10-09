@@ -355,7 +355,9 @@ The first range starts at 0 so a zero entry cannot return nil from `.find`.
 > The cart test is separate and mandatory: confirm that the product page display and the
 > orderline agree, and that changing quantity in the cart re-tiers. Never report a tiered
 > variant formula as done on a successful save. Runtime behaviour for this shape is
-> **not verified — pending a cart test**.
+> **not verified — pending a cart test**. (That the platform multiplies a number variant's
+> result by the orderline quantity is now verified: § Number Variant Price Formulas. This
+> exact tiered shape is still untested in a cart.)
 
 > **The API write path skips even this validator.** `PUT /v1/admin/products/<id>.json` with `product[price]` saves any syntactically valid formula with no product check: `12.99 * cut_print_quantity` saved on a static product. A tool that writes prices in bulk must probe the storefront after every formula write (`61_PIXFIZZ_API.md` § 13g). *Verified by query, 2026-09-23.*
 
@@ -758,6 +760,23 @@ Verified by reading source (product export), 2026-09-08.
 
 ---
 
+## Number Variant Price Formulas
+
+Platform-level (Pixfizz CMS). *Verified by query on real carts, 2026-10-06 and 2026-10-07, unless marked.*
+
+- **Where it lives.** A Number variant has no values. Its formula is the variant type's own Price field (`variant_type[price]`), beside Default, Min, Max and Step. Admin form write: PATCH `/site/<site>/admin/variant_types/<id>` resubmitting every field.
+- **The result is multiplied by the orderline quantity.** A cart line of $20.33 at quantity 1 became $203.31 at quantity 10 with no `quantity` in the formula. Do not append `* quantity`: a formula that does charges quantity twice.
+- **Decimals price exactly** (340.6875 x 0.045 = 15.3309375), but the variant's Step must allow the value (0.0001 for four decimals). The storefront input carries the step, and the browser rejects an off-step value **silently**: the form will not submit and the console only says "An invalid form control is not focusable". A tool writing decimals writes at a known precision.
+- **Several priced Number variants add** to the base price; one at 0 adds 0. In `price_forecast` each variant's share is listed in `variants_applied`, and quantity 2 still returns the unit price.
+- **A hidden (not read-only) Number variant** renders as a hidden `<input type="number" name="variants[<code>]">`. A script that sets the value and dispatches `change` reprices `px-product-price` live, and the value reaches the orderline.
+- **Range hashes on a decimal value: share the boundaries.** `{0..300=>a, 301..1200=>b}` has a hole at 300.5 (`.find` returns nil and the price errors). `{0..300=>a, 300..1200=>b, 1200..999999=>c}` is accepted, and `.find` gives a boundary value to the lower tier.
+- **Whole-area tier rates make a price cliff** (300 sq in at 18.00, 300.25 sq in at 13.51). The graduated form saves and prices: `value * {rates}.find {...}.last + {0..t1=>0, t1..t2=>o2, t2..max=>o3}.find {...}.last`, with `o2 = t1 x (r1 - r2)` and `o3 = o2 + t2 x (r2 - r3)`. Two range hashes added together pass the validator.
+- `px-product-price` renders its text in a shadow root: read `el.shadowRoot.textContent`, not `innerText`.
+- Importing a priced number variant needs `default_value: '0'` (`22_OPTION_VARIANT_RENDERING.md` § Variant Type Exports).
+- The product show page `/site/<site>/admin/products/<id>` is the product edit form; `/products/<id>/edit` returns 500.
+
+---
+
 ## A Transcribed Price Table on the PDP Will Drift From the Formula
 
 Any storefront display of a price ladder that is **transcribed** from a pricing formula rather
@@ -835,3 +854,4 @@ Stated from client calls, not independently verified.
 - 2026-09-19: Confirmed the Automatic Discounts admin location as Marketing → Automatic Discounts, replacing the open "confirm with Matjaz" note. Source: AdeB.
 - 2026-09-24: The API write path skips the formula validator; reserved names for Price Variables (not engine-tested). Source: claude-chat.
 - 2026-10-06: Price Variables: corrected the stale "staging only" API note (read and update confirmed on production 2026-09-23). Photo Prints: a flat variant value price on a cut print is not per copy; use a `<delta> * cut_print_quantity` variant value formula (price forecast multiplies per copy; the Photo Prints component shows the one-copy price), with illustrative numbers. From group B2 spill: a product price formula must cover quantity 1 (use `unit_intervals`); new section Platform Price per Quantity and Cart Rounding (`price_forecast.json`, cart line rounding, unconfirmed formula rounding). Source: claude-chat, vault-doc.
+- 2026-10-09: New § Number Variant Price Formulas: where the formula lives, the result is multiplied by orderline quantity (do not append `* quantity`), decimals and Step, priced number variants add, hidden number variants reprice live, shared range-hash boundaries, graduated area tiers, `px-product-price` shadow root. Linked from the tiered-ladder cart-test note. Source: claude-chat.

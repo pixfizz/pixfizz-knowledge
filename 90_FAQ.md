@@ -158,6 +158,13 @@ Relatedly, uploading **CMYK JPEGs** (for example to business-card products) can 
 
 ---
 
+**Q: Customers uploading photos from an iPhone think the site has frozen. Why?**
+_Applies to: All_
+
+Uploading photos from an iPhone or iPad shows no progress indicator, so on a large upload a customer can think the site has crashed and leave. There is no workaround at the operating system level (core developer, October 2026). A warning shown before an iPhone or iPad upload was on staging in October 2026; until it is live, set expectations on upload-heavy pages. Reported on several client calls, 2026-10-05 to 2026-10-08.
+
+---
+
 ## Section 4 — Pricing & Options
 
 **Q: How is product pricing set up?**
@@ -521,3 +528,4 @@ Not by a setting. It may be possible with inline pages but there is no confirmed
 - 2026-09-24: Added Section 12 Design Templates: unedited placeholders do not print, production-only layers, hiding layers while editing, mirrored output. Source: fireflies-call.
 - 2026-09-29: Two kiosk FAQs: no order because Confirm Order was never pressed; next customer inherits the session. Source: fireflies-call.
 - 2026-10-06: Section 5: tax cannot be set per product. Section 11: five silent failures (imported option hidden by string "false", non-atomic template import, folded scalar in a generated archive, blank empty top-level collection page, Shopify My Projects loader hang). Section 7: CORRECTED the Fulfilled status meaning (internal production status, not delivered). Source: claude-chat, vault-doc.
+- 2026-10-09: Section 3: iPhone and iPad uploads show no progress indicator. Source: slack-message (#development), fireflies-call.

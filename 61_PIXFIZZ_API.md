@@ -86,6 +86,7 @@ Since the 2026-09-23 deploy the admin UI lives on its own host. **The API did no
 - `https://admin.pixfizz.com/site/<slug>/v1/admin/orders.json` is **404**. Appending `/v1/admin/...` to a URL copied from the browser produces a path that does not exist.
 - The slug is the same in both forms on every site checked.
 - People now copy the admin-host URL from their browser, and it is the wrong value for an integration's base URL. Convert a pasted admin link to `https://<slug>.pixfizz.com` before storing it; do not loosen the validation to accept it.
+- **A login on `admin.pixfizz.com` is not a storefront admin session.** Signed in on the admin host, the same browser on `<slug>.pixfizz.com` got 401 *admin privileges required* from `/v1/admin/orders.json`. Storefront pages gated on `user.is_admin` (Shopper `manage/*`, `setup/*`, custom preview pages) show nothing until the admin also signs in on the storefront itself. A site with no storefront login page (an Etsy-flow site, for example) needs one added before such a page can be used. *Verified by query, 2026-10-07.* That the storefront sign-in then sets `user.is_admin` is not verified.
 
 *Verified live (unauthenticated requests and a logged-in browser), 2026-09-23, 2026-09-24 and 2026-09-28.*
 
@@ -152,6 +153,10 @@ Optional parameters:
 
 Example response fields: `id`, `name`, `saved`, `ordered`, `preview`, `theme_id`, `theme_code`, `product_id`, `product_code`, `template_id`, `template_code`, `options`, `template_options`, `links`.
 
+What a create also does (*verified by query, 2026-10-07 and 2026-10-08*):
+- `book[template_options][<code>]=<value>` on create, with `book[saved]=true`, returns a project that already carries those template options (response `template_options`). A test tool can use this to open a real edit page without placing an order. `book[options][<variant code>]` on create is not verified.
+- `book[pages]=N` on create gives exactly N pages (plus the cover as one more page object), and the spine width follows the count. **The platform does not clamp to the template's minimum page count:** 24 pages were accepted on a template whose minimum is 40. Any minimum or step must be enforced by whatever calls the API. To change the count later, create a new project (`PUT book[pages]` returns 500, below). Cart line, price and print file at such counts are not verified.
+
 ### Update a project
 ```
 PUT /v1/books/<id>
@@ -179,6 +184,18 @@ Each project has its own gallery. Only images in that gallery appear in the edit
 GET /v1/books/<id>/pages.json
 ```
 Returns the project's pages, 20 per response. Its page previews are 150 px thumbnails, not usable for a large preview. *Verified by query, 2026-10-03.*
+
+`GET /v1/books/<id>/pages.json?page=1` also works in a guest session and returns the page XML (`data`) plus `images[]` with `width`, `height`, `filename` and thumbnail URLs. `/v1/projects/<id>` is 404: the project endpoint is `/v1/books/`. *Verified by query, 2026-10-08.*
+
+### Add to the cart from a script (Shopper 24 product form)
+
+A design product's `form#project_create` posts to `/v1/books` with `product_id`, `theme_id`, a per-page `_cms_form` token, `variants[...]`, `template_options[...]`, `quantity` and `book[saved]=true`. **`editor=add-to-cart` is the name and value of the Add to cart button, not an input.** A script that builds `FormData` from the inputs must add it, or the post opens the editor (`/v1/editor?book=<id>`) and nothing reaches the cart. With it, the post answers with `/site/add-to-cart?book=<id>`, a page that auto-submits `POST /cart/add_print_product`. A `fetch` does not run that page's script, so post `/cart/add_print_product` yourself (`20_SHOPPER_CART_RULES.md` § Cart links).
+
+- To land a line on another product, GET that product's page, take its form (a fresh `_cms_form`), fill it and post. Repeat per line, one after another: about 2 s per line plus the uploads. Each line is its own saved project, priced by its own product and variants.
+- Shopper size filters switch product with `?size%5B%5D=<size>` on the collection shop path. A plain `?size=` is ignored.
+- A shopper can rename a project (`PUT /v1/books/<id>.json` with `book[name]`), which works as a per-line label without a custom field. The Shopper cart does not show it.
+
+Platform-level; the form shape is template-level (Shopper 24 `product/design-now`). *Verified by query on guest carts, 2026-10-07 and 2026-10-08.*
 
 ### Copy a project
 ```
@@ -612,6 +629,11 @@ https://<subdomain>.pixfizz.com/v1/books/<project-id>/preview.webp?width=800
 ```
 Requires admin access.
 
+- **`/v1/books/<id>/preview.<ext>` ignores `template_name`** and returns the first page. Select a page with `page=<0-based index>`, which also reaches the pages of a `fulfillment="false" editor="false"` preview set. *Verified by query, 2026-10-07.*
+- It takes **unsaved** choices as `book[template_options][<code>]` (the keys `px-option-selector` `values()` returns), so a preview can follow the customer before Save. The theme endpoint above takes the same choices as `template_options[<code>]` and ignores the `book[...]` form. *Verified by query, 2026-10-07.*
+- `px-project-preview` supports `page-number` (1-based) and `preview-section`, and fetches `/v1/books/<id>/preview.<fmt>` with the values of its `option-selector`. *Verified by reading source (cms bundle 20261006102509).*
+- A transparent PNG render keeps mask holes transparent, so a shape or drilled holes can be read from the alpha channel.
+
 ### Preview resolution and production-quality output
 
 - The theme and project preview endpoints above are optimised for on-page previews, not
@@ -768,6 +790,14 @@ Requires HTTP basic auth. Supported partners: Advertek, Navitor, Gooten, PRNTMST
 Callback payloads carry shipment status, tracking name, tracking code, tracking URL, and package IDs. The payload schema varies by partner.
 
 **Note:** Callback endpoint credentials are operational secrets and are not documented here. Retrieve from the Pixfizz Notion wiki (Callbacks from Fulfillment Partners page) or contact support.
+
+### SiteFlow status callbacks
+
+SiteFlow also has its own endpoint on the site host: `PUT https://<site-domain>/v1/orders/siteflow_update.json` (POST is also accepted), with HTTP Basic auth for an admin user. Parameters: `SourceOrderId` (the Pixfizz order code), `OrderStatus` (`received` sets D, `error` sets E, `shipped` sets S; **lowercase only**, a capital `Shipped` fails), `TrackingURL`, and `TrackingNumber` (saved to an order custom field). *Verified by reading the partner email history, 2022 to 2023; not re-tested.*
+
+- A SiteFlow trigger cannot use a dynamic URL, so one callback URL serves every order it sends. Since February 2023 a callback can update orders on any site in the same super account. Which fixed domain is current, and whether SiteFlow uses the `login.pixfizz.com/custom/siteflow/order_callback` route above, are not verified.
+- **A callback cannot update orders across different super accounts today.** A print-on-demand partner serving sites in many client accounts has no credential that covers them all; a platform change is needed. *Stated by the core developer, 2026-10-06.* Until it ships, such orders reach the partner without a postback and their Pixfizz status does not update automatically.
+- A SiteFlow order can carry `orderData.postbackAddress` per order, which would let a job ticket give each site's own domain. Not verified.
 
 ---
 
@@ -1219,8 +1249,11 @@ The admin product list carries no storefront URL for a product: only `links.self
 ### Public catalog reads (no login)
 Each product in the public `/v1/products.json` carries `category`, `price` and `print_product_id` (null means a static product). `/v1/theme_categories.json` lists every collection with `id`, `name` (the path segment), `display_name`, `description`, `image` and `custom.unpublished`, and each entry carries `themes` and `static_products` arrays (both empty means an empty collection). `GET /v1/admin/theme_categories.json` returns 404: the public route is the collections read. `/v1/products/<id>/variants.json` and `/v1/products/<id>/price_forecast.json` are public; a static product with base price 0 forecasts 0 until variants are applied. Public endpoints need no login. Useful for launch checks: `80_ONBOARDING.md` § Launch Check: Empty Collections and Unpriced Products. *Verified by query, 2026-10-02 and 2026-10-04.*
 
-### Variants are read-only
-There is no write API for variant values, prices or types. *Confirmed by the core developer, 2026-09-23.* New variant types and values can be created through the admin forms from a logged-in session (§ 13h); that is not an API.
+### Variant writes: experimental `/v1/admin` routes (Corrected 2026-10-09)
+Until 2026-10-06 there was no write API for variants (*core developer, 2026-09-23*). **On 2026-10-06 the core developer opened the variant endpoints under `/v1/admin`, marked experimental, with the same paths and parameters as the old internal `/admin` routes.** `PUT /v1/admin/variant_values/<id>.json` with `variant_value[price]=2.51` answered 200 and read back 2.51 (then restored). *Verified by query, 2026-10-07.* Writes of `published`, `default`, `name` and `code` on a value, and creating or deleting types, are not tested through these routes. Read every write back: a 200 is not proof. The admin forms (§ 13h) remain the proven route for creating types and values.
+
+### Quantity limits
+`product[min_units]` and `product[max_units]` on `PUT /v1/admin/products/<id>.json` both save and read back. The product read returns `units: {min, max}` only: the quantity steps (`unit_intervals`, `30_PRICING_ENGINE.md`) are neither read nor written by the API. *Verified by query, 2026-10-06 and 2026-10-07.*
 
 ---
 
@@ -1240,6 +1273,8 @@ These are browser-session routes, not an integration surface: they need an inter
 - **On a snippet edit page the first form carrying `_method` is the DELETE form** (`button_to`). Only ever submit the form whose `_method` is `patch`. *Verified by query, 2026-10-06 (an override was deleted this way).*
 - **An Ace-editor value read from an edit page carries `<\/script>`.** The page embeds the value as a JS string and only turns `<\/script>` back into `</script>` at runtime. Parsing the string yourself leaves the backslash, and writing it back stores a literal `<\/script>`, so an embedded script (for example a tool mount's JSON block) never closes. Replace `<\/script>` with `</script>` before posting. Applies to snippets and to a template option's `custom_script`. *Verified by query, 2026-10-06.*
 - Create in one request: the admin snippet create form (`POST /site/<site>/admin/snippets`) accepts `snippet[content]` together with name, description and allow_override. Allow Override is on by default. *Verified by query, 2026-10-03.*
+- **Saving content: two observations disagree.** The form route above saved on 2026-10-05. On 2026-10-08, on a child site, a fetch of the edit page plus `FormData` did not save content, because the hidden `snippet[content]` field only exists after the page script runs. What worked there: load the edit page in a same-origin iframe, wait for `.ace_editor`, call `editor.setValue(text, 1)`, click **Save & Continue**, then reload in a second iframe and compare `getValue()` (verified on 8 snippets). After a programmatic `setValue` the first Save click sometimes does not persist; click again. Whichever route, read the snippet back before reporting it saved. Custom Type instances save the same way (iframe, set the editors and inputs, click Save); **Add Instance** creates an empty record at once.
+- **Override a parent snippet on a child from the admin form:** `POST /site/<child>/admin/snippets` with `authenticity_token`, `save_and_continue=true`, `parent_id=<parent snippet id>` and `commit=Create` (the parent ids are the options of `#parent_id` on `/admin/snippets/new`). It redirects to the new override's edit page. **Whether the override starts as a copy of the parent or empty was seen both ways** (a copy on 2026-10-06, empty on three overrides on 2026-10-08): always write the full body and read it back. The API route is in § 13f.
 
 **Replace an asset in place.** See § 13c *Assets*.
 
@@ -1298,3 +1333,4 @@ These are browser-session routes, not an integration surface: they need an inter
 - 2026-09-29: Added API keys (pxk_ key as Basic-auth username, per user per site, shown once, one key per integration). HTTP Basic now points to API keys first; email and password marked legacy. Added the admin UI host vs API host table (admin moved to admin.pixfizz.com; API stays on the site host; admin host /v1 is 404). Removed the stale 'retirement not yet live' line in § 13c. Moved the § 13c custom type endpoints to /v1/admin with what is verified. Moved the § 13c asset endpoints to /v1/admin; list verified. Flagged the collections custom-field PUT as retired with no confirmed /v1 replacement. § 13f: cms_snippets and cms_pages confirmed on production with their read shapes; cms_layouts and writes unchecked. Preview cap is on the longest side; page render includes bleed. Source: claude-chat, notion-page.
 - 2026-10-06: § 6 image upload moved to `POST /upload/image` (data or url+name, optional gallery_id); old gallery images POST deprecated; gallery size guidance; admin-key gallery create for a user. § 7 GET `_uid` lookup by external ID. § 13c custom type instances full CRUD on /v1 (real PUT, merge update, delete 200 empty body); asset multipart upload verified; asset replace in place via admin form; multitext custom fields need array form; collections still have no /v1 write. § 13f snippet writes verified on production (CRLF, child-only snippet creation, JSON `cms_snippet` body saves nothing). § 13g code, name and custom fields proven writable. New § 13h Admin Form Writes (snippet, template options, variant types and values, collection image, custom fields, product order, remove product, add_themes false error, design name). Also from other groups' spill: § 3 users/me returns id null for a visitor; § 4 read a project's pages; § 6 single image read is 403 without a session, customer upload by script via `/upload/image` verified as guest; § 9 png extension, transparency and page mask via SVG, reading a design and a font; § 13c duplicate asset name returns 200 with an error body, design previews (linked assets), product image and description, design description. From group D2 spill: public `/v1/products.json` pages at 20 (`per_page` works), public catalog reads, the add_themes.json route. From late spills (groups B2, C, E): § 4 project update limits and the project gallery; § 6 copy an image between galleries, delete a gallery; § 13c asset PUT replace and DELETE on /v1 (corrected), upload response shape, admin-host upload, custom type admin-form routes, design custom field PUT saves nothing (corrected); § 13f child snippet overrides created and deleted by API, asset deletion verified; § 13g no storefront URL in the admin product list, collections read fields; § 13h snippet DELETE-form trap, Ace `<\/script>` unescape, snippet create with content, collection custom fields PATCH partial, design form and design custom fields route. Source: claude-chat, vault-doc.
 - 2026-10-06 (later): § 6 `/upload/image`: `name` is optional and defaults to the last URL segment. Source: gmail (core developer, 2025).
+- 2026-10-09: § 2 an admin.pixfizz.com login is not a storefront admin session (`user.is_admin` pages need a storefront sign-in). § 4 create with `book[template_options]`; `book[pages]` on create is honored and not clamped to the template minimum; guest `pages.json` read; new Add to the cart from a script (the `editor=add-to-cart` button value, posting `/cart/add_print_product`, one line per product). § 9 project preview: `page=` not `template_name`, unsaved `book[template_options]`, `px-project-preview` attributes. § 13 SiteFlow status callbacks (`siteflow_update.json`, lowercase statuses, no cross-account callbacks today). § 13g corrected: experimental `/v1/admin` variant writes opened 2026-10-06 (value price verified); quantity limits writable, `unit_intervals` not in the API. § 13h snippet content save routes disagree, iframe and Ace route; child override from the admin form. Source: claude-chat, notion-page, slack-message.

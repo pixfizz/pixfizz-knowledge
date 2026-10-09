@@ -228,6 +228,23 @@ The `data-requires-design` gate is stated in a build spec as the established pat
 (Corrected 2026-10-06: the earlier "`requires_design: true` failure is verified live" claim is
 withdrawn; see above.)
 
+## Reorder, order details and emails for a custom tool line
+
+Template-level (Shopper 24), read in the shopper24 backup of 2026-10-07 unless marked. Applies to every custom tool line, because a tool line has no project.
+
+- **Reorder re-adds the product and its variants only.** On `account/v2/order-details`, Reorder for a line without a project goes to `/site/cart?add_product=<id>&variants[...]`. Template option files are dropped, so a tool line reorders as a priced line with **no artwork**, and a supplier can receive it without images. *Verified by reading source.*
+- **`account/v2/order-details` prints every variant unfiltered**, hidden tool variants and zero counts included. *Verified by test.*
+- **`email-kit/parts/line` draws `ol.project | preview_url` or the catalog photo**, so a tool line gets the catalog photo, never its `_preview` file. The fix follows the `_preview` convention of `checkout/orderline-preview` (`26_CUSTOM_DESIGN_TOOLS.md` § 6). *Verified by reading source and by test.*
+- Whether a tool line submitted through the Add to cart button (which enables `book[saved]` when the product has `btn_add_to_cart`) carries a saved project is not verified. One real order settles it.
+
+## Cut prints with autorotate show sideways in the cart
+
+Platform behavior (`px-project-preview`). *Verified live on experience.pixfizz.com, 2026-10-08.*
+
+`px-project-preview` draws a cut print in the template's page orientation. With prints autorotate on, a photo whose orientation differs from the page is placed turned 90 degrees, so the cart and the fly-out show it on its side. The page XML records it: the single image element carries `crotation="90"` and `tags="px:autorotated"`. `GET /v1/books/<id>/pages.json?page=1` returns that XML, in a guest session too, and the rendered preview is a same-origin blob that can be drawn to a canvas.
+
+A parent snippet `checkout/cut-print-upright` was delivered as paste blocks on 2026-10-08: for each `px-project-preview` in a cart line whose page has exactly one `px:autorotated` image at 90 or 270 degrees, it draws the preview turned back into an `<img>` and hides the component; it is included once in `modals/shopping-cart`, which renders on every page. Its live install, the 270 case and the other surfaces (account order details, saved projects, checkout summary, emails) are not verified.
+
 ## Changelog
 - 2026-07-28: Added hide_from_cart section covering the variant/template-option cart filter and its two silent limitations (editable-cart branch, child orderlines). Source: claude-chat.
 - 2026-08-29: Added the cart fly-out preview block defect — `modals/shopping-cart` assigns `flat_preview_codes` (underscore) and tests `flat-preview-codes` (hyphen), which Liquid accepts as a distinct nil variable, so every custom-tool line falls through to `px-project-preview` and shows an empty preview well; includes the one-character fix, the before/after verification, the correction that the fly-out is `modals/shopping-cart` rather than `shopper/cart-flyout`, the rule that preview-code variable spelling must be read per file as an assign/read pair, and the method lesson that a byte-identical no-regression test passes on a dead block. Source: claude-chat.
@@ -235,3 +252,4 @@ withdrawn; see above.)
 - 2026-09-09: Added the silent Add to Cart blocker — a `required` file-upload option on a variant branch the customer did not select stops the form submitting with no error and no network request, and `disable_required_form` does not clear it; cross-referenced to 22_OPTION_VARIANT_RENDERING.md for the full detail. Added the diagnostic rule that Add to Cart doing nothing with no network request is form validation, to be resolved with `form.checkValidity()` and by resolving each invalid element to its enclosing `PX-OPTION`. Source: claude-chat + fireflies-call.
 - 2026-09-09: Added that a custom-tool product must be a design product, because static products cannot carry template options and every preview block loops `chosen_template_options`; and that Add to Cart must be gated with `data-requires-design` on the tool root and never `requires_design: true` on the product, with the gate failing open. Source: claude-chat.
 - 2026-10-06: Photo prints: no min/max quantity property, minimums are client-side custom code. Added free shipping progress bar is display only (hard-coded 99). Added cart links (GET links add saved projects only, no promo-code URL parameter) and adding a saved project via `POST /cart/add_print_product`. Added a guest who signs in keeps projects and cart lines. CORRECTED cart-to-order promotion: needs an Order custom field definition per site, Public, tested with a placed order. CORRECTED the Add to Cart gate section: `requires_design: true` is safe on tool-driven and file-upload products (the 2026-09-09 "never set it" advice is withdrawn). Added that a custom tool chooses its own cart image via a `_preview` option. Source: claude-chat.
+- 2026-10-09: Added Reorder, order details and emails for a custom tool line (Reorder drops template option files, order details prints every variant, the email line shows the catalog photo). Added Cut prints with autorotate show sideways in the cart, with the delivered parent fix marked not verified live. Source: claude-chat.
