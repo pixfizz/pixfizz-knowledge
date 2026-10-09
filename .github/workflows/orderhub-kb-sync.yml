@@ -1,0 +1,49 @@
+name: OrderHub knowledge base sync
+
+on:
+  schedule:
+    - cron: "17 3 * * *"   # every night, 03:17 UTC
+  workflow_dispatch: {}     # "Run workflow" button for a manual sync
+  push:                     # also run when the sync itself changes
+    branches: [main]
+    paths:
+      - .github/workflows/orderhub-kb-sync.yml
+      - scripts/orderhub_kb_sync.py
+
+permissions:
+  contents: write
+
+concurrency:
+  group: orderhub-kb-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install converter
+        run: pip install markdownify==0.13.1
+
+      - name: Pull articles from OrderHub
+        env:
+          ORDERHUB_KB_URL: ${{ secrets.ORDERHUB_KB_URL }}
+          ORDERHUB_KB_KEY: ${{ secrets.ORDERHUB_KB_KEY }}
+        run: python scripts/orderhub_kb_sync.py
+
+      - name: Commit changes
+        run: |
+          git add orderhub
+          if git diff --cached --quiet; then
+            echo "No changes."
+            exit 0
+          fi
+          git config user.name "orderhub-kb-sync"
+          git config user.email "orderhub-kb-sync@users.noreply.github.com"
+          git commit -m "OrderHub KB sync $(date -u +%Y-%m-%d)"
+          git push
