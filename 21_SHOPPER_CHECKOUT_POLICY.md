@@ -40,6 +40,15 @@ If any orderline has:
 If any orderline has:
 - `orderline.product.custom.pickup_unavailable`
 
+## Pickup contact phone
+
+- **A pre-filled phone is not a saved phone.** The pickup phone box pre-fills from `user.telephone`, but `cart.telephone` stays blank until the contact form is submitted, so the "Phone Number Required to Checkout" gate still fires for a signed-in user with a saved phone. `admin/checklist/autofill-pickup-phone` = `TRUE` writes it automatically.
+- `dont-require-pickup-contact-details` hides the whole contact block. `pickup-phone-not-required` removes only the phone gate. `autofill-pickup-phone` runs inside the contact block, so it does nothing when `dont-require-pickup-contact-details` is `TRUE`. Key table: `50_SHOPPER_TEMPLATE_REFERENCE.md` § 5 (Checkout Policy).
+- Known gap: `checkout/pickup-contact-details` keeps `required` on the phone input even when `pickup-phone-not-required` is `TRUE`.
+- Storefront Settings on a child is `/site/setup/storefront`, not `/setup/storefront`.
+
+Template-level (Shopper 24). *Verified by reading source (live shopper24), 2026-10-15.*
+
 ## Film processing
 If not disabled by `admin/checklist/hide-film-order-checkout`, and any orderline has:
 - `orderline.product.custom.film_processing`
@@ -99,6 +108,10 @@ These are checkout configuration options, not hardcoded behaviour.
 So the effective default is determined by the **ordering** in `checkout/available-payment-methods`. To change the default, reorder that snippet - do not modify the `site/checkout` file.
 
 The payment-method radio selector only renders when **more than one** method is enabled. With a single enabled method it is auto-selected and the selector is hidden.
+
+**Payment heading with no methods under it** means the split of `checkout/available-payment-methods` kept a trailing carriage return on every name (CRLF snippet, LF page). Fixed on the parent 2026-10-13 by stripping each item; see `50_SHOPPER_TEMPLATE_REFERENCE.md` § 17, *Splitting snippet output on a captured newline*. *Verified by query, 2026-10-13.*
+
+**Invoice is not a general method.** `admin/checklist/confirm-with-invoice` offers Invoice only to users whose `user.category` is `invoice` (and as the only method to Pro Portal users); orders placed with it land in Pending unless Auto Confirm Orders is on. Detail: `50_SHOPPER_TEMPLATE_REFERENCE.md` § 5 (Checkout Policy). *Verified by reading source, 2026-10-14.*
 
 **Renaming a payment method label.** Payment method display labels (e.g. "Cash on Delivery") are set via the admin **Translations** system, not a dedicated config field. To rename a method - for example "Cash on Delivery" to "In House Billing" - edit the translation string for that label. See `18_ADMIN_NAVIGATION.md` section Built-in Translation Support.
 
@@ -176,6 +189,10 @@ endif
 
 **Rush field differs between the two pages.** In special-rush mode the standard checkout writes `cart[custom][rush_option]` with `none` / `standard` / `sameday`; the old fork wrote `cart[custom][rush_sameday]`. Check fulfillment, reports and OrderHub views that read the old field before moving a site off the fork. *Verified by reading source, 2026-09-10.*
 
+**Three-way rush and its labels.** With `checkout-rush` and `checkout-rush-special` both `TRUE`, the choice writes `rush_option` = `none` | `standard` | `sameday`, labelled by `checkout/no-rush-button`, `checkout/rush-button` and `checkout/rush-button2`; `checkout/rush-disclaimer` shows only for `sameday`. Charge each speed with its own Extra Fee (`30_PRICING_ENGINE.md` § Extra Fees).
+
+**Radio-style rush loses the choice after re-render.** With `checkout-rush-style` blank (radio style), the `standard` and `sameday` radios carry `selected` instead of `checked`, so after the autosubmit re-render no option looks chosen. Use `checkout-rush-style` = `DROPDOWN`, which renders a select and keeps the choice. `pages/confirm` still renders the old single `cart[custom][rush]` checkbox, which no `rush_option` fee reads. Template-level (Shopper 24). *Verified by reading source, 2026-10-10.*
+
 **`checkout/rush-button2` always renders.** The checkout renders the second rush choice (button or dropdown option) even when the snippet is empty, so there is no way to offer only one rush choice. *Verified by reading source (`pages/checkout`), 2026-09-30.*
 
 ## Payment Gateway Notes
@@ -202,3 +219,4 @@ On a child site, set the checklist keys with **Override Snippet** on the parent'
 - 2026-09-24: Added Kiosk Sessions (one-page checkout, Confirm Order is the only conversion, thank-you-page logout, guest recovery from Orders → Projects, per-site kiosk card payment switch-off) and Payment Gateway Notes (BridgePay ZIP field, PayU webhooks after a domain change). Source: fireflies-call, slack-message.
 - 2026-09-29: Added the four conditions a bare child site needs before checkout shows delivery and payment. Source: claude-chat.
 - 2026-10-06: Kiosk mode: carts are per domain. Added Kiosk associate tip (gates, fields, fee precedence, stale-mode fix, dead CSS selector fix, Order definitions as an install step). Added Pay in Store maximum cart total (number only, inclusive, blank disables, decided in the resolution block), the `rush_option` vs `rush_sameday` field difference, and `checkout/rush-button2` always rendering. Source: claude-chat.
+- 2026-10-17: New Pickup contact phone section (pre-filled is not saved, `pickup-phone-not-required` vs `dont-require-pickup-contact-details` vs `autofill-pickup-phone`, `required` gap, `/site/setup/storefront`). Rush: three-way labels and disclaimer, radio style loses the choice (use `checkout-rush-style` = `DROPDOWN`), `pages/confirm` old rush checkbox. Payment: empty method list after a page save (CRLF, fixed 2026-10-13), Invoice offered only to `invoice` users. Source: claude-chat.

@@ -179,6 +179,10 @@ nothing to re-bind, so there is nothing to break when the fragment is re-injecte
 open by default to a crawler, which a JS-built tab panel may not be. Reach for a JS component
 only when the interaction genuinely needs one.
 
+### Draw small icons in fixed-size buttons as inline SVG, not text glyphs
+
+A Unicode glyph used as an icon (braille dots as a drag handle, a multiplication sign as close, arrows) sits off center on iPhone, because each font draws the character with its own side bearings and baseline, and fallback fonts differ by device. For any small icon inside a fixed-size button (drag handle, close, crop, layout) use an inline SVG with an explicit `viewBox`, centered with flex. Template-level practice (custom tools and studio pages), not a platform rule. *Verified on an iPhone screenshot, 2026-10-13.*
+
 ---
 
 ## 4b. Verifying on iPhone
@@ -294,3 +298,4 @@ Honest list, so the next person does not assume coverage that is not here.
 - 2026-09-09: Added § 4a Touch and form implementation rules — gallery arrows hidden until hover are hidden forever on touch (and why an always-visible override must be scoped to multi-image galleries); a visually hidden radio must use `opacity: 0` rather than `display: none`, or native validation fails silently and the form refuses to submit with no message; size a canvas or preview on both axes and repaint on debounced resize and modal-shown, because a hidden modal reports a zero box; prefer native `<details>`/`<summary>` to a JS tab component for collapsible product content. Source: claude-chat.
 - 2026-09-24: Added § 4b Verifying on iPhone, including the iPad Safari upload-feedback known issue. Source: claude-chat, fireflies-call.
 - 2026-09-29: IPad design tool known issues (move, flip, filters). Source: fireflies-call.
+- 2026-10-17: § 4a draw small icons in fixed-size buttons as inline SVG, not text glyphs (off center on iPhone). Source: claude-chat.

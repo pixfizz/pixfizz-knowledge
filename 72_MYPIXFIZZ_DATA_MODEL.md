@@ -577,7 +577,7 @@ Individual GA4 Measurement Protocol send attempts.
 ---
 
 ### ga4_event_outbox
-Outbox queue for GA4 events pending delivery via Measurement Protocol.
+Outbox queue for GA4 events pending delivery via Measurement Protocol. `raw_payload` holds the full Pixfizz order webhook payload for every event received (`order.created`, `order.status_changed`, `order.updated`), so live sales reporting can read it with no Pixfizz core work. It is also the order history behind Brand Performance: never put an age-based delete on it (`70_MYPIXFIZZ_OVERVIEW.md` § Operational Rules for Changing myPixfizz). Brand Performance currently groups by the database time zone, not the store's local day (see `61_PIXFIZZ_API.md` § 13d on `created_at`). *Verified by query, 2026-10-17.*
 
 | Column | Type | Notes |
 |---|---|---|
@@ -1671,3 +1671,4 @@ Adding a **second** foreign key from table A to table B makes every bare embed o
 - 2026-08-29: Added two Postgres/Supabase rules — an RLS policy on a table must not call a helper that re-reads that same table, because `INSERT … RETURNING` cannot see its own row and Postgres misreports the failure as a WITH CHECK violation on the innocent INSERT policy (isolate by running the insert without `RETURNING` in a rolled-back transaction); and any column PostgREST upserts on needs a non-partial unique index, or `onConflict` fails with `42P10`. Source: claude-chat.
 - 2026-09-24: Added rule 3: a second foreign key to an embedded table breaks existing PostgREST embeds. Source: claude-chat.
 - 2026-10-06: Added a coverage note, new `brands` columns and rules (archive, merge, billing code, derived platform, storefront type values, identity guards), new `support_cases` columns and support rules (order error fields, urgency, urgent alert clock, awaiting-customer sweep, outbox events), and § Tables Added September to October 2026 (brands and performance, tools, storefront configuration, blog, marketing, launch plans and project requests, support and other), all read from the migrations at commit d6290ee. Source: claude-chat.
+- 2026-10-17: `ga4_event_outbox`: `raw_payload` holds every order webhook payload (created, status changed, updated) for live sales reporting; it is Brand Performance's order history; Brand Performance groups by the database time zone. Source: claude-chat.

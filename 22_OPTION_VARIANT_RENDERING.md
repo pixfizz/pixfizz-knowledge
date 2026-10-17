@@ -62,6 +62,8 @@ Options can be conditionally displayed based on kiosk mode:
 
 *Verified by query on a shopper24 child, 2026-10-05.*
 
+**Product custom keys carry the same trap.** A template export also carries the source products' custom keys, for example `hide_design_options: 'false'` and `prepay_only: 'false'`. On a site with no Product definition for them they store as the string `"false"` (visible in `/v1/products/<id>.json`). `product/design-now` renders template options only `unless collection.custom.hide_design_options or product.custom.hide_design_options`, so **no design options render** (an upload "does nothing" because it is not on the page), and `pages/checkout2` forces prepay. Symptom: `/v1/themes/<id>` lists the option but the product page has zero `px-option` elements. Check that `JSON.stringify(product.custom.hide_design_options)` returns `false`, not `"false"`. Fix: create the boolean definitions under Settings → Custom Fields → **Product Attributes** (URL type `Product`) and save the product; prevent it by stripping false product custom keys before import. Platform-level (definitions per site) meeting template-level (Shopper 24). *Verified by query and by reading source, 2026-10-14.*
+
 ### 3.2 Triggered / child options (conditional logic)
 Options can have children (`option.children`), and child options can be shown based on a trigger:
 
@@ -89,6 +91,7 @@ These are the selectors explicitly handled in the snippet you provided:
 ### 4.1 `textarea` (Text option rendered as textarea)
 - Applies when `option.type == 'text'` and `option.custom.selector == 'textarea'`
 - Renders `<textarea ... rows="4">`
+- **Defect seen in the parent `product/px-option` (2026-10-13):** the textarea branch printed indentation and newlines between `<textarea ...>` and `</textarea>`, so every textarea started with whitespace as its value (length 72 on an "empty" field). `required` then never blocks an empty textarea and the placeholder never shows. Fix: no whitespace between `>` and `</textarea>`. If an empty textarea passes `required`, check this first, including any child override of `product/px-option`. Template-level (Shopper). *Verified by reading source and live DOM, 2026-10-13; whether the parent fix has shipped is not verified.*
 
 ### 4.2 `color` (Multiple choice rendered as swatches)
 - Applies when `option.custom.selector == 'color'`
@@ -233,6 +236,7 @@ Template-level (Shopper 24 `product/px-options`). *Verified by reading source, 2
 - `admin/checklist/hide-color-label` (site-wide, `TRUE`) covers only the two color branches (`option.color_palette` swatches and `option.custom.selector == 'color'`; the second only since the 2026-10-08 parent fix, and not on a child that overrides `product/px-option`, § 4.2). An option whose code contains "color" but whose values are asset images renders through the generic image branch, inherits the color font sizing, and is not reached by the color checklist. Use `hide_value_labels` there.
 - Read it as `option.custom.hide_value_labels and option.custom.hide_value_labels != 'false'` (§ Unset Booleans Export as the String `'false'`).
 - The custom field definition must exist on the site's option object before it can be ticked. An Override Snippet of `product/px-options` on a child site pins the old snippet and never receives the parent change.
+- **Value labels under image tiles truncate at about 6 characters.** Keep value names short and distinct in their first few characters; two values that both showed as "Gold" was the failure seen. *Observed live, 2026-10-14.*
 
 Snippet Description (for the custom field): "Hides the text label under each thumbnail on an image-based multiple choice option. Ticked hides the labels, unticked (default) shows them. Has no effect on options whose values have no image."
 
@@ -262,7 +266,7 @@ Shopper renders a `<px-image-upload>` web component with:
 
 ### 5.2 `file_upload` (`option.type == 'file_upload'`)
 Shopper renders a `<px-file-upload>` component.
-- Default accept is `image/*,.pdf` unless overridden.
+- Accept is `image/*,.pdf` unless `option.accept` is set. (Corrected 2026-10-13: was "unless overridden".) **`option.custom.accept` is ignored on `file_upload`** (`product/px-option` reads `option.accept`), while `image_upload` does read `custom.accept` (§ 5.1). The platform itself accepts other types (a .docx uploaded by script). *Verified by reading source and by query, 2026-10-13.*
 - Can display existing uploaded file name / URL.
 - **Programmatic injection:** `px-file-upload` exposes a real
   `input[type=file]`, so a script can inject a File via a `DataTransfer`
@@ -275,6 +279,10 @@ Shopper renders a `<px-file-upload>` component.
   `hidden: true` (invisible to the customer) with `read_only: false`. A
   `read_only: true` upload renders a hidden value input plus a read-back chip
   with no file input to inject into.
+- **Markup printed after the component lands inside it.** `product/px-option` prints `<px-file-upload ... />` self-closing; HTML ignores a self-close on a custom element, so everything printed after it in the same option (the help text div, `product/px-pdf-detection` output, any added snippet) ends up **inside** the element. Target it accordingly.
+- **The required check sits on the component's own internal button** (custom validity "Please upload a file"). If the component is hidden or restyled, the browser has nowhere to show the bubble and Add to Cart silently does nothing. Catch the `invalid` event in the capture phase on the form, filter to the component, `preventDefault()`, and show your own message. See § A Required File-Upload Option Behind a Trigger Silently Kills Add to Cart.
+- A script-injected file (DataTransfer, above) sets `value` to `db:<id>` plus `file-name` and `file-url`, exactly like a picked file.
+*Verified live, 2026-10-13.*
 ### 5.2b Targeting a specific upload by option code
 Every option is wrapped in `<px-option code="...">`. When a product has more
 than one upload option, scope any DOM query to the wrapper —
@@ -298,6 +306,14 @@ project opening with its settings reset when the customer edits it.
 
 Hidden inputs count. A read-back routine that only inspects checked radios and
 selects will miss values that project-edit renders as `input[type=hidden]`.
+
+What project-edit renders (`/site/project-edit?cart=t&project_id=<id>`), platform page form meeting template-level (Shopper 24), *verified by query 2026-10-13 and 2026-10-16*:
+- The form is `form#project_update`: action `/v1/books/<id>`, hidden `_method=put`, target `/site/cart`. Variants post as `book[options][<code>]` (hidden when the variant is hidden), template options as `book[template_options][<code>]`, both carrying the saved values. There is no `#project_create` and no `.product-single` row.
+- File options render `px-file-upload` with value `db:<id>`, `file-name` and a public `file-url` the page can fetch.
+- The template option `custom_script` mount renders here too, so a tool mounted on the product page also boots on project-edit (cart Edit).
+- The submit is `.save-to-cart-button` ("Save and return to cart") inside the form; a tool can hide it and call `form.requestSubmit(button)` after writing its values, and the cart line stays the same project.
+- **A tool that writes its defaults on mount overwrites the saved values before the customer touches anything.** Read the server values first, then write.
+- What the page lacks (no price, no `product_id`) and how a tool reopens its own state: `26_CUSTOM_DESIGN_TOOLS.md` § 6.
 
 ### 5.3 Multi-upload groups (`option.custom.multi_upload_group`)
 This is a key advanced behavior.
@@ -703,6 +719,12 @@ OrderHub custom orders read the same way: variants only. Production choices a co
 
 **`pos_hidden`** is the standard boolean custom field on the VariantType for hiding a variant in the POS: choice variants leave it unchecked, tool-written values (a tool's price, page count, spec and mount) have it checked. A site needs the `pos_hidden` and `hidden` definitions on VariantType before it can take a product built this way. Detail in `26_CUSTOM_DESIGN_TOOLS.md` § Every customer choice on a variant. *Stated by Alex, 2026-09-26.*
 
+## A Non-Additive Finish x Size Price Matrix Is One Variant With Combined Codes
+
+A variant price formula cannot read another variant's value, so when the price depends on two choices and the matrix is not additive (one finish dearer than another at small sizes and cheaper at large), two priced variant types cannot express it. Use **one** multiple-choice variant with a value per combination, code `<finish>-<size>` (for example `canvas-14`), and the price on each value. The cart line reads the value name at the right price. A page can still draw finish cards and size tiles from a Liquid loop over `option.values` and tick the native `variants[<code>]` radio with `.click()`, so `px-option-selector`, `px-product-price` and Add to Cart follow; hide the native tiles only after the script has taken over. Child variants behind a Finish trigger are not the answer: triggered children carry the cart and validation faults in § A Required File-Upload Option Behind a Trigger Silently Kills Add to Cart. Platform-level. *Verified by cart, 2026-10-13.*
+
+**Converting existing products:** edit values in place (`PATCH /admin/variant_values/<id>`) and add the rest (`POST /admin/variant_types/<id>/variant_values`). Do not re-save the variant type form just to rename it: its `control_type` select has no blank option, so a save turns an unset `control_type` into `dropdown`. *Verified by reading the admin form, 2026-10-13.*
+
 ## Changelog
 - 2026-06-19: Added section 4.8 `toggle` selector (2-value animated CSS-only switch on `product/px-options`), including the `toggle_hide_labels` bare-switch option, guard/fallback behavior, and primary-colour sourcing. Added cart-context note (7) that toggle is product-page only. Added `toggle` and `toggle_hide_labels` to the recognize-and-document list (8).
 - 2026-07-28: Added 5.2c — option input names differ between the product page (`variants[code]`) and project-edit (`book[options][code]`); scripts must suffix-match and must handle hidden inputs. Source: claude-chat.
@@ -713,3 +735,4 @@ OrderHub custom orders read the same way: variants only. Production choices a co
 - 2026-10-06: § 3.1: the string "false" trap arriving with a template export from another site, the blank-key clearing fix and the strip-undefined-keys prevention. New § Template Option Substitutions: Target Elements, Types and Limits (255-character `target_element_name`, comma-separated targets, tag targeting, substitution type list, color option behavior). § Variant Type Exports: conditional child variant types in a per-product archive. New § 4.9 `hide_value_labels`. § 5.1: an image upload crops to fill regardless of `crop="false"`, with the hidden `image_crop_flag` option fix. CORRECTED § Variant Type Exports: a variant types export does carry `hidden`, `read_only` and `hide_from_cart`; added the per-product variant types export and import routes. § Pricing and POS-Relevant Choices: `pos_hidden` pointer. Source: claude-chat, vault-doc.
 - 2026-10-06 (later): § 6.1 what `data-px-no-element-substitutions` does (keeps an input out of preview URLs) and the per-option `skip_for_previews` override. § 6.2 options written into the page URL by `storeOptionSelectionIntoURL`, the long-value crash and the ignore-list fix. Source: gmail (core developer, 2025).
 - 2026-10-09: § 4.2 and § 4.9 the hide-color-label checklist did not reach `selector == 'color'` swatches until the 2026-10-08 parent fix; child overrides keep the defect. Template Option Substitutions: tag targeting works in the editor; a substitution naming a missing element does nothing silently; a variant and a template option must not share a code; copying design options between sites. Variant Type Exports: a priced number variant needs `default_value: '0'` to import. Source: claude-chat.
+- 2026-10-17: § 3.1 product custom keys (`hide_design_options`, `prepay_only`) stored as `"false"` hide every design option and force prepay. § 4.1 textarea whitespace defect defeats `required`. § 4.9 value labels under image tiles truncate at about 6 characters. § 5.2 corrected: `file_upload` reads `option.accept`, not `custom.accept`; markup after `px-file-upload` lands inside it; the internal required check and the capture-phase `invalid` fix; injected files carry `db:<id>`, `file-name`, `file-url`. § 5.2c what project-edit renders (`form#project_update`, `book[template_options]`, file URLs, the mount boots there, `.save-to-cart-button`, read before writing defaults). New § A Non-Additive Finish x Size Price Matrix Is One Variant With Combined Codes. Source: claude-chat.

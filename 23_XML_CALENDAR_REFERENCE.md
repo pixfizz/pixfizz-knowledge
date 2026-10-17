@@ -102,7 +102,7 @@ Calculates a date and stores it under a name for later reference. Does not add i
 | `day` | Day offset (e.g. `-1`, `+41`). |
 | `month` | Month offset (e.g. `-1`, `+1`). |
 | `year` | Year offset (e.g. `+1`). |
-| `weekday` | Jump to the nearest occurrence of a weekday: `SU`, `MO`, `TU`, `WE`, `TH`, `FR`, `SA`. |
+| `weekday` | Jump to that weekday inside the Monday-to-Sunday week of the current date (not the nearest occurrence): `SU`, `MO`, `TU`, `WE`, `TH`, `FR`, `SA`. So a Sunday-start grid needs `<dateshift day="-6">` around `weekday="SU"`, and a Monday-start grid takes `weekday="MO"` with no shift; adding `day="-6"` to the Monday version starts the grid a week early whenever the 1st is not a Monday. (Corrected 2026-10-17: previously described as the nearest occurrence.) *Verified by render, 2026-10-14.* |
 
 ```xml
 <defdate name="last-day-of-previous-month" day="-1" />
@@ -116,7 +116,7 @@ Shifts the current date context before executing child elements. All child date 
 | `day` | Shift by N days. |
 | `month` | Shift by N months. |
 | `year` | Shift by N years. |
-| `weekday` | Shift to the nearest occurrence of a weekday (`SU`, `MO`, etc.). |
+| `weekday` | Same rule as on `<defdate>`: that weekday inside the Monday-to-Sunday week of the current date, not the nearest occurrence. (Corrected 2026-10-17.) *Verified by render, 2026-10-14.* |
 | `to` | Jump to a previously stored `defdate` reference name. |
 
 ```xml
@@ -157,6 +157,8 @@ Reuses another named date sequence inline. Avoids duplication when multiple sequ
 
 ### Tags
 The `tag` attribute on `<dategen>` marks dates with a label. The most common use is `out-of-range` or `out-of-current-month` — marking dates that fall outside the current month so the design tool can style them differently (e.g. greyed out).
+
+Element-level date tags (`cal:<series>:idx:<n>`, `cal:<series>:fill:<what>`) and what calendar transformations can reach: § Calendar Element Tags, Fills and Transformations.
 
 ---
 
@@ -581,6 +583,33 @@ independently verified in admin.*
 
 ---
 
+## Calendar Element Tags, Fills and Transformations
+
+Platform-level (Pixfizz CMS).
+
+**Element tags.** Date-bound elements in the page XML (`print_themes[].templates[].data` in a template export) carry a `tags` attribute with two comma-separated parts, in either order:
+- `cal:<series>:idx:<n>`: which date of the named series the element shows. **1-based**: idx 1 to 42 for a 6-week grid; `idx:0` is never filled or deleted.
+- `cal:<series>:fill:<what>`: what to write. Fills available: `day`, `month` (a number, not zero-padded), `month-name`, `year`, `weekday-name`, `week-number`, `any-calendar`, `website-calendar` (the site holiday calendar), `user-calendar` (the customer's personal dates). There is no uppercase or zero-padded fill: use `set-text` per month.
+
+**Fills and transformations apply at render.** The text inside a filled element is a placeholder (exports and project XML show stale values such as 2022 or SEPTEMBER) and is replaced at render; it is not a baked year.
+
+**Transformations in a template export.** Each print theme carries `calendar_transformations` with fields `action`, `value`, `element_name`, `date_series`, `date_tag`, `date_year`, `date_month`, `date_weekday`, `date_day`, `date_week`, `calendar_type`, `website_calendar_code`, `calendar_date_type`, `order`. Actions seen:
+- `delete` with `date_tag` (for example `out-of-range`, `out-of-current-month`) and optional `date_series`: removes elements whose date carries that tag (empty grid cells, mini-month overflow). Image elements with an idx tag are removed like text cells.
+- `set-image-src` / `set-image-mask` with `element_name` and value `db:<image id>`: per-month artwork or mask.
+- `set-text` with `element_name` and a literal value: per-month text (JAN to DEC). A `set-text` with literal years is a baked year and expires; avoid it.
+- `set-color` works on `<shape>` as well as text. Conditions include `date_month` and `date_weekday` (`date_weekday SU` colors every Sunday whatever its column).
+
+**What transformations reach.**
+- **Calendar transformations only reach elements that carry a date (idx) tag**, shapes included. A named shape with no date tag ignores `set-color`.
+- **When a calendar transformation and a design-option element substitution hit the same element, the transformation wins.**
+- **Holiday captions (`fill:website-calendar`) and website-calendar conditions only apply when the project is created with `book[calendars][]=<site calendar id>`.** In Shopper the snippet `product/select-website-calendars` renders those checkboxes when `website.calendars` is not empty. Recurring calendar dates apply every year.
+
+**Cover year without `set-text`.** A page that fills from a series needs that `<dates name="...">` declared in the template definition (one export used `selected-year` on a cover without declaring it). Working pattern: `<dates name="selected-year"><date day="1"/></dates>`, `<set foreachdate="selected-year">`, page `dates="selected-year"`, text tags `cal:selected-year:idx:1,cal:selected-year:fill:year`.
+
+*Export fields read from three calendar template exports, 2026-10-13. Index base, fills, transformation reach and the cover-year pattern verified by render on a test site, production PDFs read back, 2026-10-14.*
+
+---
+
 ## Reaching Elements Hidden Behind a Calendar Grid
 
 Calendar and planner pages stack a lot of elements in the same place, and a grid
@@ -608,3 +637,4 @@ edit was ever made.
 - 2026-06-30: Documented week-number triggering for calendar transformations. Source: notion-dashboard (2026-06-22).
 - 2026-08-14: Added the layer-visibility technique for reaching calendar elements blocked by an overlapping grid, and the rule that a manual refulfill is required after any such edit before production files reflect it. Source: fireflies-call (2026-08-12).
 - 2026-09-19: Added per-month backgrounds and colors as calendar transformations rather than XML: element naming, the Dates flag on each element, Set Image and Element Color, the date series name having to match the page exactly (with the "Could not find definition for dates" error it produces on a multi-page calendar), the absence of any odd/even shortcut, and the bulk XML naming and WebP quality 90 tips. Source: loom-video (2026-09-14).
+- 2026-10-17: Corrected `weekday` on `<defdate>` and `<dateshift>` (the weekday inside the Monday-to-Sunday week, not the nearest occurrence; Sunday-start needs `day="-6"`, Monday-start does not). Added Calendar Element Tags, Fills and Transformations: 1-based `idx` tags, the full fill list, `calendar_transformations` fields and actions in an export, transformations reach only date-tagged elements, transformation beats design-option substitution, website-calendar captions need `book[calendars][]`, the cover-year pattern. Source: claude-chat.

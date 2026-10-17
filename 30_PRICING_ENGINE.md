@@ -34,6 +34,7 @@ Pricing formulas are set on the **Product Attribute** in the admin:
   exercised only on the staging host, which writes to the production database
   (`61_PIXFIZZ_API.md` § 13e). Admin bulk export/import (below) remains the safe bulk route.
 - House convention for tier variables: store **multipliers**, not percentages off.
+- **Price Variables also resolve inside template option value price formulas** (`template_option_value[price]`, edited at `/site/<site>/admin/templates/<template>/options/<option>/values/<value id>/edit`), not only in product and variant formulas. *Verified by query, 2026-10-14.* On a template provider, those formulas run on the **provider's** variables when a consumer sells the template (`18_ADMIN_NAVIGATION.md` § Template Provider and Template Consumers).
 
 ## Keep formulas basic
 Use established patterns; avoid “optimized” Ruby.
@@ -74,6 +75,11 @@ or
 
 ### Sheet-based production pricing
 `10 + (((pages - 12.0) / 12.0).ceil) * 8`
+
+### Round the total up to the next .95 when the product price is fixed
+When a book's product price is a fixed P0 and the per-page price sits on a template option value, put the rounding on the option so the **total** lands on .95:
+`((base + (pages - uncounted_pages) * rate) * markup + 0.0499).ceil - 0.05 - P0`
+where P0 is the same expression evaluated at the minimum page count. If `base`, `rate` or `markup` changes, P0 must be recalculated and the product price updated with it. Check with `price_forecast` across the page range after any change. Platform-level. *Verified by query (price_forecast on 11 products x 5 page counts), 2026-10-14.*
 
 ## Photo Prints — Hard Rule
 
@@ -325,6 +331,19 @@ Platform-level (Pixfizz CMS).
   that must match a formula to the cent should know that Ruby `Array#sum` uses compensated
   (Kahan-Babuska) summation and JS `+` does not; round at 9 decimals before rounding to the cent
   on both sides (`26_CUSTOM_DESIGN_TOOLS.md` § 1).
+- **`price_forecast` returns raw float sums when a formula adds decimals** (for example
+  `1.9900000000000002`). Wrap such formulas in `(...).round(2)`; after that `price_forecast`
+  returns clean values. *Verified by query on six products, 2026-10-16.*
+- **Page count in `price_forecast` comes only from the `pages` parameter.** `book[pages]` alone
+  is ignored and the price stays at the base.
+- **A wrong template option value code looks applied.** Template option prices apply when passed
+  as `template_options[<code>]=<value code>`, with or without `print_theme_id`, but a value code
+  that does not exist is still listed in `template_options_applied`, at 0. A tool that relies on
+  an option's per-page price should check that a longer book costs more.
+- **A per-page formula goes negative below its base count.** `(pages - uncounted_pages - 40) * rate`
+  forecasts a 30-page book below the 40-page price. Never offer or forecast below the product's
+  minimum page count (the API does not clamp it, `61_PIXFIZZ_API.md` § 4). *Verified by query,
+  2026-10-13.*
 
 ---
 
@@ -638,11 +657,34 @@ Stated from a client call, not independently verified.
 
 - The formula returns an **amount to add**, in the site currency, as a raw number (no
   `currency` filter on the output — the engine formats it).
-- **Verify on first test order (pending confirmation with Matjaz):** that `cart.orderlines`
-  is the correct loop handle inside an Extra Fee formula, and that a bare `{{ number }}`
-  output is read as the fee amount. Both are inferred from Automatic Discounts behaviour;
-  confirm before relying on the orderline-iteration pattern in production.
+- **Confirmed 2026-10-10 (verified live with a guest cart; Corrected 2026-10-17: was "verify
+  on first test order"):** an Extra Fee formula can loop `cart.orderlines`,
+  `orderline.product.code` resolves to the design product's code, a cart custom field such as
+  `cart.custom.rush_option` resolves, and a bare `{{ px_fee }}` output is added as the fee
+  amount; empty output adds no line. Pattern for a multi-speed rush: one Extra Fee per speed
+  (for example `rush-sameday`, `rush-nextday`), so the order's extra fee name tells production
+  which speed was bought with no Order custom field needed.
 - Admin location: **Shipping → Extra Fees** (confirmed via admin screenshot).
+
+---
+
+## Shipping Rate by Cart Content Inside One Shipping Service
+
+Platform-level (shipping formula). One shipping service can charge a cheaper ladder when the
+cart holds only certain products. Liquid picks which Ruby tier formula to output:
+
+- Loop `cart.orderlines | page_size: 1000`, build `|<product.category>|` per line and test it
+  with `contains` against a pipe-delimited allow list.
+- If every line is on the list, output the cheaper ladder; any other line, or an empty cart,
+  outputs the normal ladder. A missing or renamed category can then only overcharge, never
+  undercharge.
+- The output after Liquid is the usual Ruby `if`/`elsif` on `orderlines_total`.
+- Trap: product categories are free text per product. Renaming a category, or adding a product
+  with a new category, silently moves it to the normal ladder; re-check the list when products
+  are added.
+
+*Saving verified by reading admin; checkout verified by a signed-in test checkout on a live
+site, 2026-10-13.*
 
 ---
 
@@ -705,6 +747,11 @@ number the price. The division of labour with a custom design tool is fixed:
 
 Writing an already-tiered price double-discounts. Writing a finished total freezes
 the price at add-to-cart, and the cart quantity stepper then stops re-pricing.
+
+Where a tool prices from a rate card, the card lives in the product custom field `px_rates` (so
+OrderHub and the POS price from the same numbers) and the agreed standard is one versioned
+`pricing.js` engine shared by the tool and OrderHub. Custom-tool standard, see
+`26_CUSTOM_DESIGN_TOOLS.md` § When the tool computes the price.
 
 ### The escape hatch when the tier driver is not quantity
 
@@ -769,6 +816,7 @@ Platform-level (Pixfizz CMS). *Verified by query on real carts, 2026-10-06 and 2
 - **Decimals price exactly** (340.6875 x 0.045 = 15.3309375), but the variant's Step must allow the value (0.0001 for four decimals). The storefront input carries the step, and the browser rejects an off-step value **silently**: the form will not submit and the console only says "An invalid form control is not focusable". A tool writing decimals writes at a known precision.
 - **Several priced Number variants add** to the base price; one at 0 adds 0. In `price_forecast` each variant's share is listed in `variants_applied`, and quantity 2 still returns the unit price.
 - **A hidden (not read-only) Number variant** renders as a hidden `<input type="number" name="variants[<code>]">`. A script that sets the value and dispatches `change` reprices `px-product-price` live, and the value reaches the orderline.
+- **A hidden Number variant posted to `/v1/books.json` prices the cart line,** and project-edit renders it as `book[options][<code>]` (type number): changing it there and saving reprices the same cart line with no duplicate. Project-edit has no `px-product-price`, so a tool that formats money from it needs a fallback. A project-edit save that also re-uploads a file can take more than 10 seconds before it returns to the cart. *Verified by query, 2026-10-13.*
 - **Range hashes on a decimal value: share the boundaries.** `{0..300=>a, 301..1200=>b}` has a hole at 300.5 (`.find` returns nil and the price errors). `{0..300=>a, 300..1200=>b, 1200..999999=>c}` is accepted, and `.find` gives a boundary value to the lower tier.
 - **Whole-area tier rates make a price cliff** (300 sq in at 18.00, 300.25 sq in at 13.51). The graduated form saves and prices: `value * {rates}.find {...}.last + {0..t1=>0, t1..t2=>o2, t2..max=>o3}.find {...}.last`, with `o2 = t1 x (r1 - r2)` and `o3 = o2 + t2 x (r2 - r3)`. Two range hashes added together pass the validator.
 - `px-product-price` renders its text in a shadow root: read `el.shadowRoot.textContent`, not `innerText`.
@@ -855,3 +903,4 @@ Stated from client calls, not independently verified.
 - 2026-09-24: The API write path skips the formula validator; reserved names for Price Variables (not engine-tested). Source: claude-chat.
 - 2026-10-06: Price Variables: corrected the stale "staging only" API note (read and update confirmed on production 2026-09-23). Photo Prints: a flat variant value price on a cut print is not per copy; use a `<delta> * cut_print_quantity` variant value formula (price forecast multiplies per copy; the Photo Prints component shows the one-copy price), with illustrative numbers. From group B2 spill: a product price formula must cover quantity 1 (use `unit_intervals`); new section Platform Price per Quantity and Cart Rounding (`price_forecast.json`, cart line rounding, unconfirmed formula rounding). Source: claude-chat, vault-doc.
 - 2026-10-09: New § Number Variant Price Formulas: where the formula lives, the result is multiplied by orderline quantity (do not append `* quantity`), decimals and Step, priced number variants add, hidden number variants reprice live, shared range-hash boundaries, graduated area tiers, `px-product-price` shadow root. Linked from the tiered-ladder cart-test note. Source: claude-chat.
+- 2026-10-17: Price Variables resolve in template option value formulas (provider's variables on a consumer); canonical pattern for rounding a book total to .95 with a fixed product price; `price_forecast` float sums need `.round(2)`, page count only from `pages`, wrong option value codes listed at 0, per-page formulas go negative below the base count; Extra Fee `cart.orderlines` loop and bare-number output confirmed live (replaces the pending note), one fee per rush speed; new § Shipping Rate by Cart Content Inside One Shipping Service; hidden Number variant on `/v1/books.json` and project-edit reprices the same line; pointer to the `px_rates` / `pricing.js` tool standard. Source: claude-chat, slack-message.

@@ -147,10 +147,11 @@ A memorable framing for advising customers: AI looks for five signals. Be crawla
 This is the platform-truth section. Map each signal to what the platform and template actually do, and flag the gaps.
 
 ### Crawlable
-- `[PLATFORM]` Built-in crawler at **Admin → Website Crawls** (`/admin/website_crawls`) generates `sitemap.xml` and `product-feed.json`. The `/site/sitemap` path does not exist; do not assume it. The crawler can be set to run automatically every 24 hours; once existing crawl errors are cleared, leaving it on a daily schedule keeps SEO health maintained without manual re-runs.
+- `[PLATFORM]` Built-in crawler at **Admin → Website Crawls** (`/admin/website_crawls`) generates `sitemap.xml` and `product-feed.json`. The `/site/sitemap` path does not exist; do not assume it. The crawler can be set to run automatically every 24 hours; once existing crawl errors are cleared, leaving it on a daily schedule keeps SEO health maintained without manual re-runs. **Schedule Website Crawl** regenerated `sitemap.xml` within minutes on a 400-URL site, and the crawl report lists products missing a LD+JSON `description` (verified by query, 2026-10-14). A design unpublished from a collection row drops out of `sitemap.xml` at the next crawl; a Pages instance with `admin_only` is left out of it but still renders by direct URL (`50_SHOPPER_TEMPLATE_REFERENCE.md` § 14).
+- `[PLATFORM]` **A site with a custom domain still serves the whole site on `<code>.pixfizz.com`, with no redirect.** Canonical, `robots.txt` and the sitemap all point at the primary domain, which is correct, but internal links on the pixfizz host stay on the pixfizz host. Check in Search Console which host Google selected as canonical before assuming the pixfizz host is indexed. A platform 301 from the pixfizz host to the primary domain is a candidate fix and is not built. *Verified live, 2026-10-12.*
 - `[SHOPPER]` `no-index` checklist key set to `TRUE` adds a site-wide noindex. Confirm it is OFF on a live store.
 - `[SHOPPER]` **Key-name mismatch in the v2 manage admin.** The manage SEO page writes the hide-from-search toggle to `admin/checklist/launch-no-index`, but `html.head` reads `admin/checklist/no-index`. The toggle therefore appears to work in admin and silently does nothing on the storefront, so a pre-launch site can be indexed while the operator believes it is hidden. Until the template is corrected, verify the noindex is actually present in the rendered page source rather than trusting the admin toggle, or set `admin/checklist/no-index` directly. Source: claude-chat (shopper24 admin audit).
-- `[SHOPPER]` **Staging / pre-launch pages can get indexed by Google.** If a site was live on a staging URL before launch, those staging pages may already be in Google's index and compete with production. Fix by redirecting the old staging URLs to their production equivalents. The Shopper redirect config file is a JSON **array of `[regex, destination]` pairs** (each entry is a two-element array: a path-matching regex and the destination URL); anchor patterns as `^/site/<path>/?$` to tolerate a trailing slash. See `80_ONBOARDING.md` § SEO Migration for where this file lives and how it is applied.
+- `[SHOPPER]` **Staging / pre-launch pages can get indexed by Google.** If a site was live on a staging URL before launch, those staging pages may already be in Google's index and compete with production. Fix by redirecting the old staging URLs to their production equivalents. The Shopper redirect config file is a JSON **array of `[regex, destination]` pairs** (each entry is a two-element array: a path-matching regex and the destination URL); anchor patterns as `^/site/<path>/?$` to tolerate a trailing slash. **The regex is matched against the path including the query string**, so end each rule in `/?(\?.*)?$` (JSON: `/?(\\?.*)?$`) or a URL carrying `?fbclid=` or `?utm_` misses the rule and gets a 302 to `/site/404` (Corrected 2026-10-17; verified live, 2026-10-11; `50_LIQUID_REFERENCE.md` § Website Redirects). See `80_ONBOARDING.md` § SEO Migration for where this file lives and how it is applied.
 - For sitemap submission to Google Search Console and 301 redirect configuration during migration, see `80_ONBOARDING.md` § SEO Migration.
 
 ### Structured data
@@ -169,6 +170,7 @@ This is the platform-truth section. Map each signal to what the platform and tem
 ### Trust and local
 - `[SHOPPER]` Review display exists via Google rating fields. Review *generation* programs and GBP optimization are operational/marketing tasks for the client, not platform features.
 - Product feed for Google Shopping / Meta is produced by the built-in crawler (`product-feed.json`). Google Merchant Center connection is a client-side setup task.
+- `[SHOPPER]` **The Google product feed is `/feed/products.xml`** (RSS with the `g:` namespace), and Merchant Center can fetch it daily as a primary data source. Gaps seen on one Shopper 24 site: `title` is the product name only; `identifier_exists` is `yes` with no GTIN; `item_group_id`, `product_type` and `shipping` are not emitted; `google_product_category` held free text rather than a taxonomy ID (this may depend on the site's data). Close these in a Merchant Center supplemental source, or fix them in the feed snippet on the parent. *Verified with the Merchant API, 2026-10-12.*
 - `[GENERAL]` **Serve the store on the primary domain, not a `shop.` subdomain.** Where a business runs its store on `shop.domain.com` while the main site is `domain.com`, consolidating the store onto the primary domain (`domain.com`) generally improves indexing, keeps analytics attribution accurate (traffic not split across hostnames), and keeps local/`LocalBusiness` schema consistent with the brand's main entity. Treat a `shop.` subdomain as a migration candidate, handled with 301 redirects from the subdomain URLs to their primary-domain equivalents.
 
 ### Quick capability summary
@@ -322,6 +324,27 @@ reading source and by crawler output** unless stated otherwise.
 - **Social sharing image.** The head reads the asset `og-preview-image.jpg` (uploaded by
   `setup/seo`); the manage/seo "Social sharing image" control uploaded a differently named asset
   that nothing reads. *Verified by reading source, 2026-09-30.*
+- **Collection images are the collection page `og:image`.** An AVIF collection image becomes an
+  AVIF `og:image`, which most link-preview crawlers do not show; use JPG or WebP
+  (`50_SHOPPER_TEMPLATE_REFERENCE.md` § 9). *Verified by reading the live head, 2026-10-10.*
+
+**Found 2026-10-13, open (fix not applied):**
+
+- **Product x theme URLs are self-canonical duplicates.** `sitemap.xml` lists one product URL
+  per theme (`&theme=<id>-<slug>`). Each renders a canonical that keeps the theme parameter,
+  with the same `<title>`, H1, meta description and body as the base product; only `og:title`,
+  `og:image` and the breadcrumb change. Third-party audits then report very high
+  duplicate-title and duplicate-meta rates and thin / soft-404 flags. Cause: `pages/product`
+  falls back to `product.name` for the title and `product.description` for the meta
+  description when the design has no `meta_title`, which is most designs. Fix direction (not
+  yet built): keep theme URLs indexable and make the fallback theme-aware,
+  `{% elsif design %}{{ design.name }} - {{ product.name }}` before the `product.name`
+  fallback, with the design name prefixed to the description. *Verified by live fetch and by
+  reading source, 2026-10-13.*
+- **The canonical keeps tracking parameters.** `html.head` builds the canonical as
+  `https://{{ website.hostname }}{{ request.fullpath }}`, so `utm_*` and `fbclid` produce
+  self-canonical duplicates. Build it from `request.path` plus the product and theme
+  parameters (parent change, not done). *Verified by reading source, 2026-10-13.*
 
 ### Search Console verification branches on container presence
 
@@ -393,3 +416,4 @@ For the storefront tagging standard itself and the server-side revenue path, see
 - 2026-07-25: Documented the v2 manage-admin noindex key mismatch (writes `launch-no-index`, `html.head` reads `no-index`) — the hide-from-search toggle silently does nothing. Source: claude-chat.
 - 2026-09-09: Added Part G — Shopper parent SEO defects found and fixed this window (paginated listings invisible to crawlers; a footer link hard-coded to `http://` multiplying into hundreds of phantom broken pages; the Google reviews widget shipping without structured-data markup, which makes the existing help article on that integration incomplete; `h3` headings with no `h1`, fixed with a hidden `h1`; preview modules and pop-up design tools not recognized as product imagery, so ship two or three static images alongside; sitemap and robots.txt needing explicit enabling, plus the AI-search settings in Shopper admin; legacy kiosk landing pages crawled and scored as broken). Added the Search Console verification branch on GTM container presence, with the wizard marked not built; the half-a-chain trap (a container with no GA4 event tags shows traffic and no revenue); and the enumerate-before-you-create rule. Source: fireflies-call, claude-chat.
 - 2026-10-06: Part D: BlogPosting JSON-LD confirmed on the blog post page (Article question partly answered). Part G: added footer sitemap link with no protocol and /sitemap.xml existing only after the first crawl, unpublished blog posts reachable and listed by the homepage section, unescaped BlogPosting JSON-LD, no `json` filter breaking JSON-LD, social sharing image asset name. Pending Confirmation narrowed to FAQPage / HowTo. Source: claude-chat.
+- 2026-10-17: Part D Crawlable: Schedule Website Crawl regenerates the sitemap within minutes and reports missing LD+JSON descriptions; unpublished designs and `admin_only` pages leave the sitemap; a custom-domain site is still served on the pixfizz host with no redirect; CORRECTED redirect anchors must allow a query string. Trust and local: the Google feed is `/feed/products.xml` and its gaps. Part G: collection image is the `og:image`; product x theme URLs are self-canonical duplicates; canonical keeps tracking parameters. Source: claude-chat.

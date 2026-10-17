@@ -69,9 +69,47 @@ shows a quantity ladder reads the platform's price and never computes one. Platf
 
 ### When the tool computes the price
 
-Where the tool computes the price from a rate card (the uploaders), the rate card rides in the
-mount, one card per product, and the tool writes one figure to a number variant whose formula
-is `value`. When a lab supplies its own Ruby pricing formulas for such a product, keep its
+Where the tool computes the price from a rate card (the uploaders), the tool writes one figure
+to a number variant whose formula is `value`. **The rate card lives in the product custom field
+`px_rates`** (Corrected 2026-10-13: it previously rode in the mount), because OrderHub and the
+point of sale read product custom fields but not template options, and must price from the same
+numbers as the website. Decided by Pixfizz, 2026-10-13.
+
+- `px_rates` is a **snippet-type** product custom field (text fields cap at 256 characters,
+  `51_CUSTOM_FIELDS_REFERENCE.md`). One fixed name on every site and every tool; the card's
+  `mode` key names the pricing engine. Description: "Price card (JSON) for the custom design
+  tool on this product. Read by the tool and by OrderHub. Leave empty on products without a
+  tool."
+- The definition must exist on each site (Product object) before a value can be stored; it
+  belongs in the shopper24 custom fields kit. The mount stays: it switches the tool on and holds
+  display configuration only.
+- The tool cannot read `product` inside its mount, so the parent snippet `product/design-now`
+  prints the field as `<script type="application/json" data-px-rates data-px-source="product">`
+  when it is not blank. Tools read that tag first and fall back to a card in the mount. A
+  `px_rates` value that is not valid JSON disables pricing; the tool never falls back to the
+  mount card in that case.
+- A snippet-type field prints byte-identical through `{{ product.custom.px_rates }}`.
+  *Verified by query, 2026-10-13.*
+
+**One price engine for the tool, OrderHub and the POS: `pricing.js`** (standard agreed with
+OrderHub 2026-10-13 and 2026-10-14; not verified, the first tool on it is still a prototype).
+- The engine is its own file, plain JS with no dependencies and no DOM, running in the browser
+  and in Node. Entry point `PxPricing.price(card, selections)` returns
+  `{ unit, total, qty, breakdown }`; `card` is the `px_rates` JSON. The tool bundles the file
+  unchanged; OrderHub and the POS load the same file.
+- `PxPricing.version` is a whole number starting at 1. Bump it only when a change could change a
+  price for the same card and choices; a rate change is a `px_rates` edit, never a version bump.
+  Every version is kept, so an order reprices on the version that sold it.
+- The card declares the minimum engine version it needs (`"engine": n`, missing = 1). A tool or
+  OrderHub holding a lower version refuses to price rather than guess.
+- OrderHub and the POS price from variants (custom and POS orders carry variants only), so the
+  tool writes the computed price to `px_price`
+  (number variant, formula `value`) and the choices as text variants (`px_size`, `px_paper`,
+  `px_sides`, ...), with `pos_hidden` on anything the POS should not show. Because variant
+  values are customer-facing labels, `pricing.js` owns both directions: it writes the variant
+  values and reads them back to reprice, so the tool and OrderHub cannot drift.
+
+When a lab supplies its own Ruby pricing formulas for such a product, keep its
 tables unchanged in the rate card and run the formulas as an **acceptance oracle**: every
 selection must match to the cent. Tool-level. *Verified by test, 5 Oct 2026.*
 
@@ -183,6 +221,21 @@ the wrong file.
 `product/px-artwork-place-boot` and the shared px-artwork-place engine are the same
 shape: shared, loaded separately, and every call into them fails open.
 
+**Tool assets: one stem per tool, a new asset per version.** The asset edit screen
+(`admin/assets/<id>/edit`) has an Upload field that replaces the file in place, keeps the name
+and gives no warning when the new file is a different tool (`61_PIXFIZZ_API.md` § 13c
+*Assets*). A wrong pick there once replaced one live tool's asset with another tool's file, and
+the product page rendered an empty root with no console error. *Incident verified by query,
+2026-10-14; rules set after it.*
+- Every tool asset name is unique to the tool and versioned (`<tool>-<major>-<minor>-<patch>.js`).
+  Two tools never share a stem.
+- A new version is always a **new** asset, then the mount or page script tag is switched to it.
+  Use Upload on an existing asset only to roll back that same tool.
+- After any asset upload on the parent, load every page that uses a file with that stem and
+  check the served file names the right tool and version, and that the tool root has children
+  (an HTTP 200 is not proof).
+- Before a demo or webinar, run the link check after the last change, not before it.
+
 ### Open the platform upload dialog standalone
 
 **Any custom tool that needs photos should open the platform dialog** rather than build its
@@ -198,9 +251,39 @@ the CMS already has). Platform-level component. *Verified by query, 2026-10-04, 
   `qr`, `dropbox`, `google_photos`), `max-size`, `max-files`, `gallery-id`, the four
   `login-modal-*` attributes (`17_DESIGN_TOOL.md` § Login inside the upload dialog),
   `dropbox-app-key`, `google-client-id`, the text labels, and the button classes.
+- **Pass the button classes, or the dialog looks unstyled.** Without them every source button
+  renders as `class=""`, a browser-default grey button. The standard Shopper upload passes them
+  through `px-image-upload` as `upload-dialog-*` attributes, copied onto the dialog with the
+  prefix stripped. To match Shopper 24 set directly: `button-class="btn btn-xs"`,
+  `source-button-class="btn-outline-secondary"`, `local-source-button-class="btn-primary"`,
+  `confirm-button-class="btn-secondary"`,
+  `picker-load-more-button-class="btn-xxs btn-outline-secondary"`,
+  `google-photos-picker-link-button-class="btn-primary"`, plus the text attributes
+  `main-panel-title`, `upload-info-text`, `source-button-local-text`, `galleries-picker-title`,
+  `close-button-title`, `back-button-title` and `qr-picker-info-text`. All class attributes the
+  dialog reads: `button-class`, `source-button-class`, `local-` / `galleries-` / `url-` /
+  `camera-source-button-class`, `picker-load-more-button-class`, `confirm-button-class`,
+  `select-all-button-class`, `ios-picker-notice-button-class`, `login-link-button-class`,
+  `login-button-class`, `google-photos-picker-link-button-class`. *Verified by reading source
+  (cms_bundle.js) and live, 2026-10-14.*
 - Events on the element: `upload-start`, `upload-progress`, `upload-success` (once per file;
   `detail.changedFile.result` = `{id,width,height,filename,preview,url,thumbnails}`),
-  `upload-error`, `close`, `cancel`. The dialog closes itself when done.
+  `upload-error`, `close`, `cancel`. The dialog closes itself when done. On `upload-success` the
+  platform's own upload displays the last entry of `thumbnails[]` and stores `db:<id>` as the
+  option value.
+- `upload-progress` detail is `{files, changedFile}` with no percentage field: show an
+  indeterminate state. (`changedFile.progress` as `{loaded,total}` was read from source and not
+  tested.)
+- **Closing the inner `<dialog>` right after the pick does not stop the upload:**
+  `upload-progress` and `upload-success` still fire, then the element emits `close` and removes
+  itself. A tool can show the photo at once from the File (capture-phase `change`, below) and let
+  the upload finish in the background. *Verified by query, 2026-10-14.*
+- **`result.preview` is a 250 px thumbnail** (`.../thumbnail/250/~/<file>`, 250 px on the **long
+  edge**); `thumbnails` lists 150, 250, 600, 900 and 1200. Any size works by rewriting the number
+  (`/thumbnail/2400/` gave 2400x600 from a 6000x1500 upload). A tool that draws the photo large
+  on screen (wall previews, Live Finish, close-ups) must not draw from `preview`: use a working
+  copy at long edge min(2400, photo long edge). Print files use `url`. *Verified by query,
+  2026-10-14.*
 - `gallery-id` routes uploads into that gallery; without it, uploads go to a hidden uploads
   area. Picks from My Galleries return the existing image id and are **not** copied into
   `gallery-id`: copy them server-side (`61_PIXFIZZ_API.md`, `POST /upload/image?gallery_id=`).
@@ -217,6 +300,24 @@ the CMS already has). Platform-level component. *Verified by query, 2026-10-04, 
   done there. With `login-modal-external-url` set it shows a link to that URL instead of the
   form. A guest who signs in keeps projects and cart lines (`20_SHOPPER_CART_RULES.md`). For
   sign-in outside the dialog see `50_SHOPPER_TEMPLATE_REFERENCE.md` § 1 (`#modalLoginCheckout`).
+
+### Using the platform crop tool standalone
+
+The photo prints crop is the platform custom element `<px-image-adjust-tool>` in
+`cms_bundle.js` (not Cropper.js; the editor bundle has its own crop and does not include it). A
+tool can open it itself, following `px-image-upload`. Platform-level (CMS bundle). *Verified by
+reading source, cms_bundle 20261007100426.*
+- Create the element with `value`, `img-src`, optional `img-width` / `img-height`,
+  `crop-aspect-ratio` (for example `8in/10in`; without it no crop box shows), `minimum-dpi`,
+  `shrink-to-fit`, `image-filters` and text overrides. Put it in a
+  `div.px-image-upload-crop-modal-overlay` prepended to `body`. Listen for `confirm` (read
+  `el.value`) and `cancel`.
+- The output is a string, not a box: `db:<imageId>@{l:..,t:..,z:..,r:..,crop:0,...}`, zero
+  values omitted. It needs the platform image id (`db:`), not a URL.
+- The bundle is minified and unversioned: check the element is defined, wrap the call, and fall
+  back to the tool's own UI.
+- Attributes: `22_OPTION_VARIANT_RENDERING.md` § 5.1. Not verified: that the prints flow's
+  `l` / `t` / `zoom` values equal the editor's units on a book image.
 
 ### The fulfillment contract: one set of `px_` codes (decided 4 Oct 2026)
 
@@ -302,6 +403,34 @@ progress in a hidden or background browser pane, so `getComputedStyle` keeps the
 inject `transition: none !important` before reading. A parent-level fix (stop mapping ink from
 the page font colors, or only on light sites) is a candidate and not done.
 
+**Text a tool draws outside its own surfaces sits on the page background.** A tool header
+(studio label, moved H1, intro line) rendered on the page rather than on a tool card keeps the
+tool ink and becomes invisible on a dark site (contrast about 1.0). Either give that text the
+store text color or make the whole tool dark. **Full dark mode is one site block of tokens:**
+override `--pxt-ink`, `--pxt-ink-muted`, `--pxt-ink-faint`, `--pxt-surface`, `--pxt-canvas`,
+`--pxt-stage`, `--pxt-line`, `--pxt-line-strong`, `--pxt-secondary`, `--pxt-on-secondary`,
+`--pxt-accent-soft` and the state background/ink pairs, on a selector that also matches dialogs
+the tool reparents to `body` (for example `html body .pxt[class*="<tool prefix>-"]`). Then run a
+contrast scan: primary-colored text on `--pxt-primary-tint` was the one pair that failed and
+needs a lighter tint of the brand color. *Verified by query (computed style and contrast scan),
+2026-10-15.*
+
+**Write a tool's element resets with `:where()`.** `.<tool> button { font: inherit }` has
+specificity 0,1,1 and beats the tool's own class rules (0,1,0), so every button renders at the
+body size. Write it as `.<tool> :where(button, input) { font: inherit; }` (0,1,0), placed above
+the class rules, so later class rules win while a theme's bare `button {}` (0,0,1) still loses.
+*Verified by test (computed font size), 2026-10-14.*
+
+**Wording and stage standards** (decided by Pixfizz, 2026-10-14):
+- It is the "design tool", never the "design editor", in customer copy and docs.
+- No "Live preview" label on the stage.
+- Drag to turn follows the hand: dragging left turns the object left. With an orbiting camera
+  at `eye.x = D*sin(yaw)`, that means `yaw = startYaw - dx * k`. A product with a visible back
+  turns all the way round and offers a "See the back" button.
+- Photo designs always use `px-upload-dialog` (§ Open the platform upload dialog standalone) and
+  a real crop with zoom, pan and pinch. A local `<input type=file>` with a single position
+  slider is off standard.
+
 ### Page layout: an inline tool owns its page
 
 Standing rules for every tool, stated by Alex, 3 and 6 Oct 2026.
@@ -309,8 +438,15 @@ Standing rules for every tool, stated by Alex, 3 and 6 Oct 2026.
 - **Inline, not a modal**, for almost every tool. A modal feels like a separate application.
 - **The tool is the main feature of its product page.** Nothing above it except the site
   header and the breadcrumb: no category line, separate product title, description or tabs.
-  The page H1 stays (SEO) and becomes the tool's own heading. Description, details and
-  production tabs, quote link, delivery box and product footer go below the tool, if kept.
+  The page H1 stays (SEO) and becomes the tool's own heading. **The product description and
+  the delivery box stay in the tool's right column, under the controls** (Corrected
+  2026-10-14 after a hands-on test: dropping them to full width below the tool is wrong). Move
+  the non-form children of `.product-details` (`.product-description`, `.dbx-wrap`) into a slot
+  at the end of the tool panel, skipping `h6.product-category`, the empty `.d-flex`,
+  `.product-footer`, scripts and styles. Other tabs, the quote link and the product footer go
+  below the tool, if kept. Live structure verified by query, 2026-10-14: `.product-details`
+  children are `.product-category`, `.d-flex`, `.product-description`, `.product-form`,
+  scripts, style, `.dbx-wrap`, `.product-footer`.
   The gallery column is hidden and the tool runs full width. Reference implementation:
   flyer-fold 0.5.1 (`ff-owns-page`): the JS moves `h1.product-name` into the tool head; the
   CSS sets `.product-details.sticky` to `display:flex;flex-direction:column`, `.product-form`
@@ -340,6 +476,9 @@ The `pixfizz-internal:custom-design-tool` skill carries the skeleton and the
 > **A custom design tool reads its configuration from its mount argument list, and
 > from nowhere else.** No product custom field, no design custom field, no site
 > checklist snippet.
+
+(`px_rates`, § 1, is a tool's price card, read by OrderHub and the POS. It is pricing data, not
+configuration, and is the one product custom field a tool reads.)
 
 Decided 11 September 2026 and **built for Business Cards the same day. This
 supersedes the settings cascade** ("product custom field → site checklist → built-in
@@ -375,7 +514,7 @@ carrying a value for it can be imported. Nothing else works until it does.
 
 ### The mount gets its own hidden option (standard from 2026-09-20)
 
-A tool's mount block no longer sits on its artwork upload option. It gets a **dedicated option**: type Text, hidden, hide from cart, code `<prefix>_mount` (for example `bc_mount`, `bu_mount`, `cvs_mount`), name "`<Tool>` Mount". Its `custom_script` holds only the `{% snippet 'product/<tool>', … %}` mount block. Reasons: the artwork option has its own required flag and upload behavior, and a tool with no artwork option has nowhere else to mount. The "Mount option" column in § 2 lists where each tool mounts today; tools move to the dedicated option as they are rebuilt. *Decided by Alex, 2026-09-20.*
+A tool's mount block no longer sits on its artwork upload option. It gets a **dedicated option**: type Text, hidden, hide from cart, code **`px_mount`** for every tool, name "`<Tool>` Mount" (Corrected 2026-10-14: the code was `<prefix>_mount`, for example `bc_mount`; tools already live keep their codes until their next planned update). Tool-specific template options and variants follow the same `px_` pattern (`px_spec`, `px_print_file`, `px_preview`, `px_price`, `px_pages`...), with no tool prefix. Snippet keyword arguments keep a tool prefix (`up_mode`, `ps_size`), because they become Liquid variables in the snippet scope and the prefix prevents collisions. *Decided by Pixfizz, 2026-10-14.* Its `custom_script` holds only the `{% snippet 'product/<tool>', … %}` mount block. Reasons: the artwork option has its own required flag and upload behavior, and a tool with no artwork option has nowhere else to mount. The "Mount option" column in § 2 lists where each tool mounts today; tools move to the dedicated option as they are rebuilt. *Decided by Alex, 2026-09-20.*
 **Rolling a mount onto a range that is already live:** copy the mount option from one configured template to the rest with **Admin → Advanced → Bulk Update Tools** (Template Options; super admin only). Never delete and re-import a live range to add or change a mount. The mount's `custom_script` is stored and exported with CRLF line ends, so compare mounts after folding CRLF to LF. See `18_ADMIN_NAVIGATION.md` § Bulk Update Tools. *Stated by Alex, 2026-09-26 and 2026-09-29; CRLF verified by query, 2026-09-26.*
 
 A mount on a template runs on every product that uses that template, so list the product lines sharing it before adding one (`16_PRODUCT_HIERARCHY.md`).
@@ -484,6 +623,7 @@ has an **Inches | Millimeters** switch. Tool-level. *Stated by Alex, 30 Sep 2026
   before posting. Platform-level. *Verified by query, 6 Oct 2026 (happened and fixed on
   experience.pixfizz.com).*
 - **Re-read the mount's data attributes when they change, not only when the root node is replaced.** When a Shopper 24 PDP filter swaps to a sibling product whose template also carries a `custom_script` mount, the page keeps the **same root node** and rewrites its `data-*` attributes in place (`root === oldRoot` is true, the values change). A tool that re-initialises only when its root leaves the document keeps the first product's settings until a reload. Keep a signature of the root's `data-*` config attributes and re-run init when it differs. Template-level (Shopper). *Verified by query on a live child PDP, 2026-09-29.* Same mechanism as `50_SHOPPER_TEMPLATE_REFERENCE.md` § 17, *Live `selectors:` re-renders patch the DOM, they do not replace it*.
+- **Filter-switched siblings can share one template, and so one mount.** A Shopper 24 product page can switch between sibling products with a collection filter (a radio such as `name="sport"`, handled by `Px.CMS.ThemeFilters.updateRadioButton`), each value being its own product, all on the same template, plain variant included. The mount runs for every one of them. Anything that must differ per sibling reads the filter field from the page (`[name="<filter>"]:checked`), not `variants[...]`, and falls back to the plain behavior when the field is absent. To see which template page a filter page uses without admin, read the preview request `/v1/themes/<id>/preview.jpg?...&template_name=<page>`. Template-level (Shopper). *Verified by query on a live child product page, 2026-10-16.*
 
 ---
 
@@ -625,6 +765,31 @@ uploaded file, ahead of `static_preview` and `px-project-preview`. Template-leve
 - Guard image properties with `!= blank`, not bare truthiness: an empty string is truthy in
   Liquid, so `{% if design.image %}` on an empty value passes a blank into `asset_url`.
 
+### The project edit page has no price
+
+Cart Edit opens `pages/project-edit`, and the tool's `custom_script` mount boots there too
+(form and input names in `22_OPTION_VARIANT_RENDERING.md` § 5.2c). Template-level (Shopper 24).
+*Verified by reading source, shopper24 backup 2026-10-07.*
+- Layout: `section.project-edit > .row` with two `col-md-6` columns: `product/gallery/standard`,
+  then the product link, the design name (h3) and `.product-form` holding `form#project_update`
+  with `px-option`s for variants (`book[options]`) and template options
+  (`book[template_options]`), and `.save-to-cart-button` ("Save and return to cart" with
+  `?cart=t`, otherwise back to saved projects).
+- There is **no `px-product-price` and no `product_id` input**, so a tool mounted there cannot
+  read the page price or call `price_forecast.json` from the page alone. Carry what it needs in
+  its own saved state, and give money formatting a fallback.
+- The saved projects page (`pages/account-saved-projects`) draws `px-project-preview` from the
+  template's mapped previews, not from a tool's `px_preview` file.
+
+### A tool can reopen its own saved state on project-edit
+
+Save the tool's full state as a JSON file in a file upload template option. On project-edit the
+option renders `px-file-upload` with a `file-url` the tool can fetch, so it rebuilds from that
+file and opens on its summary. Detect project-edit as: no `#project_create` and the root inside
+`form#project_update`. Read the saved values before the first write, then write with exact
+`book[options][<code>]` names first, suffix match second, never `custom[...]`. Custom-tool
+standard. *Verified by query on a live project, 2026-10-13.*
+
 ---
 
 ## 7. Per-tool reference
@@ -654,7 +819,16 @@ Under the fulfillment standard: `px_print_file`, `px_print_cut`, `px_preview`.
 
 `inline` display mode renders the designer open in the page with no launch button,
 for a dedicated design page; `modal` is the default and an unknown value falls back
-to it. The Roll / Die-Cut toggle parks the design in IndexedDB across the
+to it. **`inline` does not make the tool full width:** it still sits in the right-hand
+`col-md-5` beside the empty gallery column, and the tool has no full-width setting. A
+dedicated sticker page is full width only through that site's own CSS, which does not travel
+with a template export. On a normal product page, scope site CSS by
+`.product-single:has(.stk-root)` in the child `style/custom.css`: hide the gallery column,
+widen the details column to 100%, unstick `.product-details`, and hide the duplicate price
+header and `.product-form` (the tool still clicks it). Prefix selectors with `body` and use
+`!important`, because child CSS prints before the parent's. A shared `.pxt-owns-page` parent
+rule (§ 3, Page layout) would remove the need. *Verified by reading source and live DOM,
+2026-10-13.* The Roll / Die-Cut toggle parks the design in IndexedDB across the
 collection-filter navigation and restores it on the other side.
 
 Already variants on live installs: `size`, `finish`, `sticker_cut_type`, `backing-style`. The
@@ -726,6 +900,16 @@ grey, black) so white artwork is visible in the builder. Viewer only: excluded f
 render and the cart thumbnail. The existing `background` configuration flattens the **print**
 file and `previewBackground` is the cart thumbnail only, so neither is the right lever. Not
 built.
+
+**Known limit: long sheets lose resolution silently.** Gang Up renders the print file on one
+browser canvas, capped at 16,000 px per side and 200 MP (`computeRenderScale()`). On a 36 in
+roll at a 300 dpi target the cap holds 300 dpi only up to about 53 in long; 100 in comes out at
+about 160 dpi and 300 in at about 53 dpi, with no warning. iPhone Safari allows a smaller canvas
+(not verified on a device). Rule for any tool whose output can exceed about 16,000 px on a side:
+write a PDF with each source image embedded once at its own resolution and placed per copy,
+never one flattened canvas; record the achieved dpi in `px_spec`, and surface any canvas
+fallback as a defect. *Verified by reading source (gang-up.js 1.2.0), 2026-10-16; not measured
+on a real order.*
 
 ### Business Cards: live
 
@@ -1142,3 +1326,4 @@ once.
 - 2026-09-29: Pointer: roll a mount across a live range with Bulk Update Tools; custom_script stored with CRLF. §4 a PDP swap keeps the custom_script root and rewrites its attributes; tools must re-read config on attribute change. Install step 1 must include boolean option flag definitions. Source: claude-chat.
 - 2026-10-06: §2 registry and §7 per-tool reference brought up to current state (versions read on shopper24 3 to 6 Oct, install footprint from the 29 Sep sweep, new rows for Uploader 2.0 with forms mode, Wall Designer, Board Engraver, Custom Framing; Gang Up 1.2.0 auto-trim, cut path and planned preview background; Business Cards 2.0.0 in-place recall; uploader and sticker known defects; Flyer / Brochure install gaps; Custom Sized Prints scope); §2 how the install list is found, pointer to 27 for Live Finish and 3D previews. §1 price ladders read price_forecast; tool-computed prices with a Ruby formula oracle and 9-decimal rounding. §3 the px_ fulfillment code contract, the shared px-tool-theme look and dark-site ink, page layout rules (inline, owns the page, obvious first action, one set of controls). §4 the variant recall standard with pos_hidden, stores that price with template options, inches and millimeters, writing back a mount with a JSON script. §5 first price range starts at 1, installing from another site's live template, myPixfizz self-install direction. §6 the tool chooses its own cart image. §8 new done items. Applied spills: Product Previews pointer (B1); §5 px-option override check and strip-false-keys rule (D1); §3 open the platform upload dialog standalone, with events, gallery routing and sign-in behavior (C). Source: claude-chat, fireflies-call, vault-doc.
 - 2026-10-09: § 3 the shared look: `.pxt-step` and `.pxt-shell` are contract names a tool must not reuse; pointer to the variant-selector rules in 17. Source: claude-chat.
+- 2026-10-17: § 1 the rate card moves from the mount to the snippet-type product custom field `px_rates` (printed by `product/design-now` as a JSON script tag), and the agreed `pricing.js` engine contract shared with OrderHub (versioned, `px_price` plus text choice variants); § 4 pointer that `px_rates` is pricing data. § 3 tool assets one stem per tool and a new asset per version; upload dialog button classes and text attributes, `upload-success` storage, progress detail, closing the dialog mid-upload, `preview` is a 250 px long-edge thumbnail; new § Using the platform crop tool standalone (`px-image-adjust-tool`); shared look: text outside tool surfaces on dark sites and full dark mode by tokens, `:where()` element resets, wording and stage standards. CORRECTED § 3 page layout: description and delivery box stay in the tool's right column. CORRECTED § 4 mount option code is `px_mount` for every tool, `px_` codes without tool prefix; filter-switched siblings share one mount. § 6 the project edit page has no price; a tool can reopen its saved state on project-edit. § 7 Sticker Designer `inline` is not full width (site CSS pattern); Gang Up canvas resolution ceiling on long sheets. Source: claude-chat, slack-message.

@@ -80,7 +80,9 @@ If a large `{% dynamic %}` block encounters any rendering issue, it silently sup
 
 **Correct pattern:** one narrow `{% dynamic %}` block around the login gate or user-conditional logic, then render nav/content/footer outside it.
 
-**Pending confirmation with Matjaz:** whether variables set inside a `{% dynamic %}` block are accessible outside it. If not, the gate condition and gated content must stay co-located, which limits how far you can split.
+**Do not rely on a `{% dynamic %}` block reading snippet parameters or variables assigned before it.** In a live test on 2026-10-14, `product.custom.production_time` printed 3 just before the block and nothing inside it. A follow-up test the same day found a second cause in the same snippet: a nested `{% snippet %}` call clears the calling snippet's parameters (see `50_LIQUID_REFERENCE.md`, `{% snippet %}`), so whether `{% dynamic %}` on its own empties outside variables is not settled. Either way, do everything that needs page data outside the block, or print it into data attributes and finish the work in the browser. Platform-level. *Observed live with debug comments, 2026-10-14; cause not verified.*
+
+**Still pending confirmation with the core developer:** whether variables set inside a `{% dynamic %}` block are accessible after it. If not, the gate condition and gated content must stay co-located, which limits how far you can split.
 
 RATIONALE: Discovered when a Shopper site's home-page-login-form gate wrapped the entire index page in {% dynamic %}, causing logged-in users to see blank pages.
 SOURCE: "Logged-in users seeing hidden content" chat, April 23
@@ -740,3 +742,4 @@ second; the alternative is trusting that nobody renamed anything.
 - 2026-09-29: Resolved the untested asset-import question for template imports. Snippet Description rule: child overrides carry no Description (parent-only column). A child CMS backup does not contain Custom Type landing pages; audits need the instance export too. Source: claude-chat.
 - 2026-10-06: CMS Backup Tar Packaging Rule: asset and snippet YAML must parse (no ": " in an unquoted description); a failed load is not atomic, recover from the backup taken before it. Archive Emission: a folded long scalar makes a per-product archive import fail silently; emit with `to_yaml(line_width: -1)`. Checklist Snippet Creation Rule: a checklist value is the exact token, never the label. Custom Type Instance Archive: CORRECTED, `page_content` renders Liquid. Source: claude-chat, vault-doc.
 - 2026-10-09: CMS tar rule: two more changed-files-only incidents; the database (products, variants, prices, collections) is untouched by a CMS import; re-check checklist flags after recovery. Source: claude-chat.
+- 2026-10-17: Scoping Rule for `{% dynamic %}`: do not rely on a dynamic block reading snippet parameters or earlier variables (observed live 2026-10-14; a nested snippet call was a second cause, so the dynamic-only cause is not verified). Whether variables set inside are visible after it stays pending. Source: claude-chat.

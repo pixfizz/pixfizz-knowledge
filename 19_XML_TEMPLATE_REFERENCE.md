@@ -32,7 +32,7 @@ The root element of every XML template definition.
 | Attribute | Description |
 |---|---|
 | `unit` | Unit system for all dimension values. Common values: `inch`, `mm`. |
-| `dpi` | Target resolution for production output. |
+| `dpi` | Target resolution for production output. Print PDF images are downsampled to this resolution; there is no setting to turn the downsampling off. *Stated by the core developer, 2026-10-16.* |
 | `output` | Output file format. Common values: `pdf`, `jpeg`. |
 | `minimum-dpi` | Minimum acceptable image resolution. Used for image quality warnings in the Design Tool. |
 | `pages` | Starting page count when a new project is created. Required for cut print (photo print) products — must be set to `1`. |
@@ -150,6 +150,13 @@ Consequences for cover designs and layouts:
   default photos for a wraparound cover should have no central subject.
 - A cover page background color cannot be set from a layout (§ Element Permission Flags);
   draw it as shapes.
+- **Preview renderers that draw a closed book** (custom tools, Live Finish, 3D previews) must
+  not take the spine as the centre slice ± spine/2 of the flat cover. Draw on the spine only the
+  elements that cross the centre line (left < centre < right), at their authored position and
+  size, clipped to the spine, and the page background elsewhere. Elements wholly in the front or
+  back half never appear on the spine. Use a small tolerance (0.05 mm) on "crosses": generated
+  covers place front elements at x = W/2 rounded to 2 decimals. *Verified in a tool prototype,
+  2026-10-14.*
 - **Check the spine in the storefront editor, not the admin design tool.** The admin design
   tool (`/v1/editor?theme_templates=...`) does not insert the spine. In the storefront editor,
   `.px-binding` and `.px-hinge` are editor overlays at 0.5 opacity, not print.
@@ -271,6 +278,10 @@ A layer does one of three jobs depending on its attributes. Pick the job first, 
 **The opposite job is not a layer setting.** An element that the customer should **see while designing but that must never print** (a colored backing behind white text, a guide) is not done with a PDF layer. It is done by making the element **uneditable and a placeholder**. See `17_DESIGN_TOOL.md` § Show in the Editor, Never Print — the Uneditable Placeholder.
 
 **Front and back printing on a transparent substrate (acrylic).** Production output cannot be mirrored by a setting. Splitting the back-print artwork into its own file with `separate-file` is supported; mirroring that artwork for reverse printing is not a documented capability. An inline page that is itself flipped has been discussed as a route, with the caveat that elements layered over it (text) would not flip with it. **Unconfirmed — needs a worked example built against the production file the lab wants before it is offered to a customer.**
+
+**Foil (or any separate-file layer) inside an `<ipage>` comes out empty.** When the layer's elements sit inside an `<ipage>`, the separate layer PDF is blank: the `<ipage>` element is skipped entirely when the layer file is rendered, because the `<ipage>` itself does not belong to that layer. Workaround: put two copies of the `<ipage>` at the same spot on the fulfillment page, one with no layer and one with `pdf_layer="foil"` (the layer's name). *Stated by the core developer, #development, 2026-10-13; the workaround is not yet confirmed by a test render.*
+
+**Platform-rendered PDFs are RGB only, with no spot colors.** The renderer (Prawn) writes every vector fill, stroke and text color in `/DeviceRGB`, and each page starts with a full-page white RGB fill. There is no `/Separation` or `/DeviceN` output and no XML or element setting for a spot / PMS color: a hex color reaches the printer as RGB and the RIP converts it. Naming an option code after a PMS number only affects the job ticket. So products that must print in named spot inks (1 or 2 color PMS, white ink, a CutContour line) cannot come from the template renderer today. Browser-built files from a custom design tool can carry spot colors (`26_CUSTOM_DESIGN_TOOLS.md`, Sticker Designer `/Separation /CutContour`). Spot support was requested from the core developer in October 2026; update this when it ships. *Verified by reading source of a rendered page PDF, 2026-10-14.*
 
 *Verified by reading source (the platform help page on PDF layers, and a live admin walkthrough with a photo lab client, 2026-09-24), except where marked.*
 
@@ -438,12 +449,15 @@ Common product types with annotated XML definitions.
 - Two hidden preview sets — one for front, one for back. Both are excluded from fulfillment and editor. Only the front is designated as the project preview (`preview="true"`); the back has `preview="false"`.
 - Captions ("Front", "Back") orient the user in the Design Tool without using page numbers.
 - Simple two-page product — no `min`, `max`, `add`, or `grow` needed.
+- **Folded top-fold (landscape) card:** one outside page (7.25 x 10.25 in for a 5x7 card with 0.125 in bleed) with the back panel turned 180 degrees in the top half and the front in the bottom half. Turn the back panel's artwork image itself rather than rotating XML elements; the production PDF keeps it as drawn. *Verified by query and render, 2026-10-16.*
+- **Shaped photo windows (arch, circle, rounded) need no mask feature.** Put a rectangular image placeholder under a locked full-page artwork PNG with the shape cut out of it. Grow the cut-out a few pixels past the shape, or a faint rectangle edge shows around it. *Verified on design previews, 2026-10-16.*
 
 ---
 
 ## Multi-Page Product Page-Count Rules
 
 - **Booklets (stapled / coil-bound) must have a page count divisible by 4.** The design tool auto-detects page count on upload and warns on bleed or divisibility errors. Pricing for these products is driven by page count alongside size, colour, paper type, and binding.
+- **Layflat counts spreads, not sides.** A `<page position="left-right">` spread in a grow set is one page record and counts as one page. On a layflat definition `pages="20" min="20" max="80" add="2"`, a new book had `page_count` 20 and 20 grow spreads. So `pages`, `min` and `max` on a layflat definition are spread counts, and a binding map keyed 20..80 is keyed in spreads. *Verified by query, 2026-10-14.*
 - **Old softcover templates can carry a page-count “ghost” bug.** Page-count metadata in older softcover templates can become corrupted, letting customers delete or add pages beyond the defined limits. There is no server-side fix yet. Mitigation: copy the affected customer project onto a fresh template and reshare it. Build new softcover products on current templates going forward.
 
 ---
@@ -861,6 +875,10 @@ edit="false" layout="true" move="false" resize="false" z="-31"
 - **Shape `opacity`** (e.g. `opacity="0.023"`) is rendered by the editor as a group opacity
   and honored by the fulfillment renderer. Stacked translucent locked shapes make a gradient
   that prints. *Verified by query (editor and fulfillment render), 2026-10-04.*
+- **Image placeholders can carry display attributes besides the flags:** `rotate`,
+  `grayscale="true"` and `radius="50%"` were seen on live card designs. Anything that re-renders
+  page XML outside the platform (a browser studio, a preview) must honor them. *Verified by
+  query, 2026-10-16.*
 - **`bgcolor` on a layout's page tag is not applied on a layout swap.** The page keeps the
   design's background color, so a background color that must change with the layout has to
   be drawn as shapes. *Verified by query, 2026-10-02.*
@@ -884,6 +902,19 @@ in the storefront editor, 2026-10-02.*
   With `valign="center"` and `shrink="true"`, one line and two wrapped lines both sit
   centered. *Verified by reading source (editor bundle 20261002143509) and by server render
   on baseline.pixfizz.com, 2026-10-06.*
+- **`kerning` uses the page geometry unit too** (millimetres). To match CSS letter-spacing given
+  in em, set `kerning` = letter-spacing (em) x `fontsize`. *Verified by visual comparison
+  against the production PDF, 2026-10-16. An earlier render note (2026-10-14) recorded the
+  unit as points, so the unit is pending confirmation.*
+- **A `<br/>` inside text is not a line break:** one line per element. Text also supports
+  leading, `opacity` and `blend_mode`; shapes support `kind` rectangle, ellipse or triangle,
+  `radius` (% or mm), `border` plus `bordercolor`, `opacity` and `blend_mode`. *Verified by
+  render, 2026-10-14.*
+- **Production render validation fails the whole job.** Colors must be 6-digit hex: `#000`
+  fails with "Unknown type of color". Every character in a text element, and in any `set-text`
+  value, must exist in that element's font, or the job fails with "Detected text with
+  unsupported characters on pages: ...". Check glyphs against the font's cmap before import.
+  *Verified by failed renders, 2026-10-14.*
 
 ## Mug Wrap Designs: The Readable Front Zone
 
@@ -953,8 +984,13 @@ already has designs leaves every design page and layout at the old geometry, eac
 edited on its own. Changing the hardcover size on one existing photobook template meant
 editing about 500 pages individually. Cost a size change on a live range before agreeing
 to it. The page XML can be rewritten by script through the admin page form (§ Editing
-Design Pages and Layouts in Place), which turns the work into a batch job; that has not
-yet been done for a size change. *Reported by Alex (kbsync Phase 1 scan, October 2026). Not verified by test.*
+Design Pages and Layouts in Place), which turns the work into a batch job. A whole range has
+also been resized from one admin tab with no files on disk: export each design
+(`print_theme/export_print_theme/<id>`), gunzip and untar in page JS (DecompressionStream),
+rewrite the page XML in `__print_theme.yml`, tar and gzip (CompressionStream) and POST it to
+`print_theme/import_print_theme/<template>` as `exported_file`. This creates new designs at the
+new size and leaves the source designs untouched. *Verified by query on 114 designs,
+2026-10-13.* *Reported by Alex (kbsync Phase 1 scan, October 2026). Not verified by test.*
 
 ## Editing Design Pages and Layouts in Place
 
@@ -989,6 +1025,11 @@ field `exported_file`).
 - Map keys are quoted ids; inner keys are Ruby symbols written unquoted (`:name:`,
   `:original_filename:`, `:description:`). A quoted `':name'` loads as a string, not a
   symbol.
+- **Page XML is not always a literal block.** Some design exports carry a page's XML as a YAML
+  double-quoted scalar (`data: "<?xml ...\r\n..."`, seen on cover layout designs whose stored
+  XML has CRLF) instead of `data: |`. A parser that reads only `data: |` blocks skips those
+  pages silently, and a rewritten import carries them unchanged. Decode the quoted scalar (fold
+  line breaks, unescape) and write it back as a literal block. *Verified by query, 2026-10-13.*
 
 ### What an import does
 
@@ -1010,6 +1051,9 @@ field `exported_file`).
   asset name) becomes the design preview.
 - `edit="false"` and the `e*` element flags are kept verbatim.
 - An import does **not** create Linked Layouts (§ Layouts Travel With a Template Export).
+- **A layout `name` longer than 32 characters fails the import with HTTP 500.** The design and
+  every layout before the long name are created; that layout and all after it are missing. Keep
+  layout names to 32 characters or fewer. *Verified by query, 2026-10-14.*
 
 ### Workflow for a generated batch of designs
 
@@ -1052,3 +1096,4 @@ documented above. There is no layer-level `fulfillment` attribute. Do not docume
 - 2026-09-24: Added "PDF Layers in Practice": the three jobs a layer does (design aid, production-only, split file), View Settings for hiding layers while editing, replacing an element on a layer, the pointer to the uneditable-placeholder technique for show-but-never-print, and front/back acrylic marked unconfirmed. Replaced "Layouts Do Not Travel With a Template Export" with the corrected rule: the template export carries layouts. Added the `output-name` JPEG duplicate-filename rule and the `layout="true"` + `layout_id` requirement for layout swaps. Source: fireflies-call, claude-chat.
 - 2026-09-29: Binding map missing-entry error and fix. `<ipage>` left/top sign convention. Canvas fold inside trim vs bleed; render draws the wrap into the bleed. `rotate="90"` element rotation. Layout links break when layouts are deleted from designs. Template changes do not update existing projects; refulfill resends old geometry. Source: claude-chat, slack-message.
 - 2026-10-06: Added `background-transparent` to definition attributes. Growing Spine: how the spine is inserted at render and the consequences for cover designs. Preview Sets: the page mask is the print area, not the outline, on clear products. Added Element Permission Flags (flag list, no `ecolor`, shape `opacity`, `bgcolor` not applied on layout swap), Text Elements (`shrink`, `valign`, `fontsize` unit) and the mug readable front zone. Layouts: Linked Layouts drive the picker, import does not create them, soft-deleted designs keep their links, link/unlink endpoints. Template Changes: design pages do not follow a size change. Canvas Wrap Geometry: image elements, `crop="false"` fits and image upload options override it. Added Editing Design Pages and Layouts in Place, and Design Import (`__print_theme.yml` format, id remapping, fonts, batch workflow). Source: claude-chat, vault-doc.
+- 2026-10-17: `dpi`: print PDFs are downsampled to it, no opt-out. Growing Spine: preview renderers draw only centre-crossing elements on the spine. PDF Layers: a separate-file layer inside an `<ipage>` renders empty (two-`<ipage>` workaround, not yet tested); platform PDFs are RGB only, no spot colors. Greeting Card: top-fold landscape card, shaped photo windows. Page-count rules: layflat counts spreads. Element flags: image placeholder `rotate`, `grayscale`, `radius`. Text Elements: `kerning` in mm (unit pending confirmation), `<br/>` is not a break, text and shape attributes, render validation (6-digit hex, glyphs in font). Template Changes: whole-range resize from one admin tab. Design Import: quoted-scalar page XML, layout names over 32 characters fail. Source: claude-chat, slack-message.

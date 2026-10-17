@@ -124,8 +124,11 @@ Every value is a quoted string. Lengths carry their unit (`0.75in`, `6mm`). `lf_
 
 - **Looks are `<base>-<finish>`.** Bases: `white`, `clear`, `brushed`, `acrylic`, `paper`,
   `metallic`, `fineart`, `textured`, `etching`, `canvas`, and the ornament materials
-  (for example `crystal`). Finishes: `gloss`, `semi`, `matte`. A finish alone means a
-  white base; a base alone means gloss.
+  (for example `crystal`). Since 0.22.0 the bases `clearacrylic`, `crystal`, `glass` and
+  `ceramic` are ornament-only: with any other mounting the engine logs `console.error`. Use
+  `acrylic` for glass products that are not ornaments (for example glass cutting boards).
+  *Verified by reading source, Live Finish 0.22.0, 2026-10-16.* Finishes: `gloss`, `semi`,
+  `matte`. A finish alone means a white base; a base alone means gloss.
 - **Mountings:** `flat`, `float`, `standoffs`, `easel`, `block`, `stand`, `floatframe`
   (needs `lf_frame`), `curved` (concave only, needs `lf_curve`), `loose` (a print lying on
   a table), `board`, `standout`, `picture` (framed, 0.13.0), `ornament`. Any value can
@@ -134,6 +137,15 @@ Every value is a quoted string. Lengths carry their unit (`0.75in`, `6mm`). `lf_
   (`sofa`, `bedroom`, `hallway`, `sideboard`) and a Change room button cycles them.
   The furniture in each room photo is calibrated to a real width, so the print hangs at
   true scale. The room photos are AI generated.
+- **Room plates are 4:5, with scale props inside the middle 85%.** The Live Finish stage is
+  about 4:5 on desktop (528 x 669 at 1440 px) and about 1:1 on a phone (343 x 356 at 375 px).
+  A 4:3 plate covering that stage keeps only the middle ~59% of its width, so side props that
+  give scale (a mug, books) get cropped. Generate close-up plates at 4:5 with the props fully
+  inside the frame and the surface line 66 to 75% down, so the phone crop (10 to 90% of the
+  height) still shows it. Leave a clear span of at least 13 in at true scale for prints up to
+  12 in on the long edge. Calibrate from a prop whose size the prompt states (12 oz mug
+  3.75 in, hardcover 9.5 in) and record it as an assumption. *Stage size verified by query,
+  2026-10-15; plate guidance derived from it.*
 - **Material looks are tuned by eye**, not against lab photos. Treat every look, thickness
   and depth as an assumption until the lab confirms it.
 - **Canvas texture reads as a fine weave:** high-frequency grain (threads at 1 px or finer at
@@ -162,6 +174,11 @@ Every value is a quoted string. Lengths carry their unit (`0.75in`, `6mm`). `lf_
   canvas), the inset per side is `(page - finished size) / 2`.
 - **The artwork** is the platform render of the production page with the customer's
   current options. For how that request is built see § 4.
+- **The template mask shows the bleed shape, not how the product is made.** Before modelling
+  a preview or tool for a supplier product, read the supplier's template or spec sheet and
+  look at a real product photo. A pet bandana modelled from its mask alone as a sleeve over
+  the collar had to be rebuilt: the print is the front panel only and the collar runs through
+  a channel. *Observed, 2026-10-14.*
 
 ### 2.5 Behavior on the product page
 
@@ -281,7 +298,12 @@ Mount option `p3d_mount` (Text, hidden, hide from cart), whose `custom_script` c
 - **`p3d_page` must equal the page name in the template's designs**, because it becomes
   `template_name` on the render request. Mug templates differ (`front` on one, `fullwrap`
   on another): read a design's `<page name="...">` before writing the mount. *Verified by
-  reading source, 5 Oct 2026.*
+  reading source, 5 Oct 2026.* **Symptom of a wrong `p3d_page`:** with `p3d_placement`
+  `inline`, a "View in 3D" button on the product image is the fallback: the first artwork
+  request (`preview.jpg?template_name=<p3d_page>`) failed and the engine restored the
+  standard gallery. The console logs `[preview-3d] p3d_page ... is not a page in this
+  template definition`; requesting `preview.jpg` with each page name gives 404 vs 200. Most
+  common cause: a mount copied from another site. *Verified live, 2026-10-15.*
 - **Rim rule:** `p3d_print_bottom + p3d_trim_h` must not exceed `p3d_height`; the engine
   switches the preview off when it does. Center the print vertically unless the product
   spec says otherwise: `p3d_print_bottom = (p3d_height - p3d_trim_h) / 2`.
@@ -466,6 +488,21 @@ a row, read the version from the live console (§ 3.5).
   `material.shadowSide = THREE.DoubleSide`.
 - A browser pane that is hidden throttles `requestAnimationFrame`: a WebGL page looks
   frozen mid-animation. Expose a manual step hook for tests and recordings.
+- **A turned `preserve-3d` container still takes the clicks.** A container rotated 180
+  degrees hit-tests its own flat box, and the visible back face sits behind that plane, so
+  `elementFromPoint` returns the container and clicks never reach the face.
+  `backface-visibility: hidden` does not help (it hides faces, not the container plane).
+  Give every 3D container (wrapper, tilt layer, card, leaves) `pointer-events: none`, give
+  `pointer-events: auto` only to the faces, and switch off the faces pointing away per state
+  (for example `[data-side=back] .front-face { pointer-events: none }`). Test after each turn
+  with `elementFromPoint` at the center of an editable element on the visible face.
+  *Verified locally in Chromium, 2026-10-16.*
+- **Brushed metal that reads as metal:** an SVG `feTurbulence` data URI with stretched
+  frequency (`baseFrequency="0.002 0.9"`, 4 octaves, desaturated, full contrast) as a
+  background layer over a metal gradient (`#a9adb2` to `#d4d6d8`) with
+  `background-blend-mode: overlay`, drawn over the photo with `mix-blend-mode: darken` at
+  about 0.95. Light areas turn to metal with fine grain; darks stay. A striped
+  `repeating-linear-gradient` reads as rough lines. *Verified by local render, 2026-10-12.*
 
 ---
 
@@ -502,6 +539,14 @@ at the msphub site's own template, so a template option added there (`lf_mount`,
 reaches every site listed under **Product Attributes on Other Sites** on that msphub template
 page (one holiday card template already carried `lf_mount` on 23 sites). Enumerate that list
 before adding any mount to an MSP template. *Verified by query, 2026-10-06.*
+
+**A mount copied from another site carries that site's ids.** `lf_backdrop:
+'page:preview-2@<theme_id>/<product_id>'` and the `lf_material_filter` links
+(`/site/product/c/<collection>?product=<id>-...&theme=<id>-...`) name the source site's
+designs, products and collections, and they do not change on import. An ornament mount
+imported this way rendered on a plain background with no backdrop scene, and its material
+links pointed at the source site's paths. After any import, rewrite both to the target site's
+ids. The 3D Preview equivalent is a wrong `p3d_page` (§ 3.2). *Verified live, 2026-10-14.*
 
 **Test a mount before installing it:** on the live product page, build `#lf-root` or
 `#p3d-root` with the mount's data attributes inside the product form's `px-option-selector`,
@@ -542,3 +587,4 @@ A preview is not finished until all of this is true.
 
 - 2026-10-06: New file. Product Previews had no home in this knowledge base. Added § 1 what a product preview is and how it differs from custom design tools, mapped previews and template room-scene pages; § 2 the Live Finish standard (parts, mount keys, looks and mountings, geometry from the template, page behavior, gallery-slide gating, dark sites, reserved query parameters, use outside Shopper); § 3 the 3D Preview standard (architecture, mount and rim rules, Blender models, wrap design rules, version standard); § 4 platform facts both rely on; § 5 status by product family; § 6 known defects, open issues and CSS 3D / three.js lessons; § 7 install pattern; § 8 definition of done. Also § 2.2 declare every core mount key (0.17.1 errors on undeclared keys) and § 2.6 the string "false" flag trap on imported mount options. Source: claude-chat, vault-doc.
 - 2026-10-09: § 2.3 canvas weave and metal corner rules. § 6 grid design previews that never load (lazy observer on a 0 x 0 img) and the wall view overflow on oversize prints (0.17.1). § 7 MSP templates are shared from msphub, enumerate the sites before a mount; test a mount on the live page before installing. Source: claude-chat.
+- 2026-10-17: § 2.3 ornament-only bases from Live Finish 0.22.0 (`acrylic` for non-ornament glass); room plates at 4:5 with props inside the middle 85%. § 2.4 read the supplier spec sheet before modelling a preview. § 3.2 the "View in 3D" fallback button as the symptom of a wrong `p3d_page`. § 6 engineering lessons: hit testing on turned `preserve-3d` containers, brushed metal with `feTurbulence`. § 7 a mount copied from another site carries that site's backdrop and material-filter ids. Source: claude-chat.

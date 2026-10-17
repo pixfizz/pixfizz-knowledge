@@ -2,7 +2,7 @@
 
 **Authority Scope:** Pixfizz REST API (v1), JS API, user handoff, project/fulfillment endpoints, dynamic previews, and custom eCommerce integration.
 
-_Last updated: 2026-10-06. Compiled from Pixfizz Notion wiki (API section)._
+_Last updated: 2026-10-17. Compiled from Pixfizz Notion wiki (API section)._
 
 ---
 
@@ -14,7 +14,7 @@ The Pixfizz API is a read/write/delete REST API over HTTPS. All responses are JS
 - **Version:** v1 (breaking changes will be released as v2 — v1 will not have breaking changes)
 - **Format:** JSON only. Send `Content-Type: application/json` for POST/PUT requests with JSON bodies.
 - **Timestamps:** ISO 8601 (`YYYY-MM-DDTHH:MM:SSZ`)
-- **Pagination:** Append `?page=N` to index endpoints. `page=3` fetches the third page of results. **Page size is not contractual and varies by endpoint**: `/v1/admin/products.json` returns 20 per page (verified by query, 2026-09-23); § 13f resources are announced at 100. Never hardcode a page size: page until a request returns an empty list, keep a generous page-count cap as a runaway guard, and report it if the cap is hit rather than presenting a truncated result as complete. The public `/v1/products.json` also pages at 20 by default; `?per_page=500` returned all 238 products of one site in a single call (verified by query, 2026-10-02).
+- **Pagination:** Append `?page=N` to index endpoints. `page=3` fetches the third page of results. **Page size is not contractual and varies by endpoint**: `/v1/admin/products.json` returns 20 per page (verified by query, 2026-09-23); § 13f resources are announced at 100; the admin-host `/site/<site>/admin/assets.json?page=N` returns 50 per page with `id`, `name` and `url` (verified by query, 2026-10-15; the Assets admin screen does not print asset names in its HTML, so check new uploads through that JSON); `/v1/admin/users.json` returns 20 (§ 3). Never hardcode a page size: page until a request returns an empty list, keep a generous page-count cap as a runaway guard, and report it if the cap is hit rather than presenting a truncated result as complete. The public `/v1/products.json` also pages at 20 by default; `?per_page=500` returned all 238 products of one site in a single call (verified by query, 2026-10-02).
 - **Rate limits:** No hard limits. Best practice: add a 30-second delay after every 100 requests. Notify support before large bulk uploads.
 - **ETag headers:** Present on every response. Use to detect unchanged data.
 - **User-Agent header:** Required on every request. Automatically included by the JS API and browsers. Custom scripts must supply a descriptive string.
@@ -117,6 +117,12 @@ It returns the session user, with `id: null` for a visitor who has no user yet. 
 GET /v1/admin/users.json
 ```
 
+- Fixed **20 users per page**. `per_page`, `page_size`, `limit`, `per` and `count` are ignored. Page with `?page=N`; an empty array is the end. There are no total or link headers. Parallel paging works (12,000+ users in under 30 s with 6 requests at a time).
+- Each user carries `telephone`, `custom`, `category` and `address`, but `address` was null on every user tested. Read saved addresses with `GET /v1/users/<id>/addresses.json`, which works with an admin key for any user on the site. Address fields: `id`, `telephone`, `title`, `first_name`, `last_name`, `company`, `street`, `street2`, `zipcode`, `state`, `city`, `country`, `email`, `public`, `custom`. There is no `created_at`: "first address" means the lowest id.
+- `PUT /v1/users/<id>.json` with only `user[telephone]=...` saves the phone and leaves names, email and custom unchanged. The PUT validates the whole user: a stored invalid email answers 422 `{"email":["is invalid"]}` and nothing saves. A user whose email is on pixfizz.com answered 403 `{"error":"Access not permitted"}` to a site key (probably Pixfizz staff or super admin accounts; not verified). Both fail loudly.
+
+*Verified by query with an admin API key, 2026-10-13.*
+
 ### User handoff from external system
 See section 7 (Custom eCommerce Integration).
 
@@ -149,7 +155,8 @@ Optional parameters:
 - `variants[<variant-code>]` — product variant values (multi-choice: option code; text: value string)
 - `template_options[<option-code>]` — same pattern as variants but for template options
 - `book[custom][<field-name>]` — custom fields configured in Pixfizz admin
-- `book[start_year]`, `book[start_month]`, `book[start_day]` — calendar products only
+- `book[start_year]`, `book[start_month]` (zero-padded), `book[start_day]` — calendar products only; the response's `build_parameters.start_date` confirms the start
+- `book[calendars][]=<calendar id>` (repeat per calendar) — calendar products only; without it `website-calendar` and `user-calendar` captions do not render (`23_XML_CALENDAR_REFERENCE.md`, § 11 below). *Verified by query on a test site, 2026-10-16.*
 
 Example response fields: `id`, `name`, `saved`, `ordered`, `preview`, `theme_id`, `theme_code`, `product_id`, `product_code`, `template_id`, `template_code`, `options`, `template_options`, `links`.
 
@@ -172,6 +179,7 @@ What else a project update does and does not change (*verified by query, 2026-10
 - `PUT book[template_options][<code>]` changes a template option. The unprefixed `template_options[...]` is ignored on update.
 - `PUT book[product_id]` and `book[theme_id]` return 200 and change nothing, and `book[source_book_id]` on create is ignored: a different size or design needs a new project.
 - `PUT book[pages]` returns 500.
+- **Projects cannot be deleted**, including test projects a tool creates. Record test project ids instead of planning to remove them; `book[saved]=false` keeps a project out of the saved list. *Stated by the Pixfizz team, 2026-10-13; not verified by query.*
 
 ### A project's own gallery
 ```
@@ -183,7 +191,7 @@ Each project has its own gallery. Only images in that gallery appear in the edit
 ```
 GET /v1/books/<id>/pages.json
 ```
-Returns the project's pages, 20 per response. Its page previews are 150 px thumbnails, not usable for a large preview. *Verified by query, 2026-10-03.*
+Returns the project's pages, 20 per response; `?page=2` returns the next 20, and `per_page` and `limit` are ignored. Its page previews are 150 px thumbnails, not usable for a large preview. *Verified by query, 2026-10-03 and 2026-10-14.*
 
 `GET /v1/books/<id>/pages.json?page=1` also works in a guest session and returns the page XML (`data`) plus `images[]` with `width`, `height`, `filename` and thumbnail URLs. `/v1/projects/<id>` is 404: the project endpoint is `/v1/books/`. *Verified by query, 2026-10-08.*
 
@@ -326,6 +334,8 @@ while (!(file.status === 'Completed' || file.status === 'Error ocurred')) { ... 
 GET /v1/users/<user-id>/galleries.json
 GET /v1/galleries/_mine.json
 ```
+
+`GET /v1/galleries/_mine.json` answers through a redirect to `/v1/users/<user id>/galleries.json`, so a same-origin storefront script can take the Pixfizz user id from the final response URL (`Response.url`) instead of trusting an id printed in the page. *Verified by query, 2026-10-13.*
 
 ### Create a gallery
 ```
@@ -671,6 +681,12 @@ Requires admin access.
 
 *Verified by query, 2026-10-03.*
 
+- In `/v1/themes/<id>.json` an unpublished template option keeps `published: true` on its values (`options[].published=false`, `values[].published=true`). Check the option's flag, not only the values'. Option-level custom fields come back as `options[].custom`, unpublished options included.
+- `/v1/products/<id>.json` returns the product's custom fields and variants, not its template options; template options (with their value custom fields) come only through `/v1/themes/<design id>.json`.
+- `print_product.layout` carries the XML definition, so `min`, `max` and `add` on `<definition>` are readable client-side.
+
+*Verified by query, 2026-10-14.*
+
 ---
 
 ## 10. JS API
@@ -748,6 +764,8 @@ POST /v1/users/<id>/calendars.json  -d "calendar[name]=Family 2026"
 POST /v1/calendars.json  -d "calendar[name]=Holidays"  -d "calendar[code]=HOL2026"
 ```
 `code` is required for admin calendars; not required for user calendars.
+
+> **Two observations disagree (2026-10-16).** In a signed-in storefront session on a test site, `POST /v1/calendars.json` with only `calendar[name]` (no `code`) created a calendar **owned by the session user**, not a site-wide one, and `GET /v1/calendars.json` listed website calendars only. Dates were then added with `POST /v1/calendars/<id>/dates.json` (`date[caption]`, `date[start]` as YYYY-MM-DD, `date[recurring]` 1 or 0, `date[date_type]`), the calendar id was passed in `book[calendars][]` on project create (§ 4), and `fill:user-calendar` captions rendered. *Verified by query, 2026-10-16; signed-out not tested.* Whether the caller's role decides between a user and a site-wide calendar on this route is not confirmed with the core developer: until it is, create user calendars on `/v1/users/<id>/calendars.json` and read back the owner.
 
 ### CRUD
 ```
@@ -869,11 +887,13 @@ The `/admin/...` forms of these paths are retired (they redirect, see above). **
 - Create and update return the instance, with its id.
 - **A real `PUT` works on `/v1`.** The "raw PUT is blocked, use `POST` with `_method=put`" rule was true on the retired `/admin` path. Both forms work on `/v1`, so code that already sends `_method=put` needs no change. The cross-origin preflight rule below still applies from a browser on another origin.
 - **Update is a merge, not a replace.** Sending only `custom_type_instance[custom][page_title]` left the instance's other fields untouched, so a partial update is safe and needs no read-modify-write of the whole `custom` hash. To clear a field, send an empty string for it.
+- **A JSON body must be wrapped:** `PUT .../custom_type_instances/<id>.json?sitename=<site>` with `{"custom_type_instance":{"custom":{...}}}`. A bare `{"custom":{...}}` returns 200 and changes nothing. *Verified by query, 2026-10-14.*
+- **Custom field values have a size limit.** A write with a large `page_content` is refused with HTTP 422 `{"custom_fields":["are too large"]}`. A 58,208-byte value saved and a 60,852-byte value was refused, so the limit is near 60 KB. Strip comments and indentation, or move script and CSS into assets. *Verified live, 2026-10-14.*
 - **Delete returns 200 with an empty body**, not 204 and not a JSON envelope. A client that parses every response as JSON throws on a successful delete. After the delete, a `GET` of the instance returns 404 `{"error":"Not Found"}` and it is gone from the list.
 - After a delete, the storefront page for that instance (a `pages` instance) also returns 404. *Verified by query, 2026-10-04.*
 - **Admin form route (no `/v1`):** create by POSTing the form on `/site/<site>/admin/custom_types/<type>` whose action ends in `/custom_type_instances` (`authenticity_token` only); the response URL ends with the new instance id. There is no `/new` route (404). To edit through admin, note that the instance page renders the Pages type's `page_content`, `page_description` and `page_schema` as Ace editors client-side, so a plain fetch of the page does not contain those textareas. Load the page in a hidden same-origin iframe, wait for it to render, build `new FormData(form)`, set `custom_type_instance[custom][<field>]`, and POST to the form action; every other field goes with its current value, so nothing is wiped. Booleans: delete both entries and append one `'1'` or `'0'`. Stored text comes back with CRLF. *Verified by query, 2026-10-05.*
 - Moving custom type definitions and instances between sites: `13_TEMPLATE_BOUNDARIES.md`.
-- Still manual: custom field **definitions** have no API. A new site needs the custom type and its fields created in admin (or imported, `18_ADMIN_NAVIGATION.md` § Custom Fields, Schema Order and Bulk Export/Import) before any instance can store a value, and a value written against a field that does not exist is silently dropped.
+- Still manual: custom field **definitions** have no API. (Extended 2026-10-17: they can be created from a logged-in admin tab through the admin form. The custom type page's "edit schema" link opens `/site/<site>/admin/custom_field_definitions?instance_id=<type id>&type=CustomType`; the new form is `/custom_field_definitions/new` with the same query, fields `custom_field_definition[field_name]`, `[field_type]` (`text`, `multitext`, `boolean`, `number`, `asset`, `snippet`), `[description]` and `[public]` (hidden `0` plus checkbox `1`). POST `FormData` to the form action. `/custom_types/<id>/edit` returns an application error, and a definition has no `/edit` route: its show URL holds the form. *Verified by use, 2026-10-13.*) A new site needs the custom type and its fields created in admin (or imported, `18_ADMIN_NAVIGATION.md` § Custom Fields, Schema Order and Bulk Export/Import) before any instance can store a value, and a value written against a field that does not exist is silently dropped.
 
 Create parameters, one per custom field on the type:
 
@@ -892,7 +912,13 @@ GET  /v1/admin/assets.json     # list all assets
 
 `GET /v1/admin/assets.json` lists every asset with its signed `/fz/` URL (verified by query, 2026-09-26). **The multipart upload works on `/v1`** (Corrected 2026-10-06): `POST /v1/admin/assets.json?sitename=<site>` with `asset[name]`, `asset[description]`, `asset[file]` and an `X-CSRF-Token` header taken from any `authenticity_token` input on an admin page returned 200 for each of 16 files (WebP included) from a logged-in admin session. *Verified by query, 2026-10-05.* Server-to-server upload with an API key and no session is not verified.
 
-**Asset names are unique per site.** A duplicate name returns **HTTP 200** with `{"error":{"name":["has already been taken"]}}`. Check the body for an `id`, not the status. *Verified by query, 2026-10-04.*
+**Asset names are unique per site.** On `/v1/admin/assets.json` a duplicate name returns **HTTP 200** with `{"error":{"name":["has already been taken"]}}`. Check the body for an `id`, not the status. *Verified by query, 2026-10-04.* The admin-host route (`POST /site/<site>/admin/assets.json`) answers a duplicate `code` with **HTTP 422** "Name has already been taken" (*verified by use, 2026-10-13*). List the site's assets by name before uploading.
+
+**`?sitename=` is ignored on a storefront origin.** `POST /v1/admin/assets.json?sitename=<site>` sent from a storefront origin writes to that storefront's own site (a name collision error if the file already exists there). To write to another site, such as the parent, use the admin-host route `POST /site/<site>/admin/assets.json` (field `data`, `X-CSRF-Token`). *Verified by query, 2026-10-15.*
+
+**Large files: `/v1/admin/assets.json` has a body size limit.** A server-to-server `POST /v1/admin/assets.json` (API key, sent to a site's custom domain) with a 12.6 MB PDF returned HTTP 413 "Request Entity Too Large" from nginx with an empty body; a 6.46 MB PDF through the same route succeeded. The same 13 MB file uploaded fine as an asset through an admin browser session on `admin.pixfizz.com`, so the limit is on the API / storefront host path, not on assets as such. *Verified by query, 2026-10-15.* Not verified: the exact limit (somewhere between 6.46 MB and 12.6 MB), and whether `/v1` on `admin.pixfizz.com` has the same one. A server-side tool that stores print-size PDFs should fall back to the orderline file URL on 413.
+
+**`/fz/` URLs are signed for the host that issued them. Never rewrite the host.** An admin-page link `https://admin.pixfizz.com/fz/...` downloaded with no session (`credentials: 'omit'`, CORS open from the storefront origin); the same path on the storefront host returned 403 "invalid", and on `cdn.pixfizz.com` it failed. *Verified by query, 2026-10-10.* Signed `/fz/` URLs do not appear to expire: one issued on the admin host still downloaded with no session five days later (206, `application/pdf`). Observed once; not a documented guarantee. *Verified by query, 2026-10-15.*
 
 The upload returns 200 with `{ id, name, url, is_image, previews: { thumb, small, medium } }`; `url` is a public `/fz/` address. *Verified by query, 2026-09-30.*
 
@@ -906,7 +932,7 @@ An asset-type custom field (for example a blog image field) takes the asset **na
 
 Admin-host upload, without `/v1`: `POST /site/<site>/admin/assets.json` multipart returns `{id, name, url, previews}`. Two field sets were seen working: `asset[name]`, `asset[file]` and `authenticity_token` (verified by query, 2026-10-06), and `code` (the asset name) plus `data` (the file) (verified by query, 2026-09-30).
 
-**Replace an asset in place** (same id, same name, so every `asset_url` reference follows the new file): `PUT /v1/admin/assets/<id>.json` above (Corrected 2026-10-06: this section previously said there was no `/v1` call), or the admin form: `GET /site/<site>/admin/assets/<id>/edit`, then POST that form as multipart with `_method=patch`, `asset[name]`, `asset[description]` and `asset[file]`. The file can be built in the page as a `Blob` or `File`, so no file picker is needed. To patch an existing asset, fetch the current file from `cdn.pixfizz.com` (CORS is open there; the storefront host is not), change it, and check its hash against the tested file before posting. *Verified by query, 2026-10-05.* `FormData` turns LF into CRLF in text fields, which is harmless but makes a byte compare of sent against stored differ for that reason alone. See § 13h for the other admin-form writes.
+**Replace an asset in place** (same id, same name, so every `asset_url` reference follows the new file): `PUT /v1/admin/assets/<id>.json` above (Corrected 2026-10-06: this section previously said there was no `/v1` call), or the admin form: `GET /site/<site>/admin/assets/<id>/edit`, then POST that form as multipart with `_method=patch`, `asset[name]`, `asset[description]` and `asset[file]`. The file can be built in the page as a `Blob` or `File`, so no file picker is needed. To patch an existing asset, fetch the current file from `cdn.pixfizz.com` (CORS is open there; the storefront host is not), change it, and check its hash against the tested file before posting. *Verified by query, 2026-10-05.* **Two observations disagree:** on 2026-10-10 the cdn and storefront links both failed CORS from an admin page; what worked was the signed admin-host link on the asset's edit page (`https://admin.pixfizz.com/fz/...`), fetched from that admin page. Try the cdn first and fall back to the signed link. *Verified by query, 2026-10-10.* `FormData` turns LF into CRLF in text fields, which is harmless but makes a byte compare of sent against stored differ for that reason alone. See § 13h for the other admin-form writes.
 
 Upload parameters:
 
@@ -965,6 +991,8 @@ theme_category[custom][custom_field_2]=value2
 > **Status 2026-09-23:** this `/admin/...` path is retired with the rest; it redirects cross-host, so a server-to-server call fails. No `/v1` replacement for writing collection custom fields is confirmed yet. Do not build on this endpoint until one is. *Pending confirmation with the core developer.*
 >
 > **Update 2026-10-06:** there is still no `/v1` write for collections. From a logged-in admin session, collection custom fields, the collection image and the collection's product order are written through the admin's own forms on the collection page. Routes in § 13h. *Verified by query, 2026-10-05.*
+>
+> **Update 2026-10-12: an API key cannot put a product in a collection.** With a `pxk_` key (Basic auth, `redirect: manual`) every attempt returned 404 or was ignored: `add_products` on the storefront host, on the admin host and under `/v1/admin/theme_categories/<id>/add_products.json`; `POST /v1/admin/collections/<id>/products.json`; and `PUT /v1/admin/products/<id>.json` with `product[category_ids][]` or `product[theme_category_ids][]` (200, field ignored). The product `category` field is a free-text label, not a collection link. `add_products` works only from a logged-in admin tab (`18_ADMIN_NAVIGATION.md` § Import and publish routes). Any API-key tool must hand collection membership to a person until the core developer adds a write. *Verified by query, 2026-10-12.*
 
 
 Two things follow from § 13's CORS note and from `13_TEMPLATE_BOUNDARIES.md`:
@@ -1069,6 +1097,16 @@ the consumer side, or expect item-level reporting not to reconcile.
 
 The live case is the server-side GA4 `purchase` pipeline, where this produces item reports with
 two rows per product and funnels that never join. See `85_GA4_SERVER_SIDE_PURCHASE.md`.
+
+**A file upload template option comes back as `db:<id>` only, everywhere outside Liquid.** `/v1/orders/<id>/orderlines.json`, `/v1/orderlines/<id>.json`, `/v1/admin/orderlines/<id>.json`, `/v1/books/<id>.json` and the webhook payload (`template_options[].value`) all return `db:<id>`; `/v1/uploaded_files/<id>`, `/v1/files/<id>` and `/v1/uploads/<id>` are 404. The file URL exists only in Liquid (`chosen_option.uploaded_file.url`) and on the admin orderline page. To hand the file to a server, stamp the URL into an orderline custom field with the orderline custom fields script. *Verified by query, 2026-10-10.*
+
+**Generated production files (`orderlines[].files[]`, `/orderlines/w2/<id>/files/<n>?hash=`) appear on `order.status_changed` and `order.updated`, never on `order.created`.** A consumer that needs the files must listen for the later events. *Verified by query of 14 days of webhook logs, 2026-10-10.*
+
+**Other payload facts** (*verified by query on stored payloads, 2026-10-17*):
+- The order channel is `custom.order_source` (values seen: `kiosk`, `online`, `shop`). There is no top-level `order_source`.
+- `created_at` keeps the store's local UTC offset (for example `-05:00`). Use it for the store's calendar day rather than converting to the consumer's time zone.
+- No tip or staff fields exist in the payload. `extra_fees` carried only rush, minimum order, cut print and oversize shipping fees in the payloads checked.
+- No payload checked carried `custom.kiosk_id` or any store id, so per-store reporting from the webhook needs the terminal capture (`32_ORDER_LIFECYCLE.md` § Kiosk Terminal Tracking) live and verified on that site first.
 
 ---
 
@@ -1241,16 +1279,25 @@ The admin product list carries no storefront URL for a product: only `links.self
 - **The inventory write is an absolute set with no compare-and-set.** Re-read immediately before writing and treat a changed baseline as a conflict.
 - **A formula is not validated against the product.** `12.99 * cut_print_quantity` saved 200 OK on a static product, where that variable means nothing (`30_PRICING_ENGINE.md`). Probe the storefront after every formula write.
 - **Proven writable fields:** `price`, `current_inventory`, `track_inventory`, and since 2026-10-05 also `product[code]`, `product[name]` and `product[custom][<field>]` (form encoded; all three saved together and read back with `GET /v1/admin/products/<id>.json`). Custom fields not sent were kept and variants were untouched; a write of `product[custom][from_pricing]` alone changed only that key. Sent from a logged-in admin page with its `X-CSRF-Token` and session cookie. *Verified by query on three products, 2026-10-05.* A `multitext` custom field needs the array form (§ 13c).
+- **From a page on `admin.pixfizz.com`, a same-origin `PUT /v1/admin/products/<id>.json?sitename=<site>` with no `X-CSRF-Token` also returned 200 and saved.** Across 540 products only the sent key changed, and the public `/v1/products.json` showed the new value immediately. One read-back difference: a `fulfillment` that read `""` before the write reads `null` after it, so treat `""` and `null` as equal when diffing. `GET /v1/admin/products.json?sitename=<site>&per_page=100&page=N` from the same page reads the catalog 100 per page. *Verified by query, 2026-10-12 and 2026-10-13.*
 - Renaming `product[code]` breaks every reference to the old code (collection filters, Liquid, fulfillment, print-on-demand lookups) exactly as a manual rename does. The bulk-rename ban on strings that reference platform data applies.
 
 ### Create
-`POST /v1/admin/products.json` always creates, never updates. `product[name]` and `product[image]` are capped at 64 characters; codes are unique case-insensitively; **`product[description]` returns 200 but is never stored**, on create or update. There is no API to delete or archive a product.
+`POST /v1/admin/products.json` always creates, never updates. **A design product is created the same way** (what the Publish Products wizard sends): `POST /v1/admin/products.json?sitename=<site>` from the admin host with `product[print_product_id]` (the template), `product[name]`, `product[code]`, `product[price]`, `product[min_units]`, `product[max_units]`, `product[fulfillment]` and `product[custom][...]`. Custom fields are saved on create. It works with a template provider's template on a consumer site. *Verified by query, 2026-10-10.* `product[name]` and `product[image]` are capped at 64 characters; codes are unique case-insensitively; **`product[description]` returns 200 but is never stored**, on create or update. There is no API to delete or archive a product.
 
 ### Public catalog reads (no login)
 Each product in the public `/v1/products.json` carries `category`, `price` and `print_product_id` (null means a static product). `/v1/theme_categories.json` lists every collection with `id`, `name` (the path segment), `display_name`, `description`, `image` and `custom.unpublished`, and each entry carries `themes` and `static_products` arrays (both empty means an empty collection). `GET /v1/admin/theme_categories.json` returns 404: the public route is the collections read. `/v1/products/<id>/variants.json` and `/v1/products/<id>/price_forecast.json` are public; a static product with base price 0 forecasts 0 until variants are applied. Public endpoints need no login. Useful for launch checks: `80_ONBOARDING.md` § Launch Check: Empty Collections and Unpriced Products. *Verified by query, 2026-10-02 and 2026-10-04.*
 
+More on the collections read (*verified by query, 2026-10-12 to 2026-10-15*):
+- **It is not paged:** `?page=` and `per_page` return the same full list. Child collections are nested under `sub_categories`. An empty list was seen once right after a write; retry an empty list before trusting it.
+- Each `static_products` item carries `product_id` and `product_code`. This is the only read that shows which static products sit in a collection: the product read has no collection field.
+- Each `themes` item carries `id`, `code`, `name`, `published`, `product_id`, `product_code`, `product_custom` and `uid`, and unpublished designs are included (`published: false`).
+- `/v1/theme_categories/<name>.json` returns one collection by name; by numeric id it is 404. A subcollection's name carries its parent path (`wall-art/acrylic-prints`), and both the slash and `%2F` forms answer, so anything that names a collection (a tool mount, a filter) must use the full name once the collection sits under a parent.
+- **Finding designs from the storefront:** there is no product-level design list (`/v1/products/<id>/designs.json`, `/v1/products/<id>/themes.json`, `/v1/themes.json` and `/v1/print_products/...` are all 404), so the collections read is the way in. A design in no collection cannot be found this way. `/v1/themes/<id>.json` then gives its template options (§ 9, *Reading a design and a font*).
+- **"Sign in to see prices" hides prices in the page only:** `price_forecast.json?print_theme_id=<design>` still returns the price to a signed-out visitor. *Verified by query, 2026-10-14.*
+
 ### Variant writes: experimental `/v1/admin` routes (Corrected 2026-10-09)
-Until 2026-10-06 there was no write API for variants (*core developer, 2026-09-23*). **On 2026-10-06 the core developer opened the variant endpoints under `/v1/admin`, marked experimental, with the same paths and parameters as the old internal `/admin` routes.** `PUT /v1/admin/variant_values/<id>.json` with `variant_value[price]=2.51` answered 200 and read back 2.51 (then restored). *Verified by query, 2026-10-07.* Writes of `published`, `default`, `name` and `code` on a value, and creating or deleting types, are not tested through these routes. Read every write back: a 200 is not proof. The admin forms (§ 13h) remain the proven route for creating types and values.
+Until 2026-10-06 there was no write API for variants (*core developer, 2026-09-23*). **On 2026-10-06 the core developer opened the variant endpoints under `/v1/admin`, marked experimental, with the same paths and parameters as the old internal `/admin` routes.** `PUT /v1/admin/variant_values/<id>.json` with `variant_value[price]=2.51` answered 200 and read back 2.51 (then restored). *Verified by query, 2026-10-07.* `PUT /v1/admin/variant_values/<id>.json?sitename=<site>` with `variant_value[value]=<name>` renames a value; code, image, default and price are kept. Sent from an admin page with no CSRF header, it answered 200 and read back (*verified by query, 2026-10-14*). Writes of `published`, `default` and `code` on a value, and creating or deleting types, are not tested through these routes. Read every write back: a 200 is not proof. The admin forms (§ 13h) remain the proven route for creating types and values.
 
 ### Quantity limits
 `product[min_units]` and `product[max_units]` on `PUT /v1/admin/products/<id>.json` both save and read back. The product read returns `units: {min, max}` only: the quantity steps (`unit_intervals`, `30_PRICING_ENGINE.md`) are neither read nor written by the API. *Verified by query, 2026-10-06 and 2026-10-07.*
@@ -1266,10 +1313,12 @@ These are browser-session routes, not an integration surface: they need an inter
 **General rules**
 - **Resubmit every field of the form**, changing only the one you mean to change. Leaving a field out is not proven safe (`18_ADMIN_NAVIGATION.md` § Bulk Update Tools has an open question on whether the template option custom fields form merges).
 - **Fields rendered client-side are not in the fetched HTML** (snippet-type custom fields, Ace editors; see `18_ADMIN_NAVIGATION.md` § Admin Overview). Append them to the form data yourself, or they are sent empty.
+- **On the Product Attribute page, a snippet-type custom field (for example `product[custom][<field>]`) is a hidden textarea plus an Ace editor, and only shows after "Show All Fields".** Setting the textarea alone does not save. Set the editor too (`ace.edit(textarea.parentElement.querySelector('pre.ace_editor')).setValue(value, -1)`), set the textarea, then click Save, and read the value back after a reload. *Verified by query, 2026-10-13.*
 - Values in snippet-type fields come back with CRLF line ends. Fold CRLF to LF before comparing.
 - Re-read the object after the write. A 200 is not proof.
+- **Admin pages carry a Content Security Policy of `connect-src 'self' data: blob: cdn.pixfizz.com`.** Script on an admin tab cannot fetch from localhost, a storefront host or any other host. A file reaches an admin page only through a file input, or is built in the page (for example from an existing asset fetched from `cdn.pixfizz.com`, patched and hash-checked before posting). *Verified by query, 2026-10-13 and 2026-10-14.*
 
-**Snippet content.** `GET /site/<site>/admin/snippets/<id>/edit`, take the form that holds `snippet[name]`, resubmit every field plus `snippet[content]` (the editor field is not in the static HTML). Name, description and `allow_override` stay as they were. Use this when the § 13f API write does not take.
+**Snippet content.** `GET /site/<site>/admin/snippets/<id>/edit`, take the form whose `_method` is `patch`, resubmit every field plus `snippet[content]` (the editor field is not in the static HTML). Name, description and `allow_override` stay as they were. Use this when the § 13f API write does not take. (Corrected 2026-10-17: the earlier text said to take the form that holds `snippet[name]`.) **On a child override the patch form has no `snippet[name]` field**, only `snippet[content]` once the page script has run, so pick the form by `_method=patch` and `snippet[content]`, never by `snippet[name]`. The snippet list exposes ids as `<a id="snippet_<name>" href=".../snippets/<id>/edit">`. *Verified by use, 2026-10-13.*
 - **On a snippet edit page the first form carrying `_method` is the DELETE form** (`button_to`). Only ever submit the form whose `_method` is `patch`. *Verified by query, 2026-10-06 (an override was deleted this way).*
 - **An Ace-editor value read from an edit page carries `<\/script>`.** The page embeds the value as a JS string and only turns `<\/script>` back into `</script>` at runtime. Parsing the string yourself leaves the backslash, and writing it back stores a literal `<\/script>`, so an embedded script (for example a tool mount's JSON block) never closes. Replace `<\/script>` with `</script>` before posting. Applies to snippets and to a template option's `custom_script`. *Verified by query, 2026-10-06.*
 - Create in one request: the admin snippet create form (`POST /site/<site>/admin/snippets`) accepts `snippet[content]` together with name, description and allow_override. Allow Override is on by default. *Verified by query, 2026-10-03.*
@@ -1284,6 +1333,8 @@ These are browser-session routes, not an integration surface: they need an inter
 
 **Variant types and values.** POST `/site/<site>/admin/products/<id>/variant_types` with `variant_type[name|code|value_type|required|published]`, then POST `/site/<site>/admin/variant_types/<id>/variant_values` with `variant_value[value|code|price|default|published]`. Each response redirects to the variant type's edit page, which carries its id.
 
+**Extra Fees.** Create with `POST /site/<site>/admin/extra_fees` carrying `authenticity_token`, `extra_fee[name]`, `extra_fee[code]`, `extra_fee[taxable]` (hidden `0` plus checkbox `1`) and `extra_fee[formula]` (the Ace field is not in the static HTML). Read it back from the edit page's embedded `const content = "..."` (unescape `<\/script>` as for snippets). *Verified by query, 2026-10-10.*
+
 **Collections.** The collection show page, `/site/<site>/admin/theme_categories/<id>`, is also its edit page. `/theme_categories/<id>/edit` returns 500.
 - **Collection image.** The image is the collection's `asset_name`, and it accepts any asset name on the site, WebP included. Take the form that contains `theme_category[asset_name]` (fields `_method=patch`, `authenticity_token`, `display_name`, `name`, `asset_name`, `description`), resubmit every field unchanged except `asset_name`, and POST to the form action. Afterwards `GET /v1/theme_categories.json?sitename=<site>` shows `image` as the asset's CDN URL. Template-level (Shopper 24): `collection/shop-all` shows this image, or `.shop-all-placeholder` when there is none.
 - **Collection custom fields.** The second form on the same page. Fields seen missing from the static HTML: `banner_html`, `collection_footer`, `collection_filters`. A `PATCH /site/<site>/admin/theme_categories/<id>` with `_method=patch`, `authenticity_token` and only the fields to change was **partial**: other fields, snippet-type included, were kept (verified by query, 2026-10-03). A 2026-10-05 run still advises resending `collection_filters` on every save in case it is lost; unconfirmed which holds, so resend it.
@@ -1292,10 +1343,14 @@ These are browser-session routes, not an integration surface: they need an inter
   $j.ajax({url, type:'POST', data:{product_themes: ids}})
   ```
   Run it from the collection page, with `url` set to the `/order` path and `ids` the full ordered list. Verified on a 55-row collection, by a fresh fetch of the admin page and on the logged-out storefront. **Send every row id.** Not tested: what a partial list does to the rows left out. The Move to Top and Move to Bottom items are `li` elements already in each row's DOM, so a JS `click()` on one fires the request without opening the popover.
-- Each move saves immediately. Rows added with `add_themes.json` append in call order, so add a size range in size order: on `pdp_layout` pages the collection order drives the size tile order (`50_SHOPPER_TEMPLATE_REFERENCE.md`). *Verified by query, 2026-10-04.*
+- Each move saves immediately. Rows added to a collection append in call order (seen with `add_themes.json` on 2026-10-04 and with the publish wizard's POST on 2026-10-12), so add a size range in size order: on `pdp_layout` pages the collection order drives the size tile order (`50_SHOPPER_TEMPLATE_REFERENCE.md`). *Verified by query, 2026-10-04 and 2026-10-12.*
 - **Remove a product from a collection.** The per-row `remove_theme` form (DELETE, `product_theme=<id>`). Reversible: add the product again.
-- **Add designs to a collection.** `POST /admin/theme_categories/add_themes.json` with `product_id`, `category_ids[]`, `theme_ids[]` and the CSRF token (route list in `18_ADMIN_NAVIGATION.md` § Bulk Update Tools). Static products use `add_products` instead.
-- **Adding designs can report failure and still succeed.** The `add_themes.json` call answered `{"error":"Not Found"}` and had still added the designs (seen when the collection id came back empty right after the collection was created). Always re-read the collection rows.
+- **Add designs to a collection: use the Publish Products wizard route.** (Corrected 2026-10-17: this section previously documented `POST /admin/theme_categories/add_themes.json` with `product_id`, `category_ids[]`, `theme_ids[]`, and noted it could answer `{"error":"Not Found"}` and still have added the designs, as seen on 2026-10-05.) From 2026-10-12 to 2026-10-14, on several sites and on both the `/admin` and `/site/<site>/admin` paths, `add_themes.json` answered `{"error":"Not Found"}` and **added nothing** (row count unchanged on re-read). The wizard is what works:
+  - By hand: the collection page's **Add Design Product** link (`/site/<site>/admin/manage_products/print_products?theme_category_ids[]=<collection id>`), search the template, Select Designs, Product Attributes (pick the existing product, not "new"), Choose Collections (tick only the target), then "Publish N designs to 1 collection".
+  - By URL: the last step opens directly at `/site/<site>/admin/manage_products/theme_categories?print_theme_ids[]=<design>&product_id=<product>&template_id=<template>&theme_category_ids[]=<collection>` (repeat `print_theme_ids[]` per design, or pass a position range as `print_themes=<range>`, for example `9-24`, which is what the Select Designs step writes into its hidden field). It also pairs designs with the right product attribute. One click on the publish button, or a POST of its form to `/site/<site>/admin/manage_products/publish` with `authenticity_token`, `print_theme_ids[]` (or `print_themes`), `product_id`, `template_id`, `parent_id=''`, `theme_category_name=''` and `theme_category_ids[]`, lands the rows published.
+  - On a consumer of a template provider, `manage_products/product_attributes?continue=1&template_id=<provider template>&print_theme_ids[]=<design>&product[name]=..&product[code]=..&product[price]=..&product[category]=..&product[fulfillment]=` returns the publish form with `product_id=new`, so the publish also creates the lab's product attribute; the redirect to `manage_products/published` carries the new product id.
+  - Static products still use `add_products` (`18_ADMIN_NAVIGATION.md` § Import and publish routes). Always re-read the collection rows after any publish.
+  *Verified by query and on the storefront, 2026-10-12 to 2026-10-14.*
 
 **Design display name.** POST `/site/<site>/admin/print_theme/theme/<design_id>` with `theme[name]`. The design code is untouched. The form carries `print_product_id`, `name`, `code`, `description` and `editor_configuration_id`: resubmit it whole. *Verified by query, 2026-10-03.*
 
@@ -1334,3 +1389,4 @@ These are browser-session routes, not an integration surface: they need an inter
 - 2026-10-06: § 6 image upload moved to `POST /upload/image` (data or url+name, optional gallery_id); old gallery images POST deprecated; gallery size guidance; admin-key gallery create for a user. § 7 GET `_uid` lookup by external ID. § 13c custom type instances full CRUD on /v1 (real PUT, merge update, delete 200 empty body); asset multipart upload verified; asset replace in place via admin form; multitext custom fields need array form; collections still have no /v1 write. § 13f snippet writes verified on production (CRLF, child-only snippet creation, JSON `cms_snippet` body saves nothing). § 13g code, name and custom fields proven writable. New § 13h Admin Form Writes (snippet, template options, variant types and values, collection image, custom fields, product order, remove product, add_themes false error, design name). Also from other groups' spill: § 3 users/me returns id null for a visitor; § 4 read a project's pages; § 6 single image read is 403 without a session, customer upload by script via `/upload/image` verified as guest; § 9 png extension, transparency and page mask via SVG, reading a design and a font; § 13c duplicate asset name returns 200 with an error body, design previews (linked assets), product image and description, design description. From group D2 spill: public `/v1/products.json` pages at 20 (`per_page` works), public catalog reads, the add_themes.json route. From late spills (groups B2, C, E): § 4 project update limits and the project gallery; § 6 copy an image between galleries, delete a gallery; § 13c asset PUT replace and DELETE on /v1 (corrected), upload response shape, admin-host upload, custom type admin-form routes, design custom field PUT saves nothing (corrected); § 13f child snippet overrides created and deleted by API, asset deletion verified; § 13g no storefront URL in the admin product list, collections read fields; § 13h snippet DELETE-form trap, Ace `<\/script>` unescape, snippet create with content, collection custom fields PATCH partial, design form and design custom fields route. Source: claude-chat, vault-doc.
 - 2026-10-06 (later): § 6 `/upload/image`: `name` is optional and defaults to the last URL segment. Source: gmail (core developer, 2025).
 - 2026-10-09: § 2 an admin.pixfizz.com login is not a storefront admin session (`user.is_admin` pages need a storefront sign-in). § 4 create with `book[template_options]`; `book[pages]` on create is honored and not clamped to the template minimum; guest `pages.json` read; new Add to the cart from a script (the `editor=add-to-cart` button value, posting `/cart/add_print_product`, one line per product). § 9 project preview: `page=` not `template_name`, unsaved `book[template_options]`, `px-project-preview` attributes. § 13 SiteFlow status callbacks (`siteflow_update.json`, lowercase statuses, no cross-account callbacks today). § 13g corrected: experimental `/v1/admin` variant writes opened 2026-10-06 (value price verified); quantity limits writable, `unit_intervals` not in the API. § 13h snippet content save routes disagree, iframe and Ace route; child override from the admin form. Source: claude-chat, notion-page, slack-message.
+- 2026-10-17: § 1 admin-host assets list pages at 50, users at 20. § 3 admin users list: fixed 20 per page, addresses read, telephone-only PUT and its loud failures. § 4 calendar create (`start_month` zero-padded, `book[calendars][]`); projects cannot be deleted (not verified by query); `pages.json` paging. § 6 `_mine.json` redirect gives the user id. § 9 unpublished option keeps published values, template options only on the theme read, definition readable client-side. § 11 user calendar created by `POST /v1/calendars.json` (both observations kept, role question open). § 13c custom field definitions by admin form; instance JSON body must be wrapped; ~60 KB custom field size limit (422); admin-host duplicate asset 422; `?sitename=` ignored on a storefront origin; `/v1/admin/assets.json` 413 on large files (exact limit not verified); `/fz/` URLs host-signed and long-lived; signed-link fallback when the cdn fetch fails; an API key cannot add products to a collection. § 13d file upload options are `db:<id>` outside Liquid, generated files only on later events, `custom.order_source`, local `created_at`, no tip/staff/store fields. § 13g CSRF-free admin-host product PUT, `""`/`null` fulfillment read-back, design product create, collections read not paged with `sub_categories`, static products and themes per collection, lookup by full subcollection name, signed-out `price_forecast`, variant value rename. § 13h Product Attribute Ace field, admin CSP, snippet patch form (corrected: match `_method=patch`, not `snippet[name]`), Extra Fee create, `add_themes.json` corrected to the Publish Products wizard route (by hand, by URL, consumer-site product creation). Source: claude-chat.

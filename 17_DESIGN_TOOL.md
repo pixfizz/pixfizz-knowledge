@@ -402,6 +402,10 @@ a shopper24 child, bundle 20261002143509, 2026-10-03, unless marked.*
   `unedited_elements` and `fillable_placeholders`. An image element's
   `dpi_resolutions` is its effective `[x, y]` dpi; `store.project.minimum_dpi` is the
   floor from the definition. *Verified by query, bundle 20261001104917, 2026-10-02.*
+- The editor store's page list includes sets marked `editor="false"`: a layflat book lists
+  preview, cover, endsheet-front, first, the grow spreads, last and endsheet-back. A tool that
+  maps its own pages to editor pages by index must skip the preview and endsheet pages.
+  *Verified by query, 2026-10-14.*
 
 ### Autofill in a chosen order
 
@@ -961,6 +965,17 @@ each: open a product page with an AJAX filter, change it, count
 
 ---
 
+### Freeing a decoded image fires its error handler
+
+Setting `img.src = ''` on an image that already loaded fires its `error` event. A tool that
+frees images this way while its `onerror` is still attached shows a false "could not be opened"
+message for a photo it already placed. Clear the handlers first:
+`im.onload = im.onerror = null; im.src = '';`. Custom-tool standard.
+
+_Verified in a tool test harness, 2026-10-16._
+
+---
+
 ### pdf.js detaches the buffer it is handed
 
 pdf.js takes ownership of the `ArrayBuffer` passed to `getDocument` and **detaches it**. A
@@ -1296,3 +1311,4 @@ Platform event. *Stated by the core developer, 2025-05; not re-tested by query.*
 - 2026-10-06: Editor CSS Customization: corrected the Custom CSS field to a list of files (URL, CMS page name, `@asset@`), not CSS text, with the Shopper child pair (`style/editor.css` override plus `editor.css` in the field); corrected the `@filename@` notes and the asset-reference table; added theming variables and selectors (brand color, selection ring, `.px-page-set` spacer trap, usage count, warnings) and the `unedited_warning` gate switch. Added Locking an Element (`edit="false"`). Added Driving the Editor From a Script (`editor/scripts.js` not loaded by default on a Shopper child, same-origin iframe, store paths, ordered autofill, the autofill return value and fillable rule, only the project gallery feeds the tray, `#project_create` needs `book[pages]` on every product). Element Substitution Types: name-and-tags matching, the image crop flag (image upload options crop to fill), a pointer to 22 for color options and multi-element targets. Mapped Previews: pointer to 27 and the copied GLB hash key trap. Corrected Design Theme Layouts import behaviour (a design import creates a new design and remaps ids). Custom tools: inline SVG ignores `el.hidden`. Source: claude-chat, vault-doc.
 - 2026-10-06 (later): Restoring Input Values After a Product Switch: `px.fragmentsReloaded` fires on a product switch on the product form; refill on `pageshow` and on that event. Source: gmail (core developer, 2025).
 - 2026-10-09: Tag-only substitution targeting verified in the storefront editor (production still not verified), with the admin route. New § Image crop state (`zoom` is a percent, `left`/`top` are percents of the displayed photo, clamping, persisting from a script). Editor Buttons: text labels on the desktop add-element buttons by `data-tool-id`. New § A tool mounted by `custom_script` lives inside the variant selector (where it renders, label specificity, change events copying options into the URL, never touch browser history, no quantity field, theme class collisions, pointer capture, check the live snippet version). Build rules: one filename per tool asset. Source: claude-chat.
+- 2026-10-17: Editor store: the page list includes `editor="false"` sets (preview, endsheets), so index mapping must skip them. Browser-Side Rules: freeing a loaded image with `src = ''` fires its error handler; clear `onload`/`onerror` first. Source: claude-chat.

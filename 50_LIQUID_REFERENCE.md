@@ -94,6 +94,8 @@ Pixfizz Liquid strings are delimited by single quotes (`'...'`). There is **no e
 {{ 'Answer a few questions and we will recommend something.' | t: ns: 'homepage' }}
 ```
 
+**A literal `{` directly before a tag opens an output tag.** In `"rooms":{{%- assign ... %}`, the `{{` is tokenized as the start of an output tag. Put a space after a literal `{` before any `{%` tag (common when Liquid fills a JSON block). Platform-level. *Verified live (build failure), 2026-10-14.*
+
 ---
 
 # OBJECTS
@@ -898,7 +900,13 @@ Contains general website information. Available globally as `website` in all ren
 
 Confirmed correct by the core developer, 2026-09. The Website Redirects setting takes an
 **array of `[regex, target]` pairs**. Each regex is anchored at both ends and allows an
-optional trailing slash:
+optional trailing slash. **The regex is matched against the path including the query
+string.** A rule ending in `/?$` misses `/about-us/?fbclid=...`, and the visitor gets a 302 to
+`/site/404`. End rules in `/?(\?.*)?$` (in the JSON: `/?(\\?.*)?$`). Rules on root paths
+return 301. The admin page is `/site/<site>/admin/pages/redirects`, and the form posts
+`website_redirect_config[json_redirects]` to `/site/<site>/admin/pages/update_redirects`.
+Platform-level. *Verified live, 2026-10-10 and 2026-10-11.* Examples (add the query-string
+tail to each in practice):
 
 ```
 [
@@ -911,7 +919,7 @@ optional trailing slash:
 
 Worth recording because a malformed set has previously taken a site down. Targets are
 root-relative paths, same rule as navigation hrefs below.
-*Stated by the core developer, not independently verified.*
+*Config shape stated by the core developer; query-string matching verified live, 2026-10-10 and 2026-10-11.*
 
 ---
 
@@ -940,6 +948,8 @@ Renders a URL to a website asset. Input: asset name string or `Asset` object.
 - `cdn: false` — disable CDN (use for OG/metadata/ld+json URLs)
 
 **A missing asset renders an empty string, with no error.** `{{ 'name.ext' | asset_url }}` for an asset that exists on neither the child nor the parent returns `""`, so an `<img>` gets `src=""` and silently shows nothing. Check every new asset name on the live page (empty `src` or `naturalWidth` 0). Platform-level. *Verified by query, 2026-10-08.*
+
+**`asset_url` resolves the child site's asset first, even inside a parent snippet.** A parent snippet calling `asset_url` (with a literal name or a keyword-argument variable) returns the child's asset when the child has one with that name, and the parent's otherwise. So a child can replace an image a parent snippet uses (for example the header logo `brand-logo.svg` read by `header/logo`) by uploading an asset of the same name, with no snippet override. Platform-level. *Verified live on a child site, 2026-10-13 and 2026-10-14.*
 
 ---
 
@@ -1154,7 +1164,11 @@ Renders a CMS snippet by name. Additional keyword parameters become variables in
 
 **Note:** If the snippet is not found, an error is thrown unless `fallback_content` is provided.
 
-**Scope.** In email templates a snippet receives only its named arguments plus the `website` global; variables assigned by the caller do not reach it (verified by query, 2026-10-03, see Notes on Contexts). Whether storefront snippets behave the same is not verified; until it is, namespace argument names (`50_SHOPPER_TEMPLATE_REFERENCE.md` § 21.2). One storefront case is known to differ from both readings: inside a Pages Custom Type `page_content` field, values passed as keyword arguments also arrived empty in the called snippet (verified live, 2026-09-17), see `50_SHOPPER_TEMPLATE_REFERENCE.md` § 14.
+**Scope.** In email templates a snippet receives only its named arguments plus the `website` global; variables assigned by the caller do not reach it (verified by query, 2026-10-03, see Notes on Contexts). Storefront snippets also see only what they are passed: a snippet does not see the caller's `collection` unless it is passed as an argument (verified live, 2026-10-14; Corrected 2026-10-17: this was "not verified"). Keep namespacing argument names (`50_SHOPPER_TEMPLATE_REFERENCE.md` § 21.2).
+
+**A nested `{% snippet %}` call clears the calling snippet's params.** Inside a snippet called with `product: product`, calling another snippet (even inside `{% capture %}`, for example a checklist read) leaves `product` empty for the rest of the caller. Save and restore it: `{% assign keep = product %}` before the nested call, `{% assign product = keep %}` after. Any snippet that reads a checklist key after receiving params must do this, or it silently reads blanks. Platform-level. *Verified live, 2026-10-14.*
+
+One storefront case is known to differ from both readings: inside a Pages Custom Type `page_content` field, values passed as keyword arguments also arrived empty in the called snippet (verified live, 2026-09-17), see `50_SHOPPER_TEMPLATE_REFERENCE.md` § 14.
 
 **CMS import behaviour:** The CMS importer silently skips any snippet file that contains a Liquid syntax error. The snippet will simply not exist after import — no error is shown during the import process itself. This makes syntax errors in snippet files especially dangerous: they appear as mysterious "Snippet not found" errors at render time, even though the file was present in the tar.
 
@@ -1189,7 +1203,7 @@ Any other parameter is rendered as an HTML attribute on the generated `<form>` e
 | `contact` | — | Contact form. Use `{{ form.captcha }}` inside. |
 | `user_login` | — | User login form |
 | `user_registration` | — | User registration form |
-| `user_update` | — | User update form |
+| `user_update` | — | User update form. Partial posts work: a form carrying only `user[telephone]` (also with `async: true, selectors: ...`) saves the phone and leaves name and email unchanged (verified by query, 2026-10-13). |
 | `forgotten_password` | `reset_page:` or `reset_target:` | Forgotten password form. Points to the page containing the reset form. |
 | `password_reset` | — | Password reset form |
 | `locale_set` | — | Sets user session language. Include input with `name="locale"` and two-letter code value. |
@@ -1876,3 +1890,4 @@ tool never saw the product" in one paste, and nothing else does.
 - 2026-10-06: KNOWN CMS LIQUID QUIRKS: no `json` filter (unknown filters pass input through silently), `money` prints a bare number in emails, filters inside snippet arguments do not run, `{`/`}` in an email string literal fails the save silently. escape_json: build JSON by hand. snippet tag: scope note (email snippets get only named arguments plus `website`; Pages `page_content` case). Notes on Contexts: CORRECTED email context (Cart Abandoned gets `cart`), per-email variable table, other email-context behavior. Writing cart custom fields: no Cart object type, definitions live on Orders, test with a placed order. Request: `preview` query parameter is reserved and redirects to the editor. Website object: CORRECTED the parent `film/roll-builder` fix to pending. Paginate: every `website.*` list defaults to 20, exhaustive loops must set `page_size`, truncated-list symptom and `.size` diagnostic. Source: claude-chat.
 - 2026-10-06 (later): Projects forms: writing project custom fields with `book[custom][<field>]` hidden inputs in `project_create`, with the Public requirement and the 65,535-byte total. Source: gmail (core developer, 2025).
 - 2026-10-09: asset_url: a missing asset renders an empty string with no error. Source: claude-chat.
+- 2026-10-17: String Quoting: a literal `{` directly before a tag opens an output tag. Website Redirects: regex matches the path including the query string (end rules in `/?(\?.*)?$`), admin routes. asset_url: resolves the child's asset first, even in a parent snippet. snippet: CORRECTED storefront snippets do not see the caller's `collection`; a nested `{% snippet %}` call clears the caller's params (save and restore). Form Types: `user_update` accepts a partial post. Source: claude-chat.

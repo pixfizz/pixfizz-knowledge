@@ -1,58 +1,48 @@
-# kbsync 2026-10-06: what changed
+# kbsync 2026-10-17: what changed
 
-Sources: 57 project KB_PATCH docs (29 Sep to 5 Oct, plus older ones checked for coverage), 17 Vault kb-patches, Vault tools/ and clients/experience/ status docs, project specs for Live Finish, 3D previews, custom tools and myPixfizz, the myPixfizz app source in Lovable (commit d6290ee, read only), and the Phase 1 scan of 2 Oct.
+Sources: 145 Vault kb-patches dated 10 to 17 Oct (plus late additions to earlier ones), Slack #development 12 to 17 Oct, Fireflies summaries 9 to 17 Oct, the Notion Dashboard (no new entries since 9 Oct) and help.pixfizz.com (no articles changed since 1 Oct). Base: `main` at 050e8eb, checked again before delivery (unchanged).
 
-Upload all 30 files in this folder (except this file) to github.com/pixfizz/pixfizz-knowledge, main branch, replacing the existing ones. 27 is a new file.
+Upload every .md file in this folder to github.com/pixfizz/pixfizz-knowledge, main branch, replacing the existing ones. Nothing in `orderhub/` is touched.
 
-## New file
-- 27_LIVE_FINISH_AND_3D_PREVIEWS.md: the KB had no coverage of Live Finish or 3D previews. Covers what a product preview is vs a custom design tool, the Live Finish standard (mount keys, looks, geometry from the template, gating, dark sites, reserved query params), the 3D Preview standard (p3d_mount, Blender GLB models, wrap rules, versioning), status by product family, known defects, install pattern, definition of done.
+## Corrections (marked "Corrected 2026-10-17" in the files)
+- 50_SHOPPER § 20, 52, 85 § 7: the GA4 server-side bridge is live since 2026-10-12 (was "not deployed"). `view-item` is now a dataLayer push.
+- 61 § 13h, 18: `add_themes.json` answers 404 and adds nothing (12 to 14 Oct). The Publish Products wizard route (`manage_products/publish`) replaces it, by hand or by URL, including creating the product on a consumer site.
+- 26: the inline tool page layout is reversed: the product description and delivery box stay in the tool's right column. The mount option code is `px_mount` for every tool.
+- 23: `weekday` on `<defdate>` and `<dateshift>` jumps to that weekday inside the Monday to Sunday week, not the nearest occurrence.
+- 32: kiosk tracking. Before 2026-10-12 nothing on the parent wrote `kiosk_id`; now it is written and needs a definition.
+- 22: `file_upload` accept reads `option.accept`.
+- 50_SHOPPER § 5 and § 9: `confirm-with-invoice` checklist meaning; child favicon takeover.
+- 01: the `{% dynamic %}` scoping note now says not to rely on a dynamic block reading snippet params or earlier variables (observed live; a nested snippet call was a second cause).
+- 71: the "no variant write" reason for read-only Catalog Manager prices is out of date against 61 § 13g.
 
-## Largest updates
-- 26_CUSTOM_DESIGN_TOOLS.md: registry and per-tool reference brought to current state (Uploader 2.0 and NCR forms, Wall Designer, Board Engraver, Gang Up trim and cut path, flyer-fold, B2B tools on experience.pixfizz.com). New: fulfillment contract (px_ codes), shared px-tool-theme look, inline page layout, every choice on a variant (recall), price ladders, inches and mm, self-install from myPixfizz, tool cart image, upload dialog standalone.
-- 31_FULFILLMENT_ENGINE.md: new Custom Tool Fulfillment Standard section. Client name scrubbed from the QR worked example.
-- 71_MYPIXFIZZ_FEATURES_ROUTES.md: rebuilt from the app source. Every route verified by reading source; Marketing, Shopper Configure, Shopify Style, Launch Plan, Support (urgent tickets, order error form, auto-resolve), Tools (Blog, Upgrades, Template resizer, Live Finish setup, Merge users, Catalog Manager). Older details not re-checked are kept and labeled.
-- 70 / 72 myPixfizz: operational rules (migrations hit live, publish ships the whole queue), organization add-ons, new tables Sep to Oct.
-- 17 / 19 design tool and XML: spine insertion, design import, linked layouts, edit page XML in place, shrink / valign / crop / edit flags, editor CSS field (corrected), driving the editor from a script, size change cost on existing designs.
-- 61_PIXFIZZ_API.md: /upload/image (corrected), external user lookup, custom type CRUD (corrected), asset PUT/DELETE (corrected), child snippet overrides by API, new § 13h Admin Form Writes.
-- 50_SHOPPER / 50_LIQUID / 52: manage/* token values (corrected rows), dark child cart and checkout (high risk), show_prices, Klaviyo consent, services/ route, Liquid in page_content, no json filter, website.* lists cut at 20, shopper-admin file inputs.
+## New rules and sections, by file
+- 50_SHOPPER (19 add, 15 amend): page content uses the header's frame, and widen the header rather than the page; no `#modalLogin`; megamenu hover needs `data-toggle="dropdown"`; new checklist rows (`checkout-rush-style`, `pickup-phone-not-required`, `autofill-pickup-phone`); `page_schema` printed raw; `admin_only` is not access control; Services v2; splitting on a captured newline; collection filters and line endings (parent fixed 14 Oct, child overrides keep the old split), no empty state, driving filters from script with `Px.CMS.ThemeFilters`; `url_path` redirects and the `theme` parameter.
+- 50_LIQUID, 52: a literal `{` before a tag; redirect regexes match the query string; `asset_url` resolves the child asset first; storefront snippet scope and a nested `{% snippet %}` clearing the caller's params; partial `user_update` posts; snippet inventory annotations.
+- 20, 21: text variants never show on the cart line; `hide_edit_in_cart`; static products with no image; pickup contact phone; rush as dropdown, not radio; Invoice only for `invoice` users.
+- 81, 82: Website Crawls; custom-domain sites still served on the pixfizz host; `/feed/products.xml` gaps; product x theme URLs are self-canonical duplicates; icons as inline SVG.
+- 61 (20 add, 11 amend): admin users paging and addresses; calendar project create and the `POST /v1/calendars.json` observations; projects cannot be deleted; custom field definitions by admin form and the size limit; asset upload 413 on large files, `/fz/` signed URLs; an API key cannot add products to a collection; webhook payload facts; collections read and signed-out `price_forecast`; design product create; admin CSP; Extra Fee create.
+- 60: master snippet fixes miss sites that override `px-option`; hiding the variant picker on photo-prints; Add to Cart hanging at 0% on a sku mismatch.
+- 70, 71, 72, 45: self-chaining edge functions; the POD Catalog sync owns a synced supplier's rows; `ga4_event_outbox.raw_payload`; S3 CORS origin with a trailing slash breaks uploads.
+- 18 (13 add, 6 amend): Template Versions page; the DELETE-form trap on more admin pages; renaming a design page does not rename its XML `name`; design and product-only import routes; bulk template option copy ignored design options before 13 Oct; 12 Oct admin UI changes; 2FA enforced for all admins, super admin reset; template provider and consumer behavior (publish, custom fields, preview images, provider price variables, categories).
+- 16: design options on templates with no options; the `-N` name suffix; unpublished designs skipped on import; a missing price variable fails an import; the fulfillment code travels; `publish_theme` to unpublish from one collection.
+- 19 (12 add, 2 amend): print PDFs downsampled to the template `dpi`; RGB only, no spot colors; a separate-file layer inside an `<ipage>` renders empty, with the two-ipage workaround (stated by the core developer, not test-rendered); spine in closed-book previews; top-fold cards and shaped windows; layflat counts spreads; image `rotate` / `grayscale` / `radius`; `kerning` in mm; text render validation; layout names over 32 characters fail import.
+- 23: new section Calendar Element Tags, Fills and Transformations.
+- 17, 51, 32, 40, 80, 83: editor page list includes `editor="false"` sets; `src = ''` fires `onerror`; `collection_footer` full width; orderline script can stamp an uploaded file URL; auto-submit firing twice; production file without an order; placeholder terms and shipping pages on children; blank 200 from a subdomain is not a live store; handoff checklist additions; image widening and reveal loops.
+- 26 (11 add, 4 amend): `px_rates` rate card and the `pricing.js` contract with OrderHub (not verified); tool asset naming; upload dialog classes, events and the 250 px preview; the platform crop tool standalone; dark mode tokens and wording standards; filter-switched siblings share one mount; project edit page has no price; Gang Up canvas ceiling.
+- 27: ornament-only bases; 4:5 room plates; supplier spec before modelling; wrong `p3d_page` shows the fallback button; hit testing on `preserve-3d`; brushed metal; a copied mount carries the source site's backdrop and filter ids.
+- 22: product custom keys stored as `"false"` hide design options; textarea whitespace; tile labels truncate; `px-file-upload` internals; project-edit rendering; a non-additive finish x size matrix is one variant with combined codes.
+- 30: price variables in option formulas; rounding to .95; `price_forecast` traps; Extra Fee loop confirmed; shipping rate by cart content; hidden number variants.
+- 31: DPI and RGB; `product[fulfillment]` and Website default; moving a site off a shared destination; global (formerly public) fulfillment codes are internal-only (stated by the core developer); map every template's option codes in a job ticket; stale print files after project edit.
+- 02: 84 new routes; every target section was written in this sync.
 
-## Corrections to existing rules (marked "Corrected 2026-10-06" in the files)
-- 17: a design import creates a new design with remapped ids (it does not overwrite by id). Custom CSS field is a list of files, not CSS text.
-- 20: requires_design does not break DTF / file-upload orders. Cart-to-order custom values need an Order custom field definition.
-- 22: variant type exports DO carry hidden / read_only / hide_from_cart (verified 29 Sep).
-- 30: Price Variables API works on production, not staging only.
-- 32 / 90: meaning of the Fulfilled status; email templates are per site, not inherited.
-- 52: film/roll-builder parent fix is still pending.
-- 61: upload image route, custom type PUT/DELETE, asset replace, design custom fields via PUT save nothing.
+## Not added
+- Claude and session tooling (33 patches or parts): Chrome uploads, harness habits, git, paste blocks, prototype tests, webfetch.
+- Commercial: sales policy, client prices.
+- Client-specific configuration (12), work in progress (9): Live Finish versions not installed, Pet Studio, Calendar and Greeting Card Studio internals, kiosk `store_id` format.
+- 46 candidates were already covered.
 
-## Not added (not for the public repo)
-- Claude and Cowork tooling: device git index.lock, egress, zip in connected folder, Chrome file_upload limits, pbpaste, Recraft via Mac, render tests through file inputs, catalog scraping technique, design canvas without egress, Lovable prompting habits, one session per kit folder, GitBook relative links.
-- Commercial: MSA support rates, no sandbox / no trials sales policy, any prices in specs.
-- Client-specific configuration (product ids, formulas, account situations).
-- Intuit production keys (billing internal).
-
-## Already covered by the 24 and 29 Sep syncs (Phase 1 report)
-API keys, passkey / 2FA, admin host move, notification email map, template dimension locking and refulfill, binding map error, google_category (the field is `google_category`; `google_product_category` does not exist in Shopper).
-
-## Knowledge gaps flagged, not written
-- Adding a new size to a live photobook range and setting additional-pages quantity and price (4 tickets from one client).
-- Shopify cart blocked by a SKU or product mismatch.
-- Moving a storefront from a legacy Pixfizz CMS URL to Shopify (blocking and redirecting the old URL).
-
-## Open questions
-Platform questions for Matjaz are on the Notion Dashboard, Weekly Tasks, October. Status questions for Alex are in the chat.
+## Pending confirmation (not written, or written as not verified)
+Listed for the core developer in the delivery folder: calendars create by role, asset size limit, `{% dynamic %}` scoping, `add_themes.json` retired or bug, projects never deletable, pricing API rate, foil workaround test render, `kerning` unit, render queue and bad calendar pages, import timeout after 504, kiosk `store_id`, `sold_out` on scripted add to cart, global fulfillment code visibility, NCR forms pricing, `px-file-dropzone` and `orderline-pieces` on the parent, GA4 site-apply flow, `confirm-order-only` live.
 
 ## Size
-Repo grows from 1.34 MB to 1.67 MB. Project knowledge goes to roughly 1.72 MB of the 2 MB cap before the closing step deletes the applied KB_PATCH docs from the project.
-
-## Addendum, later on 6 Oct: limits, product form and fulfillment hold
-
-Source: the core developer's 2025 email advice to an agency building an AI story book site and an image-upload site, checked against the KB, plus Alex's and the core developer's answers on 6 Oct. Client names scrubbed.
-
-- 51: CORRECTED the template option limit to 1,024 characters (was "~2KB"). Snippet type exists only for custom fields. New: 65,535-byte total for all custom field data on one object (projects, orders, products, users, custom type instances). Length limits summarized in one place.
-- 22: new § 6.1 (`data-px-no-element-substitutions` keeps an input out of preview URLs, `skip_for_previews` override) and § 6.2 (options written into the page URL; long values crash the product page; ignore-list fix).
-- 50 Liquid: writing project custom fields with `book[custom][<field>]` in `project_create`; the field must be Public.
-- 17: Restoring Input Values After a Product Switch (`pageshow` and `px.fragmentsReloaded`). 41: qualifier on the same event.
-- 40: Slow Previews (heavy PNGs) and Template Output Set to JPEG (no 1c black text).
-- 32: Fulfillment Hold (Super Admin) is in minutes.
-- 61: `/upload/image` `name` is optional.
+Repo grows by roughly 150 KB.

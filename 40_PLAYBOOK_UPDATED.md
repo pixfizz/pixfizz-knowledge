@@ -154,6 +154,8 @@ Fix: remove the arrow function wrapper and `onload = null` entirely. Use a plain
 <style onload="{{ init_script | escape }}"></style>
 ```
 
+**The opposite case: an auto-submit can fire twice.** A hidden `cart_update` form auto-clicked from `<style onload>` inside `section.checkout-page` fired twice for one change, because the section re-renders more than once. Any auto-submit there needs a per-cart attempt cap (for example a `sessionStorage` key per cart id), never an unguarded click. *Verified by query, 2026-10-13.*
+
 ## Nested Forms Pitfall — Checkout Page
 
 The Shopper checkout page wraps everything in an outer `cart_update` form. Any `address_create` or `address_update` form nested inside it is silently dropped by the browser — the browser only processes the outermost form on submit, so Save buttons inside nested address forms are unresponsive with no visible error.
@@ -272,6 +274,8 @@ Root cause unconfirmed — raise with Matjaz when encountered. Do not assume the
 To request a new production file for a project, any existing generated file must be **deleted first**. The platform does not allow requesting a new production file while a previous one still exists on the project. Delete the existing file, then request regeneration.
 
 This applies to both admin-initiated regeneration and API-triggered regeneration.
+
+**A production file can be rendered without an order.** Admin → Projects → the project page (`/site/<site>/admin/print_books/<id>`) → request a production file; it appears under Production Files as `book_<id>_<output-name>_1.pdf`. Use it to check a template's or a custom tool's output before placing any test order. *Verified on a demo site project, 2026-10-14.*
 
 ---
 
@@ -656,6 +660,8 @@ to be served from before the product existed. Verified by reading the fix commit
 symptom appears on a site running current core, it is a new fault and worth escalating rather
 than clearing caches until it goes away.
 
+**A product attribute save does not clear every design page.** After a product attribute change, some design product pages kept serving the old HTML on their bare URL (logged in or out, any browser), while the same URL with any query string (`?v=2`) served the new page. Headers showed `cache-control: max-age=0, private` and no CDN, so this is the Pixfizz server page cache keyed on the exact URL. Test: fetch the bare URL and the URL with `?v=<n>` and compare. Fix: save each affected **design** in admin (no change needed); its bare URL then refreshes. Rule: after changing a product attribute, save every design of that product whose page was already visited, or re-check each bare URL. *Verified by query, 2026-10-14.*
+
 ## A Custom Type's Instances List in Non-Numeric Order (1, 10, 11, 2, 3) — The Sort Field Is a Text Type
 
 **Symptom.** Instances of a Custom Type list as 1, 10, 11, 12, 13, 2, 3 — lexicographic, not
@@ -907,3 +913,4 @@ last edited 2025-08-13.*
 - 2026-09-29: Security hardening: separate admin host and 2FA are now platform behavior. Removing a product breaks pages whose default filter value names it; the Paginate NoMethodError form and its fix. Hidden-product detection by diffing /v1/products.json against per-id reads. Source: claude-chat, slack-message.
 - 2026-10-06: `Price isn't valid`: a product price formula must evaluate at quantity 1, so a tier ladder must start at 1 (or 0). AI-generated template entry: shrinking a heavy archive by palette-quantizing overlay PNGs. Source: claude-chat, vault-doc.
 - 2026-10-06 (later): Added Slow Previews (heavy PNGs in options or uploads, convert to JPEG or WebP) and Template Output Set to JPEG (text cannot print 1c black; regenerate first on a corrupt-image preflight error). Source: gmail.
+- 2026-10-17: `style onload`: an auto-submit inside `section.checkout-page` can fire twice; cap attempts per cart. Production File Regeneration: a production file can be rendered from the admin project page without an order. Stale page cache: a product attribute save does not clear every design page's bare URL; save the design to refresh. Source: claude-chat, fireflies-call.

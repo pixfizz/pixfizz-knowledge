@@ -2,7 +2,7 @@
 
 **Authority Scope:** OrderHub operational configuration, Jobs, Production Board, Processes, Locations, integrations, and notifications. For the core Pixfizz order lifecycle see `32_ORDER_LIFECYCLE.md`.
 
-_Last updated: 2026-10-09_
+_Last updated: 2026-10-17_
 
 **The OrderHub help articles are mirrored in `orderhub/`** (one file per article, index in `orderhub/README.md`), regenerated every night from OrderHub. OrderHub is the source of truth for them: never edit `orderhub/` by hand. This file is the curated overview plus the rules that only come from calls, Slack and tickets. Sections that only repeated an article were cut to a pointer on 2026-10-09. Where this file and an article disagree, both are kept and the point is listed for the OrderHub owner to confirm.
 
@@ -214,6 +214,12 @@ the drop, and a location that collects late still finds its files inside the win
 
 Do not use the drop as storage: a week is the whole retention. Anything that must outlive
 that belongs in the order record or in the lab's own storage.
+
+---
+
+## Own Amazon S3 Storage: No Trailing Slash in a CORS Origin
+
+Storage setup (**Settings → My Store → Storage**, Pixfizz storage or My own Amazon S3) is in `orderhub/jobs/uploading-artwork-to-manually-created-jobs.md`. When a lab uses its own bucket, uploads can fail even though the bucket enables and can be viewed. In the case seen, one CORS rule on the bucket had an extra `/` at the end of its allowed origin; removing the trailing slash fixed uploads. Write each allowed origin as scheme plus host only (`https://yoursite.pixfizz.com`, never `https://yoursite.pixfizz.com/`). *Stated by the core developer in #development, 2026-10-15.*
 
 ---
 
@@ -475,3 +481,4 @@ verified by reading configuration**.
 - 2026-08-29: Added Kiosk and Online Are Separate Catalogues — separate products and pricing for kiosk versus web, with location-specific order routing through OrderHub; the kiosk-to-location binding is not yet verified by reading configuration. Source: fireflies-call (2x repeat signal).
 - 2026-09-29: Corrected the kiosk app line: distributed from myPixfizz Tools, not unreleased. Stock on OrderHub sites: OrderHub overwrites Core stock on each sale, primary location or sum, edit stock only in OrderHub. Superseded the stale 'price variables not in the API' line, pointing at 61 § 13f. Website chat on Twilio Conversations: snippet override under Integrations, chats and replies in OrderHub, assignable to a task. OHD batching to an Epson Order Controller (Settings → Routing, Maximum prints per job, Send Batches Automatically). Source: claude-chat, fireflies-call, slack-message.
 - 2026-10-09: First pass under the orderhub/ rule. Added the pointer to the `orderhub/` mirror at the top. Cut to pointers the sections that only repeated an article: job statuses and the status cascade, Production Board intro, Process configuration, PDF Layout Studio document types, PrintNode architecture, cost and EasyPost auto-print, OHD polling, Epson batching (its not-verified note is resolved by the article) and the status API, EasyPost, the till screensaver, assigning categories to processes, and the notification triggers, email pipeline, placeholders, two-way SMS, log and testing. Resolved where the stock primary-or-sum choice is set. Kept unchanged, and listed for the OrderHub owner, the points where this file and an article disagree: custom statuses scope, Lead time and Production days meaning, the PDF Layout Studio path, PrintNode install scope, OHD updates, where OHD gets print files, the POS category filter path, the Production Board filters. Source: orderhub-article.
+- 2026-10-17: Added Own Amazon S3 Storage: a trailing slash in a bucket CORS allowed origin breaks uploads while the bucket still enables and views. Source: slack-message.

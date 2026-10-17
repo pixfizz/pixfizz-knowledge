@@ -176,6 +176,8 @@ Model names and version numbers churn every few weeks. Think in capability class
 
 Generate at the destination ratio where the tool supports it. Outpainting from a square master is a fallback, not a default, because it invents content at the edges.
 
+**Widening an existing image with the Nano Banana family.** Edit mode ignores the requested aspect ratio and resolution: a 21:9 request came back about 1376 x 768 with the whole scene redrawn. What works: one 16:9 canvas per side, half the original and half flat grey, prompt "paint only the grey half, keep the other half pixel for pixel". Register each output to its canvas (OpenCV ECC, `MOTION_AFFINE` on the overlap; one side came back squeezed and the affine warp corrects it), keep only the new area, and put the original back exactly with a soft blend (about 160 px smoothstep) inside its edge. The seam is invisible and the original artwork stays untouched. *Used on a live hero, 2026-10-11.*
+
 ### B9. Consistency across a campaign `[GENERAL]`
 
 Three levers, in order of effectiveness:
@@ -204,6 +206,14 @@ tuning the one that has already failed. *Stated as working practice, not indepen
 ### B11. A seamless hero loop from one still `[GENERAL]` `[PIXFIZZ]`
 
 For slight motion behind a hero, pass the **same image as start frame and end frame** to an image-to-video model; the clip returns to its first frame and loops without a jump. Kling 3.0 kept the input aspect ratio even when a different `aspect_ratio` was requested (a 5:4 start frame came back 5:4), so the loop matches the still exactly and the still can sit underneath the video with no shift. MP4 files uploaded to the Pixfizz site asset store serve through `asset_url` and play in a `<video autoplay muted loop playsinline>` element. Hide the video under `prefers-reduced-motion` so the still shows instead. *Verified by ffprobe and by query on a live site, 2026-09-25.*
+
+**A ping-pong loop for a reveal (lift a page, turn a sheet).** Generate only the forward move (start still to the middle keyframe), then build the loop as clip + reversed clip. It needs no crossfade and halves the credits. Do not freeze at the turn: models slow down and hold for about 0.7 s before an end keyframe, which reads as a stutter. Measure motion per frame (mean absolute frame difference), cut the forward clip while motion is still clearly above zero, and append the reverse without the cut frame. `[GENERAL]`
+
+**Keyframe discipline.** Build the middle keyframe in two still edits (first the revealed state, then the lifted sheet with a blank back); asked in one edit, the model printed the new content on the lifted sheet. Fix product geometry (wire, hanger, pin) in the stills before any video: after video exists the same fix is a full regeneration. Do not patch the middle of a bad clip with a new clip ending on an old frame; end frames are treated loosely. Check any clip with hands at 2-frame steps through the grip: models swap or re-grip mid-move. Prompt the grip explicitly and generate several takes. `[GENERAL]`
+
+**Model notes** `[VENDOR]`: a model that turns start and end images into references cannot hold exact keyframes (seen with Seedance 2.5); FLUX 3 Video held them. Re-encode HEVC outputs to H.264 yuv420p with `+faststart` for the web.
+
+*From generated clips with frame-difference measurement, 2026-10-16 and 2026-10-17.*
 
 ---
 
@@ -415,3 +425,4 @@ Suggested delivery: a short setup walkthrough on `help.pixfizz.com` covering sub
 - 2026-09-09: Narrowed rule A5 — the prohibition now names production output files, customer-placeable design tool asset libraries and any template set that contributes to fulfillment, and states explicitly that a scene image inside a `preview="true" fulfillment="false"` set is permitted, with the three-column reasoning and a worked template example. A1 and the resale-licensing sentence are unchanged. Stated the SynthID provenance watermark on nano_banana / Gemini output under A4 as fact rather than as a thing to confirm. Added B10, an automated measurement that disagrees with itself cannot settle a question. Source: claude-chat.
 - 2026-09-24: Added B9a branded product shots with one fictional brand. Source: claude-chat.
 - 2026-09-29: A6 never pass off a generated room or lab as the client's premises. B11 seamless hero loop (same start and end frame), Kling keeps input aspect, MP4 assets play via asset_url. Source: claude-chat.
+- 2026-10-17: B8: widening an existing image with Nano Banana (per-side grey canvases, ECC registration, original blended back). B11: ping-pong reveal loops (forward clip plus reverse, cut before the end-keyframe hold), keyframe discipline (two-step middle keyframe, fix geometry in stills, check hand grips), vendor notes on keyframe-holding models and web re-encode. Source: claude-chat.

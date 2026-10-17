@@ -453,6 +453,12 @@ Missing descriptions cause:
 
 Add a description check to the final pre-launch validation step for all deployment paths. Setting the crawler to run automatically on a daily schedule catches newly added products with blank descriptions before they cause feed errors.
 
+**Parent placeholder text on every child (until the parent is fixed).** Two shopper24 pages ship placeholder content to every child that does not override them:
+- `/site/terms-conditions-privacy` holds six lorem-ipsum FAQ items ("Saw wherein fruitful good days...") and a "Payment:" heading, all `d-none`. Invisible, but in the HTML, so crawlers and text scans see it. Replace the whole page with `admin/checklist/custom-terms-page` set to `TRUE` and an override of `website/terms_page`.
+- `/site/shipping-and-returns` renders the parent `website/shipping-returns-policy`, whose rush FAQ shows a placeholder phone number ("(605)555-5555"), visible. Override the snippet; the site phone is `{% snippet 'website/contact/support-telephone' %}`.
+
+Launch check: scan both pages for "555-5555" and "Saw wherein". Template-level (Shopper 24). *Verified by reading source and live DOM on two child sites, 2026-10-10.*
+
 ---
 
 ## Launch Check: Empty Collections and Unpriced Products
@@ -480,6 +486,18 @@ Platform-level (Pixfizz CMS). Both checks run from the public API with no admin 
 
 *Verified by query on a client site, 2026-10-02 and 2026-10-04.*
 
+- **Every static product needs an image.** A static product line has no project, so the cart
+  fly-out, order details and emails draw the product image, and a static product with an empty
+  image field shows no thumbnail. Filter an "image is null" check to products with
+  `print_product_id` null, or design products flood it (`20_SHOPPER_CART_RULES.md`).
+  Template-level. *Verified by reading source and by query, 2026-10-10.*
+- **A 200 from `<subdomain>.pixfizz.com` does not mean a store is live.** A Pixfizz subdomain
+  with no live storefront answers HTTP 200 with a blank page of about 370 to 380 bytes, with no
+  text and no links. An uptime check or crawler that reads only the status code reports it as
+  healthy. Check for page content, and never derive a brand's store address from its subdomain
+  alone: brands that sell from their own domain or from Shopify need their storefront URL
+  recorded explicitly. *Observed across 146 subdomains, 2026-10-13.*
+
 ---
 
 ## SEO Migration: Sitemap and 301 Redirects
@@ -487,7 +505,7 @@ Platform-level (Pixfizz CMS). Both checks run from the public API with no admin 
 When migrating a customer from an existing website to Pixfizz, SEO continuity requires three things:
 
 1. **URL mapping** — the customer provides a spreadsheet of their current live URLs, categorized by content type (products, pages, blog posts). Map each to the corresponding new Pixfizz URL structure.
-2. **301 redirects** — configure redirects in Pixfizz using the JSON config format. The config is an **array of pairs** (array of arrays), even for a single redirect: `[["^/old-path/?$", "/new-path"]]`. Each inner pair is `[regex_pattern, destination]`. A bare single pair (`["^/old-path/?$", "/new-path"]`) **silently fails** with no error and no redirect, so always wrap pairs in the outer array. On sites that use the `/site/` prefix it is included in the pattern. This preserves Google rankings and prevents 404s for bookmarked or indexed URLs.
+2. **301 redirects** — configure redirects in Pixfizz using the JSON config format. The config is an **array of pairs** (array of arrays), even for a single redirect: `[["^/old-path/?$", "/new-path"]]`. Each inner pair is `[regex_pattern, destination]`. A bare single pair (`["^/old-path/?$", "/new-path"]`) **silently fails** with no error and no redirect, so always wrap pairs in the outer array. On sites that use the `/site/` prefix it is included in the pattern. This preserves Google rankings and prevents 404s for bookmarked or indexed URLs. **The regex is matched against the path including the query string**, so a rule ending in `/?$` misses `/old-path/?fbclid=...` and sends the visitor to `/site/404`. End rules in `/?(\?.*)?$` (in the JSON: `/?(\\?.*)?$`); see `50_LIQUID_REFERENCE.md` § Website Redirects. *Verified live, 2026-10-10 and 2026-10-11.*
 3. **Sitemap submission** — once the new site is live, submit the new sitemap to Google Search Console. Monitor indexing for the first 2–4 weeks to catch any missed redirects.
 
 System paths (cart, checkout, account, order-confirmation) do not need redirects — they are handled by the platform.
@@ -517,7 +535,10 @@ Use this checklist before declaring a site ready for launch.
 - [ ] Sitemap submitted to Google Search Console (if applicable)
 - [ ] Kiosk mode tested on intended hardware (if applicable)
 - [ ] Mobile experience reviewed on actual devices
-- [ ] Legal pages present (terms, privacy policy, returns policy)
+- [ ] Legal pages present (terms, privacy policy, returns policy), and `/site/shipping-and-returns` carries the lab's real phone number, not the parent placeholder
+- [ ] Every header, megamenu and footer link loads logged out (no 404 to a page that was never built)
+- [ ] Analytics and Tag Manager IDs are the client's own: a site copied from another site keeps that site's tag until it is replaced
+- [ ] `no-index` off and `/sitemap.xml` generated at go-live (every page of six audited sites still carried noindex, and most had no sitemap)
 - [ ] Favicon uploaded as a site asset named exactly `favicon.png` (512x512, transparent) and the live head icon link points at it; see `50_SHOPPER_TEMPLATE_REFERENCE.md` § 9
 - [ ] `footer/logo` overridden on the site; the parent's points at an asset most child sites do not hold, so an un-overridden footer shows a broken image
 
@@ -783,3 +804,4 @@ After any domain change, repoint payment-provider webhooks that carry the old do
 - 2026-09-24: Added "Staging and Production Share One Database" and "Custom Domain Setup". Source: claude-chat, fireflies-call.
 - 2026-10-06: Phase 2: migrating a catalog from another platform. Phase 3: tax is store-wide, never per product. Common Blockers: Questions to put to the customer (tax, pickup). New Launch Check: Empty Collections and Unpriced Products, linked from Phase 5 and the pre-launch checklist. SEO Migration: Advanced → Redirects pointer to 18. Email Notification Templates: CORRECTED, templates are per site, not inherited, enabled means a non-empty Body, email kit, Cart Abandoned Schedule. Phase 3 and pre-launch checklist: SendGrid `pxemail.<lab domain>` authentication. Configuration Order: Order custom field definitions for every cart field. Source: claude-chat.
 - 2026-09-29: CORRECTED where the GTM and GA4 fields live; Setup and Manage path unverified. Added the rule for customer setup steps (system named, click path, value inside the step, never above/below). Pre-launch checklist gains favicon.png and footer/logo override. Corrected the kiosk desktop app note: now distributed from myPixfizz Tools, optional, with domain lock, USB import and idle reset. Source: claude-chat, fireflies-call.
+- 2026-10-17: Content Completeness: shopper24 terms and shipping-and-returns pages ship placeholder text to children (lorem ipsum, placeholder phone) with the scan check. Launch Check: every static product needs an image; a blank 200 from a pixfizz.com subdomain is not a live store. SEO Migration: redirect regexes match the query string, end rules in `/?(\?.*)?$`. Handoff checklist: real phone on shipping-and-returns, nav and footer links load logged out, client-owned analytics IDs, noindex off and sitemap generated. Source: claude-chat.

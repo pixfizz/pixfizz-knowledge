@@ -23,6 +23,10 @@ Two limitations apply, and both fail silently:
 
 `hide_from_cart` must exist as a custom field on the specific site — custom fields do not inherit parent to child (see **13_TEMPLATE_BOUNDARIES**). Before adding a new "hide this from the cart" field, check whether `hide_from_cart` already covers the case; creating a duplicate field is a common and avoidable mistake.
 
+**Text-type variants never show on the Shopper 24 cart line**, even with `hide_from_cart` false: the cart rendering skips `text` variants. The admin order page does show them. A value the customer must see in the cart needs another option type or a custom cart row. Template-level. *Verified by query (cart line empty), 2026-10-13; cause verified by reading source, 2026-09-09.*
+
+**The cart's Edit link** (to `/site/project-edit?cart=t&project_id=`) is removed per product by the product custom field `hide_edit_in_cart`. Set it on any custom tool product with no edit path. Template-level. *Verified by query, 2026-10-13.*
+
 ## Photo prints
 - Quantity not editable in cart.
 - Quantity is per-photo in Photo Prints UI; orderline priced via `cut_print_quantity`.
@@ -41,12 +45,18 @@ Two limitations apply, and both fail silently:
 
 **A saved project can be added without opening the editor** (platform-level). The editor's own Add to Cart saves the project, then submits a plain form: `POST /cart/add_print_product` with `print_book_id`, `quantity`, `sum_quantities=false` and `target=/site/cart` (plus `parent_orderline_id` when the URL carries `parent_orderline`). No CSRF token. The same POST from a custom tool on the same origin added a saved, already-filled project that no shopper had opened in the editor; the response redirects to the cart. The project must already be saved and filled. A custom cart page or `cart_target` in the editor config changes where the editor goes afterwards; the POST does not depend on it. Concurrent posts race on the cart (`22_OPTION_VARIANT_RENDERING.md`). *Verified by reading the editor bundle and by query, bundle 20261002143509, 2026-10-04. Internal endpoint: re-check after platform updates.*
 
+**On the cart page the header mini-cart repeats each line's remove form with the same action.** A script that picks remove buttons by page order hits the mini-cart copy first. Scope cart scripts to the main cart list, never `document`. Template-level (Shopper 24). *Verified by query, 2026-10-13.*
+
 ## A guest who signs in keeps projects and cart lines
 
 When a guest signs in, the guest's projects, saved and unsaved, move to the account, and the guest's cart lines move with them. A custom tool can therefore let a guest start immediately and ask for sign-in later without losing the project, the uploads or the cart. Signing in through the upload dialog's own form does not reload the page, so in-page tool state also survives. Platform-level. *Verified by query, 2026-10-04.*
 
 ## Digital-only
 - No special cart behavior.
+
+## A static product with no image shows no thumbnail anywhere
+
+A static product line (any `add_products` product, for example a film roll builder) has no project, so the cart fly-out (`modals/shopping-cart`, `orderline.preview_url`), the signed-out summary, account order details and the email kit all draw the **product image**. A static product with an empty image field shows no thumbnail after Add to cart. Design product lines draw the project preview (`checkout/orderline-preview`), so an empty image on a design product has no cart effect. Launch check: every static product needs `product[image]`; filter an "image is null" check to products with `print_product_id` null, or design products flood it. Template-level. *Verified by reading source and by query, 2026-10-10.*
 
 ## The Cart Fly-Out Preview Block Has Never Rendered for a Custom Tool
 
@@ -253,3 +263,4 @@ A parent snippet `checkout/cut-print-upright` was delivered as paste blocks on 2
 - 2026-09-09: Added that a custom-tool product must be a design product, because static products cannot carry template options and every preview block loops `chosen_template_options`; and that Add to Cart must be gated with `data-requires-design` on the tool root and never `requires_design: true` on the product, with the gate failing open. Source: claude-chat.
 - 2026-10-06: Photo prints: no min/max quantity property, minimums are client-side custom code. Added free shipping progress bar is display only (hard-coded 99). Added cart links (GET links add saved projects only, no promo-code URL parameter) and adding a saved project via `POST /cart/add_print_product`. Added a guest who signs in keeps projects and cart lines. CORRECTED cart-to-order promotion: needs an Order custom field definition per site, Public, tested with a placed order. CORRECTED the Add to Cart gate section: `requires_design: true` is safe on tool-driven and file-upload products (the 2026-09-09 "never set it" advice is withdrawn). Added that a custom tool chooses its own cart image via a `_preview` option. Source: claude-chat.
 - 2026-10-09: Added Reorder, order details and emails for a custom tool line (Reorder drops template option files, order details prints every variant, the email line shows the catalog photo). Added Cut prints with autorotate show sideways in the cart, with the delivered parent fix marked not verified live. Source: claude-chat.
+- 2026-10-17: Text-type variants never show on the cart line; `hide_edit_in_cart` removes the cart Edit link; the header mini-cart repeats each line's remove form (scope cart scripts to the main list); new section: a static product with no image shows no thumbnail anywhere (launch check filtered to static products). Source: claude-chat.

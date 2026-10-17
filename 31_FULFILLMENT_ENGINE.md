@@ -36,6 +36,10 @@ These settings affect:
 - whether quantity is represented as **file duplication** vs **a numeric quantity field**
 - whether one order generates **one request** vs **N requests** (one per orderline)
 
+Two platform limits on rendered print PDFs:
+- **Images are resampled to the DPI set in the template definition**, and there is no setting to switch the downsampling off. *Stated by the core developer, 2026-10-16.*
+- **Output is RGB only, with no spot or PMS colors** (no `/Separation` or `/DeviceN`), so a named spot ink such as white or CutContour cannot come from the template renderer; a custom design tool's browser-built file can carry one. *Verified by reading source of a rendered PDF, 2026-10-14.* Detail: `19_XML_TEMPLATE_REFERENCE.md` § PDF Layers in Practice.
+
 ### 2) Transport + auth (delivery)
 Controls *how the payload is delivered*:
 - Hotfolder / shared drive (TXT manifests, file drops)
@@ -61,11 +65,16 @@ A fulfillment code routes an orderline to the correct fulfillment destination. T
 
 - **Template-level fulfillment code (highest priority).** A fulfillment code set on an individual template overrides everything else, including location-based fulfillment codes. (Added June 2026.)
 - **Location-based fulfillment code.** Applied when no template-level code is set.
-- **Product-level fulfillment code.** The base `fulfillment_code` product attribute (see `50_SHOPPER_TEMPLATE_REFERENCE.md`) used where not overridden above.
+- **Product-level fulfillment code.** The base `fulfillment_code` product attribute (see `50_SHOPPER_TEMPLATE_REFERENCE.md`) used where not overridden above. In the admin product form this is **Fulfillment Code** (`product[fulfillment]`), default "Website default".
+- **Site default.** "Website default" resolves to the site setting `website[default_fulfillment]` (Settings → General). *Verified by query, 2026-10-14.*
 
 Practical effect: if a template carries its own fulfillment code, that code wins regardless of location or product configuration. Set a template-level code only when you intend to override location/product routing.
 
 **UI lock.** Once a fulfillment code is set on a template, the product-level fulfillment code field for products using that template is locked and cannot be changed from the product screen. This is the expected consequence of the precedence order above: the template code always wins, so editing the product-level value would have no effect. To change routing for such a product, edit (or clear) the code on the template. Added June/July 2026.
+
+**Moving one site off a shared destination:** create a new destination (Super Admin → Fulfillment → New: code and super account), copy the HTTP or FTP settings and templates, then switch that site's default. Other sites on the old destination are untouched. Several destinations can post to the same print-partner account; each keeps its **own barcode counter** (starting at 100000000000). *Verified by query, 2026-10-14.*
+
+**Global fulfillment codes are internal-only (from 2026-10-12).** Fulfillment codes shared across sites, formerly called "public", are now called **global** and are listed only for omnipotent (super admin) users, so a site admin cannot switch a product or site to one. A code that is already selected is still added to the dropdown (2026-10-13), so existing assignments show. Reason: switching a global code self-service could mismatch supplier SKUs and print specs. New print-on-demand suppliers are routed with template-level fulfillment codes, with product or variant settings where supplier requirements differ. Platform-level. *Stated by the core developer (commit log and technical call), 2026-10-12 and 2026-10-13; not verified in admin.*
 
 ## Pixfizz Default Fulfillment JSON (vendor-neutral)
 
@@ -119,6 +128,8 @@ Rules:
 - Exclude `image_upload` / `file_upload` options.
 - Exclude blanks.
 - Prefer stable identifiers (`code`) when available; fall back to `name`.
+- **Map the option codes of every template on the site.** Two templates on one site can use different option codes for the same choice (for example `cover_material` on one, `cover-paper` on another). A job ticket that reads `chosen_template_options` by one code set sends empty attributes for every product on the other template, silently. Before writing or reviewing a job ticket, list each template's option and value codes (`GET /site/<site>/admin/templates/<id>/options` with `Accept: application/json`) and map each one.
+- **Never send an option value name raw.** Names can carry price notes ("310gsm +1.00"). Map value codes to the partner's exact text. Platform-level lesson. *Verified by query and render, 2026-10-15.*
 
 #### `assets[]`
 A normalized list of generated files:
@@ -835,6 +846,9 @@ Establish a naming convention at the start of each FTP integration and apply it 
 ## Custom Tool Print Files — Name the Option, Not a List
 
 In `_additional_files.json` and the filename template, identify a custom tool's print-file options by a **token in the option code**, not by a maintained list of codes: a print-file option's code contains `_print_` (`bc_print_front`, `stk_print_sheet`), and a cart-thumbnail-only option's code contains `preview`. A new tool then needs no edit to the fulfillment template. The document and booklet uploaders (`du_file`, `bu_file`) do not follow the convention yet and must be special-cased until they are renamed. `_additional_files.json` and the main filename template must describe the same destination path and be edited as a pair. *File-verified with python-liquid, not yet verified on a live order.*
+
+**Exception: a tool whose piece count can shrink.** Saving an empty `px-file-upload` from the project edit page does **not** remove the stored file: a project edited from 9 pieces to 8 kept its old 9th print file on the option, while the tool's spec said 8. For such a tool, never send "every `_print_` option that has a file". Drive the file list from the tool's own spec option (piece count and piece keys in `px_spec`) so a leftover file is ignored. The same applies to the custom tool bucket of `_additional_files.json`. Platform-level finding. *Verified by query, 2026-10-16.*
+
 The standard files of 3 to 4 Oct (file-verified only) handle the old tool codes with a legacy
 list, and every tool moves to the generic `px_` codes: see the next section.
 
@@ -1071,3 +1085,4 @@ _Verified by reading source, 2026-09-09._
 - 2026-09-24: Added "Routing One Customer Group's Files Separately" and the `_print_` / `preview` option-code convention for custom tool print files (file-verified only). Source: fireflies-call, claude-chat.
 - 2026-10-06: Added "Custom Tool Fulfillment Standard": the `px_` code contract, one token rule across FTP, OrderHub Desktop and HTTP push, file sets and names per route, the legacy list for old codes, the fixes over earlier files, the harness test, what is not covered, and rollout (file-verified only, no live order yet). Pointer from "Custom Tool Print Files". Scrubbed the client name from the QR code worked example heading. Source: claude-chat.
 - 2026-10-09: HTTP push: one cart line can become many supplier items (loop the `px_print_` files, per-piece codes in `px_spec`, separator-before-entry flag). File-verified only. Source: claude-chat.
+- 2026-10-17: § Asset generation: print PDFs resample to the template DPI with no off switch, and are RGB only with no spot colors. § Fulfillment Code Resolution: admin field `product[fulfillment]` and the "Website default" site setting, moving one site off a shared destination (own barcode counter per destination), global (formerly public) fulfillment codes now internal-only. § `options[]`: map the option codes of every template on the site; never send value names raw. § Custom Tool Print Files: a file emptied on project-edit is not removed, so tools whose piece count can shrink drive the file list from `px_spec`. Source: claude-chat, slack-message, fireflies-call.

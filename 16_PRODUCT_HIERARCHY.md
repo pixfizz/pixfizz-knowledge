@@ -74,7 +74,7 @@ Same mechanism, different objects:
 - **Options** live on Templates or Designs — production-level choices
 
 This split avoids redundancy when multiple Product Attributes share a Template. Common production options live on the Template; product-specific pricing/commercial choices live on each Product Attribute.
-**Template options and design options are one object type.** The same option, with the same fields (value type, custom fields, order, hide flags), attached either to the template (applies to every design on it) or to one design (that design only). An option **code must be unique across both levels**: adding a design option with a code the template already uses fails with "code already used". To move an option between levels, export it, delete it, then create or import it at the new level. *Stated by Alex and verified by reading an export, 2026-09-28.*
+**Template options and design options are one object type.** The same option, with the same fields (value type, custom fields, order, hide flags), attached either to the template (applies to every design on it) or to one design (that design only). An option **code must be unique across both levels**: adding a design option with a code the template already uses fails with "code already used". To move an option between levels, export it, delete it, then create or import it at the new level. *Stated by Alex and verified by reading an export, 2026-09-28.* **A template page that says "There are no options for this template" can still have options on its designs** (design page, section **Design Options**), and the product page then renders them (upload controls included). Before concluding a product has no upload options, open each design at `/site/<site>/admin/print_theme/theme/<id>`; their edit URLs still sit under `/templates/<template id>/options/<option id>/edit`. *Verified by query, 2026-10-16.*
 
 **A template option appears on every product that uses the template.** One template often serves several Product Attributes (metal, acrylic, wood and canvas on one wall-decor template), so a template option, including a `custom_script` mount, runs on all of them. Before adding one to a live range, list which product lines share each template (`/v1/themes/<id>` gives the print product for each theme). *Verified by query, 2026-09-27.*
 
@@ -135,10 +135,37 @@ Query with that reference shows the exception. *Verified by query, 2026-10-05 an
 match designs already on the site, the importer appends `-1` to the **name** only; codes are
 untouched. Rename them afterwards on the design page; the platform accepts the duplicate name
 on edit. The storefront URL slug keeps the `-1` (`theme=<id>-name-badge-1`), which is harmless.
-*Verified by query, 2026-10-05.*
+*Verified by query, 2026-10-05.* The suffix counts per name across the **whole site**, not per
+template: the sixth design with one name gets `-5`. Renaming through the design form (all fields
+re-posted, only `theme[name]` changed) keeps code, description and editor configuration.
+*Verified by query, 2026-10-13 and 2026-10-16.*
 
 **Fonts and images in the archive are added to the site under new ids**, and `font=` in the
 page XML is remapped to them. *Verified by query, 2026-10-05.*
+
+**An unpublished design is skipped on import, silently.** A design exported with `publish: false`
+is not created by `import_print_product`: the template and product attribute are created, the
+design is not, and no error is shown. Publish designs before exporting, or set `publish: true` in
+a generated export. *Verified by query, 2026-10-14.*
+
+**A price variable the target site does not define fails the import, part way.** A product price
+formula that uses a site-specific price variable missing on the destination fails with
+`ActiveRecord::RecordInvalid: Validation failed: Price isn't valid` after the template and its
+options are already created (no design, no product). Replace or create site-specific price
+variables before importing a template export onto another site, and delete the partial template
+before retrying. *Verified by query, 2026-10-14.*
+
+**Fulfillment in a template moved between sites.** The template's fulfillment code travels with a
+full template import, even when the import flash says "No fulfillment transformations have been
+configured"; the target site still needs that destination in its dropdown. The products'
+`fulfillment_setting_id` and `design_fulfillment_setting_id` are source-site ids: blank them in
+`__print_product.yml` before importing elsewhere, and the products use the site default.
+*Verified by query, 2026-10-10 and 2026-10-13.*
+
+**A template option can ride inside a template export.** Add the option entry (the same block an
+options archive carries, `id` blank) under the top-level `template_options:` of
+`__print_product.yml`, re-tar and import. The new template arrives with the option and its
+`custom_script`, with no second options import. *Verified by query, 2026-10-13.*
 
 The admin import routes, including design-only and product-only imports, are in
 `18_ADMIN_NAVIGATION.md`.
@@ -233,6 +260,14 @@ Suppression that exists today:
 
 A flag or redirect behavior for this is **not built**. Do not document it as existing.
 
+**Unpublish a design from one collection without removing it.** Each collection row has a
+Published tick: `PUT /site/<site>/admin/theme_categories/<collection id>/publish_theme?product_theme_id=<row id>`
+with `product_theme[published]=0` and the row form's `authenticity_token`. The design leaves the
+collection grid, its clean `url_path` URL returns 404, and the next website crawl drops it from
+`sitemap.xml`; the old `/site/product/c/<collection>?product=<id>&theme=<id>` URL still renders by
+direct link. Prefer this to the DELETE `remove_theme` call when cleaning a demo or launch site.
+*Verified by query, 2026-10-13 and 2026-10-14.*
+
 **A product that was never added to any collection has no storefront URL**
 (`/site/product/<id>` returns 404). So unpriced products that were never published need no
 action before launch; just never add them to a collection until they are priced. The
@@ -298,3 +333,4 @@ Beyond the core hierarchy:
 - 2026-09-24: Added the rule that a custom design tool product is always a design product, and "Paper Is a Variant, Not a Template Per Paper". Source: claude-chat.
 - 2026-09-29: Import: __asset_map ids that exist on the site are reused (importer creates assets from assets/); template export needs print_theme_ids[] and product_ids[] to carry design and product. Template and design options are one object; code unique across both; template options reach every product on the template. Hub-shared templates are listed on the hub. Source: claude-chat.
 - 2026-10-06: Collections: a top-level collection has no verified unpublish flag and an empty one renders a blank 200 page. Import Behavior: template import is not atomic (delete the partial template first, Error Query reference), design names get `-1` on a name clash, fonts and images get new ids with `font=` remapped. Unpublishing: a never-collected product has no storefront URL. Source: claude-chat, vault-doc.
+- 2026-10-17: Variants vs Options: a template with no options can still carry design options. Import Behavior: design-name suffix counts per name across the whole site, rename via the design form; unpublished designs are skipped silently; a missing site price variable fails the import part way; fulfillment code travels, blank `fulfillment_setting_id` ids; a template option can ride inside a template export. Unpublishing: per-collection Published tick (`publish_theme`). Source: claude-chat.

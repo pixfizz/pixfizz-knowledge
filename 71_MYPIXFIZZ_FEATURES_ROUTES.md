@@ -509,11 +509,19 @@ functions `pixfizz-blog`, `blog-ai`, `blog-scheduler`).*
 - Needs an admin API credential on the brand. **Test connection** fails when the user behind it is not an admin.
 - Adjusts product prices in bulk by a percentage or a fixed amount, then publishes through the API with a read-back check of every row.
 - A push can also change stock, stock tracking, maximum units and price variables (value, create, delete). *Verified by reading source (`catalog_push_rows` field list).*
-- Variant prices are visible but read-only, because the API has no variant write (`61_PIXFIZZ_API.md` § 13g).
+- Variant prices are visible but read-only in the app. (Corrected 2026-10-17: the reason given here, that the API has no variant write, is out of date. Experimental `/v1/admin` variant writes exist since 2026-10-06, see `61_PIXFIZZ_API.md` § 13g. The app has not been changed to use them; not verified in source.)
 - Stock editing is locked when the organization's stock is managed in OrderHub (`45_ORDERHUB.md` § Stock on OrderHub Sites).
 - After a verified write, the grid shows the value the site read back, not the value typed. The platform derives `price_formula` from the shape of the value written, so the two can differ.
 
 *Stated on calls, 2026-09-22, 2026-09-24 and 2026-09-29. Routes and the OrderHub stock lock verified by reading source, 2026-09-28 and 2026-09-29.*
+
+**POD Catalog sync owns a site-synced supplier's rows**
+- For a supplier with `site_subdomain` set, the nightly sync (`pod-catalog-sync`, 04:20 UTC) rewrites name, description, category, `family_key`, images, options and sizes, and sets `active = false` on every row that is not on the supplier's Pixfizz site.
+- Only `hidden`, `name_override`, `image_override_url`, `wholesale_source`, `staff_notes` and per-size wholesale survive a sync.
+- Products loaded by hand or by SQL for a site-synced supplier therefore disappear overnight. Load them only for a supplier whose sync is off (`site_subdomain` null).
+- Families group by `family_key` (`v_pod_catalog_families`); when the group mode is `collection`, that is the supplier site's collection, not the supplier's own ranges.
+
+*Verified by reading source, 2026-10-16.*
 
 ---
 
@@ -560,3 +568,4 @@ When asking Lovable to modify or build features, always specify:
 - 2026-03-26: Initial version. Compiled from Lovable project summary.
 - 2026-09-29: Added Brand Connections and Catalog: routes, Google Reviews connector behavior, Catalog Manager behavior. Source: fireflies-call.
 - 2026-10-06: Rewrote the route map to the current source (commit d6290ee): corrected the old routes table (no `/portal` prefix, `/dashboard` is the customer dashboard, `/lead-inbox`, `/pipeline/:id`, `/product/*`, `/admin/onboarding`, `/welcome`), routing basics (role redirect, portal preview mirror, mobile support app), admin navigation from `adminNav.ts`, brand page tabs and storefront types, Support (ticket types, urgency, urgent alerts, order error form and known errors, awaiting-customer reminder and auto-resolve, project requests), Brand Performance v2, Launch Plan, Marketing (Campaign Manager), Shopper Configure with the In-store kiosk section, Shopify Style, the Tools catalog (Shopper Setup, Kiosk, Live Finish, Template resizer, customer Catalog Manager, Static Product Uploader, Pricing formula builder, Merge users, Store health, Promo codes, Customer export, Blog, Shopper tools catalog, Shopper Upgrades), and the customer sidebar. Catalog Manager corrected: it now also has a customer route. Restored the task rules, billing run, FX tracker, Support Contacts and SLA checking details. Source: claude-chat.
+- 2026-10-17: Brand Connections and Catalog: the POD Catalog nightly sync owns every row of a site-synced supplier (fields it rewrites, fields that survive, hand-loaded rows switched off overnight, family grouping). Catalog Manager: the "no variant write" reason corrected against 61 § 13g. Source: claude-chat.

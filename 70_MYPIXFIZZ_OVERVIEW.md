@@ -209,6 +209,9 @@ From 2026-10-08 (verified by query):
 - **A queue claim changes status inside the locked update** (`status = 'sending'`, `claimed_at`), not only `FOR UPDATE SKIP LOCKED`; otherwise a second run can re-claim the rows after the first commits and send them twice (found in `claim_support_notifications`).
 - **Latest status per item belongs on the parent row** (`last_*` columns kept by a trigger), not reduced in the browser from the newest child rows.
 
+From 2026-10-13 (verified by query):
+- **A self-chaining edge function authenticates the chained call with its own token header** (for example `x-merchant-sync-token`), not by matching the service role key. The chained hop answers 202 at once and does its work inside `EdgeRuntime.waitUntil`; if the caller waits for the whole run (about two minutes), the hand-off dies silently. Log the chained call's HTTP status and write a failure row to the function's log table, so a broken chain is visible. A nightly sync stopped at 250 of 1,016 items with no trace before this was fixed.
+
 ---
 
 ## Organization Add-ons
@@ -310,3 +313,4 @@ re-checking against the current route.
 - 2026-09-29: Credential Storage: API keys supported (pxk_ or legacy user:pass, shared auth helper, 12-char hint only), UI labels, Admin URL normalization. Added Google Reviews to the Integrations Summary. Operational rules: pg_cron history retention, prevention steps verified by query, never clear ga4_event_outbox, service worker kill switch. Source: claude-chat.
 - 2026-10-06: Corrected Portal Structure to the current routes (no `/portal` prefix; staff land on Support Overview; mobile support app) and the sign-in methods. Brand concept: storefront types, archive not delete, merge. Integrations: Pixfizz admin API, Klaviyo (read only, key in vault), Slack urgent alerts. Added a defect pattern (customer pages must use `useCustomerOrg()` and `usePortalBasePath()` or portal preview breaks), the Operational Rules for Changing myPixfizz section (shared database, migrations live on build, publish ships the whole queue, database jobs live on build, direct database fixes need a migration file, stability baseline, default privileges), and Organization Add-ons (keys only, cross-reference to 45). Flagged the edge-functions-ship-on-publish line as conflicting with later builds. Source: claude-chat.
 - 2026-10-09: Operational rules from 2026-10-08: list every reader before a retention rule (the ga4_event_outbox deletion), PROCEDURE with SET cannot COMMIT, statistics are not row counts, Lovable DROP TABLE preference, queue claims inside the locked update, latest status on the parent row. Source: claude-chat.
+- 2026-10-17: Operational rules from 2026-10-13: a self-chaining edge function authenticates the chained hop with its own token header, answers 202 and works inside `EdgeRuntime.waitUntil`, and logs the hop's status so a broken chain is visible. Source: claude-chat.

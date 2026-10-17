@@ -76,6 +76,8 @@ A Shopper child that renders blank is diagnosed as "not inheriting `index`", whi
 
 The `index` layout renders `#modalLoginCheckout` (Bootstrap `.modal fixed-right`) on every page. Its form posts to the current URL with `?login_user=t`, so the shopper returns to the same page after a full reload; a custom tool that opens it must save its own state first. **Never send a shopper who is mid-flow to `/site/login`**: it lands them in Saved Projects. Template-level (Shopper 24). *Observed on a live child site, 2026-10-04.* For sign-in inside the photo upload window without a reload, see `17_DESIGN_TOOL.md`.
 
+**There is no `#modalLogin`.** A custom header link `href="#modalLogin" data-toggle="modal"` finds no target, and the click does nothing with no console error. Any custom control that opens a Shopper modal must target an id the layout actually renders: `modalLoginCheckout`, `modalPasswordReset`, `modalShoppingCart`, `modalSearch`, `modalUpload`, `modalPromotions`. Launch check: every `data-toggle="modal"` trigger on the homepage resolves to an element on the page. Not verified: whether a parent `navigation/menubar` carries the same broken href. *Verified live on a child site, 2026-10-11.*
+
 ### JavaScript library stack (index layout)
 
 All loaded via `asset_url` at the bottom of `<body>`:
@@ -149,6 +151,16 @@ Both style1 and style3 define the same default nav link set in a `{% capture nav
 
 When `admin/checklist/clean-checkout == 'TRUE'`, both nav styles suppress the main navigation links, leaving only the logo and cart icon visible. Used for a distraction-free checkout experience.
 
+### When a child page needs a wider frame than the header, widen the header instead (2026-10-11)
+
+Page content must use the header's frame (§ 14, *Page content uses the header's frame*). When a child genuinely needs a wider frame (a catalog or microsite homepage), widen the header to match in the child's `style/custom.css` rather than letting the page run past it:
+- `body nav.navbar { padding-left: 0 !important; padding-right: 0 !important; }`
+- `body nav.navbar > .container { max-width: <page max> !important; width: 100% !important; margin: 0 auto !important; padding-left: <page gutter> !important; padding-right: <page gutter> !important; }`
+- style1 centers its links (`ul.navbar-nav.mx-auto`); to push them right on desktop: `body nav.navbar .navbar-nav.mx-auto { margin-left: auto !important; margin-right: 0 !important; }`.
+- When the cart, account and search icons are hidden, also hide their now-empty list (`body nav.navbar .navbar-nav.flex-row { display: none !important; }`): its `ml-lg-3` margin pushes the links 4 px past the content edge.
+
+Color and capitalization overrides on nav links must out-specify `.navbar-light .navbar-nav .nav-link` (3 classes, wins over a 2-class selector even with `!important`; match it with `body nav.navbar.navbar-light .navbar-nav .x > a.nav-link`), and the parent capitalizes nav links (`text-transform: none !important` for sentence case). See § 18. A local render without the parent CSS does not show any of this: measure on the live URL. Template-level (Shopper 24). *Verified by query on a child catalog site at 1024 and 375 px, 2026-10-11.*
+
 ---
 
 ## 3. Megamenu System
@@ -175,6 +187,8 @@ Standard megamenu structure:
   </div>
 </div>
 ```
+
+**The hover megamenu needs `data-toggle="dropdown"` on the anchor.** `theme.min.js` opens a `.navbar-nav .dropdown` item on mouseenter by calling `.dropdown("show")` on its anchor, and only for anchors with `data-toggle="dropdown"`. Without it the dropdown never opens on desktop. The anchor can keep a real `href` (no need for `href="#"`). Template-level (Shopper 24). *Verified by query, 2026-10-14.*
 
 ### Megamenu column patterns
 
@@ -424,11 +438,14 @@ frequently pre-existing rather than introduced.
 | `checkout-disclaimer` | `TRUE` = show checkout disclaimer text |
 | `checkout-rush` | `TRUE` = enable rush delivery option |
 | `checkout-rush-special` | `TRUE` = enable special rush option |
+| `checkout-rush-style` | Rush control style: blank (default) = radios, `DROPDOWN` = a select. Use `DROPDOWN`: the radio style loses the visible choice after the autosubmit re-render (see `21_SHOPPER_CHECKOUT_POLICY.md`). *Verified by reading source, 2026-10-10.* |
 | `checkout-column-positions` | Checkout column order: `LEFT` or `RIGHT` |
 | `cash-on-delivery` | `TRUE` = enable cash on delivery |
 | `pay-in-store` | `TRUE` = enable pay in store |
 | `pickup-in-store` | `TRUE` = enable pickup in store |
 | `dont-require-pickup-contact-details` | `TRUE` = skip contact details for pickup |
+| `pickup-phone-not-required` | `TRUE` = pickup orders can check out with no phone number; the contact block still shows. Storefront Settings: "Do NOT Require phone number for pickup contact" |
+| `autofill-pickup-phone` | `TRUE` = when the cart is pickup, has no phone and the signed-in user has one, writes `user.telephone` to `cart.telephone`. No Storefront Settings toggle. See `21_SHOPPER_CHECKOUT_POLICY.md` § Pickup contact phone. *Verified by reading source, 2026-10-15.* |
 | `note-contact-details-required` | `TRUE` = mark contact details as required |
 | `require-billing-address` | `TRUE` = require billing address |
 | `require-billing-address-company` | `TRUE` = require company name in billing |
@@ -441,7 +458,7 @@ frequently pre-existing rather than introduced.
 | `max-cart-total-pay-in-store` | Maximum cart total for pay in store. Number only, inclusive, blank = no limit. See `21_SHOPPER_CHECKOUT_POLICY.md` |
 | `confirm-start-date` | `TRUE` = require start date confirmation |
 | `confirm_start_date_label` | Label for start date field |
-| `confirm-with-invoice` | `TRUE` = confirm order with invoice |
+| `confirm-with-invoice` | `TRUE` = offer the Invoice method only to users whose `user.category` is `invoice`; it does not enable invoice for everyone (Corrected 2026-10-17: was "confirm order with invoice"). Pro Portal users (`pro-portal` TRUE and the brand collection has `custom.pro_portal`) get Invoice as their only method. The method posts to `/site/payment_success?manual_order=e` with `cart[custom][pay_in_store] = invoice`. Such orders land in Pending (no production, Order Pending email) unless Auto Confirm Orders is on for the site (Super Admin). *Verified by reading source, 2026-10-14.* |
 | `payment-link` | `TRUE` = enable payment link option |
 | `payment-gateway` | Active gateway: `stripe`, `square`, `authorizedotnet`, `braintree`, `bridgepay`, `paypal`, `other`; default `stripe` (Corrected 2026-10-06: the token is `authorizedotnet`, not `authorize.net`) |
 | `digital-only-delivery` | `TRUE` = enable digital-only delivery mode |
@@ -631,7 +648,7 @@ These snippets store site-specific content that varies per client:
 - `website/contact/location`
 - `website/contact/title`, `meta_title`, `meta_description`
 - `website/contact/faq_path`
-- `website/contact/geo-location`, `geo-map`
+- `website/contact/geo-location`, `geo-map`: on `pages/contact-us`, `website/contact/location` renders full width under the form (`col-12 mt-10`) and is the place for a Google Maps embed iframe; `geo-location` is the href of the "Find Us" address link; `geo-map` is read by nothing on that page. *Verified by reading source, 2026-10-12.*
 - `website/contact/services-telephone`, `services-telephone-label`
 - `website/contact/sla-note`
 - `website/google-review-link`: **not read by the reviews widget.** The widget reads `admin/checklist/google-review-link`; the manage/store "Google Review Link" field wrote this `website/` key (Corrected 2026-10-06; verified by reading source, 2026-09-30)
@@ -685,9 +702,15 @@ Key elements in order:
 14. Ahrefs script, custom links
 15. Fonts (Google Fonts for Lato/Open Sans; custom via `style/fonts`)
 
-**The favicon is the site asset named exactly `favicon.png`.** `html.head` emits one icon link, pointing at that asset served as a 96px WebP (`.../thumbnail/96/-/format/webp/~/favicon.png`). An icon uploaded under any other name (for example `brand-favicon-512.png` or `apple-touch-icon.png`) is referenced by nothing, and the site keeps showing the default icon. Every site build ships a 512x512 transparent PNG of the brand mark named `favicon.png` (Website > Assets), and the install steps say so. After upload, check that the icon link in the live head points at the new file. Not verified: whether a child-level `favicon.png` takes over from one inherited from the parent without anything being removed first. Template-level (Shopper 24). *Verified by query (live DOM on a child site), 2026-09-25.*
+**The favicon is the site asset named exactly `favicon.png`.** `html.head` emits one icon link, pointing at that asset served as a 96px WebP (`.../thumbnail/96/-/format/webp/~/favicon.png`). An icon uploaded under any other name (for example `brand-favicon-512.png` or `apple-touch-icon.png`) is referenced by nothing, and the site keeps showing the default icon. Every site build ships a 512x512 transparent PNG of the brand mark named `favicon.png` (Website > Assets), and the install steps say so. After upload, check that the icon link in the live head points at the new file. Template-level (Shopper 24). *Verified by query (live DOM on a child site), 2026-09-25.*
+
+**A child-level `favicon.png` takes over from the inherited one within about a minute, with nothing removed first** (Corrected 2026-10-17: this was listed as not verified; verified live on a child site, 2026-10-11). A child with no asset named exactly `favicon.png` inherits the parent default (a white "C" on a blue circle), so the site looks branded everywhere except the browser tab. Check logged out: the head `<link rel="icon">` href must not contain `vwjhuVAjc2Dw74UZ`, the token of the inherited default (`curl -s https://yoursite.pixfizz.com/ | grep -o '<link rel="icon"[^>]*>'`). Build the icon from the live brand mark, not an old logo file, and check it at 16 and 32 px before upload. The launch gate is in `80_ONBOARDING.md` § Pre-Launch Handoff Checklist.
 
 **The social sharing image is the asset named `og-preview-image.jpg`**, which `setup/seo` uploads. The manage/seo "Social sharing image" control uploaded an asset named `social-media/open-graph`, which the head never reads. Template-level. *Verified by reading source, shopper24 backup 2026-09-28.*
+
+**On a collection page the collection image is also the `og:image`.** The collection's image (`theme_category[asset_name]`) is emitted as the page's `og:image`, so an AVIF collection image becomes an AVIF `og:image`, which most link-preview crawlers do not show. Use JPG or WebP for the image of any collection that will be shared on social media. Template-level. *Verified by reading the live head, 2026-10-10.*
+
+**Sitewide fonts or head tags on a child go in `integrations/custom-links`.** The parent snippet is empty and renders in the head of every page. Override it on the child and put the Google Fonts `<link>` (or any other head tag) there. Do not load fonts inside one page snippet: a font loaded only in `website/homepage` leaves every other page on system fonts. Template-level (Shopper 24). *Verified live on home, about, shop, a Pages instance and contact, 2026-10-12.*
 
 ---
 
@@ -816,7 +839,7 @@ Create a new instance with these field values:
 - `page_title` — page title
 - `page_description` — snippet field, optional
 - `page_content` — snippet field — main page content goes here
-- `page_schema` — leave blank unless you need structured data / ld+json
+- `page_schema` — leave blank unless you need structured data. It is printed into the body exactly as stored and is **not** wrapped in a script tag, so raw JSON appears as visible text. Store the whole `<script type="application/ld+json">...</script>` block. *Verified live, 2026-10-10.* `page_description` and `page_schema` are absent from an instance's `custom` hash until they are first written; read the type definition (`GET /v1/admin/custom_types/<id>.json`) to see every field. *Verified by query, 2026-10-10.*
 
 No redirect needed. The page resolves automatically once the instance is saved.
 
@@ -848,6 +871,37 @@ Constraints:
   `13_TEMPLATE_BOUNDARIES.md`) and one Service record per page; `service_no_layout`
   renders `service_content` raw, with breadcrumbs still above it. Template-level.
   *Verified by reading source and live, 2026-10-05.*
+- **`admin_only` on a Pages instance is not access control.** A signed-out fetch of a
+  page with `admin_only` on returned 200 and the full `page_content`, including a page that
+  loads a custom tool. `admin_only` only adds a `noindex` and keeps the page out of the
+  crawler's `sitemap.xml`; the page still renders for a logged-out visitor by direct URL.
+  To park a page, give it an unguessable `page_path` or leave `page_path` empty.
+  Template-level. *Verified by query on two child sites, 2026-10-10, 2026-10-12 and 2026-10-14.*
+
+### Page content uses the header's frame
+
+Header, page content and footer share **one frame**: the same max-width and side gutter. A landing page or section wrapper must never invent its own max-width (1180, 1240, 1320 px...): content then starts inside the logo and stops short of the cart icon.
+
+- The Shopper 24 header is `.navbar.navbar-expand-lg` (16 px side padding) > `.container`. The header's visible edges are the edges of that `.container`: Bootstrap 540 / 720 / 960 / 1140 px at 576 / 768 / 992 / 1200 and up on the parent defaults, and 16 px from the screen edge below 576. A child's `style/custom.css` often raises the 1200+ width, so read the live values before reusing the numbers. Below 992 px Bootstrap removes the `.container` padding inside `.navbar-expand-lg`.
+- Pattern: outer full-bleed element `padding-inline: 16px` (mirrors `.navbar`), inner wrapper `class="container ..."`, and below 992 px `padding-inline: 0` on the inner wrapper. Content edges then equal the header edges at every width.
+- When the wrapper markup cannot change, set the wrapper to the header content width per breakpoint with `padding-inline: 0; margin: auto`. Page CSS assets load after `style/custom.css`, so the override needs a stronger selector (a `body` prefix) to win (§ 18).
+- When a page genuinely needs a wider frame, widen the header to match instead (§ 2, *When a child page needs a wider frame than the header*).
+- Check on the live URL, not in a local render: the left edge of the logo, of the page's first heading and of the first footer link must match within 2 px at 375, 768, 1200, 1600 and 2560 px, with no horizontal scroll:
+  `const L = s => Math.round(document.querySelector(s).getBoundingClientRect().left); [L('nav.navbar a'), L('main h1, section h1, h1'), L('footer a')]`
+
+Template-level (Shopper 24). *Verified live on three child sites, 2026-10-11, 2026-10-12 and 2026-10-15.*
+
+### Services v2 (gated, off by default; built 2026-10-13)
+
+A redesigned services hub and service page on the shopper24 parent, shipped behind a flag (§ 21.4).
+- Parent snippets: `admin/checklist/services-hub-v2` (flag, blank, Allow Override), `services/hub-v2`, `services/page-v2`, `services/hub-hero` (Allow Override), `services/visit-band`, `style/services-v2`, `style/services-v2-theme` (blank, Allow Override). The parent pages `services` and `services/:service-path` read the flag; with it blank, the old output is byte-identical.
+- Hub groups come from the existing Service fields `service_preheading` (group), `service_position` (order), and cards from `service_thumbnail`, `service_title`, `service_meta_description`. Records with a blank `service_preheading` go under a "More services" group. No new fields are needed, but **check the site's Service type first**: some child Service types lack `service_preheading`, `service_meta_description` or `service_unpublish`; add the definitions before switching on.
+- `service_meta_description` also feeds each service page's meta description, so filling it changes SEO metadata.
+- A service page uses v2 only when the flag is TRUE **and** its `service_content` contains `svc-page`; page-v2 prints breadcrumbs, the record's content, up to four related services (same preheading first) and the visit band (`website/contact/address`, `city`, `state`, `zip-code`, `support-hours`, `support-telephone`, `support-email-address`). A site whose service pages use their own layout gets the hub only.
+- To switch a site on: override the flag to `TRUE`, override `services/hub-hero` (copy, optional `<dl class="svc2-facts">`), override `style/services-v2-theme` for fonts and colors (CSS variables on `.svc2`; the hero and facts strip are dark by default, so a light site sets them light there; the theme snippet is included at the end of `style/services-v2`, so same-specificity rules win), and fill each Service record.
+- `services/:service-path` 404s only when no record matches the path; `service_unpublish` does not hide the page, only (where the field exists) the hub card.
+
+Template-level (Shopper 24). *Built and live on three child sites, 2026-10-13; routing verified by reading source, 2026-10-13.*
 
 ### Liquid inside `page_content`
 
@@ -1412,6 +1466,20 @@ Two companions found in the same session:
   rendered page and turns "is this surface mine or the parent's?" into a view-source check, and
   it names which navigation style is actually rendering.
 
+### Splitting snippet output on a captured newline: strip every item (2026-10-13)
+
+The checkout page builds its payment list by splitting the output of `checkout/available-payment-methods` on a `newline` captured at the top of the page. The snippet was stored with CRLF line endings and the page with LF, so every method name kept a trailing carriage return, the `case` matched nothing, and checkout showed the **Payment** heading with no methods under it, on every site using the page. It surfaced after an ordinary one-line save of the page in the admin editor. Fixed on the parent by `assign px_pm = payment_id | strip` and `case px_pm` inside the loop, which works for either line ending. The same hazard hit `collection_filters` (§ 21.1).
+
+- Any Liquid that splits snippet output on a captured newline must `strip` each item.
+- After any checkout page save, load a real checkout down to the Payment block before reporting done; a matching page body does not prove payment works.
+- Check line endings against the live API raw read. CMS backups strip CR on export, so a backup cannot show the fault.
+
+Template-level (Shopper 24). *Verified by query, 2026-10-13.*
+
+### Production time "1 day" prints the collection's value (2026-10-13)
+
+The product page variants that print "Production Time:" (`product-details` and siblings) have a branch for `product.custom.production_time == 1` that prints `{{ collection.custom.production_time }} day`, so a product set to 1 day shows the collection's number, or nothing. Fix in an override: print `product.custom.production_time` in that branch. Separately, `product/production-time` (the dynamic variant) expects string values (`'2 days'`, `'same day'`) while the static branch treats `production_time` as a number: one field, two conventions. Not checked against the live parent after 2026-10-02. Template-level. *Verified by reading source, shopper24 backup 2026-10-02.*
+
 ### `default-delivery-option` values are `public` / `private` (2026-08-24)
 
 `admin/checklist/default-delivery-option` controls which delivery method is preselected on
@@ -1627,11 +1695,15 @@ inflated roughly 2×. The three snippets carrying the duplicate are `product/pro
 `product/product-details-filter` and `product/details-filter-dual-mode`: each already renders
 `product/design-now`, which owns the dataLayer push, **and** also ends with
 `{% snippet 'integrations/google/event/view-item' %}`. `product/product-details-fullpage` is
-already correct.
+already correct. (Update 2026-10-17: since 2026-10-12 `view-item` is a `dataLayer.push` that is
+skipped when the page already pushed `view_item`, which removes this duplicate; see the parent
+facts list below.)
 
 **Photo-prints pages emit no ecommerce event at all.**
 `product/product-details-prints` does not render `product/design-now`, so its only `view_item`
-is the gtag include — dead on any GTM site.
+is the gtag include — dead on any GTM site. (Update 2026-10-17: since 2026-10-12 that include
+is a `dataLayer.push`, so photo-prints pages push `view_item`; not separately verified on a
+photo-prints page.)
 
 **`purchase` re-fires on refresh.** It is pushed unconditionally on render on `thank-you`,
 `payment_success` and `confirmedorder`. A refresh re-fires with the same `transaction_id` and
@@ -1655,8 +1727,8 @@ with no tagging work.
 **More parent facts, from the 2026-09-28 parent backup** (verified by reading source):
 
 - `html.head` loads GTM when the container ID is set, and gtag.js plus `gtag('config')` when `website/gtag` is set, **independently**. Nothing stops both.
-- `integrations/google/event/view-item` calls `gtag()` and is included on `product/product-details`, `product/details-filter-dual-mode`, `product/product-details-filter` and `product/product-details-prints`. On a GTM-only site (the standard below) there is no `gtag` function, so it throws **`gtag is not defined`** in the console on every product page. Harmless to the dataLayer path, but noise in every console check.
-- gtag.js ignores the plain `dataLayer.push({event: ...})` objects Shopper emits, which is why a `website/gtag`-only site records nothing past product views.
+- `integrations/google/event/view-item` is included on `product/product-details`, `product/details-filter-dual-mode`, `product/product-details-filter` and `product/product-details-prints`. **Since 2026-10-12 it is a `dataLayer.push`**, skipped when the page already pushed `view_item` (`design-now` pushes inline, earlier, in all three design layouts), so it no longer throws `gtag is not defined` on GTM sites. Its `item_category` is `product.category`, never `google_category` (a numeric taxonomy code). Before 2026-10-12 it called `gtag()` and threw **`gtag is not defined`** on every product page of a GTM-only site. (Corrected 2026-10-17, *verified live, 2026-10-12*.)
+- gtag.js ignores the plain `dataLayer.push({event: ...})` objects Shopper emits, which is why a `website/gtag`-only site recorded nothing past product views. Since 2026-10-12 the GA4 bridge (below) forwards those events to `gtag('event')` on such sites, unless the child overrides `html.head`.
 - The cookie banners (`cookie-consent/banner`, `gdpr-banner`) do **not** gate any tag, and there is no Consent Mode.
 - `integrations/google/ads-id` is not in the parent backup and `html.head` never reads it. An Ads ID entered there loads nothing; Google Ads goes through the container.
 - `ga_client_id` and `ga_session_id` are captured by `checkout/utm-cart-code`, which `pages/cart` includes. The UTM landing cookie `_pf_utm` is set by `integrations/google/utm-capture`. See `85_GA4_SERVER_SIDE_PURCHASE.md` § 2.
@@ -1677,7 +1749,9 @@ Why, in order:
 - **The gtag path cannot carry the funnel.** Only `view_item` is wired through `gtag()`.
   `add_to_cart`, `begin_checkout` and `purchase` exist as gtag snippets but are **orphaned**
   (see the entry above). A `website/gtag`-only site gets page views and product views and
-  nothing past them.
+  nothing past them. (Update 2026-10-17: since 2026-10-12 the GA4 bridge forwards the
+  dataLayer funnel to gtag on such sites, unless the child overrides `html.head`; see
+  *GA4 bridge for gtag-only sites* below.)
 - **The dataLayer path is complete** — `view_item`, `add_to_cart`, `view_cart`,
   `begin_checkout`, `purchase` all push.
 - **Both fields set is roughly 2× double counting**, which is the duplicate `view_item`
@@ -1720,9 +1794,16 @@ fixes that brand's attribution, and nothing server-side can.** One client lab in
 
 *Verified by query against the myPixfizz database, 2026-09-02.*
 
-### GA4 bridge for gtag-only sites (built, not deployed)
+### GA4 bridge for gtag-only sites (live since 2026-10-12)
 
-**Status, 2026-09-28: built and unit-tested, NOT deployed to the parent and NOT tested on baseline. Do not describe it as live.** The design: a new `integrations/google/ga4-bridge` rendered in `html.head` only when `website/gtag` is set and the GTM container is blank. It wraps `dataLayer.push` and forwards Shopper's GA4 ecommerce events to `gtag('event')`, sends `view_item` once per product per page and `purchase` once per transaction, skips `purchase` when a new checkbox `admin/checklist/ga4-server-side-purchase` ("myPixfizz sends purchases to GA4") is `TRUE`, and offers `?pf_ga4_debug=1` for DebugView. Not verified: that the real gtag.js keeps the wrapped push. A rollout check found every myPixfizz-wired brand already in GTM mode, so the bridge would stay off for them. The GTM-only standard above still applies.
+**Status: live on the shopper24 parent since 2026-10-12 22:45 UTC** (Corrected 2026-10-17: the 2026-09-28 status was "built and unit-tested, not deployed"). `html.head` renders `integrations/google/ga4-bridge` only when `website/gtag` is set and `integrations/google/tag-manager` is blank. It wraps `dataLayer.push` and forwards Shopper's GA4 ecommerce events to `gtag('event')`, sends `view_item` once per product per page and `purchase` once per transaction. The real gtag.js replaces `dataLayer.push` but calls the previous push through, so the bridge keeps forwarding after gtag.js loads (*verified live on baseline, 2026-10-12*; this was the open "not verified" item).
+- `admin/checklist/ga4-server-side-purchase` ("myPixfizz sends purchases to GA4") = `TRUE` stops the browser `purchase` when myPixfizz sends it server-side; `FALSE`, or the key absent, is the default.
+- Add `?pf_ga4_debug=1` to see `[pf-ga4]` lines in the console (and events in DebugView).
+- **A child with its own `html.head` override does not get the bridge**, so list the overrides first.
+- On a GTM site where myPixfizz sends purchases, the container's GA4 trigger must not include `purchase`, or revenue doubles (see the cross-reference above).
+- The GTM-only standard above is unchanged until a new standard is confirmed (a myPixfizz flow that writes `website/gtag` from the brand's GA4 card is built but not published).
+
+Template-level (Shopper 24). *Verified live on baseline, 2026-10-12.*
 
 ### 20.1 Klaviyo integration and email consent
 
@@ -1760,11 +1841,30 @@ label | url_name | filter_attribute | default_value | snippet_args
 
 `snippet_args` is a set of `key: value` pairs joined by pipes, and is consumed by
 `product/filter-controls`. With `asset_images: true` the **field value must be an asset
-filename, not a label**.
+filename, not a label**. **The label under an `asset_images: true` tile is the asset's
+Description**: set it to Portrait / Landscape / Square (`PUT /v1/admin/assets/<id>.json` with
+`asset[description]`, `61_PIXFIZZ_API.md` § 13c). *Verified by reading source and live,
+2026-10-13.* Without `asset_images`, **filter tile labels are the raw `product.custom.<field>`
+values**: to split two product lines that share sizes, give each a distinct value on a field
+(for example `style` = Fine Art Canvas / Standard Canvas) and add a filter row on that field.
+*Verified live, 2026-10-13.*
 
 Using the three-field form where the five-field form is expected fails in the way filter
 configuration always fails — quietly, with the control rendering and doing nothing.
 *Verified live on a client PDP, 2026-09-08.*
+
+**Three-field filters are independent facets with no empty state.** On
+`collection/collection-filters`, a combination no product matches (for example a Type that has
+no sizes plus a Size) shows an empty grid with no "no results" message. Only add a facet that
+applies to every product in the collection; leave out facets that apply to some types only.
+*Verified live on a child site, 2026-10-12.*
+
+**A `pdp_layout` collection with no `collection_filters` shows no product.**
+`product/details-filter-dual-mode` only picks the design product inside the filter loop, so an
+empty field gives a page with the collection description and no product form. And **a
+`pdp_layout` collection does not list ordinary design products added to it**: put any other
+range in its own collection. *Verified by reading source and live, 2026-10-13, and by query,
+2026-10-14.*
 
 **Scope: wall art style ranges only, never everyday prints** (standard stated by Alex,
 2026-10-04). Five-field `collection_filters` size pickers are for ranges sold one size per
@@ -1799,6 +1899,25 @@ Orientation | orientation | product.custom.orientation | metal-portrait-thumb.jp
 - `collection_filters` is Liquid-rendered.
 - The orientation switch sends `orientation[]=<value>`, which is why the Liquid reads
   `request.params['orientation'][0]`.
+- **When design names are long or uniform** (products published from a template provider
+  carry names like "8 x 10 in Metal Print" and no product custom fields), `design.name` makes
+  poor tiles and there is nothing to filter orientation on. Write `product.custom.size` (`WxH`)
+  and `product.custom.orientation` (`Portrait` | `Landscape` | `Square`) on each product
+  (`61_PIXFIZZ_API.md` § 13g; the definitions must exist on the site), then filter on
+  `product.custom.size` and `product.custom.orientation` in place of `design.name` and the
+  asset-image orientation above. *Verified by query on a child site, 2026-10-14.*
+- **A default size can depend on a second filter.** When one product line in a `pdp_layout`
+  collection lacks an orientation's default size, nest an `if` on the other filter's parameter
+  inside that orientation branch, for example:
+  ```
+  {%- elsif request.params['orientation'][0] == 'Square' %}
+  {%- if request.params['material'][0] == 'Standard Canvas' %}
+  Size | size | product.custom.size | 10x10 | control_type: radio | show_prices: true |
+  {%- else %}
+  Size | size | product.custom.size | 12x12 | control_type: radio | show_prices: true |
+  {%- endif %}
+  ```
+  *Verified live, 2026-10-13.*
 
 **Size tile order is the collection's Design Products order**, not size order. Products added
 later land at the end of the list, so a range built in two passes shows the second pass last
@@ -1815,7 +1934,59 @@ template rendering. *Verified by query on a child site (two collections, 67 rows
 **Pasting a multi-line `collection_filters` value by hand can drop its first line.** On one
 canvas collection the Orientation line was lost, and the page then listed every size of every
 orientation. After any filters paste, count the orientation and size inputs on the live page.
-*Observed live, 2026-10-01.*
+*Observed live, 2026-10-01.* (Possibly the line-ending fault below.)
+
+**`collection_filters` and line endings (fixed on the parent 2026-10-14).** The filter snippets
+split the field on a captured `newline`, and the snippets are stored with CRLF, so the split
+expected `\r\n` (`product/details-filter-dual-mode` used `{% capture newline %}\r\n{% endcapture %}`).
+A value stored with LF only was read as **one** line. The admin collection editor (Ace) saves
+LF only, and API, import and script writes are often LF, so after such a write only the first
+line parsed: on the standard shop page the sidebar rendered empty; on a `pdp_layout` page the
+next line's arguments landed in the first line's `snippet_args`, the last `control_type` won,
+`asset_images: true` no longer equaled `true`, and the first filter rendered as a dropdown of
+raw values (`portrait.jpg`) with every later filter missing. Re-saving from the admin Save
+button did not help (Ace writes LF again). Older values (tar imports, pre-editor saves) still
+carry CRLF. Fix applied on shopper24 in seven snippets:
+`{% assign filters = filters | strip | split: newline %}` became
+`{% assign filters = filters | strip | newline_to_br | split: '<br />' %}` in
+`collection/collection-filters`, `collection/collection-filters-static`,
+`collection/collection-filters-collapse`, `collection/collection-filters-top`,
+`collection/collection-load-more`, `product/details-filter-dual-mode` and
+`product/product-details-filter`; the later `| strip` per filter removes the leftover `\r`, so
+CRLF and LF values both parse.
+- **A child override of any of these snippets keeps the old split.** List a site's overrides
+  when its filters render empty, and keep joining lines with `\r\n` in any API or script write
+  until no site overrides them.
+- Check from the storefront: view source, find `<!-- FILTERS: ... -->`; or add
+  `?<first url_name>=zzzz` (0 cards) and `?<second url_name>=zzzz` (no change means only one
+  filter parsed). On a `pdp_layout` page, load it logged out and count the selector blocks.
+- The same CRLF split still exists in `account/address-form` (`country_filter`) and the
+  checkout pages (`tentatively_available_payment_methods`). Not changed yet. The checkout
+  payment list had the same fault (§ 17, *Splitting snippet output on a captured newline*).
+
+Template-level (Shopper 24). *Verified by reading source and live, 2026-10-12 and 2026-10-13;
+parent fix verified by reading admin source and live on a child site, 2026-10-14.*
+
+**Driving filters from script.** The platform bundle exposes `Px.CMS.ThemeFilters` with
+`updateCheckbox`, `updateRadioButton`, `updateSelect`, `pushFilterChange` and
+`getFilterWrapper`. `updateRadioButton(input, opts)` sets `<name>[]=<value>` on the current URL
+and calls `pushFilterChange(url, input, opts)`, which adds `px-live-fragment-loading` to each
+selector in `opts.selectors`, pushes history, fetches the URL and swaps those fragments
+(`main`, `#product-schema`). To change two filters in one swap (for example a size that only
+exists under another orientation), build the URL with both params and call
+`Px.CMS.ThemeFilters.pushFilterChange(url, anyFilterInput, { selectors: ['main', '#product-schema'] })`.
+Anything a script inserted into the filter area does not survive the swap: re-run the
+enhancement afterwards (a `MutationObserver` on `document.body` that looks for an unenhanced
+filter works). Platform-level (CMS bundle). *Verified by reading the live bundle and by query,
+2026-10-15.*
+- Template-level (`product/details-filter-dual-mode`): the crawler prefetch links
+  (`<link rel="prefetch">`) skip each filter's selected value **and** its configured default,
+  so they are not a complete list of filter URLs. Build the URL yourself; dropping a child
+  filter's param makes the server fall back to its default, then the first value.
+
+**The photo prints flow lists one size row per design product**, in collection order
+(`/site/prints?collection=<path>`): a template with a borderless and a bordered design gives
+two rows per size. *Verified by query, 2026-10-14.*
 
 ### 21.2 A free-form arguments string is an opt-in that needs no code and no deploy
 
@@ -1849,6 +2020,11 @@ declare it, and see whether it resolves. **Namespace until proven otherwise.**
 arguments plus `website`; a caller's assigns do not reach it (verified by query in admin
 Preview, 2026-10-03, `50_LIQUID_REFERENCE.md`). The storefront case is still not tested, and
 a Pages `page_content` caller behaved differently again (§ 14), so keep namespacing.
+
+**Storefront, 2026-10-14:** a storefront snippet does not see the caller's `collection` unless
+it is passed as an argument, and a nested `{% snippet %}` call inside a snippet clears that
+snippet's own params for the rest of its body (save and restore them around the call). Both
+verified live; details in `50_LIQUID_REFERENCE.md` § snippet. Keep namespacing argument names.
 
 ### 21.3 The admin action is **Override Snippet** — not copy, fork or duplicate
 
@@ -1970,10 +2146,12 @@ Admin > Website Crawls. Template-level, likely on the parent; seen on two child 
 Template-level (Shopper 24) unless marked.
 
 - **Clean product URLs.** The design custom field `url_path` (fallback `url_slug`) makes the collection card link `/site/product/<collection path>/<url_path>`, served by the parent wildcard page `product/:collection-level-1/:url-path`. Works in `collection-filters` and `collection-load-more`. Without it the link is `/site/product/c/<collection>?product=<id>-<slug>&theme=<id>-<slug>`. `url_path` must be unique on the site: clear it on the old design before giving it to a new one. Menu links pointing at the pretty URL then follow without a menu edit. *Verified by query, 2026-10-03 and 2026-10-06.*
+- **Old links follow `url_path`, and the clean URL needs the collection.** Once a design has `url_path`, the old `/site/product/c/<collection>?product=<id>&theme=<id>` link redirects to `/site/product/<collection path>/<url_path>`, so menu and email links keep working, and a `custom_script` tool still mounts and prices there. The clean URL only resolves in a collection the design is published in: the same `url_path` under another collection path, or after the design is unpublished from that collection, returns 404. A tool that opens sibling products by `url_path` needs them published in the same collection as the page. *Verified by query, 2026-10-13 and 2026-10-14.*
+- **The `theme` parameter is required on the non-clean route.** `/site/product?product=<id>` alone renders no product form (an HTML comment reads "Required parameter missing: design"). A design product page does render under **any** existing collection path, `/site/product/c/<any collection path>?product=<id>-<code>&theme=<design id>`, but without `&theme=` the template options, and any `custom_script` mount, do not render. *Verified by query, 2026-10-14 and 2026-10-16.*
 - **Product page title and H1** come from the design's `meta_title` when set. Without it the wildcard page title is design name + product name (doubled when they match). *Verified by query, 2026-10-03.*
-- **Collection `title_format` / `breadcrumb`** are text fields; `product` makes the breadcrumb's last item the product name. *Verified by query, 2026-10-03.*
+- **Collection `title_format` / `breadcrumb`** are text fields; `product` makes the breadcrumb's last item the product name. *Verified by query, 2026-10-03.* `title_format` = `both` makes the product page H1 design name + product name on the `/site/product/c/<collection>?product=..&theme=..` route, with no design custom field needed. That suits linked designs whose custom fields live on another site. The document title does not change. *Verified on a live URL, 2026-10-10.*
 - **Card "from" price.** `collection-load-more` prints "As low as" + product `from_pricing` whenever `from_pricing` is set. `collection-filters` only uses `from_pricing` when `product.price == 0`. Collection `load_more` switches the page to the load-more snippet. `from_pricing` is static: re-check it when the lab changes prices. *Verified by query, 2026-10-03.* (`52_SNIPPET_INVENTORY.md` corrected to match, 2026-10-06.)
-- **Delivery / pickup box** (`product/shipping-available`, "This item can be picked up in our store"): every product page variant (product-details, details-filter, prints, dual-mode) skips it when collection `hide_delivery_options` is ticked. Per collection only; a site with no pickup needs it on every collection. *Verified by query, 2026-10-03.*
+- **Delivery / pickup box** (`product/shipping-available`, "This item can be picked up in our store"): every product page variant (product-details, details-filter, prints, dual-mode) skips it when collection `hide_delivery_options` is ticked. Per collection only; a site with no pickup needs it on every collection. *Verified by query, 2026-10-03.* The snippet reads only `product.custom.shipping_unavailable`, `product.custom.pickup_unavailable` and `product.custom.extra_charge`; it does not look at the site's pickup or delivery settings. The parent callers pass only `product`, so collection fields (for example a collection-level `production_time`) do not reach it unless an override passes them, and an override that calls another snippet (for example a checklist read) must restore `product` afterwards (`50_LIQUID_REFERENCE.md` § snippet). *Verified by reading source, 2026-10-02, and live, 2026-10-14.*
 - **Shop tile image for design products.** `collection/collection-filters` draws a live preview when the design has preview pages, else `design.preview_images`, else `design.image` (the design's preview_img). The product image is not used. Set the design preview image, and give each product its own design when two products share one, or both tiles show the same picture. *Verified by reading source and by query, 2026-10-06.*
 - **Two products that share one design share one URL:** the page shows the first product and the second is unreachable from the collection card. *Verified by query, 2026-10-05.*
 - **Product `unit_intervals` takes a list:** `100,250,500,1000` gives exactly those quantity choices (custom design tools' quantity chips follow it). Platform-level. *Verified by query, 2026-10-06.*
@@ -1996,3 +2174,4 @@ Template-level (Shopper 24) unless marked.
 - 2026-09-29: §9 favicon is the asset named exactly favicon.png. §13 custom-body-font takes no trailing semicolon. §14 check /site/<path> is a 404 before choosing a page_path. §17 native modal dialog top layer beats any z-index; move overlays inside the open dialog. §17 prices outside px-product-price must include default-variant surcharges. §18.1 the unscoped h1-h4 rule is in the pxfb block and strips heading font and weight; child :root workaround and parent fix. §20 CORRECTED where the GTM and GA4 fields live (manage/integrations); the Setup and Manage path is unverified. §20 view-item gtag include throws on GTM-only sites, no consent gating, ads-id unused, capture snippets named; new events go to the dataLayer only. §23 CLOSED the open item: query-string shape for deep links that preselect filters and variants. §21.3 Override Snippet copies the parent body, is per site, live on save, may need a hard refresh. Source: claude-chat, fireflies-call.
 - 2026-10-06: §1 Shopper 24 has no layouts/main and no px-tag layout (Shopify integration host does); the sign-in modal on every page (`#modalLoginCheckout`, `?login_user=t`, never send mid-flow shoppers to /site/login). §2 `#cart-link-icon` duplicated on the search icon (open defect, parent fix, audit check). §3 check megamenu open state by `.show`, not opacity. §5 token table for radio-type keys and the token-not-label rule; CORRECTED rows `bottom-promotion-bar` (does nothing), `payment-gateway` (`authorizedotnet`), `prints-autoselect` (lowercase true/false); value sets on several rows; kiosk tip keys. §7 CORRECTED google-review-link (widget reads the checklist key); current-promotions not reusable; store address keys. §8 footer newsletter is a placeholder. §9 social image is `og-preview-image.jpg`. §11 email current state and pointer to 32. §12 Blog (asset-name fields, unpublished posts render, homepage section unfiltered, unescaped JSON-LD) and Promotions fly-out. §13 custom homepage delivery rules. §14 never a Pages instance under services/; Liquid inside page_content (renders; variables to called snippets did not arrive; config-stub pattern). §15 manage/* known defects and audit lesson; file inputs are styled by the shopper-admin layout (never override), sample CSV downloads built with a Blob. §16 kiosk checkout styling lessons. §17 search results linking into test collections. New §18.2 dark child themes (checkout high risk). §20 GA4 bridge status (not deployed); new §20.1 Klaviyo integration and email consent. §21.1 wall-art-only scope, `show_prices: true` standard, tile order = Design Products order, filters paste hazard. §21.2 snippet scope partly answered. §22 footer sitemap link. §4 dark child sites: override the token snippets, hard-coded `.form-control` color, inline swatch name color. §21.3 the first `_method` form on a snippet edit page is DELETE. §23 static product page form and quantity. New §24 product URLs (`url_path`), titles, breadcrumbs, card "from" price, delivery box, shop tile image, shared designs, `unit_intervals`. Source: claude-chat.
 - 2026-10-09: § 14 settled which wins at `/site/photo-prints` (the real page) and added the `product/photo-prints-landing` gate for replacing it on a child, with the parent-stub paste incident. § 17: the live navbar is taller than a harness shows; an admin.pixfizz.com login does not open `user.is_admin` pages. Source: claude-chat.
+- 2026-10-17: §1 there is no `#modalLogin`; custom modal triggers must target an id the layout renders (launch check). §2 widen the header, not the page, when a child needs a wider frame. §3 hover megamenu needs `data-toggle="dropdown"` on the anchor. §5 new rows `checkout-rush-style`, `pickup-phone-not-required`, `autofill-pickup-phone`; CORRECTED `confirm-with-invoice` (Invoice only for `invoice` users, Pro Portal, Pending unless Auto Confirm). §7 contact page map hooks (`location`, `geo-location`, `geo-map` unread). §9 CORRECTED child `favicon.png` takes over within a minute (inherited-default token check); collection image is the `og:image`; sitewide fonts in `integrations/custom-links`. §14 `page_schema` printed raw; `admin_only` is not access control (noindex, out of sitemap, still renders); new *Page content uses the header's frame* (pattern and 5-width edge check); new Services v2 (gated). §17 strip every item when splitting on a captured newline (checkout payment list fixed 2026-10-13); production time "1 day" prints the collection value. §20 CORRECTED GA4 bridge live on the parent since 2026-10-12 (gtag.js keeps the wrapped push, `ga4-server-side-purchase`, `html.head` overrides excluded); `view-item` is a dataLayer push (no more `gtag is not defined`, duplicate removed). §21.1 three-field facets have no empty state; empty `pdp_layout` filters show no product; asset Description is the tile label; size/orientation product fields for provider products; default size by a second filter; line endings (parent split fixed 2026-10-14, child overrides keep the old split); driving filters from script (`Px.CMS.ThemeFilters`); prints flow one row per design product. §21.2 storefront snippet scope (no caller `collection`, nested call clears params). §24 old links follow `url_path` and the clean URL needs the collection; `theme` parameter required; `title_format` = `both`; delivery box reads product fields only. Source: claude-chat.

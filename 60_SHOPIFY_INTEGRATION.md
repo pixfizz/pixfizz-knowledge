@@ -34,6 +34,8 @@ Internally there are two master Shopify CMS sites: a **staging** master used to 
 
 > Internal-infrastructure note: the specific master-site hostnames are internal; keep them out of the public KB and reference them from the private repo if needed.
 
+**A fix on the production master does not reach a Pixfizz site that overrides the same snippet.** A Required variant (dropdown, no default) that did not block add to cart in the personalization modal was a defect in the master's `px-option` snippet. The core developer fixed it on the master on 2026-10-15, and one integration site that carried its own override of `px-option` kept the bug until its override was patched separately. After any master snippet fix, check which integration sites override that snippet and patch each override. *Stated by the core developer in #development, 2026-10-15.*
+
 ---
 
 ## 2. Shopify Metafields
@@ -256,6 +258,15 @@ For Pixfizz products, the standard Shopify buy button block is replaced with a "
 ```
 
 The button text can be changed freely. The `onclick` handler is what matters.
+
+### Photo-prints products: hide the Shopify variant picker
+
+For `pixfizz.integration_type = photo-prints` the size is chosen inside the Pixfizz photo prints editor. The Personalize button does not read the selected variant: it builds the full `pixfizz_sku_map` and calls `Pixfizz.Shopify.launchPhotoPrints({collection_path, shopify_product_id, shopify_sku_map, shopify_addons_map})`, so hiding the variant block (and the quantity selector) is safe.
+
+- Duplicate the Pixfizz product template (for example `product.px-prints`), hide the variant selector block in that template's section Custom CSS, and assign photo-prints products to it. The block's class differs per theme, so read it from the theme rather than copying it from another theme.
+- `/products/<handle>?view=<template suffix>` renders any alternate product template without assigning it, so test it there first: Personalize should open the photo prints modal with no JS errors.
+
+*Verified by test on a client Shopify theme, 2026-10-11.*
 
 ### Editor `domready` message (integration mode)
 
@@ -632,6 +643,18 @@ This is a second, lower ceiling on the same axis as the Shopify variant-count co
 **Not verified:** add-to-cart, cart preview, quantity lock and order sync with the filtered
 map. Exercise the flow through to cart before shipping the snippet change.
 
+### `photo-prints` Add to Cart hangs at "Please wait... 0%"
+
+**Verified by reading source (cms bundle 20261007100426), 2026-10-09.**
+
+Upload, sizes and cropping work, but Add to Cart shows "Please wait..." at 0% forever, with no error.
+
+**Cause.** On add to cart the photo prints component calls `getShopifyVariantId(design_product.sku)`, an exact string match of the design product sku (`theme_code:product_code`) against the **values** of `shopify_sku_map` (built from each Shopify variant's `pixfizz.product_sku` metafield). No match leaves `shopify_variant_id` unset, the add-to-cart message is never posted, and the overlay never moves. So every design product in the `photo_prints_collection_path` collection must use exactly the `theme_code:product_code` of some Shopify variant's `pixfizz.product_sku`; the same theme with a different product fails.
+
+**Check.** Load `https://<pixfizz-host>/site/shopify/photo-prints?collection_path=<path>`, read each design product's sku from the page source, and confirm each appears as a value in the product's sku map.
+
+**Fix.** Make the Pixfizz collection match the Shopify mapping (swap the design products), unless the Shopify SKUs are wrong for fulfillment.
+
 ### Editor "Not Found" on one variant — check the page cache before the SKU
 
 **Verified by reading source (the failing request) — underlying core bug fixed 2026-09-08.**
@@ -979,3 +1002,4 @@ Variant-value image swatches in the Shopify modal take the image's natural width
 - 2026-09-19: Added §11 troubleshooting entry for an order that reaches Shopify with no Pixfizz project, caused by any add-to-cart path that skips the Pixfizz product page and therefore the `_pixfizz_project_id` injection; the webhook then finds no project and fails silently. Source: slack-message (#development).
 - 2026-09-24: Added § 19 image swatch sizing in the personalization modal. Source: claude-chat.
 - 2026-10-06: § 15: Troubleshooting My Projects and My Galleries (missing `pixfizz-product-api` Shopify page hangs the project loader, gallery create needs the Pixfizz user id, `customer.css` 404 on any theme without it, logged-out empty states, `options-to-cart` creates no saved projects, the "Theme file is invalid" red herring). Source: claude-chat.
+- 2026-10-17: § 1 a master snippet fix does not reach an integration site that overrides the snippet (`px-option` Required variant case). § 6 photo-prints products: hide the Shopify variant picker on a duplicated product template (the Personalize button reads the whole sku map, not the selected variant). § 11 `photo-prints` Add to Cart hangs at 0% when a design product sku has no exact match among the `pixfizz.product_sku` values. Source: claude-chat, slack-message.
