@@ -2,7 +2,7 @@
 title: "Setting Up Statement and Invoice Email Content"
 id: "6124a176-c39a-45ae-a9b0-1144165f32be"
 category: "Accounts"
-updated_at: "2026-10-09T15:54:30.221Z"
+updated_at: "2026-10-19T16:05:48.377Z"
 source_url: "https://orderhub.pixfizz.com/knowledgebase/6124a176-c39a-45ae-a9b0-1144165f32be"
 ---
 

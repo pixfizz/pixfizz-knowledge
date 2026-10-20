@@ -2,7 +2,7 @@
 title: "Accounts Overview"
 id: "ae472391-5ddd-4bbc-9732-719330eaa00b"
 category: "Accounts"
-updated_at: "2026-10-09T15:54:30.221Z"
+updated_at: "2026-10-19T16:05:48.374Z"
 source_url: "https://orderhub.pixfizz.com/knowledgebase/ae472391-5ddd-4bbc-9732-719330eaa00b"
 ---
 

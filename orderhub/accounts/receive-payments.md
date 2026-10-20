@@ -2,7 +2,7 @@
 title: "Receive Payments"
 id: "a32c1511-c29b-4ab7-bc7c-2821419cbe00"
 category: "Accounts"
-updated_at: "2026-10-09T15:54:30.221Z"
+updated_at: "2026-10-19T16:05:48.372Z"
 source_url: "https://orderhub.pixfizz.com/knowledgebase/a32c1511-c29b-4ab7-bc7c-2821419cbe00"
 ---
 
@@ -10,20 +10,24 @@ source_url: "https://orderhub.pixfizz.com/knowledgebase/a32c1511-c29b-4ab7-bc7c-
 
 # Receive Payments
 
-How to receive payments
-
-1. Go to Accounts"
-
-2. Select Receive Payments
-
-3. Select the company
+1. Go to **Accounts**.
+2. Select **Receive Payments**.
+3. Select the company.
 
 ![Image 1](https://nazkcvruighrhpgcarxg.supabase.co/storage/v1/object/public/help-documentation-images/ca95a6b7-93ad-4902-a6d4-2c2bf253ad0d.png)
 
-4. Enter Payment
-
-Enter payment received. payment Method, any reference and apply to the correct Invoices
-
-then Post Receipt
+4. Enter the payment received, the payment method and any reference, and apply it to the correct invoices.
+5. Click **Post Receipt**.
 
 ![Image 2](https://nazkcvruighrhpgcarxg.supabase.co/storage/v1/object/public/help-documentation-images/7bfdd8e4-347f-4361-8374-bf58400027a1.png)
+
+---
+
+## Account credit in the payments list
+
+Account credit added by an admin shows in the same list as payments, labelled **Account credit**. It isn't money received, so it never appears in takings or Z reports.
+
+* Credit is normally taken off new invoices automatically.
+* If automatic use is turned off, open the credit and use **Apply payment** to choose the invoice, the same way as an unapplied payment.
+
+See **Account Credit** for details.

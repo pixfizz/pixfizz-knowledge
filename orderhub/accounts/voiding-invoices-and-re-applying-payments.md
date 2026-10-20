@@ -2,7 +2,7 @@
 title: "Voiding Invoices and Re-applying Payments"
 id: "a938238c-9ee6-4318-a753-5f3ea131cd5e"
 category: "Accounts"
-updated_at: "2026-10-09T15:54:30.221Z"
+updated_at: "2026-10-19T16:05:48.443Z"
 source_url: "https://orderhub.pixfizz.com/knowledgebase/a938238c-9ee6-4318-a753-5f3ea131cd5e"
 ---
 
@@ -139,6 +139,17 @@ Invoices that are fully covered move to **paid**; partly covered ones move to **
 
 ---
 
+## When the money applied is account credit
+
+Credit used on an invoice works like a payment here. It's listed in the **Void invoice** window with the payment lines, labelled **Account credit**, and it has to be cleared before the void goes through.
+
+* **Release back to payment** returns the credit to the account. It becomes available again for the next invoice.
+* **Move to another invoice** puts the credit straight onto the invoice you pick.
+
+* Note: Voiding an invoice never turns credit into a cash refund.
+
+---
+
 ## Good to know
 
 * **Voiding an invoice does not refund anyone.** It withdraws the document. If a customer is genuinely owed money back, that is a refund, handled separately.
@@ -147,3 +158,4 @@ Invoices that are fully covered move to **paid**; partly covered ones move to **
 * **Voiding a payment is a browser confirmation, not a window.** On the Receipts tab the **Void** button asks *Void this receipt? Allocations will reverse.* and acts immediately on OK.
 * **If a customer has paid more than they will ever be invoiced for**, that money will sit unapplied with nothing to apply it to. Make a note of it against the account so it is not forgotten.
 * **Payments applied to invoices never appear on a Z report.** Account payments are recorded against the customer's account, not against a till session, so end-of-day figures are unaffected by anything in this article.
+* **Credit can only be voided once it's unused.** To void credit that's on an invoice, release it first, then void it from its own window.

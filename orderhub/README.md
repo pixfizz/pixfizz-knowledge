@@ -4,17 +4,18 @@
 
 Mirror of the help articles inside OrderHub (orderhub.pixfizz.com). Updated automatically every night. The source of truth is OrderHub: edit articles there, not here. For the curated overview see `45_ORDERHUB.md`.
 
-72 articles.
+73 articles.
 
 ## Accounts
 
-- [Accounts Overview](accounts/accounts-overview.md) (updated 2026-10-09)
-- [How to Setup Accounts](accounts/how-to-setup-accounts.md) (updated 2026-10-09)
-- [Payment Rules: Require Payment Before Shipping or Pickup](accounts/payment-rules-require-payment-before-shipping-or-pickup.md) (updated 2026-10-09)
-- [Receive Payments](accounts/receive-payments.md) (updated 2026-10-09)
-- [Setting Up Statement and Invoice Email Content](accounts/setting-up-statement-and-invoice-email-content.md) (updated 2026-10-09)
-- [Setup Invoice Template](accounts/setup-invoice-template.md) (updated 2026-10-09)
-- [Voiding Invoices and Re-applying Payments](accounts/voiding-invoices-and-re-applying-payments.md) (updated 2026-10-09)
+- [Account Credit](accounts/account-credit.md) (updated 2026-10-19)
+- [Accounts Overview](accounts/accounts-overview.md) (updated 2026-10-19)
+- [How to Setup Accounts](accounts/how-to-setup-accounts.md) (updated 2026-10-19)
+- [Payment Rules: Require Payment Before Shipping or Pickup](accounts/payment-rules-require-payment-before-shipping-or-pickup.md) (updated 2026-10-19)
+- [Receive Payments](accounts/receive-payments.md) (updated 2026-10-19)
+- [Setting Up Statement and Invoice Email Content](accounts/setting-up-statement-and-invoice-email-content.md) (updated 2026-10-19)
+- [Setup Invoice Template](accounts/setup-invoice-template.md) (updated 2026-10-19)
+- [Voiding Invoices and Re-applying Payments](accounts/voiding-invoices-and-re-applying-payments.md) (updated 2026-10-19)
 
 ## File Uploads
 

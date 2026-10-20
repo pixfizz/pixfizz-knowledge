@@ -2,7 +2,7 @@
 title: "Payment Rules: Require Payment Before Shipping or Pickup"
 id: "5f5839b3-0542-4451-a426-b098f1dab894"
 category: "Accounts"
-updated_at: "2026-10-09T15:54:30.221Z"
+updated_at: "2026-10-19T16:05:48.382Z"
 source_url: "https://orderhub.pixfizz.com/knowledgebase/5f5839b3-0542-4451-a426-b098f1dab894"
 ---
 

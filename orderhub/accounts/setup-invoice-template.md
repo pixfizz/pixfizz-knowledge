@@ -2,7 +2,7 @@
 title: "Setup Invoice Template"
 id: "b1f19c4f-6a14-4289-90e4-106c15c5a254"
 category: "Accounts"
-updated_at: "2026-10-09T15:54:30.221Z"
+updated_at: "2026-10-19T16:05:48.382Z"
 source_url: "https://orderhub.pixfizz.com/knowledgebase/b1f19c4f-6a14-4289-90e4-106c15c5a254"
 ---
 
@@ -10,18 +10,35 @@ source_url: "https://orderhub.pixfizz.com/knowledgebase/b1f19c4f-6a14-4289-90e4-
 
 # Setup Invoice Template
 
-Setting up your invoice Template
+Your invoice template controls how every invoice PDF looks. You build it once in the PDF Designer, and OrderHub uses it each time an invoice is created.
 
-1. Go to PDF Designer
+---
 
-2. click on "Create Template"
+## Creating the template
 
-Select Template type "Invoice"
+1. Go to **PDF Designer**.
+2. Click **Create Template**.
+3. Set the template type to **Invoice**.
 
 ![Image 1](https://nazkcvruighrhpgcarxg.supabase.co/storage/v1/object/public/help-documentation-images/5c386b1d-ab6d-45f5-b1f2-7e56106f2491.png)
 
-3. Add required elements onto your page
+4. Add the elements you need to the page: your logo, the customer address, the line items and so on.
 
 ![Image 2](https://nazkcvruighrhpgcarxg.supabase.co/storage/v1/object/public/help-documentation-images/b50e56c2-7abc-40e4-861c-5e6041a7c7c2.png)
 
-Do noy select "Automation On" - Just save your design
+5. Don't turn on **Automation On**. Just save your design.
+
+---
+
+## Showing the amount owing
+
+To print the totals and the amount still to pay, add the **Financial summary** block under your line items. It shows:
+
+* **Subtotal**, plus **Shipping** and **Tax** when there are any
+* **Total**
+* **Account credit applied**, when credit was used
+* **Paid**, only when money was actually received (a deposit, for example)
+* **Amount due**
+
+* Note: These figures are fixed at the moment the invoice is created. A later payment doesn't change the PDF. The customer's statement always shows the up-to-date balance.
+* Note: Existing invoice designs don't get the block automatically. Add it to your own design and save.

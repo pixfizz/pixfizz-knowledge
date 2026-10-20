@@ -2,7 +2,7 @@
 title: "How to Setup Accounts"
 id: "ffd2d01a-1801-45b5-ae31-afeb9dd56a1c"
 category: "Accounts"
-updated_at: "2026-10-09T15:54:30.221Z"
+updated_at: "2026-10-19T16:05:48.382Z"
 source_url: "https://orderhub.pixfizz.com/knowledgebase/ffd2d01a-1801-45b5-ae31-afeb9dd56a1c"
 ---
 
