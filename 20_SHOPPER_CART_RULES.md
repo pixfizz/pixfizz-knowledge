@@ -2,7 +2,7 @@
 
 **Authority Scope:** Cart behavior only.
 
-_Last updated: 2026-09-09_
+_Last updated: 2026-10-22_
 
 ---
 
@@ -31,6 +31,7 @@ Two limitations apply, and both fail silently:
 - Quantity not editable in cart.
 - Quantity is per-photo in Photo Prints UI; orderline priced via `cut_print_quantity`.
 - The photo prints component has **no minimum-quantity, maximum-quantity or order-threshold property**. A minimum order rule on photo prints is custom code, hooked into the component's client-side methods, and is a client-side guard only: anything that must genuinely hold needs a second check at cart or checkout. Hook surface and mount points: `41_IMPLEMENTATION_PATTERNS_UPDATED.md` (PhotoPrintsComponent hooks) and `52_SNIPPET_INVENTORY.md` annotations. *Verified by test on a live bundle, 2026-09-10.*
+- **Image selection resets after a quantity update (from 2026-10-21).** In the photo prints flow, the image selection process is reset after a quantity update, so selecting images works more like Photo Finale's. Platform-level (photo prints component). *Stated by the core developer, Slack #development, 2026-10-21 (release commit "Reset image selection process after quantity update").* What the customer sees step by step was not described.
 
 ## Pricing display
 - Pricing generally visible; tiered pricing may show strikethrough.
@@ -46,6 +47,16 @@ Two limitations apply, and both fail silently:
 **A saved project can be added without opening the editor** (platform-level). The editor's own Add to Cart saves the project, then submits a plain form: `POST /cart/add_print_product` with `print_book_id`, `quantity`, `sum_quantities=false` and `target=/site/cart` (plus `parent_orderline_id` when the URL carries `parent_orderline`). No CSRF token. The same POST from a custom tool on the same origin added a saved, already-filled project that no shopper had opened in the editor; the response redirects to the cart. The project must already be saved and filled. A custom cart page or `cart_target` in the editor config changes where the editor goes afterwards; the POST does not depend on it. Concurrent posts race on the cart (`22_OPTION_VARIANT_RENDERING.md`). *Verified by reading the editor bundle and by query, bundle 20261002143509, 2026-10-04. Internal endpoint: re-check after platform updates.*
 
 **On the cart page the header mini-cart repeats each line's remove form with the same action.** A script that picks remove buttons by page order hits the mini-cart copy first. Scope cart scripts to the main cart list, never `document`. Template-level (Shopper 24). *Verified by query, 2026-10-13.*
+
+## Removing a cart line asks for confirmation (parent, 2026-10-22)
+
+Template-level (Shopper 24 parent). Two parent snippets, `checkout/remove-line-confirm` (script) and `style/remove-line-confirm` (its CSS), put a confirm box in front of a cart line's remove: **Keep it** cancels, **Remove** posts the remove and shows a Removing state. It works stacked over the cart fly-out without breaking it.
+
+- **Opt-in by class.** The script acts only on `orderline_delete` forms that carry the class `px-rm-line`. On the parent, `pages/cart` (both of its `orderline_delete` forms) and `modals/shopping-cart` carry the class and include `{% snippet 'checkout/remove-line-confirm' %}`.
+- **Child overrides keep the old instant remove.** A child site that overrides `pages/cart` or `modals/shopping-cart` gets no confirm until its override adds `px-rm-line` to the remove forms and the include.
+- **Fails open.** If the script fails, the form is a plain post and remove works as before.
+
+*Verified live on experience.pixfizz.com, 2026-10-22* (confirm box, Keep it cancels, Remove removed a line, Removing state, stacked over the fly-out). Admin editing note: a Pages page body is the textarea `page[body]`, a snippet's is `snippet[content]`; both are Ace editors (`61_PIXFIZZ_API.md`).
 
 ## A guest who signs in keeps projects and cart lines
 
@@ -264,3 +275,4 @@ A parent snippet `checkout/cut-print-upright` was delivered as paste blocks on 2
 - 2026-10-06: Photo prints: no min/max quantity property, minimums are client-side custom code. Added free shipping progress bar is display only (hard-coded 99). Added cart links (GET links add saved projects only, no promo-code URL parameter) and adding a saved project via `POST /cart/add_print_product`. Added a guest who signs in keeps projects and cart lines. CORRECTED cart-to-order promotion: needs an Order custom field definition per site, Public, tested with a placed order. CORRECTED the Add to Cart gate section: `requires_design: true` is safe on tool-driven and file-upload products (the 2026-09-09 "never set it" advice is withdrawn). Added that a custom tool chooses its own cart image via a `_preview` option. Source: claude-chat.
 - 2026-10-09: Added Reorder, order details and emails for a custom tool line (Reorder drops template option files, order details prints every variant, the email line shows the catalog photo). Added Cut prints with autorotate show sideways in the cart, with the delivered parent fix marked not verified live. Source: claude-chat.
 - 2026-10-17: Text-type variants never show on the cart line; `hide_edit_in_cart` removes the cart Edit link; the header mini-cart repeats each line's remove form (scope cart scripts to the main list); new section: a static product with no image shows no thumbnail anywhere (launch check filtered to static products). Source: claude-chat.
+- 2026-10-22: New section: removing a cart line asks for confirmation (parent snippets `checkout/remove-line-confirm` and `style/remove-line-confirm`, opt-in class `px-rm-line`, child overrides of `pages/cart` or `modals/shopping-cart` keep the instant remove, fails open). Photo prints: image selection resets after a quantity update (live 2026-10-21). Source: claude-chat, slack-message.

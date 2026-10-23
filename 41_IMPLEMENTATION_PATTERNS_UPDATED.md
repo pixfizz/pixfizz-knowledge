@@ -3,7 +3,7 @@
 **Authority Scope:** Reusable architectural patterns for Pixfizz
 storefronts.
 
-*Last updated: 2026-09-09*
+*Last updated: 2026-10-22*
 
 ------------------------------------------------------------------------
 
@@ -1143,6 +1143,18 @@ kit), 2026-09-09._
 
 ------------------------------------------------------------------------
 
+# Scripted Admin Writes: Pick the Form by a Field, Never by Its Action URL
+
+Any script that posts an admin form from a logged-in admin tab (bulk edits, page builders, preview uploads) follows four rules. Platform-level (Pixfizz admin).
+
+1. **Select the form by a field it must contain** (for a Pages instance an input named `...[page_path]`), never by its action URL. On admin show and edit pages the Delete button is a `button_to` form with `_method=delete` posting to the **same** action URL, and it usually comes first in the DOM.
+2. **Read the form's `_method` and refuse to submit unless it is `patch` or `put`** (or absent for a create).
+3. **Build the `FormData` field by field.** Never call `new FormData(form)` on a form you have not checked: a script that matched `f.action.endsWith('/<id>')` and posted `new FormData(form)` submitted the Delete form and deleted a live landing page (a Pages Custom Type instance). *Verified by query (the incident), 2026-10-19.*
+4. **Keep a restore copy before every write** (an export, or the source file). That page was recoverable only because its source and description were on file.
+
+The same trap on snippets, template options, collections and assets, and the edit-only field to select by on each: `18_ADMIN_NAVIGATION.md` § Bulk Update Tools (DELETE form bullet). Pages instance admin routes: `61_PIXFIZZ_API.md`.
+
+------------------------------------------------------------------------
 
 ## Changelog
 
@@ -1164,3 +1176,4 @@ kit), 2026-09-09._
 - 2026-09-19: Custom-tool install order cut from four steps to two. Product custom field definitions and checklist values are retired as install steps — configuration rides in the mount argument list. Cross-referenced `26_CUSTOM_DESIGN_TOOLS.md`. Source: kbsync (custom tool estate).
 - 2026-10-06: Added PhotoPrintsComponent hooks: the MobX instance and the members to wrap or shadow (goToCropOptions, goToCropOptionsButtonEnabled, totalPrintsQuantity and others), the five rules (wrap for enforcement, never call the original getter, zero prints already disabled, assert on init and fail open, client guards are not enforcement), where the code goes per deployment, and per-size minimums via the Shopify session key. Source: claude-chat.
 - 2026-10-06 (later): Qualified the `px.fragmentsReloaded` note: not enough for checkout re-injection, but the right hook for a product switch on the product form. Source: gmail (core developer, 2025).
+- 2026-10-22: Added Scripted Admin Writes: select an admin form by a field it must contain, require `_method` patch or put, build FormData field by field, keep a restore copy (a Pages instance deleted by an action-URL match), pointing to 18 for the per-page fields. Source: claude-chat.

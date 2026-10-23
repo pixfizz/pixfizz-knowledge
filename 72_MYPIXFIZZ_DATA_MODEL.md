@@ -2,7 +2,7 @@
 
 **Authority Scope:** Supabase database schema for my.pixfizz.com.
 
-_Last updated: 2026-10-06_
+_Last updated: 2026-10-22_
 
 > **Coverage.** The Table Reference below is the March 2026 export (88 tables). The database had
 > 162 public tables by 29 September 2026. § Tables Added September to October 2026 covers the
@@ -203,6 +203,7 @@ Customer brands/storefronts, each linked to an organization.
 | ga4_measurement_id | text, nullable | |
 | ga4_api_secret | text, nullable | |
 | ga4_send_debug | boolean | |
+| ga4_server_purchases | text | `all` (default) or `no_browser`. `no_browser` sends kiosk and no-source orders server-side and leaves online orders to the browser. Recorded 2026-10-17; how it combines with the 48 to 72 hour backfill rule is in `85_GA4_SERVER_SIDE_PURCHASE.md` § 3. |
 | webhook_secret | text, nullable | |
 | created_at | timestamptz | |
 | updated_at | timestamptz | |
@@ -577,7 +578,7 @@ Individual GA4 Measurement Protocol send attempts.
 ---
 
 ### ga4_event_outbox
-Outbox queue for GA4 events pending delivery via Measurement Protocol. `raw_payload` holds the full Pixfizz order webhook payload for every event received (`order.created`, `order.status_changed`, `order.updated`), so live sales reporting can read it with no Pixfizz core work. It is also the order history behind Brand Performance: never put an age-based delete on it (`70_MYPIXFIZZ_OVERVIEW.md` § Operational Rules for Changing myPixfizz). Brand Performance currently groups by the database time zone, not the store's local day (see `61_PIXFIZZ_API.md` § 13d on `created_at`). *Verified by query, 2026-10-17.*
+Outbox queue for GA4 events pending delivery via Measurement Protocol. `raw_payload` holds the full Pixfizz order webhook payload for every event received (`order.created`, `order.status_changed`, `order.updated`), so live sales reporting can read it with no Pixfizz core work. It is also the order history behind Brand Performance: never put an age-based delete on it (`70_MYPIXFIZZ_OVERVIEW.md` § Operational Rules for Changing myPixfizz). Brand Performance currently groups by the database time zone, not the store's local day (see `61_PIXFIZZ_API.md` § 13d on `created_at`). *Verified by query, 2026-10-17.* **One order has several rows** (one per webhook event), so any sender or count must claim or group by brand + order code; on 2026-10-17 one order was sent to GA4 twice from two rows 7 seconds apart (`85_GA4_SERVER_SIDE_PURCHASE.md` § 3, Idempotency). *Verified by query, 2026-10-17.*
 
 | Column | Type | Notes |
 |---|---|---|
@@ -1672,3 +1673,4 @@ Adding a **second** foreign key from table A to table B makes every bare embed o
 - 2026-09-24: Added rule 3: a second foreign key to an embedded table breaks existing PostgREST embeds. Source: claude-chat.
 - 2026-10-06: Added a coverage note, new `brands` columns and rules (archive, merge, billing code, derived platform, storefront type values, identity guards), new `support_cases` columns and support rules (order error fields, urgency, urgent alert clock, awaiting-customer sweep, outbox events), and § Tables Added September to October 2026 (brands and performance, tools, storefront configuration, blog, marketing, launch plans and project requests, support and other), all read from the migrations at commit d6290ee. Source: claude-chat.
 - 2026-10-17: `ga4_event_outbox`: `raw_payload` holds every order webhook payload (created, status changed, updated) for live sales reporting; it is Brand Performance's order history; Brand Performance groups by the database time zone. Source: claude-chat.
+- 2026-10-22: `brands`: `ga4_server_purchases` (`all` / `no_browser`). `ga4_event_outbox`: several rows per order, claim or group by brand + order code. Source: claude-chat.

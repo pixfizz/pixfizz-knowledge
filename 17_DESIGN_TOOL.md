@@ -2,7 +2,7 @@
 
 **Authority Scope:** Design Tool Configurations, feature toggles, and customer-facing editor behavior.
 
-_Last updated: 2026-09-09_
+_Last updated: 2026-10-22_
 
 ---
 
@@ -110,10 +110,18 @@ Vintage Film was drafted during development and is **not** in the launch set. Ge
 - Account Page Name
 
 ### Integrations
-- Google Tag Manager ID
+- Google Tag Manager ID (`editor_configuration[google_tag_manager_id]`). *Not verified* that it
+  loads GTM inside the editor page. The editor bundle itself pushes nothing to `dataLayer`
+  (*verified by reading `editor_bundle.js`, bundle 20261021074014, 2026-10-21*), so editor
+  events need either this GTM container with click triggers on the editor's `data-onclick`
+  names (see § Editor Buttons and Per-Site CSS) or a script (see § Tracking hooks for
+  add_to_cart).
 - Image Sources — comma-separated list that specifies the **order of the source icons** in the editor's Images tab (not merely which sources are on). Allowed values: `device`, `galleries`, `public_galleries`, `groups`, `clipart`, `pdf_import`, `dropbox`, `google_photos`. Defaults to `device` when the field is empty. To expose a PDF import toolbar button you must do two things: enable the PDF Imports feature toggle (under Image Features) AND add `pdf_import` to this Image Sources field. `dropbox` and `google_photos` need provider OAuth setup before they work (see Google Photos as an Image Source below).
 - Help URL
-- Custom JS — inject custom JavaScript
+- Custom JS: inject custom JavaScript. The field is `custom_js_files_string` ("Custom JS
+  files", beside Custom CSS). It was visible on one child site's configuration and not shown on
+  baseline.pixfizz.com or experience.pixfizz.com, so it is probably staff or super admin gated
+  per site. *Not verified why, 2026-10-21.*
 - Custom CSS — inject custom styles
 
 > Some Design Tool Configuration settings are only visible to Pixfizz staff. These control platform-level behaviors and are managed during onboarding or through support requests.
@@ -351,6 +359,16 @@ in the storefront editor:
 - Layout swaps work in every direction (locked to unlocked, unlocked to locked, locked to
   locked): the old layout's elements are removed and the new ones placed.
 - A design import keeps `edit="false"` and the `e*` permission flags verbatim.
+- **Fixed size and color on an editable text element:** `efontsize="false"` removes the Size
+  control from the desktop text panel and the Size tab from the mobile text toolbar;
+  `ecolor="false"` removes the Color control. The customer can still type. *Verified by query
+  in the storefront editor on baseline.pixfizz.com, bundle 20261021074014, 2026-10-21.* The
+  admin design tool has **Font Size** and **Color** toggle buttons for the selected text element
+  that set these flags (`setFontSize` / `setColor`, with undo). *Verified by reading source, same
+  bundle; the buttons themselves not yet clicked.* With `shrink="true"` the printed size still
+  drops when the text outgrows the box, and a resizable box can be made smaller: for a
+  guaranteed size use `efontsize="false"` with `shrink="false"` (or `resize="false"`) and a
+  character limit. This replaces custom editor JS to enforce a minimum size.
 - **Do not combine `edit="false"` with `placeholder="true"` on artwork that must print.**
   That pair is the uneditable placeholder above, which production drops. Confirm on the
   first proof that locked backgrounds print.
@@ -370,6 +388,8 @@ Elements can be assigned to named layers (for example `background`, `artwork`, `
 - **Where the CSS goes.** Per-site editor styling such as the autofill button goes in a stylesheet that the Design Tool Configuration's **Custom CSS** field names, with no template change. The field takes file names, not CSS text (Corrected 2026-10-06); on a Shopper child that is an Override Snippet of `style/editor.css` plus `editor.css` in the field. See § Editor CSS Customization.
 - **AI photo filters** in the design tool consume AI credits billed to the merchant; the merchant can cap daily uses per customer. *Stated on a client call, 2026-09-24.*
 - **Text labels on the desktop add-element buttons.** The desktop page toolbar (`.px-page-display .px-page-toolbar .px-left`) renders the add buttons with stable `data-tool-id` values: `add-qrcode`, `add-shape`, `add-text`, `add-image` (undo and redo are `undo` and `redo`). Stock width is a fixed 40 px per button. Add a label with `::after { content: "..." }` per `data-tool-id` and `width: auto` on the button; the icons stay 27 x 27 and a click on the label fires the button. Do not use `attr(data-px-tooltip)`: the tooltip text changes when a button is disabled ("Cannot add text to this page") and sites rename it. Switch the labels off by the width of `.px-page-display`, not the viewport width, because opening the inspector shrinks the canvas area (1024 px window: 692 px closed, 427 px open); four labelled buttons need about 662 px. Declaring `.px-editor .px-page-display` a size container did not change its width. The mobile editor's toolbar (`.px-mobile-toolbar`) already has labels. *Verified by reading source and by query, bundle 20261007100426, 2026-10-08.*
+- **Add QR code button.** It renders as `<button data-tool-id="add-qrcode" data-onclick="addQrCodeBox">`. It is hidden when the configuration sets `hideAddQrCodeBoxButton`, and disabled when no template on the project allows QR codes (`eqrcodes`). A placed QR code renders as `g.px-qrcode-element`. To hide the button on one class of device, target `button[data-tool-id="add-qrcode"]` in the site's editor CSS inside a media query. Platform-level. *Verified by reading `editor_bundle.js`, bundle 20261021074014, 2026-10-21.* Phones have no way to add a QR code in the editor (*stated by Alex, 2026-10-21*). Tablet behavior: `82_MOBILE_UX_REFERENCE.md`.
+- **Save and exit hooks.** The editor's buttons carry `data-onclick` names that a GTM click trigger or a script can key on: `saveAndExit` (Save project before exiting modal), `exitEditor` (top bar exit), `saveProjectModal` (save). *Verified by reading `editor_bundle.js`, bundle 20261021074014, 2026-10-21.* Internal names; a bundle update can change them.
 
 ## Driving the Editor From a Script
 
@@ -406,6 +426,9 @@ a shopper24 child, bundle 20261002143509, 2026-10-03, unless marked.*
   preview, cover, endsheet-front, first, the grow spreads, last and endsheet-back. A tool that
   maps its own pages to editor pages by index must skip the preview and endsheet pages.
   *Verified by query, 2026-10-14.*
+- Page elements expose `name` (the XML `name` attribute, `null` when unset), `placeholder`,
+  `replace`, `x`, `y`, `width` and `height`. Layouts are in `store.layouts.layouts`, each a Page
+  object with `.elements`. *Verified by query, 2026-10-20.*
 
 ### Autofill in a chosen order
 
@@ -422,6 +445,14 @@ The editor's own autofill can be driven with any photo order; gallery order does
 
 - A design image without `placeholder="true"` (a typical cover photo) is skipped by
   autofill. Call `el.update({placeholder: true})` on it first.
+- **Image ids must be `db:<id>`** (`store.images.register('db:' + id, img)`,
+  `store.project.autofill(['db:' + id, ...])`). A bare numeric id throws in the image factory and
+  leaves the project unsaveable until the editor reloads. *Verified by query, 2026-10-19.*
+- **An image placeholder the customer cannot edit is skipped** (one without `edit="true"`) and
+  comes back in the returned rest. Set it directly with `el.update({id, placeholder: false})`,
+  or use `fillPlaceholder` below. *Verified by query, 2026-10-20.*
+- Calendar projects fill the same way: 13 photos were placed cover first, then month by month.
+  *Verified by query, 2026-10-19.*
 - Text: `textElement.update({text})` persists on save.
 
 Not verified: layout of pages added by `_autofillWithNewPages`, and logged-in projects.
@@ -442,6 +473,48 @@ Further detail, *verified by query, bundle 20261002143509, 2026-10-04*:
 - **Creating a project by posting the product page's `#project_create` hidden inputs needs
   the `book[pages]` select on every product's page.** One product lacked it until fixed;
   check every product in the flow, not just one.
+
+### Text, image and layout calls
+
+*Verified by query on experience.pixfizz.com, bundle 20261021152157, 2026-10-21, read back from
+`GET /v1/books/<id>/pages.json` after `saveProject()`, unless marked.*
+
+**Text elements.**
+- `el.update({text})`, `el.update({font: <site font id>})`, `el.update({color: '#RRGGBB'})` and
+  `el.update({kerning: 0})` all persist on save.
+- **Size is `pointsize` (points).** `fontsize` is computed from it (millimetres,
+  `pointsize x 25.4 / 72`) and writing `fontsize` throws a MobX invariant error. Keys written
+  before the failing key in the same update object still land, so update one key per call.
+- `page.removeElement(el)` removes a text element; the saved page no longer carries it.
+- Site font ids by name: `GET /v1/fonts.json` (public, `61_PIXFIZZ_API.md`) returns
+  `[{id, name, preview, url}]`; names carry the weight and style ("Playfair Display Italic").
+
+**Image elements.**
+- `el.fillPlaceholder('db:<image id>')` fills one frame directly: it sets the image and
+  `placeholder=false`, and works only on an editable master element that is a placeholder or
+  empty. Register the image first (`galleries.project._addDbImage(json)` and
+  `store.images.register(id, data)`). When the frame is known by name there is no need for
+  `project.autofill` and its page-order rule.
+- `el.update({zoom, left, top})` (crop, § Image crop state) and `el.update({grayscale: true})`
+  persist; the saved XML carries `grayscale="true"`.
+- `el.update({x, y, width, height})` moves and resizes an element and saves. *Verified by query,
+  2026-10-20.*
+
+**Layouts.** `page.setLayout(layout)` removes only the page's elements marked `layout="true"` and
+inserts the layout's elements (marked `layout="true"`). Elements from the design page
+(`layout="false"`) stay, so a design page whose photo frame is not marked `layout="true"` ends up
+with both the old and the new frames (`19_XML_TEMPLATE_REFERENCE.md` § Layout Content Requires
+`layout="true"`). *Verified by production render on baseline.pixfizz.com, 2026-10-20.* Calendar
+consequence: `23_XML_CALENDAR_REFERENCE.md` § Per-Page Photo Layouts on Calendar Templates.
+
+### Tracking hooks
+
+The working editor hooks for an add_to_cart event are a click listener on `.px-cart-button`,
+attached once `editor.store.project.loaded` is true (for example with `mobx.when`), and
+`editor.store.price` for the value. A Pixfizz CMS site and the Shopper 24 page
+`pages/editor-scripts.js` both track add_to_cart this way. Platform-level, internal: an editor
+bundle update can change either. *Verified by reading source, 2026-10-21.* Where an editor script
+can run: § Where a script can run.
 
 ## Mapped Previews — What "Use Mapped Preview" Actually Is
 
@@ -493,6 +566,13 @@ Three substitution types target shape element borders:
 - **Shape border width**
 - **Shape border color**
 - **Shape border radius**
+
+### Image border substitutions
+
+`image_border_width` on an image element is drawn **centered on the element edge**: half outside,
+half inside. A width of 34.29 on a mm page shows 17.1 mm (0.670 in) inside the edge. Pair it with
+`image_border_color` on the same element. Platform-level. *Verified by server render, 2026-10-22;
+the production file was not rendered.*
 
 ### Image effects substitution
 
@@ -1312,3 +1392,4 @@ Platform event. *Stated by the core developer, 2025-05; not re-tested by query.*
 - 2026-10-06 (later): Restoring Input Values After a Product Switch: `px.fragmentsReloaded` fires on a product switch on the product form; refill on `pageshow` and on that event. Source: gmail (core developer, 2025).
 - 2026-10-09: Tag-only substitution targeting verified in the storefront editor (production still not verified), with the admin route. New § Image crop state (`zoom` is a percent, `left`/`top` are percents of the displayed photo, clamping, persisting from a script). Editor Buttons: text labels on the desktop add-element buttons by `data-tool-id`. New § A tool mounted by `custom_script` lives inside the variant selector (where it renders, label specificity, change events copying options into the URL, never touch browser history, no quantity field, theme class collisions, pointer capture, check the live snippet version). Build rules: one filename per tool asset. Source: claude-chat.
 - 2026-10-17: Editor store: the page list includes `editor="false"` sets (preview, endsheets), so index mapping must skip them. Browser-Side Rules: freeing a loaded image with `src = ''` fires its error handler; clear `onload`/`onerror` first. Source: claude-chat.
+- 2026-10-22: Integrations: Google Tag Manager ID field name (loading GTM in the editor not verified; the bundle pushes nothing to `dataLayer`), `custom_js_files_string` seen on one site only. Editor Buttons: Add QR code button selector, `hideAddQrCodeBoxButton`, `eqrcodes`, `g.px-qrcode-element`; `data-onclick` save and exit names. Locking an Element: text `efontsize` and `ecolor` flags and the admin toggles. Driving the Editor: element properties and `store.layouts`; autofill needs `db:<id>` ids and skips non-editable placeholders; new § Text, image and layout calls (`pointsize` not `fontsize`, `removeElement`, `fillPlaceholder`, `grayscale`, `x/y/width/height`, `setLayout`); new § Tracking hooks (`.px-cart-button`, `editor.store.price`). New § Image border substitutions (`image_border_width` centered on the edge). Source: claude-chat.

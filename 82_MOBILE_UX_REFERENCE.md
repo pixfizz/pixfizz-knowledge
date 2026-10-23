@@ -191,7 +191,7 @@ A Unicode glyph used as an icon (braille dots as a drag handle, a multiplication
 - **Do not keep patching a desktop multi-pane layout for phones.** After about two rounds, build a dedicated mobile route with its own shell and reuse only the data layer.
 - **A reliable mobile shell:** `position: fixed; inset: 0; height: 100dvh` as a flex column, with the top bar and composer as siblings outside the single scroll region; `overflow-x: hidden` on shell and scroll region, `min-width: 0` on flex children, `overflow-wrap: anywhere` on user text.
 - **Known issue, design tool on iPad Safari:** photo upload gives almost no progress feedback, so customers think nothing happened. Workaround: upload to a gallery first, then place. *Reproduced 2026-09-22, not fixed.*
-- **Known issues, design tool on iPad:** QR code and shape elements cannot be moved (resize and rotate work); flip, filters and image controls do not work. *Stated on a client call, 2026-09-28; fix in progress, not reproduced here.*
+- **Known issues, design tool on iPad:** shape elements cannot be moved (resize and rotate work); flip, filters and image controls do not work. *Stated on a client call, 2026-09-28; fix in progress, not reproduced here.* QR codes are now fixed: add, move and link all work. *Tested by Alex on a real iPad on a client site, 2026-10-21.* (Corrected 2026-10-22: previously listed QR code elements as unmovable on iPad.) Shapes, flip, filters and image controls were not re-tested in that pass. Phones have no add-QR control in the editor at all (*stated by Alex*), so this was only ever an iPad issue. The editor's Add QR code button selector is in 17_DESIGN_TOOL.md.
 
 *Verified on a real iPhone, 2026-09-21, except where marked.*
 
@@ -299,3 +299,4 @@ Honest list, so the next person does not assume coverage that is not here.
 - 2026-09-24: Added § 4b Verifying on iPhone, including the iPad Safari upload-feedback known issue. Source: claude-chat, fireflies-call.
 - 2026-09-29: IPad design tool known issues (move, flip, filters). Source: fireflies-call.
 - 2026-10-17: § 4a draw small icons in fixed-size buttons as inline SVG, not text glyphs (off center on iPhone). Source: claude-chat.
+- 2026-10-22: § 4b iPad QR code known issue marked fixed (real-iPad test 21 Oct; CORRECTED), shapes, flip, filters and image controls still open; phones have no add-QR control. Source: claude-chat.

@@ -12,7 +12,7 @@ setup tool that writes Live Finish mounts is described in the myPixfizz files
 (`70_MYPIXFIZZ_OVERVIEW.md`, `71_MYPIXFIZZ_FEATURES_ROUTES.md`); this file only says what
 it produces.
 
-_Last updated: 2026-10-06_
+_Last updated: 2026-10-22_
 
 ---
 
@@ -118,7 +118,20 @@ Every value is a quoted string. Lengths carry their unit (`0.75in`, `6mm`). `lf_
 - `*_variant` keys name the **variant or option code** the preview follows; the plural key
   maps that choice's value codes to looks or settings (`value:look,value:look`). Two maps
   may read the same variant (corners and mounting both following a backing choice,
-  because the backing decides whether the corners show).
+  because the backing decides whether the corners show). `lf_mat_variant` may name a
+  template option (`template_options[code]`) as well as a variant. *Verified live, Live
+  Finish 0.23.5, 2026-10-22.*
+- **A printed border:** an `lf_mats` window ending `@flat` draws a printed border (no bevel,
+  no shadow) in `lf_mat_color`, on the sample before any upload too. With no
+  `lf_frame_filter`, the All colors captions use the frame variant's radio labels.
+  Tool-level. *Verified live on two sites, Live Finish 0.23.5 served, 2026-10-22.*
+- **A color wrap can be a design (template) option.** A child option `value_type: color` with
+  `trigger_value_code: <wrap value code>` and an element substitution `background_color`
+  `<implicit>` on the canvas page, next to a layout substitution on the wrap value, imports
+  inside a template export, and the render shows the picked color on the sides. Live Finish
+  reads it with `lf_wrap_color_variant: '<child code>'` (the engine also finds
+  `template_options[code]`). Platform-level option, tool-level key. *Verified on
+  experience.pixfizz.com, 2026-10-20.* Option setup: `22_OPTION_VARIANT_RENDERING.md`.
 
 ### 2.3 Looks, mountings and rooms
 
@@ -136,7 +149,8 @@ Every value is a quoted string. Lengths carry their unit (`0.75in`, `6mm`). `lf_
 - **Rooms** live in the asset's registry; `lf_room` is one room or a comma list
   (`sofa`, `bedroom`, `hallway`, `sideboard`) and a Change room button cycles them.
   The furniture in each room photo is calibrated to a real width, so the print hangs at
-  true scale. The room photos are AI generated.
+  true scale. The room photos are AI generated. How to calibrate a new room (from a height,
+  on the wall plane) is in § 2.11.
 - **Room plates are 4:5, with scale props inside the middle 85%.** The Live Finish stage is
   about 4:5 on desktop (528 x 669 at 1440 px) and about 1:1 on a phone (343 x 356 at 375 px).
   A 4:3 plate covering that stage keeps only the middle ~59% of its width, so side props that
@@ -201,6 +215,14 @@ Every value is a quoted string. Lengths carry their unit (`0.75in`, `6mm`). `lf_
   Browser-Side Rules. *Verified live, 26 Sep 2026.*
 - `storeOptionSelectionIntoURL` writes `template_options[lf_mount][value]=` into the page
   URL. Harmless.
+- **The stage resets `transform` on its own images.** A site rule such as
+  `img:hover { transform: scale(1.02) }` in `style/custom.css` zooms every image inside a
+  preview while the mouse is over it. Live Finish 0.24.2 guards it with
+  `.lf-stage.lf-stage img:hover, .lf-stage.lf-stage img { transform: none }`; inline
+  transforms still win. Other preview tools likely need the same guard (not checked). On any
+  "it zooms when I hover" report, list the site's `:hover` rules that set `transform` first.
+  *Verified live by computed style, 2026-10-22.* General rule: `26_CUSTOM_DESIGN_TOOLS.md` § 3,
+  *Defend against the site's `style/custom.css`*.
 
 ### 2.6 Gating: what must exist before it shows
 
@@ -259,6 +281,103 @@ proxy. Site assets served from `cdn.pixfizz.com` do answer CORS (a WebGL texture
 `asset_url` works). A standalone embed mode (one script tag, config in data attributes,
 watching a given `<img>`) is not built.
 
+### 2.10 Photo plates (Live Finish Plates)
+
+Live Finish Plates puts the customer's design on a **photo of the real-looking product** (a
+plate): a blank photo of the product, plus a map that says where the print goes and how it is
+shaded (a green box or green print area marks the print surface in a second, edited copy of
+the photo). Tool-level technique, platform-independent. *From prototype and plate builds,
+17 and 18 Oct 2026, unless marked.* Generating the plate photos is in
+`83_AI_IMAGERY_PRODUCTION.md` § B12.
+
+- **One plate for many sizes.** Generate one green box at a known size (for example 16 x 20
+  in), store `free={w,h,anchor}` in the plate meta, and at run time map each requested box
+  through the green box's homography (unit square in plane inches). Coverage comes from the
+  drawn polygon, not the map's G channel. Write the map's R shade over the whole photo, not
+  only inside the green. With a resized box the area outside the green comes from the base
+  photo, so the blank edit must replace a wide soft band around the green (about 6% dilate,
+  3% blur) **plus** the narrow hard mask: the wide band alone leaves green at the old box edge,
+  the narrow one alone a visible seam on a plain wall.
+- **An object resting on the print** (a mouse on a mousepad): skip the blank edit. Coverage is
+  the face hull minus the pixels that are not green (`G - max(R,B) < 22`, opened, small blobs
+  dropped); the shade is the green's own G channel, which gives the contact shadow. Despill
+  the object edge and the product rim (set G to `max(R,B)`).
+- **Build the mask at full resolution.** An AI edit comes back at about 930 px; pasting it into
+  a 4K base leaves a soft, tone-shifted rectangle. Generate the blank natively at 4K and use
+  the green edit only to build the mask (components over 2% of the frame, close 15 px, convex
+  hull). Scale the edit to the blank and align it with an ECC affine registration (green area
+  masked out) before taking the mask: it costs a second and removes a shifted edge.
+- **Round products map a cylinder, not a quad.** Koozies, a gaiter, a mask on a face cannot be a
+  homography. Fit the cylinder from the green silhouette (center, half width, top and bottom
+  edges with their bow) and map `u = 0.5 + asin(dx / rx) * r / w` (r = radius, w = print width,
+  both in inches), v between the edges. For anything worn on a face keep the edges flat (v from
+  the top to the bottom of the silhouette) and let the silhouette clip the print.
+- **Fabric:** no displacement on flat prints (a fine-weave displacement jitters faces and
+  doubles edges); set warp dx / dy to 0 on aprons and T-shirts and let the multiply carry the
+  creases. Fill the design canvas white before drawing, so transparent areas mean no ink.
+- **Banners on a straight-on wall need no green.** A close-up uses a set box with a cap (for
+  example 24 x 24 paper, 48 x 24 vinyl) so every size keeps its shape; a scene uses measured
+  pixels per inch (§ 2.11). Light the print from the wall's blurred luminance, never from the
+  photo itself, or brick and wood grain print through the banner. Add a soft drop shadow;
+  vinyl gets grommets every 24 in.
+- **The stage takes the plate's aspect ratio.** Drawing a 4:5 plate into a 4:3 canvas squashes
+  the product.
+- **Plate weight:** ship plates as WebP (photo about q82, map lossless). Strip map data the
+  material never reads: fabric takes its shade from the photo, so its map R can be flat 128;
+  free-box plates draw their own coverage. A map that compresses badly is carrying photo noise
+  in R (one batch went from 10.9 MB to 1.4 MB with no visible change). A sharp textured
+  background (a wood fence close-up, 814 KB at q82) drops below 300 KB by softening only the
+  band the print covers (bilateral filter) and shipping at 1320 px wide around q60 to q66.
+- **Replacing a plate asset:** uploading a file with the same name does not overwrite an asset;
+  upload the replacement on that asset's own edit page (`26_CUSTOM_DESIGN_TOOLS.md` § 3, tool
+  assets).
+- **Preview tools share one UI standard.** Live Finish Plates matches Live Finish for every
+  shared control: the sample note is a top-left `pxt-chip` button that opens the platform
+  upload dialog (the first enabled `px-image-upload` button), the views pill sits top right,
+  Standard view bottom right. Before changing any on-stage control in one preview tool, copy
+  the behavior from the Live Finish source rather than inventing a variant. *Decided by
+  Pixfizz, 2026-10-17.*
+
+### 2.11 Room scenes at true scale
+
+Applies to Live Finish rooms, Live Finish Plates scenes and any tool that draws art at true
+size on a room photo (wall designs, custom sized prints). Tool-level.
+
+- **Measure the scale from a dimension that barely varies.** Sideboard or table height (30 to
+  34 in), seat height (17 to 18 in), door height (80 in). A plate that assumed a sideboard was
+  60 in wide made every piece 50% too big; measured on its height (about 34 in), the scale was
+  10.5 px/in. Place each size in a slot that avoids props; never stretch a green box to the
+  requested size. *Measured on a plate, 2026-10-17.*
+- **Calibrate on the wall plane, not on the front of the furniture.** A bench or credenza
+  measured at its front edge reads 7 to 15% too large at the wall. Solve the wall scale from
+  the object's front and back floor lines with the camera height at 60 in:
+  `s_wall = s_front - (y_front - y_wall) / 60` (pixels per inch; y in pixels, the front floor
+  line minus the line where wall meets floor). For public spaces, center the art at 60 in
+  from the floor and keep its bottom edge at least 6 to 10 in above the furniture.
+  *From a prototype, 2026-10-19.*
+- **Brick walls:** modular brick courses are 2 2/3 in; measure the course period with an FFT on
+  the row profile, on the vertical courses only (AI bricks are not true proportion
+  horizontally).
+- **A room that holds any size.** A room photo shows about 55 to 60 in of wall above the
+  furniture, so a 96 in piece cannot fit. Extend the room by outpainting (pad the original onto
+  a mid-grey canvas at the same pixels per inch, bottom-centered, sized for the largest piece
+  plus margins, and ask for a taller wall with a ceiling line; generation details in
+  `83_AI_IMAGERY_PRODUCTION.md` § B12). The model re-lights the original region, so paste back
+  only the furniture area (feathered about 70 px), color-matched to the new lighting with a
+  heavily blurred ratio: the wall stays generated, the furniture stays sharp, and the old
+  calibration carries over (offset only). Check the placement with template matching on a
+  furniture crop, not the whole photo: a plain wall correlates almost anywhere.
+- **Keep-outs.** Every scene carries keep-out boxes (lamps, plants, side tables, windows,
+  downspouts, benches) in master pixels. Fit order: the usual hang, then raise up to 30 in,
+  then lower the hang to 2 in, then side spots, then switch scene with a one-line notice. The
+  piece never covers a keep-out. Zoom out in fixed steps (0.84 per step) so the scene holds
+  still while the size changes within a step, and keep 12 in of the furniture in view above
+  the stage controls. *Verified by local render at 1440 and 390 px with an automated keep-out
+  overlap test, 2026-10-22; not verified on a live site.*
+- **Scene imagery is generated photography**, never drawn in code; a person for scale is a
+  silhouette (vector). Scene files are calibrated in master pixels. *Decided by Pixfizz,
+  2026-10-22.*
+
 ---
 
 ## 3. The 3D Preview standard
@@ -303,7 +422,12 @@ Mount option `p3d_mount` (Text, hidden, hide from cart), whose `custom_script` c
   request (`preview.jpg?template_name=<p3d_page>`) failed and the engine restored the
   standard gallery. The console logs `[preview-3d] p3d_page ... is not a page in this
   template definition`; requesting `preview.jpg` with each page name gives 404 vs 200. Most
-  common cause: a mount copied from another site. *Verified live, 2026-10-15.*
+  common cause: a mount copied from another site. *Verified live, 2026-10-15.* Seen again on
+  the msphub 11oz mug template, 2026-10-22: its definition names the print page `front`
+  (8 x 3.5 in) plus two preview sets, and a mount copied from a `fullwrap` mug config gave
+  `preview.jpg?template_name=fullwrap` 404 (`front` 200) and the fallback button on every lab
+  site consuming it. Base a mug mount on the definition it will run on, with
+  `p3d_placement: 'inline'`. *Verified live on a lab site, 2026-10-22.*
 - **Rim rule:** `p3d_print_bottom + p3d_trim_h` must not exceed `p3d_height`; the engine
   switches the preview off when it does. Center the print vertically unless the product
   spec says otherwise: `p3d_print_bottom = (p3d_height - p3d_trim_h) / 2`.
@@ -336,6 +460,31 @@ real product, it was right in one pass.
   outer wall and shows the inside through it (fixed in the 0.3.1 mug models).
 - Keep the `.blend`, `.glb`, `build.py`, `render.py` and the sheet data together with the
   tool.
+- **The same pipeline serves a custom design tool's own preview** (a 3D product beside the
+  tool). When a 2D canvas fake of a 3D product looks cheap, stop iterating on it: build the
+  model in Blender and render it in the tool's own WebGL. Tool-level. *From a prototype round,
+  2026-10-19.*
+  - Blender runs headless from Python: `pip download bpy` (the wheel matching the Python
+    version), install it in a virtual environment and run the model script with that Python.
+    Models are scripts (bmesh, lathe or spin for round products), so a supplier size change is
+    a re-run.
+  - Contract: named materials (`print`, `print_back`, `ceramic`, `webbing`, `plastic`,
+    `metal`); the print surface's UVs map exactly onto the print page, (0,0) top left, so the
+    customer's artwork canvas is the texture. Bake ambient occlusion to a **POINT**-domain
+    color attribute (CORNER domain splits every vertex and triples the file).
+  - Pack with `gltfpack -kv -kn -km -vtf` (`KHR_mesh_quantization`, no meshopt compression).
+    `-kv` is required: without a texture on the material gltfpack drops the UVs. Quantization
+    offsets live on node transforms, so the reader must apply node TRS.
+  - A 100-line GLB reader and one shader cover it, with no three.js; 127 to 202 KB per model.
+  - Site assets refuse `.glb` (§ 3.1), so a model ships base64 inside an asset the platform
+    accepts, as `p3d-model-<name>.js` does. Never `fetch()` an embedded `data:` URL: a strict
+    `connect-src` CSP blocks it and the stage stays blank while a local test passes; decode
+    the base64 with `atob` into an ArrayBuffer.
+- **Never replace an approved, live preview with a new technique.** A prototype round that
+  swapped a locked, live 2D preview for a new GLB model came out clearly worse. New models are
+  for products with no approved preview yet. Before publishing, screenshot the approved preview
+  next to the new one and ship only if the new one is at least as good. *Decided by Pixfizz,
+  2026-10-19.*
 
 ### 3.4 Design rules for wrap products (mugs)
 
@@ -380,6 +529,34 @@ Level: **platform (Pixfizz CMS)**.
   travel inside template exports under `glb_files/`.
 - Site assets on `cdn.pixfizz.com` answer CORS; storefront `/v1/themes/*` endpoints did not
   answer CORS to a foreign origin (§ 2.9).
+- **CDN images as WebGL or canvas textures: two observations, one safe rule.**
+  - 2026-10-21, *verified by query on experience.pixfizz.com:* an `Image` with
+    `crossOrigin = "anonymous"` pointing at a `cdn.pixfizz.com` site asset loaded, drew to a
+    canvas and `getImageData` worked (canvas not tainted).
+  - 2026-10-18, *seen on experience.pixfizz.com:* a three.js `TextureLoader` load (crossOrigin
+    anonymous) of a shopper24 asset failed, blocked without a CORS header, and `onError` may
+    not fire before the scene renders.
+  - Likely reconciliation (inferred, not verified): the URL form differs. Asset URLs are
+    host-signed: the `/fz/<hash>/0/<token>/~/<name>` path taken from admin.pixfizz.com is not
+    valid on `cdn.pixfizz.com` with the same hash, while the URL `asset_url` prints on the
+    storefront is.
+  - Safe rule: take the URL from `{{ '<name>' | asset_url }}` in Liquid, never build it; set
+    `crossOrigin = "anonymous"` before `src`; and keep a fallback that needs no cross-origin
+    read: the image as the stage's CSS background (`background-position` and
+    `background-size` in px from the same cover math) behind a renderer created with
+    `alpha: true` and `scene.background = null`.
+- `cdn.pixfizz.com` serves a `.js` asset as `text/javascript` with CORS, so `import(asset_url)`
+  works as an ES module from a Shopper page. JS responses carry no `Content-Length`; images
+  do. *Verified by query (headers), 2026-10-21.* Alpha WebP files uploaded to shopper24 came
+  back from the CDN with an extra C2PA chunk appended (image data byte-identical), so CDN file
+  sizes can differ from the uploaded file. *Verified by query, 2026-10-21.*
+- **Experimental `canvas` format for the `px-preview` components (not for production use).**
+  Release commits from 16 to 20 Oct add an experimental `canvas` format to the `px-preview-*`
+  web components (drawn in the browser on an offscreen canvas, with text support and a
+  `ctx.roundRect()` polyfill), JSON responses on the book and theme preview endpoints, and a
+  URL parameter to test the canvas renderer. The parameter name and the JSON shape are not
+  recorded. Do not build a preview or a tool on it until the developer marks it stable.
+  *Observed in release commits 2026-10-16 to 2026-10-20; behavior not verified.*
 
 ---
 
@@ -458,7 +635,9 @@ a row, read the version from the live console (§ 3.5).
   the 0.3.1 models. Rework under the design-first rule.
 - **Multiple three.js instances.** `WARNING: Multiple instances of Three.js being imported`
   appears on some product pages without the 3D Preview installed: another script on the
-  page loads three.js. Harmless, not caused by the tool.
+  page loads three.js. Harmless, not caused by the tool. experience.pixfizz.com loads three.js
+  r142 globally (`window.__THREE__ = "142"`), so any tool importing its own copy logs the
+  warning there. *Verified by query, 2026-10-21.*
 - **Not verified on either engine:** Safari's luminance mask (Live Finish), the Shopify
   modal, the photo-upload refresh while the 3D viewer is open, and a real phone for every
   version.
@@ -486,6 +665,15 @@ a row, read the version from the live console (§ 3.5).
   in close-ups: set `frustumCulled = false` or recompute the sphere.
 - A single-sided cloth casts no shadow toward the light unless
   `material.shadowSide = THREE.DoubleSide`.
+- **Loading a newer three.js without an import map:** three 0.160.0 from jsDelivr `+esm`
+  (core, and addons as `examples/jsm/.../X.js/+esm`) loads with dynamic `import()` from a
+  classic script on a Shopper page; the addons resolve to the same core module, so there is
+  one THREE instance. *Verified by query, 2026-10-18.*
+- three.js r160 `ShaderMaterial`: the program prefix already defines the tone mapping
+  functions, so `#include <tonemapping_pars_fragment>` in a custom fragment shader is a
+  redefinition error; `colorspace_fragment` is fine.
+- For printed products in WebGL, Khronos PBR Neutral tone mapping keeps photo colors true;
+  ACES washes them out. r160 has no `NeutralToneMapping`, so apply it in the final pass.
 - A browser pane that is hidden throttles `requestAnimationFrame`: a WebGL page looks
   frozen mid-animation. Expose a manual step hook for tests and recordings.
 - **A turned `preserve-3d` container still takes the clicks.** A container rotated 180
@@ -538,7 +726,9 @@ never as a tar.
 at the msphub site's own template, so a template option added there (`lf_mount`, `p3d_mount`)
 reaches every site listed under **Product Attributes on Other Sites** on that msphub template
 page (one holiday card template already carried `lf_mount` on 23 sites). Enumerate that list
-before adding any mount to an MSP template. *Verified by query, 2026-10-06.*
+before adding any mount to an MSP template. *Verified by query, 2026-10-06.* So the fix for
+an MSP product's preview goes on the msphub template's own option: the lab site has no
+template of its own to edit. *Verified live, 2026-10-22.*
 
 **A mount copied from another site carries that site's ids.** `lf_backdrop:
 'page:preview-2@<theme_id>/<product_id>'` and the `lf_material_filter` links
@@ -580,6 +770,8 @@ A preview is not finished until all of this is true.
 - Material looks, depths and thicknesses either confirmed by the lab or stated as
   assumptions.
 - Installed on experience.pixfizz.com as well, and the setup tool updated for the version.
+- An approved preview it replaces is screenshotted beside it, and the new one is at least as
+  good (§ 3.3).
 
 ---
 
@@ -588,3 +780,4 @@ A preview is not finished until all of this is true.
 - 2026-10-06: New file. Product Previews had no home in this knowledge base. Added § 1 what a product preview is and how it differs from custom design tools, mapped previews and template room-scene pages; § 2 the Live Finish standard (parts, mount keys, looks and mountings, geometry from the template, page behavior, gallery-slide gating, dark sites, reserved query parameters, use outside Shopper); § 3 the 3D Preview standard (architecture, mount and rim rules, Blender models, wrap design rules, version standard); § 4 platform facts both rely on; § 5 status by product family; § 6 known defects, open issues and CSS 3D / three.js lessons; § 7 install pattern; § 8 definition of done. Also § 2.2 declare every core mount key (0.17.1 errors on undeclared keys) and § 2.6 the string "false" flag trap on imported mount options. Source: claude-chat, vault-doc.
 - 2026-10-09: § 2.3 canvas weave and metal corner rules. § 6 grid design previews that never load (lazy observer on a 0 x 0 img) and the wall view overflow on oversize prints (0.17.1). § 7 MSP templates are shared from msphub, enumerate the sites before a mount; test a mount on the live page before installing. Source: claude-chat.
 - 2026-10-17: § 2.3 ornament-only bases from Live Finish 0.22.0 (`acrylic` for non-ornament glass); room plates at 4:5 with props inside the middle 85%. § 2.4 read the supplier spec sheet before modelling a preview. § 3.2 the "View in 3D" fallback button as the symptom of a wrong `p3d_page`. § 6 engineering lessons: hit testing on turned `preserve-3d` containers, brushed metal with `feTurbulence`. § 7 a mount copied from another site carries that site's backdrop and material-filter ids. Source: claude-chat.
+- 2026-10-22: § 2.2 `lf_mat_variant` may name a template option, `lf_mats` `@flat` printed border, color wrap as a design option read by `lf_wrap_color_variant`. § 2.5 stage resets `transform` on its images (site `img:hover` zoom). New § 2.10 photo plates (one plate for many sizes, objects on the print, full-resolution masks, cylinders, fabric, banners, plate weight, shared preview UI standard) and § 2.11 room scenes at true scale (scale from a height, wall-plane calibration, outpainted rooms, keep-outs). § 3.2 msphub mug `p3d_page` `front` case. § 3.3 Blender GLB pipeline for tool previews; never replace an approved preview. § 4 CDN textures: the 21 Oct and 18 Oct observations reconciled into one safe rule; CDN JS as ES modules; C2PA chunk. § 6 three 0.160.0 `+esm` loading, r160 tone mapping notes, r142 on experience. § 7 MSP preview fixes go on the msphub template. § 8 approved-preview comparison. § 4: experimental `canvas` format for `px-preview` components, JSON on book and theme preview endpoints (commit titles only, not for production use). Source: claude-chat, slack-message.

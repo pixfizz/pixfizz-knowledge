@@ -2,7 +2,7 @@
 
 **Authority Scope:** System identity, architecture, portals, tech stack, and integrations for my.pixfizz.com.
 
-_Last updated: 2026-10-06_
+_Last updated: 2026-10-22_
 
 ---
 
@@ -21,8 +21,15 @@ Two audiences:
 - **Frontend:** React + Vite + Tailwind CSS
 - **Backend:** Lovable Cloud (Supabase under the hood — Postgres + Edge Functions + RLS)
 - **Design style:** Dark-mode-first, Apple-inspired minimal SaaS UX
-- **Auth:** Supabase Auth. The sign-in screen offers Password, Email code and Magic link (Corrected 2026-10-06).
+- **Auth:** Supabase Auth. The sign-in screen offers Password, Email code and Magic link (Corrected 2026-10-06). Pixfizz admin users can also sign in through single sign-on from the Pixfizz admin (from 2026-10-21): see § Relationship to Pixfizz Platform / Single sign-on from the Pixfizz admin.
 - **Key external integrations:** Fireflies, QuickBooks, GA4, Pixfizz Order Webhook, Pixfizz admin API (per brand), Klaviyo (read only), Slack (urgent support alerts), Calendly
+- **Source control:** the Lovable project syncs two-way with a GitHub repository (branch `main`). A commit to `main` reaches the Lovable project, and Lovable's edits reach the repository. *Verified by query (commit to `main` reached the project), 2026-10-22.*
+
+### Images and other binary files
+
+- **App images and other binaries go in `public/` on `main`** through the GitHub repository; then ask the Lovable agent to reference the file. *Verified by query (commit to `main` reached the project), 2026-10-22 (a share image committed to `public/`).*
+- **Images that belong to a data row** (for example a pack or upgrade card) are uploaded to the shopper24 parent's Assets, and the row stores the asset's full-size URL. *Convention, 2026-10-20.*
+- **Share previews: one site-wide `og:image` only.** myPixfizz is a single-page app, so link crawlers (Slack, LinkedIn, WhatsApp) read only `index.html`; per-page share images need server rendering. Use a 1200x630 JPEG, not a logo. Slack caches an unfurl per URL, so messages already posted keep the old card. *Stated, 2026-10-22.*
 
 ---
 
@@ -82,7 +89,7 @@ The core execution unit. Tasks can belong to an org, brand, project, or be inter
 |---|---|
 | **Fireflies** | Sync meeting transcripts, AI summaries, action item extraction, auto-match to org/project. Webhook ingestion. AI idea candidate creation (with mandatory human review before publishing). |
 | **QuickBooks** | Invoice and payment sync. Token refresh. Webhooks for payment events. |
-| **GA4** | Server-side `purchase` via the GA4 Measurement Protocol, live since March 2026. Per-brand measurement id, API secret, enabled flag, debug flag and billing currency. The Pixfizz order webhook feeds an event outbox, which sends to the Measurement Protocol with per-order idempotency and attempt logging. Depends on the Shopper order custom fields `ga_client_id` and `ga_session_id` being present on the storefront. See `85_GA4_SERVER_SIDE_PURCHASE.md`. |
+| **GA4** | Server-side `purchase` via the GA4 Measurement Protocol, live since March 2026. Per-brand measurement id, API secret, enabled flag, debug flag and billing currency. The Pixfizz order webhook feeds an event outbox, which sends to the Measurement Protocol with per-order idempotency and attempt logging. Depends on the Shopper order custom fields `ga_client_id` and `ga_session_id` being present on the storefront. Since the design of 2026-10-18 the browser owns each purchase first and the server sends only as a backfill 48 to 72 hours after the order (Corrected 2026-10-22: the server no longer sends every order). See `85_GA4_SERVER_SIDE_PURCHASE.md`. |
 | **Pixfizz Order Webhook** | Receives orders from the Pixfizz platform, processes for GA4 and reporting. |
 | **Google Reviews** | Customer-facing connector on the brand page's Connections tab. Uses the brand's Pixfizz admin API credential (`brand_api_credentials`). Reviews sync from Google into a review inbox and publish to the storefront as instances of a Shopper custom type, which the storefront widgets read. See `71_MYPIXFIZZ_FEATURES_ROUTES.md` § Brand Connections and Catalog. |
 | **Pixfizz admin API** | Per-brand credential (§ Credential Storage). Used by Catalog Manager, Shopper Configure, Shopify Style, Blog, Merge users, Static Product Uploader, Store health check, Promo codes, Customer export and Shopper Upgrades. Every write is read back before it counts as done. |
@@ -107,6 +114,15 @@ MyPixfizz is **operationally connected** to the Pixfizz platform but is a separa
 - Pixfizz orders flow into MyPixfizz via webhook for GA4 tracking and revenue reporting.
 - Customer organizations in MyPixfizz correspond to Pixfizz subscriber accounts.
 - MyPixfizz does not control the Pixfizz personalization engine, storefront, or fulfillment — those are handled by the Pixfizz CMS platform (see files 10–60).
+
+### Single sign-on from the Pixfizz admin
+
+Live from 2026-10-21. *Stated by the core developer, Slack #development, 2026-10-20 and 2026-10-21; Alex confirmed it works, 2026-10-21.*
+
+- **The identity models differ.** In myPixfizz an email is globally unique. In the Pixfizz platform a user with the same email on a different site is a completely separate user (`11_USER_IDENTITY_MODEL.md`). So the SSO flow needs the website subdomain as a parameter: it signs the person in as the user of that one site.
+- **Flow.** The Pixfizz admin dashboard links to the myPixfizz SSO start route, `my.pixfizz.com/sso/start?site=<subdomain>`. It hands off to `login.pixfizz.com` with the site parameter, and the result comes back to the registered callback `my.pixfizz.com/sso/callback`. A person who already has a valid session on `login.pixfizz.com` is redirected back without signing in again.
+- **Direct sign-in on my.pixfizz.com.** The developer's recommended pattern: ask for the email, find the account and the subdomain of any Pixfizz site the person has access to, then redirect to `login.pixfizz.com` with that site parameter.
+- **Related admin login changes (same release).** The admin login flow supports external apps (myPixfizz is registered as an external login client), a wrong password returns to the login form rather than to the target, SSO ids cannot collide between site users and super users, and the admin login form has a show-password eye icon. *Observed in release commits 2026-10-20 to 2026-10-21; behavior not verified.*
 
 ---
 
@@ -314,3 +330,4 @@ re-checking against the current route.
 - 2026-10-06: Corrected Portal Structure to the current routes (no `/portal` prefix; staff land on Support Overview; mobile support app) and the sign-in methods. Brand concept: storefront types, archive not delete, merge. Integrations: Pixfizz admin API, Klaviyo (read only, key in vault), Slack urgent alerts. Added a defect pattern (customer pages must use `useCustomerOrg()` and `usePortalBasePath()` or portal preview breaks), the Operational Rules for Changing myPixfizz section (shared database, migrations live on build, publish ships the whole queue, database jobs live on build, direct database fixes need a migration file, stability baseline, default privileges), and Organization Add-ons (keys only, cross-reference to 45). Flagged the edge-functions-ship-on-publish line as conflicting with later builds. Source: claude-chat.
 - 2026-10-09: Operational rules from 2026-10-08: list every reader before a retention rule (the ga4_event_outbox deletion), PROCEDURE with SET cannot COMMIT, statistics are not row counts, Lovable DROP TABLE preference, queue claims inside the locked update, latest status on the parent row. Source: claude-chat.
 - 2026-10-17: Operational rules from 2026-10-13: a self-chaining edge function authenticates the chained hop with its own token header, answers 202 and works inside `EdgeRuntime.waitUntil`, and logs the hop's status so a broken chain is visible. Source: claude-chat.
+- 2026-10-22: Tech Stack: source control (two-way GitHub sync) and new Images and other binary files (binaries in `public/` via GitHub, row images as shopper24 assets with the full-size URL, one site-wide `og:image` for the SPA). Integrations: GA4 row CORRECTED to the browser-first, server-backfill design. Relationship to Pixfizz Platform: new Single sign-on from the Pixfizz admin (site parameter, `login.pixfizz.com`, start and callback routes, direct sign-in pattern), pointer from Tech Stack Auth. Source: claude-chat, slack-message.

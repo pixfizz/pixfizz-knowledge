@@ -2,7 +2,7 @@
 
 **Authority Scope:** XML template page parameters, filters, and production output behaviour. Platform-level — not Shopper-specific.
 
-_Last updated: 2026-09-09_
+_Last updated: 2026-10-22_
 
 ---
 
@@ -41,6 +41,8 @@ The root element of every XML template definition.
 | `max` | Maximum total page count for the product. |
 | `trimbox` | `true` embeds PDF trimbox metadata in the output file. Used for prepress workflows where the receiver needs trim information embedded in the PDF. |
 | `background-transparent` | Seen as `output="png" background-transparent="true"` on a live clear-crystal product. With it, the design previews in WebP and PNG return alpha 0 outside the design; JPEG previews fill white (`61_PIXFIZZ_API.md` § 9). *Verified by query, 2026-09-29; the production file's alpha was not checked.* |
+| `output-perfectly-clear-upscale` | `true` or `false`. Switches Perfectly Clear AI upscaling at fulfillment on or off for this template, overriding the fulfillment setting. Perfectly Clear must still be enabled in the fulfillment settings. See `31_FULFILLMENT_ENGINE.md` § AI Upscaling at Fulfillment (Perfectly Clear). *Stated by the core developer, Notion Dashboard, October 2026.* |
+| `output-perfectly-clear-upscale-dpi` | Target DPI for that upscaling on this template, for example `300`. Without it the fulfillment setting, then the template's `dpi`, applies. *Stated by the core developer, Notion Dashboard, October 2026.* |
 
 ---
 
@@ -857,14 +859,25 @@ A template can hold several named layouts (for example `full` and `matted` for t
 
 *Verified by render, 2026-09-29. Not verified: the Adjust crop dialog and the production file for a rotated placeholder (needs a test order).*
 
+- **`rotate` is honored on `<shape>`, `<image>` and `<text>` in the production render**, each about its own center. To keep a group of elements aligned while turning it, rotate each element's position about the group's shared center as well as setting `rotate` on each. *Verified by query (production renders of calendar projects), 2026-10-19.*
+- Negative angles work the same way: an image with `rotate="-90"` turns a quarter turn counterclockwise about its frame center, which lets a landscape design reuse a portrait pattern image. *Verified by reading design XML, 2026-10-19.*
+
 ## Element Permission Flags
 
 **Platform-level (Pixfizz CMS).** The element flags seen across real design exports are
 `edit`, `layout`, `move`, `resize`, `eborder`, `ebordercolor`, `eborderradius`, `eopacity`,
-`erotation`, `elayer`, `emask` and `z`. There is **no `ecolor` flag**: to stop a customer
+`erotation`, `elayer`, `emask` and `z`. Shapes have **no `ecolor` flag**: to stop a customer
 recoloring or deleting a shape, use `edit="false"`. `move="false" resize="false"` alone do
 not stop either. Editor behavior of a locked element: `17_DESIGN_TOOL.md` § Locking an
 Element.
+
+**Text elements have `efontsize` and `ecolor`** (default `true`). `efontsize="false"` removes the
+Size control (desktop text panel and mobile text toolbar) and `ecolor="false"` removes the Color
+control, while the text stays editable. For a guaranteed printed size combine `efontsize="false"`
+with `shrink="false"` (or `resize="false"`) and a character limit, because `shrink="true"` still
+shrinks long text. *Verified by query in the storefront editor on baseline.pixfizz.com, bundle
+20261021074014, 2026-10-21.* (Corrected 2026-10-22: previously said there is no `ecolor` flag at
+all; that holds for shapes only.)
 
 A locked background shape in a layout looks like:
 
@@ -879,12 +892,44 @@ edit="false" layout="true" move="false" resize="false" z="-31"
   `grayscale="true"` and `radius="50%"` were seen on live card designs. Anything that re-renders
   page XML outside the platform (a browser studio, a preview) must honor them. *Verified by
   query, 2026-10-16.*
+- **`radius` on a shape or image rounds all four corners.** To round only the outer corners of
+  a panel split across a binding or fold, run the element past the trim edge so the unwanted
+  corners are cut off. *Verified by query (production render), 2026-10-19.*
 - **`bgcolor` on a layout's page tag is not applied on a layout swap.** The page keeps the
   design's background color, so a background color that must change with the layout has to
   be drawn as shapes. *Verified by query, 2026-10-02.*
 
 *Flag list verified by reading 16 design exports; locked-element behavior verified by query
 in the storefront editor, 2026-10-02.*
+
+## Drawing Order, Groups and Other Elements Seen in Design Exports
+
+**Platform-level (Pixfizz CMS) unless marked.** Read from real design exports; anything that
+re-renders page XML outside the platform (a browser studio, a preview, a converter) must handle
+these.
+
+- **`z` orders drawing, and can be negative.** Imported artwork often carries negative `z`
+  (`z="-5"` on a hero photo). An element added under it (a panel color shape on a fold spread)
+  needs a lower `z` still (for example `z="-1000"`), or it covers the photo. *Verified by reading
+  page XML, 2026-10-20.*
+- **`<g>` groups:** children are offset by the group's `x` and `y`. *Verified by reading XML,
+  2026-10-20.*
+- **`<score>` elements** appear on flat cards (fold or score lines). *Verified by reading XML,
+  2026-10-20.*
+- **Masked editable images without `placeholder="true"`** are used as sample photos. Treat a
+  masked, editable image as a photo slot even when it is not flagged a placeholder. Equally, a
+  cover photo frame can be a placeholder: do not assume the cover photo is a non-placeholder
+  image. *Verified by reading XML, 2026-10-20 and 2026-10-21.*
+- **`show_on_preview="true"`** (underscore) keeps a placeholder's sample photo visible in
+  previews. Written as `show-on-preview` it is ignored and the sample photo is hidden. *Verified
+  by query, 2026-10-20.*
+- **Colors can be `cmyk(c,m,y,k)`** in design XML, not only hex. A tool that renders design XML
+  must convert them. *Verified by reading one site's design XML, 2026-10-21.* Production render
+  validation of hex values: § Text Elements.
+- **Very thin line images may break the print render.** One design whose front answered 500 on
+  its own print render had, as its only unusual parts, two 0.5 mm wide line images; drawing them
+  as shapes is the workaround in use. *Not verified that the line images were the cause,
+  2026-10-20.*
 
 ## Text Elements: `shrink`, `valign` and Font Size
 
@@ -915,6 +960,17 @@ in the storefront editor, 2026-10-02.*
   value, must exist in that element's font, or the job fails with "Detected text with
   unsupported characters on pages: ...". Check glyphs against the font's cmap before import.
   *Verified by failed renders, 2026-10-14.*
+- **Display text sits lower than a CSS line box at the same top.** Playfair Display and Oswald
+  print about 0.25 x font size lower than a browser prototype's line box. Large Oswald display
+  text with a tight line height (0.82 to 0.85) prints about 0.55 to 0.65 x font size lower; one
+  preview renderer models Oswald at 0.6 x font size when the font size is over 6% of the trim
+  width, otherwise 0.25. Nudge large display text up when porting a browser layout, and measure
+  on a production PDF before trusting a prototype position. *Verified by query and visual
+  comparison of production renders, 2026-10-19.*
+- **Site fonts per weight.** Each weight imported as a site font needs its own PostScript name.
+  Fontsource latin WOFF files (`cdn.jsdelivr.net/npm/@fontsource/<family>@<version>/files/`) can be
+  converted to TTF in the browser by inflating each table, then imported. *Verified by query,
+  2026-10-19.*
 
 ## Mug Wrap Designs: The Readable Front Zone
 
@@ -1097,3 +1153,4 @@ documented above. There is no layer-level `fulfillment` attribute. Do not docume
 - 2026-09-29: Binding map missing-entry error and fix. `<ipage>` left/top sign convention. Canvas fold inside trim vs bleed; render draws the wrap into the bleed. `rotate="90"` element rotation. Layout links break when layouts are deleted from designs. Template changes do not update existing projects; refulfill resends old geometry. Source: claude-chat, slack-message.
 - 2026-10-06: Added `background-transparent` to definition attributes. Growing Spine: how the spine is inserted at render and the consequences for cover designs. Preview Sets: the page mask is the print area, not the outline, on clear products. Added Element Permission Flags (flag list, no `ecolor`, shape `opacity`, `bgcolor` not applied on layout swap), Text Elements (`shrink`, `valign`, `fontsize` unit) and the mug readable front zone. Layouts: Linked Layouts drive the picker, import does not create them, soft-deleted designs keep their links, link/unlink endpoints. Template Changes: design pages do not follow a size change. Canvas Wrap Geometry: image elements, `crop="false"` fits and image upload options override it. Added Editing Design Pages and Layouts in Place, and Design Import (`__print_theme.yml` format, id remapping, fonts, batch workflow). Source: claude-chat, vault-doc.
 - 2026-10-17: `dpi`: print PDFs are downsampled to it, no opt-out. Growing Spine: preview renderers draw only centre-crossing elements on the spine. PDF Layers: a separate-file layer inside an `<ipage>` renders empty (two-`<ipage>` workaround, not yet tested); platform PDFs are RGB only, no spot colors. Greeting Card: top-fold landscape card, shaped photo windows. Page-count rules: layflat counts spreads. Element flags: image placeholder `rotate`, `grayscale`, `radius`. Text Elements: `kerning` in mm (unit pending confirmation), `<br/>` is not a break, text and shape attributes, render validation (6-digit hex, glyphs in font). Template Changes: whole-range resize from one admin tab. Design Import: quoted-scalar page XML, layout names over 32 characters fail. Source: claude-chat, slack-message.
+- 2026-10-22: CORRECTED Element Permission Flags: text elements have `efontsize` and `ecolor` (only shapes lack `ecolor`); `radius` rounds all four corners, the past-the-trim technique. Element Rotation: `rotate` honored on shape, image and text in production, about each element's center; negative angles; group rotation. New § Drawing Order, Groups and Other Elements Seen in Design Exports (negative `z`, `<g>`, `<score>`, masked editable images, placeholder cover frames, `show_on_preview` spelling, `cmyk()` colors, thin line images and a 500, not verified). Text Elements: display text offset against a CSS line box (Playfair Display, Oswald), site font per weight and the Fontsource TTF conversion. `<definition>` Attributes: `output-perfectly-clear-upscale` and `output-perfectly-clear-upscale-dpi`. Source: claude-chat, notion-page.

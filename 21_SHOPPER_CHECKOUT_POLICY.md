@@ -2,7 +2,7 @@
 
 **Authority Scope:** Checkout engine logic only.
 
-_Last updated: 2026-09-09_
+_Last updated: 2026-10-22_
 
 ---
 
@@ -48,6 +48,15 @@ If any orderline has:
 - Storefront Settings on a child is `/site/setup/storefront`, not `/setup/storefront`.
 
 Template-level (Shopper 24). *Verified by reading source (live shopper24), 2026-10-15.*
+
+## Multi-store pickup: the checkout posts the first public address
+
+Template-level (Shopper 24 `pages/checkout`). *Verified by reading source (live checkout page and shopper24 backup of 2026-10-20), not by query, 2026-10-21.*
+
+- When the cart has no address and pickup is the default, a hidden `cart_update` form posts `website.public_addresses.first.id` on `DOMContentLoaded`.
+- The **In-store pickup** radio's hidden form also posts `website.public_addresses.first.id`.
+- So on a site with several pickup stores, any script that chooses a different store must re-point those hidden `cart[location_id]` inputs, or it races the parent's own request. A plain `<script>` in `checkout/extra-checkout-code` renders before `section.checkout-page`, so its `DOMContentLoaded` listener registers first.
+- **No fixed time locks on a checkout auto-click.** A re-render that lands inside the lock is never corrected. Wait on `document.readyState` and on `.px-live-fragment-loading` clearing (the parent's own kiosk film script does the same), and cap the attempts. Same rule as live re-renders in `50_SHOPPER_TEMPLATE_REFERENCE.md` § 17, *Live `selectors:` re-renders patch the DOM*.
 
 ## Film processing
 If not disabled by `admin/checklist/hide-film-order-checkout`, and any orderline has:
@@ -98,6 +107,19 @@ Guest checkout supports the following configuration:
 - **Registration toggle**: controls whether the guest is offered account registration at checkout
 
 These are checkout configuration options, not hardcoded behaviour.
+
+**Guest contact fields are checked in the browser only.** The Shopper 24 `pages/checkout` guest form (`user_registration` with `user[guest]=true`) marks Email with the HTML `required` attribute and nothing more; Phone renders only when `admin/checklist/require-telephone-registration` = `TRUE`. Template-level. *Verified by reading source (shopper24 backup), 2026-10-20.* The platform has been seen to accept a guest with no email and no phone. Platform-level. *Stated by Alex, 2026-10-21; not verified by query.* Until the core developer confirms otherwise, treat guest contact requirements as unenforced server-side: a script or a bot that skips the browser form can create a guest with neither.
+
+**No guest checkout for film orders.** `pages/checkout` offers the guest option only when `film_order == false`, so a cart holding a film-processing line always needs a signed-in account. Template-level. *Verified by reading source (shopper24 backup), 2026-10-20.*
+
+## Restricting checkout to approved users on a child site
+
+`admin/checklist/disable-user-registration` = `TRUE` **is not a gate on its own**: it hides only the New Customer column on `/site/login`. The registration forms in `account/login-form`, `checkout/login-form` and the anonymous checkout step still render. Template-level (Shopper 24). *Verified by reading source (shopper24 backup), 2026-10-20.*
+
+To let only approved accounts check out (a trade or wholesale catalog site), override `checkout/extra-checkout-code` on the child (empty on the parent, rendered at the top of `pages/checkout`) with a block that hides `.checkout-page` and shows a sign-in notice unless the user carries an agreed category (`user.category == '<category>'`) or `user.is_admin`. Signed-out visitors and users without the category see the notice; a user with the category gets the full checkout. Combine it with `guest-checkout` = `FALSE` and `disable-user-registration` = `TRUE`. Site-level pattern. *Verified live on a supplier child site, 2026-10-20.* It is a display gate in the page, not a server-side permission.
+
+- **Where the category is set.** The admin New User form (`/admin/users/new`) has only Email, Password, First Name and Last Name. Category, Telephone and the Admin box are on the user edit page (`/admin/users/<id>`), which also has **Send signup email** and **Log in as user**. Platform-level. *Seen in an admin screenshot, 2026-10-20.*
+- **Use an existing parent key.** A child site can only override snippets that exist on the parent, so the gate goes in `checkout/extra-checkout-code`, not a new snippet path (`52_SNIPPET_INVENTORY.md` § Creating a New Snippet).
 
 ## Payment method selection and labels
 
@@ -198,6 +220,8 @@ endif
 ## Payment Gateway Notes
 
 - **BridgePay:** the TokenPay.js widget's ZIP field (used for AVS) is now enabled for all Shopper 24 sites. *Stated by the core developer, 2026-09-21.*
+- **Stripe on dark sites:** `checkout/stripe-checkout` mounts the Stripe Payment Element with no `appearance`, so Stripe draws its light default (dark labels) inside its own iframe, and site CSS cannot reach it. Template-level (Shopper 24). *Verified by reading source (shopper24 backup), 2026-10-02.* Per-site fix with no parent change: override `checkout/extra-checkout-code` with a script that calls `stripeElements.update({ appearance: { theme: 'night', variables: { ... } } })` on the `px-stripe-form` element. Site-specific. *Live on a dark child site, confirmed by Alex, 2026-10-22.* Every dark-themed Shopper site needs it. Candidate parent change (not made): let `checkout/stripe-checkout` read an appearance from a snippet.
+- **Authorize.net and AVS:** Pixfizz passes the order address to Authorize.net, which uses it for the address verification (AVS) check. Platform-level. *Stated by the core developer, Slack #development, 2026-10-22.* Whether that is the shipping or the billing address, and so whether AVS can reject a card because the order ships to an address other than the cardholder's, is not confirmed (support's explanation, not the developer's).
 - **PayU:** the success and failure webhook URLs are set in PayU admin → Developers → Webhooks and must be repointed by hand after any domain change, or order confirmations fail silently. *Stated on a client call, 2026-09-22.*
 ## A Bare Child Site Shows No Delivery or Payment Until Four Things Hold
 
@@ -220,3 +244,4 @@ On a child site, set the checklist keys with **Override Snippet** on the parent'
 - 2026-09-29: Added the four conditions a bare child site needs before checkout shows delivery and payment. Source: claude-chat.
 - 2026-10-06: Kiosk mode: carts are per domain. Added Kiosk associate tip (gates, fields, fee precedence, stale-mode fix, dead CSS selector fix, Order definitions as an install step). Added Pay in Store maximum cart total (number only, inclusive, blank disables, decided in the resolution block), the `rush_option` vs `rush_sameday` field difference, and `checkout/rush-button2` always rendering. Source: claude-chat.
 - 2026-10-17: New Pickup contact phone section (pre-filled is not saved, `pickup-phone-not-required` vs `dont-require-pickup-contact-details` vs `autofill-pickup-phone`, `required` gap, `/site/setup/storefront`). Rush: three-way labels and disclaimer, radio style loses the choice (use `checkout-rush-style` = `DROPDOWN`), `pages/confirm` old rush checkbox. Payment: empty method list after a page save (CRLF, fixed 2026-10-13), Invoice offered only to `invoice` users. Source: claude-chat.
+- 2026-10-22: Guest checkout: contact fields are browser-side only (server acceptance stated, not verified), no guest checkout for film orders. New sections: Restricting checkout to approved users on a child site (`disable-user-registration` only hides the New Customer column, gate via `checkout/extra-checkout-code` and `user.category`, where Category is set) and Multi-store pickup (checkout posts the first public address, re-point `cart[location_id]`, no time locks). Payment Gateway Notes: Stripe Payment Element on dark sites. Payment Gateway Notes: Authorize.net receives the order address for AVS (which address not confirmed). Source: claude-chat, slack-message.

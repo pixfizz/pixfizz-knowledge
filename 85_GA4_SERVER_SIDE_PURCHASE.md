@@ -2,7 +2,7 @@
 
 **Authority Scope:** The server-side GA4 `purchase` pipeline — what the storefront must supply, how the order webhook decides whether to send, what the skip reasons mean, what is admin-visible, and the known defects. Storefront-side GA4 tagging is in `50_SHOPPER_TEMPLATE_REFERENCE.md`; the platform side of the order webhook is in `61_PIXFIZZ_API.md`.
 
-_Last updated: 2026-09-09_
+_Last updated: 2026-10-22_
 
 ---
 
@@ -22,7 +22,9 @@ Two things follow immediately and both catch people out:
   exist. See §8.
 - **It is per brand, not per platform.** A brand that is not wired sends nothing server-side. A
   brand that is wired sends server-side *in addition to* whatever the storefront still sends.
-  See §7.
+  See §7. (Corrected 2026-10-22: the design of 2026-10-18 makes the browser the first owner of
+  every purchase and the server a backfill only, sent 48 to 72 hours after the order when GA4 has
+  no purchase for it. See §3, *Browser first, server backfill*.)
 
 ---
 
@@ -87,7 +89,44 @@ is not the same as enforcement being on** — check the brand, do not assume.
 
 `purchase` is sent only when the order carries a **`confirmed_at`**. An order that arrives already
 confirmed — the pay-in-store and counter cases — sends on creation. Everything else waits for the
-status change that sets `confirmed_at`.
+status change that sets `confirmed_at`. (Corrected 2026-10-22: "sends on creation" and "send every
+confirmed order" are superseded by the backfill rule below.)
+
+### Browser first, server backfill (design of 2026-10-18)
+
+**Why it changed.** Three findings on a lab with online and kiosk storefronts, *verified by query
+and the GA4 Data API, 2026-10-17 and 2026-10-18*:
+
+- **Sending every order server-side double-counts online orders on GTM sites.** In GTM mode the
+  lab's own container keeps firing its `purchase` tag (see §7).
+- **A server purchase sent a few hours after the browser purchase creates a duplicate.** GA4 had
+  not yet processed the browser event, so a "GA4 already has it" check passed wrongly. Seen on two
+  kiosk orders and one online order.
+- **Kiosk storefronts do fire a browser purchase, but not reliably.** Over 21 days about half of
+  the kiosk orders had any GA4 purchase, against nearly every online order. (Corrected 2026-10-22:
+  the note of 2026-10-17 that kiosk orders never fire a browser purchase was wrong.)
+
+**The rule:**
+
+- **The browser owns the purchase first**, for online and kiosk orders.
+- **The server sends only as a backfill**, when all of these hold: the order is confirmed and
+  non-zero; it is **older than 48 hours** (the GA4 Data API lags by hours, so a younger order
+  cannot be judged missing); it is **younger than 72 hours** (the Measurement Protocol accepts a
+  purchase up to 72 hours old through `timestamp_micros`, so a skipped order can only be resent
+  inside that window); and **GA4, queried with no host filter, has no purchase for that
+  `transactionId`**.
+- **One claim per order code across every send path** (see *Idempotency*).
+- **Orders with no recorded source stay server-owned**, but run the same GA4 check first.
+- **Never resend or delete historical duplicates.**
+
+**Per-brand mode.** `brands.ga4_server_purchases` is `all` (the default) or `no_browser`.
+`no_browser` sends kiosk and no-source orders server-side and leaves online orders to the browser.
+*Recorded 2026-10-17.* How this column combines with the 48 to 72 hour backfill rule in the
+current sender is not verified by reading source.
+
+**Server purchases carry a blank `hostName`.** Any host-filtered GA4 report (needed on a shared
+stream, §10) must accept a blank host when the `transactionId` matches an order code of the same
+brand. *Verified by query, 2026-10-18.*
 
 ### Idempotency
 
@@ -97,6 +136,18 @@ Two layers, because one is not enough:
 2. A **pre-check on the per-order sent timestamp** before anything is built or sent.
 
 An order that has already been sent for is skipped at the pre-check and never reaches the key.
+
+**The outbox can hold several rows per order**, one per webhook event (`order.created`,
+`order.status_changed`, `order.updated`, `72_MYPIXFIZZ_DATA_MODEL.md`). Both layers above work per
+outbox event, and on 2026-10-17 one order went out twice: two outbox rows 7 seconds apart, both
+answered HTTP 204. The sender must **claim one purchase per brand + order code**, across every
+send path. *Verified by query, 2026-10-17.*
+
+**GA4 counted that twice-sent order once.** For its `transactionId` GA4 reported
+`ecommercePurchases = 1` and the single order value, so GA4 deduplicated two Measurement Protocol
+purchases with the same `transaction_id`. *Verified by query, 2026-10-18.* **Not verified:** a
+browser purchase plus a Measurement Protocol purchase for the same `transaction_id` with different
+client ids. Keep the one-purchase-per-order claim in myPixfizz regardless.
 
 ### Currency
 
@@ -208,6 +259,9 @@ session-attribution window**, and GA4's general backdating is capped at **72 hou
 - events beyond the backdating cap cannot be rescued by adding a timestamp at all — those need the
   send to happen earlier, which is a product decision about what "purchase" means and not a bug.
 
+The 48 to 72 hour backfill (§3) depends on this: a backfilled purchase only lands on the order's
+day if the sender sets `timestamp_micros`. Whether the current sender does is not verified.
+
 ---
 
 ## 7. The Double-Count Warning
@@ -223,6 +277,8 @@ and it inflates rather than deflates, so it does not look like a fault.
 **Before enabling a brand, compare Measurement IDs.** Read the GA4 Measurement ID the live storefront actually loads (usually through its GTM container) and compare it with the Measurement ID on the myPixfizz brand. A mismatch sends server-side revenue to a different property from the browser events. One wired brand was found in this state. *Verified live in the browser, 2026-09-28.*
 
 **Storefront bridge, live since 2026-10-12.** A GA4 bridge for sites that set only `website/gtag` (and no GTM container) is live on the shopper24 parent since 2026-10-12 22:45 UTC (Corrected 2026-10-17: it was "built, not deployed" on 2026-09-28). It forwards Shopper's dataLayer ecommerce events, `purchase` included, to gtag. The checkbox `admin/checklist/ga4-server-side-purchase` ("myPixfizz sends purchases to GA4") = `TRUE` stops the browser `purchase`, to avoid exactly this double count; `FALSE`, or the key absent, is the default. **So on a wired brand whose storefront runs the bridge, set the checkbox to `TRUE`**, just as a GTM site must drop `purchase` from its GA4 trigger. A child with its own `html.head` override does not get the bridge. *Verified live on baseline, 2026-10-12.* See `50_SHOPPER_TEMPLATE_REFERENCE.md` § 20.
+
+**The checkbox only acts in direct gtag mode.** `SERVER_PURCHASE` and `admin/checklist/ga4-server-side-purchase` stop the browser `purchase` only on a site that sets `website/gtag`. In GTM mode myPixfizz never writes them and the lab's own container keeps firing its purchase tag, so on a GTM site the container is the only switch. *Observed on a lab's GTM site, 2026-10-17.* (Corrected 2026-10-22: the advice above to set the checkbox to `TRUE` on every wired bridge site predates the browser-first design of §3. With the browser as first owner, stopping the browser `purchase` leaves online orders to a backfill that only runs after 48 hours; which setting bridge sites should use now is pending confirmation.)
 
 The storefront-side tagging standard, and the "a container with no GA4 event tags shows traffic
 and no revenue" trap that is its mirror image, are in `81_SEO_AND_GEO_REFERENCE.md` Part G and
@@ -256,6 +312,29 @@ order after checkout, which is not the storefront.
 | Order webhook registration and payload shape | `61_PIXFIZZ_API.md` |
 | Order statuses and what "confirmed" means | `32_ORDER_LIFECYCLE.md` |
 | SEO and analytics setup traps | `81_SEO_AND_GEO_REFERENCE.md` |
+| Joining orders to GA4 sources, GA4 versus Pixfizz revenue | §10 below |
+
+---
+
+## 10. Order Source and Revenue: Joining Pixfizz Orders to GA4
+
+Scope: the myPixfizz GA4 integration (daily GA4 order-source sync), not Pixfizz CMS. *Verified by
+query on a lab's GA4 property, 2026-10-17, amended 2026-10-18.*
+
+- **The GA4 Data API has no client id dimension.** The `ga_client_id` on Pixfizz orders cannot be
+  joined to GA4 sessions through the API without a custom dimension or a BigQuery export.
+- **What works: a GA4 report on `transactionId` + `sessionSourceMedium`,** joined to the Pixfizz
+  order code. It gives the source of every order GA4 recorded a purchase for. An order with no
+  GA4 purchase has no source from GA4; kiosk orders without one are reported as in store.
+- **A GA4 stream can be shared** by a lab's other website (for example its Shopify site) and its
+  Pixfizz store. Filter by `hostName` before showing any visitor or funnel number for the Pixfizz
+  store, and accept a blank host for server-sent purchases (§3).
+- **GA4 purchase revenue can sit far below Pixfizz order totals.** The values GA4 did record
+  matched exactly; whole orders were missing. **Always take revenue from Pixfizz orders,** never
+  from GA4.
+- **When counting Pixfizz orders from webhook payloads, exclude `$0` orders and status `F`**
+  (failed payment). A few failed-payment attempts in one evening can outweigh weeks of real
+  orders in a raw total.
 
 ---
 
@@ -264,3 +343,4 @@ order after checkout, which is not the storefront.
 - 2026-09-29: §2 named the capture snippets and where the values land in the payload. §3 production resolves by website code only; duplicate brand rows and never hard-delete a brand. §5 where the webhook secret is set, and what Test Webhook does and does not prove. §7 compare the storefront's loaded Measurement ID with the brand's before enabling. Source: claude-chat.
 - 2026-10-06: §2 check the Order custom field definitions per site, confirmed on a placed order. §7 the storefront GA4 bridge and its `ga4-server-side-purchase` checkbox are built, not deployed. Source: claude-chat.
 - 2026-10-17: §7 CORRECTED: the storefront GA4 bridge is live on the shopper24 parent since 2026-10-12 (it was "built, not deployed"); `ga4-server-side-purchase` = `TRUE` stops the browser `purchase` on wired brands whose storefront runs the bridge; `html.head` overrides do not get it. Source: claude-chat.
+- 2026-10-22: §1 and §3 CORRECTED: the server no longer sends every confirmed order; new *Browser first, server backfill* (backfill only 48 to 72 hours after the order when GA4, unfiltered by host, has no purchase for it; one claim per order code; no-source orders server-owned with the same check; never resend historical duplicates), CORRECTED kiosk orders do fire a browser purchase, unreliably; per-brand `brands.ga4_server_purchases` (`all` / `no_browser`); blank `hostName` on server purchases. §3 Idempotency: several outbox rows per order, a twice-sent order, GA4 deduplicated two MP purchases with one `transaction_id`. §6 backfill depends on `timestamp_micros`. §7 the checkbox acts only in direct gtag mode; CORRECTED the set-`TRUE` advice is pending under the new design. New §10 joining orders to GA4 sources (no client id dimension, `transactionId` + `sessionSourceMedium`, `hostName` filter on shared streams, revenue from Pixfizz, exclude `$0` and status `F`). Source: claude-chat.

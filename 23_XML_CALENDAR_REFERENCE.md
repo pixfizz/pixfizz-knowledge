@@ -2,7 +2,7 @@
 
 **Authority Scope:** XML definition structure for calendar and planner products — date sequence vocabulary, set parameters, and annotated real-world examples. Platform-level — not Shopper-specific.
 
-_Last updated: 2026-06-30_
+_Last updated: 2026-10-22_
 
 ---
 
@@ -243,6 +243,17 @@ Same logic but anchors to `weekday="MO"` instead of `weekday="SU"`.
 	</dateshift>
 </dates>
 ```
+
+### Week start is in the date rule, not a setting
+
+In templates built so far the week a grid starts on (Sunday or Monday) is baked into the
+template's date rule (the two patterns above); no product or design option that flips it is
+known (not verified). A calendar product that
+offers both week starts needs **two templates per size**, identical except for the date rule
+(a twin, for example coded `-sun` and `-mon`), and a storefront tool picks the twin when the
+customer changes the week start. Plan the import set for two templates per size. Build pattern
+(tool-level), resting on the platform date rules above. *Not verified: that a twin's date rule
+renders correctly in the design tool and in production; to be tested on baseline.pixfizz.com.*
 
 ### 12-month iteration sequence
 Used with `foreachdate` to repeat a set or block once per month across 12 months.
@@ -608,6 +619,35 @@ Platform-level (Pixfizz CMS).
 
 *Export fields read from three calendar template exports, 2026-10-13. Index base, fills, transformation reach and the cover-year pattern verified by render on a test site, production PDFs read back, 2026-10-14.*
 
+**Order of operations at render.** The order that reproduces production renders: the date fill; then a
+"Colors" design option (`shape_color` by element name, `text_color` by element tag); then the
+calendar transformations (`set-text`, `set-color`, `delete`). So `set-color` wins over the Colors
+option on the same element, and grid day elements outside the month are dropped by
+`delete out-of-range`. A Colors design option recolors whole calendar pages this way, dark
+palettes included. A browser preview that draws calendar pages from the page XML must apply the
+same order. *Colors option verified by query (production renders), 2026-10-19; the order as
+modelled in a preview renderer and compared against production PNGs, 2026-10-19.*
+
+---
+
+## Per-Page Photo Layouts on Calendar Templates
+
+Platform-level (Pixfizz design tool and calendar rendering). *Verified by production renders on
+baseline.pixfizz.com, 2026-10-20.*
+
+- **A calendar project stores the design's pages with their `cal:` date tags already resolved.**
+  Elements that arrive through a layout keep raw `cal:` tags and are **not resolved at render**:
+  date fills print their placeholder text ("Month", "1"). Never put date-filled or date-tagged
+  elements in a calendar layout.
+- Applying a layout (`page.setLayout` in the editor, the layout picker) removes only the page's
+  elements marked `layout="true"` and inserts the layout's elements; everything else on the
+  design page stays (`17_DESIGN_TOOL.md` § Text, image and layout calls).
+- **Working pattern:** on each design page mark only the swappable photo frames `layout="true"`,
+  and make every layout carry only photo frames (plus any free text such as a caption). Month
+  names, grids, holidays and every `set-text` / `set-color` target stay on the design page.
+- A design theme import accepts layouts with a blank `id:`; they are created and listed by
+  `/v1/themes/<id>/layouts.json` with name and tags.
+
 ---
 
 ## Reaching Elements Hidden Behind a Calendar Grid
@@ -638,3 +678,4 @@ edit was ever made.
 - 2026-08-14: Added the layer-visibility technique for reaching calendar elements blocked by an overlapping grid, and the rule that a manual refulfill is required after any such edit before production files reflect it. Source: fireflies-call (2026-08-12).
 - 2026-09-19: Added per-month backgrounds and colors as calendar transformations rather than XML: element naming, the Dates flag on each element, Set Image and Element Color, the date series name having to match the page exactly (with the "Could not find definition for dates" error it produces on a multi-page calendar), the absence of any odd/even shortcut, and the bulk XML naming and WebP quality 90 tips. Source: loom-video (2026-09-14).
 - 2026-10-17: Corrected `weekday` on `<defdate>` and `<dateshift>` (the weekday inside the Monday-to-Sunday week, not the nearest occurrence; Sunday-start needs `day="-6"`, Monday-start does not). Added Calendar Element Tags, Fills and Transformations: 1-based `idx` tags, the full fill list, `calendar_transformations` fields and actions in an export, transformations reach only date-tagged elements, transformation beats design-option substitution, website-calendar captions need `book[calendars][]`, the cover-year pattern. Source: claude-chat.
+- 2026-10-22: § 6 Named Date Sequence Patterns: week start is in the date rule, a twin template per week start (twin rendering not verified). § Calendar Element Tags, Fills and Transformations: order of operations at render (date fill, Colors design option, transformations) and Colors options on calendar pages. New § Per-Page Photo Layouts on Calendar Templates (`cal:` tags in layouts are not resolved, `setLayout` replaces only `layout="true"` elements, the photo-frames-only pattern, blank layout ids on import). Source: claude-chat.

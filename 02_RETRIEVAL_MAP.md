@@ -2,7 +2,7 @@
 
 **Authority Scope:** Navigation + retrieval guidance only. This file does not introduce new platform or template rules.
 
-_Last updated: 2026-09-09_
+_Last updated: 2026-10-22_
 
 ---
 
@@ -1108,6 +1108,356 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 ### "dynamic block variables empty, snippet params inside dynamic"
 → **01_CODE_GOVERNANCE_UPDATED.md** § Scoping Rule — Keep `{% dynamic %}` Blocks Narrow
 
+## Routes added 2026-10-22
+
+### "Publish Products wizard, print_themes positions, 0-based, dot list, publish publishes nothing, print_theme_ids ignored"
+→ **18_ADMIN_NAVIGATION.md** § Import and publish routes (admin tab, logged in)
+
+### "publish link after template import, product to collection, Collections step, Create and Tick, create_theme_category, new collection in wizard"
+→ **18_ADMIN_NAVIGATION.md** § Import and publish routes (admin tab, logged in)
+
+### "Price isn't valid, publish wizard price prefill, consumer price variable missing"
+→ **18_ADMIN_NAVIGATION.md** § Import and publish routes (admin tab, logged in)
+
+### "Import Template button, import_print_product Application error, template soft delete, This template has been deleted"
+→ **18_ADMIN_NAVIGATION.md** § Products / Templates
+
+### "product edit 500, products/<id>/edit, Import Variants, Export All variants"
+→ **18_ADMIN_NAVIGATION.md** § Products / Product Attributes
+
+### "create collection, no create button, hide sub-collection, unpublished collection, which collections hold a product"
+→ **18_ADMIN_NAVIGATION.md** § Products / Collections
+
+### "template option edit forms, custom_script save, unpublish option, options JSON, options import token"
+→ **18_ADMIN_NAVIGATION.md** § Bulk Update Tools: Rolling a Change Across Live Templates
+
+### "add template consumer, Print on Demand tab, POD tab sources, pxtemplates, Pixfizz-built templates, source_website_id"
+→ **18_ADMIN_NAVIGATION.md** § Template Provider and Template Consumers
+
+### "New User form fields, set user category, Log in as user, admin roles, restricted admin, projects only admin"
+→ **11_USER_IDENTITY_MODEL.md** § Admin / Super Admin
+
+### "POD publish no variants, POD product no custom fields, supplier code -2, OLD- code rename, swap local copies"
+→ **16_PRODUCT_HIERARCHY.md** § Publishing Another Site's Template: What the Lab Product Gets
+
+### "Psych BadAlias, Unknown alias, zone anchor, TimeWithZone, folded YAML, edit template export, linked_assets in export"
+→ **16_PRODUCT_HIERARCHY.md** § Template Export and Import Format
+
+### "import 500 variant type keys, element_substitutions translations children, image null, preview_img null, duplicate url_path after import"
+→ **16_PRODUCT_HIERARCHY.md** § Import Behavior: Ids in an Import Tar Are Not Honored
+
+### "fulfillment code disabled on product, POD fulfillment prefill, QA destination demo site"
+→ **31_FULFILLMENT_ENGINE.md** § Fulfillment Code Resolution and Precedence
+
+### "auto_confirm_orders, test order reached print partner, no Pending window"
+→ **32_ORDER_LIFECYCLE.md** § Order Lifecycle Statuses / `auto_confirm_orders`: no Pending window, so check it before any test order
+
+### "Generate new file refused, cannot generate until existing deleted, re-render project"
+→ **32_ORDER_LIFECYCLE.md** § Other Admin Order Sections
+
+### "does the child override this snippet, edit_by_name"
+→ **13_TEMPLATE_BOUNDARIES.md** § A Child Site's Snippet List Shows Only Its Overrides
+
+### "saved project ordered false, did the design convert, source_book_id, saved vs ordered book"
+→ **61_PIXFIZZ_API.md** § 4. Projects (Books) / A saved project and its ordered project are two books
+
+### "list projects across users, unfinished designs, abandoned designs, admin books list"
+→ **61_PIXFIZZ_API.md** § 4. Projects (Books) / List user's projects
+
+### "preview request changes updated_at, preview bumps activity date"
+→ **61_PIXFIZZ_API.md** § 4. Projects (Books) / Preview a project (JPEG, free)
+
+### "upload done never fires, same file re-uploaded hangs, file-url unchanged, content addressed upload"
+→ **61_PIXFIZZ_API.md** § 6. Galleries and Images / File uploads are content addressed
+
+### "hide_placeholders, placeholder text missing in preview, preview.webp 150 px, blank design tile, empty placeholder grey"
+→ **61_PIXFIZZ_API.md** § 9. Dynamic Design Previews / Query parameters
+
+### "layouts.json, design layouts list, auto-fill needs layouts, photo count tags"
+→ **61_PIXFIZZ_API.md** § 9. Dynamic Design Previews / A design's layouts
+
+### "print render 500, stale mask id, fulfillment render missing placeholder text, check every page without an order"
+→ **61_PIXFIZZ_API.md** § 9. Dynamic Design Previews / Preview resolution and production-quality output
+
+### "glb has incorrect filetype, json asset, import js asset from cdn, C2PA chunk, asset file size differs"
+→ **61_PIXFIZZ_API.md** § 13c. Admin Content API / Assets
+
+### "products.json exposes custom fields, formula readable publicly, secrets in product custom fields"
+→ **61_PIXFIZZ_API.md** § 13g. Admin Products API / Public catalog reads (no login)
+
+### "admin page cannot fetch site host, eval blocked admin, strict-dynamic nonce, inject script admin tab"
+→ **61_PIXFIZZ_API.md** § 13h. Admin Form Writes From a Browser Session / General rules; § Admin UI host vs API host: never interchangeable
+
+### "publish wizard publishes nothing, print_themes positions, print_theme_ids ignored, Create and Tick collection, hide sub-collection unpublished"
+→ **61_PIXFIZZ_API.md** § 13h. Admin Form Writes From a Browser Session / Collections
+
+### "three ways a product is priced, px_rates mode area, px_width_in px_price codes, OrderHub cannot evaluate Ruby"
+→ **30_PRICING_ENGINE.md** § The Three Ways a Product Is Priced
+
+### "price_forecast missing variant price, default variant not included, forecast lower than cart, spreads_as_pages pages parameter"
+→ **30_PRICING_ENGINE.md** § Platform Price per Quantity and Cart Rounding
+
+### "flat setup fee on a variant charged per piece, rounded corners per order, amount divided by quantity"
+→ **30_PRICING_ENGINE.md** § Per-Order Charges Must Never Sit on a Variant / A flat charge per order line on a variant value is `amount / quantity`
+
+### "weight based shipping formula, dimensional weight, packing class by product code"
+→ **30_PRICING_ENGINE.md** § Shipping Rate by Cart Content Inside One Shipping Service / A per-cart weight estimate by product code
+
+### "text font size locked, efontsize, ecolor, customer changes text size, hide size control"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Element Permission Flags; **17_DESIGN_TOOL.md** § Locking an Element
+
+### "QR code button, add-qrcode, hideAddQrCodeBoxButton, hide QR button in editor"
+→ **17_DESIGN_TOOL.md** § Editor Buttons and Per-Site CSS
+
+### "editor script text font, pointsize, fontsize MobX error, fillPlaceholder, setLayout, removeElement"
+→ **17_DESIGN_TOOL.md** § Text, image and layout calls
+
+### "editor add_to_cart tracking, px-cart-button, editor GTM, dataLayer empty in editor"
+→ **17_DESIGN_TOOL.md** § Tracking hooks; § Integrations
+
+### "autofill throws, image factory error, project unsaveable, db: id"
+→ **17_DESIGN_TOOL.md** § Autofill in a chosen order
+
+### "image border substitution width, border half inside, image_border_width"
+→ **17_DESIGN_TOOL.md** § Image border substitutions
+
+### "negative z, element covers photo, g group, score element, show_on_preview, cmyk color in XML"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Drawing Order, Groups and Other Elements Seen in Design Exports
+
+### "display text prints lower than prototype, Oswald offset, Playfair offset"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Text Elements: `shrink`, `valign` and Font Size
+
+### "calendar layout prints Month placeholder, cal tags in layout not resolved, per-month photo layouts"
+→ **23_XML_CALENDAR_REFERENCE.md** § Per-Page Photo Layouts on Calendar Templates
+
+### "calendar week start Monday Sunday switch, twin template"
+→ **23_XML_CALENDAR_REFERENCE.md** § Week start is in the date rule, not a setting
+
+### "calendar Colors option, set-color overrides color option, render order"
+→ **23_XML_CALENDAR_REFERENCE.md** § Calendar Element Tags, Fills and Transformations / Order of operations at render
+
+### "uploaded photo not in preview, image upload option shows empty design, target element name"
+→ **22_OPTION_VARIANT_RENDERING.md** § Template Option Substitutions: Target Elements, Types and Limits
+
+### "copy variants to another site, POD product has no variants, variant_types export_all import"
+→ **22_OPTION_VARIANT_RENDERING.md** § Variant Type Exports
+
+### "upload dialog must, tool file picker, px-upload-dialog sources, only This Device shows, a tool opens calm"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § Open the platform upload dialog standalone
+
+### "upload dialog grey buttons, unstyled This Device button, button-class after appendChild, local-source-button-class"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § Open the platform upload dialog standalone
+
+### "SUPPORTED_FILE_TYPES, upload dialog accept, PDF in upload dialog, Upload Photos wording on a print tool"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § Open the platform upload dialog standalone
+
+### "file-url unchanged, upload hangs on same file, froze in review, content addressed upload, edit from cart restore"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § Attaching a file to an option: `file-url` is content addressed
+
+### "site custom.css breaks tool, white text on white button, img hover zoom, generic class leak, contrast check"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § The shared look: `style/px-tool-theme`
+
+### "plain product page flashes before tool, owns-page flash, :has takeover"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § Page layout: an inline tool owns its page
+
+### "tool stuck on Adding to cart, step number input blocks submit, trying to be set with invalid value, retired option"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § The product form refuses silently
+
+### "design picker tiles blank, preview.webp blank, layouts.json, template nil in mount, template.width empty"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § Tools that show a design gallery
+
+### "SVG canvas wrong font, fillText document.fonts, preview from page XML, cmyk colors in design XML, pdf.js worker"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § Drawing a design in the browser
+
+### "prototype of an existing tool, standalone mock rejected, preview corner standard"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § Design first: a prototype of an existing tool starts from the live tool
+
+### "tool harness passes but live misaligned, Bootstrap label margin, test page host CSS"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § Testing a tool before the live check
+
+### "artwork_top seam, artwork_base, card art layers, motif keying, pattern scale landscape, card back rules"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § Generated template art
+
+### "custom_script prints as raw text, TemplateOptionType definitions, tool kit on older child"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 5. Install order on a new site
+
+### "spreads_as_pages pricing, printed pages vs system pages, price_forecast pages"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § Price ladders read the platform price
+
+### "px_rates mode area, priced by size, px_width_in, counter-only product OrderHub"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § When the tool computes the price
+
+### "tool config on a Pages page, page_content JSON config, parent asset in child page_content"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § A tool mounted on a Pages page
+
+### "Live Finish Plates, green box plate, one plate many sizes, object on the print, cylinder mapping, plate weight"
+→ **27_LIVE_FINISH_AND_3D_PREVIEWS.md** § 2.10 Photo plates (Live Finish Plates)
+
+### "room scene scale wrong, wall plane calibration, piece too big in room, keep-out, outpaint taller wall"
+→ **27_LIVE_FINISH_AND_3D_PREVIEWS.md** § 2.11 Room scenes at true scale
+
+### "lf_mats @flat, printed border, lf_wrap_color_variant, color wrap design option"
+→ **27_LIVE_FINISH_AND_3D_PREVIEWS.md** § 2.2 Mount keys
+
+### "GLB preview in a tool, gltfpack, bpy headless, never replace approved preview"
+→ **27_LIVE_FINISH_AND_3D_PREVIEWS.md** § 3.3 Models are built in Blender
+
+### "CDN image WebGL texture CORS, tainted canvas, TextureLoader fails, import asset_url ES module"
+→ **27_LIVE_FINISH_AND_3D_PREVIEWS.md** § 4. Platform facts both engines rely on
+
+### "Nano Banana product plate, print design on product mockup, paper stack too thick, bevel edges, exact design gibberish"
+→ **83_AI_IMAGERY_PRODUCTION.md** § B12. Product plates and preview scenes with the Nano Banana family
+
+### "cart remove confirm, px-rm-line, remove-line-confirm, child cart override instant remove"
+→ **20_SHOPPER_CART_RULES.md** § Removing a cart line asks for confirmation (parent, 2026-10-22)
+
+### "approved users only checkout, trade catalog site, disable-user-registration does not block, user.category gate"
+→ **21_SHOPPER_CHECKOUT_POLICY.md** § Restricting checkout to approved users on a child site
+
+### "multi-store pickup wrong store, first public address, cart[location_id], checkout auto-click race"
+→ **21_SHOPPER_CHECKOUT_POLICY.md** § Multi-store pickup: the checkout posts the first public address
+
+### "guest checkout no email, guest phone not required, film order no guest checkout"
+→ **21_SHOPPER_CHECKOUT_POLICY.md** § Guest checkout: configurable fields
+
+### "Stripe payment form light on dark site, Stripe appearance night, dark labels card field"
+→ **21_SHOPPER_CHECKOUT_POLICY.md** § Payment Gateway Notes
+
+### "grayscale filter on product preview does nothing, px-design-preview display contents, request.path in custom.css"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 17. Known Gotchas / CSS filters on the product preview must target the parent of `px-design-preview`
+
+### "label pill ignores padding, label display contents, page content label styling"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 17. Known Gotchas / A theme stylesheet gives `<label>` `display: contents` in page content
+
+### "CSS radio filter jumps to top, page scrolls on label click, hidden radio focus scroll"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 17. Known Gotchas / CSS-only filters built from radios jump the page to the top
+
+### "order email prints every option, empty print file rows, email kit filters options"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 11. Email Templates
+
+### "read Pages instance back, custom_type_instances export, page_content hash before edit"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 14. Creating Pages on Child Sites
+
+### "design product no image, imported designs no preview, preview_img and Use as preview"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 24. Product URLs, Titles, Shop Tiles and Card Prices for Design Products
+
+### "studio product URL 404, url_path blank, unpublished design redirect 404"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 24. Product URLs, Titles, Shop Tiles and Card Prices for Design Products
+
+### "collection_filters only first line after parent fix, LF config, CRLF re-post"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 21.1 `collection_filters` has two syntaxes / `collection_filters` and line endings
+
+### "editor-scripts.js fbq is not defined, design tool add_to_cart tracking, ga4-server-side-purchase GTM site double purchase"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 20. Analytics
+
+### "asset_url parent fallback, parent asset on child site, image missing src empty, asset not uploaded"
+→ **50_LIQUID_REFERENCE.md** § asset_url
+
+### "apostrophe in Liquid string, Season's Greetings, typographic apostrophe"
+→ **50_LIQUID_REFERENCE.md** § String Quoting Rules
+
+### "custom_script prints raw Liquid, tool mount shows code as text, TemplateOptionType definitions"
+→ **51_CUSTOM_FIELDS_REFERENCE.md** § Key Notes
+
+### "products.json custom fields public, secrets in custom fields, pricing formula visible"
+→ **51_CUSTOM_FIELDS_REFERENCE.md** § Key Notes
+
+### "Stripe form dark site, card form unreadable, Payment Element appearance"
+→ **40_PLAYBOOK_UPDATED.md** § Stripe: Payment Form Unreadable on a Dark Site
+
+### "page edits do nothing, layout without page.content, stale page copy"
+→ **40_PLAYBOOK_UPDATED.md** § Edits to a Page Do Nothing: The Layout Has No `page.content`
+
+### "custom.css leaks into component, invisible button text, zooms on hover, img:hover transform"
+→ **40_PLAYBOOK_UPDATED.md** § A Component Looks Wrong on One Site Only: The Site's Own CSS Is Leaking In
+
+### "test order on live site, auto_confirm_orders, order sent to printer immediately"
+→ **40_PLAYBOOK_UPDATED.md** § Before Any Test Order on a Live Site, Check Whether Orders Auto-Confirm
+
+### "scripted admin write deleted record, select admin form, FormData delete form"
+→ **41_IMPLEMENTATION_PATTERNS_UPDATED.md** § Scripted Admin Writes: Pick the Form by a Field, Never by Its Action URL
+
+### "GA4 duplicate purchase, server backfill 48 72 hours, ga4_server_purchases no_browser, blank hostName"
+→ **85_GA4_SERVER_SIDE_PURCHASE.md** § 3. How the Webhook Function Decides / Browser first, server backfill
+
+### "GA4 order source, transactionId sessionSourceMedium, GA4 revenue lower than Pixfizz"
+→ **85_GA4_SERVER_SIDE_PURCHASE.md** § 10. Order Source and Revenue: Joining Pixfizz Orders to GA4
+
+### "POD catalog wrong category, SKIP_COLLECTION, category edit does not stick"
+→ **71_MYPIXFIZZ_FEATURES_ROUTES.md** § Brand Connections and Catalog
+
+### "myPixfizz images, binary files in public, og:image share preview"
+→ **70_MYPIXFIZZ_OVERVIEW.md** § Images and other binary files
+
+### "OrderHub reprice px_ variants, counter-only product px_rates"
+→ **45_ORDERHUB.md** § Repricing Custom Tool Lines from Generic `px_` Variant Values
+
+### "AI upscaling at fulfillment, Perfectly Clear upscale, low resolution image enlarged, output-perfectly-clear-upscale"
+→ **31_FULFILLMENT_ENGINE.md** § AI Upscaling at Fulfillment (Perfectly Clear)
+
+### "output-perfectly-clear-upscale-dpi, upscale per template"
+→ **19_XML_TEMPLATE_REFERENCE.md** § `<definition>` Attributes
+
+### "myPixfizz SSO, login.pixfizz.com, sso/start site parameter, same email on two sites"
+→ **70_MYPIXFIZZ_OVERVIEW.md** § Single sign-on from the Pixfizz admin
+
+### "webhook deactivated, 20 consecutive failures, WebhookDeactivated email, webhook stopped firing"
+→ **61_PIXFIZZ_API.md** § 13d. Order Webhook
+
+### "merge users imsure, merge warning, merge 403, merge direction"
+→ **61_PIXFIZZ_API.md** § User Handoff
+
+### "orderline draft, is_draft, (Draft) label, draft boolean"
+→ **61_PIXFIZZ_API.md** § Draft orderlines
+
+### "Shopify order status P, order.created always P, listen to order.status_changed"
+→ **60_SHOPIFY_INTEGRATION.md** § 9. Order Sync
+
+### "Shopify order missing in Pixfizz, duplicate users, external_source, duplicate and confirm in Shopify"
+→ **60_SHOPIFY_INTEGRATION.md** § Order missing in Pixfizz: duplicate users
+
+### "Shopify add to cart empty cart, shopify_product_id missing, shopify_variant_id missing"
+→ **60_SHOPIFY_INTEGRATION.md** § Add to Cart lands on an empty Shopify cart
+
+### "fulfillment folder space, illegal characters in filename, transfer stalled, replace space with underscore"
+→ **31_FULFILLMENT_ENGINE.md** § Filename Templates (default vs customized)
+
+### "capture website, website.hostname empty in email, global variable redefined"
+→ **50_LIQUID_REFERENCE.md** § KNOWN CMS LIQUID QUIRKS
+
+### "collection filter matches nothing, portrait landscape vs vertical horizontal, filter values must match"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 21.1 `collection_filters` has two syntaxes
+
+### "Authorize.net AVS, address verification rejects card"
+→ **21_SHOPPER_CHECKOUT_POLICY.md** § Payment Gateway Notes
+
+### "enable Etsy, Etsy integration per site"
+→ **80_ONBOARDING.md** § Marketplace (Etsy, etc.)
+
+### "sitemap stale, product feed not updated, sitemap cache one minute"
+→ **81_SEO_AND_GEO_REFERENCE.md** § Crawlable
+
+### "canvas format px-preview, experimental canvas renderer, preview JSON"
+→ **27_LIVE_FINISH_AND_3D_PREVIEWS.md** § 4. Platform facts both engines rely on
+
+### "photo prints image selection reset, quantity update, like Photo Finale"
+→ **20_SHOPPER_CART_RULES.md** § Photo prints
+
+### "manage products template dropdown, grouped by source website, show more categories, provider logo"
+→ **18_ADMIN_NAVIGATION.md** § Template Provider and Template Consumers
+
+### "order fulfillment page all codes, POD supplier callback any site"
+→ **31_FULFILLMENT_ENGINE.md** § Fulfillment Code Resolution and Precedence
+
+### "Darkroom hot folder on NAS, files not picked up, OHD output folder"
+→ **45_ORDERHUB.md** § Print controller hot folder on a NAS: files picked up late
+
+### "EasyPost tracking every six hours, 21 days tracking"
+→ **45_ORDERHUB.md** § EasyPost Shipping Integration
+
+### "spreads_as_pages label, printed pages vs system pages, page selector doubled"
+→ **51_CUSTOM_FIELDS_REFERENCE.md** § Product (81 total)
+
 ## Changelog
 - 2026-03-13: Added Shopify Integration section and Shopify scope warning.
 - 2026-03-26: Added MyPixfizz section pointing to 70/71/72 files.
@@ -1139,3 +1489,4 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 - 2026-10-09: Added the route to `orderhub/`, the nightly mirror of the OrderHub help articles (72 at first sync), generated by `scripts/orderhub_kb_sync.py` from the OrderHub kb-export endpoint. Never edit files in `orderhub/` by hand: edit the article in OrderHub. Source: claude-chat.
 - 2026-10-09: Added 14 routes for the 2026-10-09 sync (number variant formulas, experimental variant API writes, scripted add to cart, project previews, SiteFlow callbacks, snippet saves and admin sessions, editor crop and toolbar, tools inside the variant selector, photo-prints landing, tool lines on reorder and email, one line to many supplier items, design copy, preview defects and MSP mounts, myPixfizz retention). Every target section was written in the same sync. Source: kbsync.
 - 2026-10-17: Added 84 routes for the 2026-10-17 sync (Shopper frame and header, GA4 bridge live, collection filters and line endings, redirects and query strings, publish routes and the add_themes.json 404, template provider and consumer, 2FA, XML foil and DPI and text attributes, calendar tags and transformations, px_rates and pricing.js, upload dialog and crop tool, fulfillment codes, Live Finish install ids, admin users and calendars API, POD catalog sync). Every target section was written in the same sync. Source: kbsync.
+- 2026-10-22: Added 116 routes for the 2026-10-22 sync (publish wizard positions and Create and Tick, POD publish without variants, template export YAML and import failures, saved vs ordered books, content addressed uploads, preview parameters and layouts, the three ways a product is priced and `px_rates` area mode, editor text and QR controls, calendar layouts and week start, the upload dialog standard for tools, Live Finish plates and room scenes, cart remove confirm, approved-user checkout and multi-store pickup, GA4 browser first, Perfectly Clear upscaling at fulfillment, myPixfizz SSO, webhook auto-deactivation, Shopify order status and duplicate users, OrderHub hot folders on a NAS). Every target section name checked against the file; section names are shortened before an em dash. Source: kbsync.

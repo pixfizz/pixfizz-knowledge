@@ -2,7 +2,7 @@
 
 **Authority Scope:** Onboarding process, deployment path phase sequences, pre-onboarding preparation, launch readiness, and email notification templates.
 
-_Last updated: 2026-09-09_
+_Last updated: 2026-10-22_
 
 ---
 
@@ -345,6 +345,7 @@ Marketplace integrations are the simplest from a storefront perspective — the 
 - Define how customers will submit personalization requests (e.g. upload photos via Etsy message, use a linked Pixfizz design tool page, provide details in order notes)
 - Decide whether the design tool will be linked from marketplace listings or managed via a separate Pixfizz page
 - Set up the Pixfizz environment and product templates
+- **Etsy integration is enabled per site by the Pixfizz core developer.** No site-owner setting for it has been seen: ask Pixfizz to enable it for the site before planning the order workflow. *Observed in a release commit (a site added to the list of Etsy-enabled websites), 2026-10-17, and stated by support, 2026-10-20; not stated as a rule by the developer.*
 
 ### Phase 2: Product & Template Setup
 
@@ -805,3 +806,4 @@ After any domain change, repoint payment-provider webhooks that carry the old do
 - 2026-10-06: Phase 2: migrating a catalog from another platform. Phase 3: tax is store-wide, never per product. Common Blockers: Questions to put to the customer (tax, pickup). New Launch Check: Empty Collections and Unpriced Products, linked from Phase 5 and the pre-launch checklist. SEO Migration: Advanced → Redirects pointer to 18. Email Notification Templates: CORRECTED, templates are per site, not inherited, enabled means a non-empty Body, email kit, Cart Abandoned Schedule. Phase 3 and pre-launch checklist: SendGrid `pxemail.<lab domain>` authentication. Configuration Order: Order custom field definitions for every cart field. Source: claude-chat.
 - 2026-09-29: CORRECTED where the GTM and GA4 fields live; Setup and Manage path unverified. Added the rule for customer setup steps (system named, click path, value inside the step, never above/below). Pre-launch checklist gains favicon.png and footer/logo override. Corrected the kiosk desktop app note: now distributed from myPixfizz Tools, optional, with domain lock, USB import and idle reset. Source: claude-chat, fireflies-call.
 - 2026-10-17: Content Completeness: shopper24 terms and shipping-and-returns pages ship placeholder text to children (lorem ipsum, placeholder phone) with the scan check. Launch Check: every static product needs an image; a blank 200 from a pixfizz.com subdomain is not a live store. SEO Migration: redirect regexes match the query string, end rules in `/?(\?.*)?$`. Handoff checklist: real phone on shipping-and-returns, nav and footer links load logged out, client-owned analytics IDs, noindex off and sitemap generated. Source: claude-chat.
+- 2026-10-22: Marketplace Phase 1: Etsy integration is enabled per site by the Pixfizz core developer (observed in a release commit and stated by support, not stated as a rule by the developer); no site-owner setting seen. Source: slack-message.

@@ -3,7 +3,7 @@
 **Authority Scope:** Formatting and delivery rules for all CSS, JS,
 Liquid, and HTML.
 
-*Last updated: 2026-09-09*
+*Last updated: 2026-10-22*
 
 ------------------------------------------------------------------------
 
@@ -316,7 +316,7 @@ __font_map: {}
 - Double-quote titles and descriptions — apostrophes are common and plain
   scalars are fragile.
 - Round-trip the YAML and assert byte-identical content before shipping.
-- `page_content` renders Liquid: `{{ 'x' | asset_url }}` and `{{ 1234.5 | currency }}` resolve inside a Pages instance's `page_content` on a Shopper 24 child (verified by query, 2026-10-04). Variables set there did not reach a called snippet in a separate test (2026-09-17); see `50_SHOPPER_TEMPLATE_REFERENCE.md` § 14, "Liquid inside page_content". (Corrected 2026-10-06)
+- `page_content` renders Liquid: `{{ 'x' | asset_url }}` and `{{ 1234.5 | currency }}` resolve inside a Pages instance's `page_content` on a Shopper 24 child (verified by query, 2026-10-04). Variables set there did not reach a called snippet in a separate test (2026-09-17); see `50_SHOPPER_TEMPLATE_REFERENCE.md` § 14, "Liquid inside page_content". (Corrected 2026-10-06) Inside `page_content` itself, `assign`, `split`, `for` loops and `asset_url: 500, format: 'webp'` applied to a variable also render (verified on the demo site, 2026-10-19), so a page can build an image list from one assigned string. `asset_url` there falls back to the shopper24 parent's asset when the child has none (`50_LIQUID_REFERENCE.md` § asset_url).
 
 The **per-product export archive** uses the same five-empty-directory `.tar.gz`
 convention and carries `__product.yml`. See `51_CUSTOM_FIELDS_REFERENCE.md` for
@@ -353,6 +353,10 @@ Pixfizz Liquid does **not support backslash escaping** inside strings.
 
 -   Never use apostrophes or contractions in Liquid string literals.
 -   Rephrase: `we will` instead of `we'll`, `do not` instead of `don't`.
+-   Or, for a name that must keep its apostrophe ("Season’s Greetings"),
+    use the typographic apostrophe `’` (U+2019), which does not close a
+    single-quoted string. See `50_LIQUID_REFERENCE.md` § String Quoting
+    Rules (not verified by a test render).
 -   **CMS import silently skips** snippet files with syntax errors — the
     file will not exist after import, with no warning during the import
     process. This makes the error appear as a missing snippet at render
@@ -743,3 +747,4 @@ second; the alternative is trusting that nobody renamed anything.
 - 2026-10-06: CMS Backup Tar Packaging Rule: asset and snippet YAML must parse (no ": " in an unquoted description); a failed load is not atomic, recover from the backup taken before it. Archive Emission: a folded long scalar makes a per-product archive import fail silently; emit with `to_yaml(line_width: -1)`. Checklist Snippet Creation Rule: a checklist value is the exact token, never the label. Custom Type Instance Archive: CORRECTED, `page_content` renders Liquid. Source: claude-chat, vault-doc.
 - 2026-10-09: CMS tar rule: two more changed-files-only incidents; the database (products, variants, prices, collections) is untouched by a CMS import; re-check checklist flags after recovery. Source: claude-chat.
 - 2026-10-17: Scoping Rule for `{% dynamic %}`: do not rely on a dynamic block reading snippet parameters or earlier variables (observed live 2026-10-14; a nested snippet call was a second cause, so the dynamic-only cause is not verified). Whether variables set inside are visible after it stays pending. Source: claude-chat.
+- 2026-10-22: Liquid String Quoting Rule: the typographic apostrophe as an alternative to rephrasing. Custom Type Instance Archive: `page_content` also renders `assign`, `split`, `for` and `asset_url` with size and format on a variable, with the parent asset fallback. Source: claude-chat.

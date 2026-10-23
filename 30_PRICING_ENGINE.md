@@ -2,7 +2,7 @@
 
 **Authority Scope:** Ruby pricing formulas and price variables only.
 
-_Last updated: 2026-10-06_
+_Last updated: 2026-10-22_
 
 ---
 
@@ -18,6 +18,14 @@ Pricing formulas are set on the **Product Attribute** in the admin:
 - Go to **Products** → open the product → open the **Product Attribute** (the specific size/variant, e.g. "4x6 Glossy")
 - Paste the formula into the **Pricing Formula** field on that attribute
 - If the same formula applies to multiple sizes, paste it on each Product Attribute individually (prices per size typically differ, but the formula structure may be shared)
+
+## The Three Ways a Product Is Priced
+
+1. **The Product Attribute price**, fixed or a Ruby formula (this file). Platform-level.
+2. **Plus variant prices**: variant value prices and Number variant formulas, added to the unit price and multiplied by quantity (§ Number Variant Price Formulas, § Per-Order Charges Must Never Sit on a Variant). Platform-level.
+3. **A `px_rates` price card** (JSON in the snippet-type product custom field `px_rates`), priced by one shared engine file that the custom tool, OrderHub and the POS all run. The tool writes the resulting unit price to the hidden Number variant `px_price`, whose Price formula is `value`. Rates change by editing `px_rates` only, never the formula or the tool. Tool-level standard on a platform custom field (the field needs a definition per site).
+
+`px_rates` has a mode `area` for anything sold by size (custom sized prints, canvas, banners): graduated or whole tiers per stock, a minimum per item, extras priced each, per area, per linear foot or per grommet, with the unit in `sq_in` or `sq_ft`. The variant codes are generic, with no tool prefix: `px_width_in`, `px_height_in`, `px_stock`, `px_price`, plus `px_hanging`, `px_depth`, `px_edge`, `px_edgecolor` and `px_grommets`; OrderHub reprices an order line from those values (codes, or the labels the customer saw). Why type 3 instead of type 2 for area pricing: per-stock Number variants with range-hash Ruby formulas price correctly in the cart, but OrderHub cannot evaluate Ruby formulas, so it cannot reprice them. A product that is not published (sold at the counter only) can carry the same card, so OrderHub prices custom work from width and height. *Stated in the tool build notes, 2026-10-22; engine contract and file in `26_CUSTOM_DESIGN_TOOLS.md` § When the tool computes the price.*
 
 ## Price Variables
 - Admin-defined numeric constants available by name in formulas.
@@ -334,8 +342,34 @@ Platform-level (Pixfizz CMS).
 - **`price_forecast` returns raw float sums when a formula adds decimals** (for example
   `1.9900000000000002`). Wrap such formulas in `(...).round(2)`; after that `price_forecast`
   returns clean values. *Verified by query on six products, 2026-10-16.*
+- **`price_forecast` prices only what you send.** Variants not sent are not applied at their
+  defaults: with a default-valued variant left out of the call, its price was missing from the
+  answer. Template options likewise: `?print_theme_id=<design>&pages=<n>` without
+  `template_options[...]` returns the product formula only, and the cart price needs the
+  default template options passed too (read the checked inputs on the storefront product page).
+  A tool must send every variant and template option explicitly. *Verified by query, 2026-10-19
+  and 2026-10-21.* For a design product the same `variants[<code>]=<value code>` parameter works
+  (*verified by query, 2026-10-20*).
+- **Reading a product's real prices into a prototype.** The call answers as the shopper (no
+  admin login); the design id is the `design-id` attribute on `px-product-price` (or `theme_id`
+  in the product form). A full table (80 sizes x 16 quantities, about 1,300 requests in browser
+  batches of 60) loaded in under a minute, so a prototype never needs invented sample prices,
+  and the table shows rate-card mistakes (a value priced ten times too high) before a customer
+  does. `px-product-price` can stay empty on a page where an old tool hid the price while the
+  endpoint still answers. *Verified by query, 2026-10-19.*
 - **Page count in `price_forecast` comes only from the `pages` parameter.** `book[pages]` alone
   is ignored and the price stays at the base.
+- **`pages` is the count of SYSTEM pages, not printed pages.** On a book product with the
+  product custom field `spreads_as_pages` on, Shopper's `product/design-now` shows printed pages
+  but submits system pages: the `book[pages]` option value is the count and its label is
+  `(count - 1) * 2` (label 16 = value 9). The pricing formula and `price_forecast?pages=N` both
+  use the system count; `pages=9` returned the product page's price for 16 printed pages, and
+  adding `print_theme_id` did not change it. A tool that prices a book by page count must read
+  `custom.spreads_as_pages` from `/v1/products/<id>.json` and convert: system = printed / 2 + 1.
+  `pages` alone is enough for a product priced by formula with no paper option
+  (`template_options_applied` empty). *Verified by reading a live product page and by query,
+  2026-10-21.* The `pages` parameter is platform-level; `spreads_as_pages` is template-level
+  (Shopper).
 - **A wrong template option value code looks applied.** Template option prices apply when passed
   as `template_options[<code>]=<value code>`, with or without `print_theme_id`, but a value code
   that does not exist is still listed in `template_options_applied`, at 0. A tool that relies on
@@ -686,6 +720,24 @@ cart holds only certain products. Liquid picks which Ruby tier formula to output
 *Saving verified by reading admin; checkout verified by a signed-in test checkout on a live
 site, 2026-10-13.*
 
+### A per-cart weight estimate by product code (pending platform test)
+
+The same Liquid layer can compute a real per-cart shipping estimate instead of picking a ladder:
+
+- Loop `cart.orderlines`, map `orderline.product.code` to a packing class (box size, depth added
+  per extra piece, weight per piece).
+- Take billable weight as the larger of actual weight and dimensional weight
+  (`L x W x H / 139`), split the cart into packages at 50 lb, and output one number.
+- For paper products, take the weight from the chosen paper variant's name through
+  `orderline.chosen_variants` (`opt.variant_value.name`).
+- Map unknown product codes to a large-box default, so a missing code can only overcharge, never
+  undercharge.
+
+Status: platform-level mechanism, **rendered and tested only in a local Liquid engine
+(python-liquid)**. A platform test checkout is pending, in particular for `page_size` inside an
+`assign`, `ceil`, float `divided_by` and `variant_value.name` in a shipping formula. *Not verified
+on the platform.*
+
 ---
 
 ## Price Variable Bulk Export / Import
@@ -723,6 +775,18 @@ count.
   against a dedicated product, or an Extra Fee. Never a variant.
 - **Per-item charge** (a finish, a substrate upgrade): safe on a variant, precisely
   because orderline quantity is the item count.
+
+### A flat charge per order line on a variant value is `amount / quantity`
+
+A variant value price is added to the **unit** price, so a plain number is charged per piece:
+`6.00` on a "rounded corners" value of a 100-card line adds 600.00, not 6.00. Where a flat charge
+per line belongs on the variant (rounded corners, painted edges, a setup fee chosen with the
+product), give the value the formula `6.0 / quantity`. `price_forecast` then returns a unit price
+that includes a 0.06 share at quantity 100, and unit x quantity gives exactly 6.00 at 100, 250 and 750;
+no rounding of the unit price was seen. Check every flat charge on a variant with
+`price_forecast` at two quantities before publishing. Platform-level. *Verified by query
+(`price_forecast`), 2026-10-20.* A per-**order** charge across several lines still belongs in an
+Extra Fee or its own line, as above.
 
 ### A per-order charge must never multiply by copies either
 
@@ -904,3 +968,4 @@ Stated from client calls, not independently verified.
 - 2026-10-06: Price Variables: corrected the stale "staging only" API note (read and update confirmed on production 2026-09-23). Photo Prints: a flat variant value price on a cut print is not per copy; use a `<delta> * cut_print_quantity` variant value formula (price forecast multiplies per copy; the Photo Prints component shows the one-copy price), with illustrative numbers. From group B2 spill: a product price formula must cover quantity 1 (use `unit_intervals`); new section Platform Price per Quantity and Cart Rounding (`price_forecast.json`, cart line rounding, unconfirmed formula rounding). Source: claude-chat, vault-doc.
 - 2026-10-09: New § Number Variant Price Formulas: where the formula lives, the result is multiplied by orderline quantity (do not append `* quantity`), decimals and Step, priced number variants add, hidden number variants reprice live, shared range-hash boundaries, graduated area tiers, `px-product-price` shadow root. Linked from the tiered-ladder cart-test note. Source: claude-chat.
 - 2026-10-17: Price Variables resolve in template option value formulas (provider's variables on a consumer); canonical pattern for rounding a book total to .95 with a fixed product price; `price_forecast` float sums need `.round(2)`, page count only from `pages`, wrong option value codes listed at 0, per-page formulas go negative below the base count; Extra Fee `cart.orderlines` loop and bare-number output confirmed live (replaces the pending note), one fee per rush speed; new § Shipping Rate by Cart Content Inside One Shipping Service; hidden Number variant on `/v1/books.json` and project-edit reprices the same line; pointer to the `px_rates` / `pricing.js` tool standard. Source: claude-chat, slack-message.
+- 2026-10-22: New § The Three Ways a Product Is Priced (attribute price, variant prices, `px_rates` card; `px_rates` mode `area`, generic `px_` variant codes, why OrderHub needs type 3). § Platform Price per Quantity: `price_forecast` prices only the variants and template options sent; reading real prices into a prototype; `pages` is SYSTEM pages on `spreads_as_pages` books (system = printed / 2 + 1). New subsection: a flat charge per order line on a variant value is `amount / quantity`. New subsection under Shipping Rate by Cart Content: a per-cart weight estimate by product code (mechanism only, pending a platform test checkout). Source: claude-chat.

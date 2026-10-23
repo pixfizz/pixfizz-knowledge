@@ -2,7 +2,7 @@
 
 **Authority Scope:** Shopify + Pixfizz integration architecture, snippets, metafields, cart page, and order sync.
 
-_Last updated: 2026-09-09_
+_Last updated: 2026-10-22_
 
 ---
 
@@ -425,6 +425,8 @@ After creating the webhook in Shopify (Settings → Notifications), copy the sig
 
 **All line item properties captured into orderline options.** Shopify order line item properties are now captured wholesale into the corresponding Pixfizz orderline's `options`, not only the Pixfizz-specific ones. Custom line properties set by the theme or by third-party apps flow through to the Pixfizz order and are available downstream (admin, fulfillment templates). For static-product routing to work, the line item property that carries the static-product code must **exactly match** the name the webhook expects (`_pixfizz_static_product`, see §9a) — a mismatched property name is the usual reason a static line item fails to route. Confirm the exact expected property string with the platform team if routing fails. Added 2026-07-20.
 
+**Shopify orders are created in `P`, then moved: listen to `order.status_changed`.** A Shopify-originated order is always created in status `P` (Pending), so a Pixfizz order webhook consumer listening to `order.created` always sees `P`. Straight after creation the order is moved to `C` or `W` (see the status list in `32_ORDER_LIFECYCLE.md`), which fires `order.status_changed`. An automation that reacts to the order's real state (for example tagging the Shopify order, or skipping one kind of order) must listen to `order.status_changed`, not `order.created`. Platform-level. *Stated by the core developer, Slack #development, 2026-10-21.* Generated production files also appear only on the later events (`61_PIXFIZZ_API.md` § 13d).
+
 ---
 
 ## 9a. Static Product Ingestion (Non-Personalized Shopify Products)
@@ -721,6 +723,22 @@ Related: §4 Cart Item Properties, §9 Order Sync.
 
 *Stated in #development, week of 2026-09-12. Not independently verified.*
 
+### Order missing in Pixfizz: duplicate users
+
+**Symptom.** A paid Shopify order never appears in Pixfizz, or a customer's projects seem to belong to someone else.
+
+**Two causes seen on one integration site.**
+- **Same `external_id`, different `external_source`.** Two Pixfizz users share the customer's details and the same `external_id` but differ in `external_source` (for example an older custom source and `shopify`). Many old accounts on that site had such a duplicate pair.
+- **One order mixing two users' projects.** A customer with two Shopify accounts (different emails) managed to place one Shopify order that combined projects owned by both Pixfizz users. The order failed to come through.
+
+**Fix.** Merge the duplicate user into the one that should stay (the `shopify` user in the first case), then **duplicate and confirm the order in Shopify** so Shopify sends a new order webhook and the order is created in Pixfizz. Merge direction matters: the user being deleted must not be the one holding the projects (the merge answered 403 when it was, *observed by Pixfizz staff, 2026-10-19*; cause not confirmed by the developer), and the API needs `imsure=true` to skip the merge warning (`61_PIXFIZZ_API.md` § 7, Merging users). Platform-level behavior, seen on one site's data. Merge and duplicate-and-confirm fix *stated by the core developer, Slack #development, 2026-10-20 and 2026-10-22.*
+
+### Add to Cart lands on an empty Shopify cart
+
+**Symptom.** The customer clicks Add to Cart on a finished project and arrives at an empty Shopify cart.
+
+**Cause seen once.** The project had been created without its `shopify_product_id` and `shopify_variant_id` options, so there was nothing to add. **Fix:** create a fresh project from the same design to read the right ids, then add those two options to the customer's project. The developer had not seen this before and attributed it to custom code on that site, so treat it as a one-off and check the site's own add-to-cart code first. *Stated by the core developer, Slack #development, 2026-10-22.*
+
 ## 12. Retrieval Pointer
 
 For questions about:
@@ -1003,3 +1021,4 @@ Variant-value image swatches in the Shopify modal take the image's natural width
 - 2026-09-24: Added § 19 image swatch sizing in the personalization modal. Source: claude-chat.
 - 2026-10-06: § 15: Troubleshooting My Projects and My Galleries (missing `pixfizz-product-api` Shopify page hangs the project loader, gallery create needs the Pixfizz user id, `customer.css` 404 on any theme without it, logged-out empty states, `options-to-cart` creates no saved projects, the "Theme file is invalid" red herring). Source: claude-chat.
 - 2026-10-17: § 1 a master snippet fix does not reach an integration site that overrides the snippet (`px-option` Required variant case). § 6 photo-prints products: hide the Shopify variant picker on a duplicated product template (the Personalize button reads the whole sku map, not the selected variant). § 11 `photo-prints` Add to Cart hangs at 0% when a design product sku has no exact match among the `pixfizz.product_sku` values. Source: claude-chat, slack-message.
+- 2026-10-22: § 9 Shopify orders are created in `P` then moved to `C` or `W`: listen to `order.status_changed`, not `order.created`. § 11 new troubleshooting entries: order missing in Pixfizz from duplicate users (same `external_id` with a different `external_source`, or one order mixing two users' projects; merge, then duplicate and confirm in Shopify; merge direction and `imsure`), and Add to Cart landing on an empty cart when the project lacks `shopify_product_id` / `shopify_variant_id` (one-off, custom site code). Source: slack-message.

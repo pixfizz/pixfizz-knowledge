@@ -2,7 +2,7 @@
 
 **Authority Scope:** OrderHub operational configuration, Jobs, Production Board, Processes, Locations, integrations, and notifications. For the core Pixfizz order lifecycle see `32_ORDER_LIFECYCLE.md`.
 
-_Last updated: 2026-10-17_
+_Last updated: 2026-10-22_
 
 **The OrderHub help articles are mirrored in `orderhub/`** (one file per article, index in `orderhub/README.md`), regenerated every night from OrderHub. OrderHub is the source of truth for them: never edit `orderhub/` by hand. This file is the curated overview plus the rules that only come from calls, Slack and tickets. Sections that only repeated an article were cut to a pointer on 2026-10-09. Where this file and an article disagree, both are kept and the point is listed for the OrderHub owner to confirm.
 
@@ -196,6 +196,12 @@ Polling (first come, first served across several instances, filterable by locati
 
 OHD auto-update notifications are delivered via OrderHub. Labs always run the latest version without manual update steps.
 
+### Print controller hot folder on a NAS: files picked up late
+
+OrderHub Desktop hands a job to a hot-folder print controller (for example Darkroom) by writing the job's files and a text file into the folder the controller watches. When that output folder is on a NAS, the controller may not pick the files up promptly. The workaround used: add a second output folder on the local PC and have the controller monitor both. *Stated by OrderHub support (Richard Charnley) on a customer call, 2026-10-22.* Folder and file naming come from tokens (`orderhub/orderhub-desktop/setting-up-a-darkroom-pro-print-controller.md`).
+
+**Order status when a job reaches the controller.** On the same call the order was described as moving to **In Production** when its first job reaches the print controller. The OrderHub article says In Production is "typically set manually" (`orderhub/orders/order-status-s.md`). Both kept; listed for the OrderHub owner to confirm.
+
 ### Known issue: film scan folders stuck in the OHD watch folder
 
 Film scan folders have been reported not moving out of the OHD watch folder (distinct from the Film Scans Module's S3 Auto-Sync). This is a repeat issue type across support tickets; root cause and fix are not yet confirmed. If a lab reports scans not progressing, check whether files are stalled in the local OHD watch folder before escalating. Source: support ticket #18341 (pending confirmation from dev).
@@ -226,6 +232,8 @@ Storage setup (**Settings → My Store → Storage**, Pixfizz storage or My own 
 ## EasyPost Shipping Integration
 
 Shipping labels inside OrderHub, with test and production modes and auto-print through PrintNode: `orderhub/general/setting-up-easypost-integration.md`, `orderhub/ship-desk/ship-desk-shipping-integrations.md`.
+
+**Automatic tracking after shipping.** Once an order is marked shipped with an EasyPost label, OrderHub tracks the shipment every six hours for 21 days. The articles describe only the manual **Sync Tracking** button. *Stated by OrderHub support (Richard Charnley) on a customer call, 2026-10-22.*
 
 ---
 
@@ -468,6 +476,16 @@ Recorded from client calls; the routing behaviour is consistent with the Locatio
 model documented above, but the kiosk-to-location binding itself has **not been
 verified by reading configuration**.
 
+## Repricing Custom Tool Lines from Generic `px_` Variant Values
+
+Tools priced by a `px_rates` card (the third pricing type, `30_PRICING_ENGINE.md`; card format and the shared engine in `26_CUSTOM_DESIGN_TOOLS.md` § 1) write their choices to generic variant codes with no tool prefix: `px_width_in`, `px_height_in`, `px_stock`, `px_price`, plus `px_hanging`, `px_depth`, `px_edge`, `px_edgecolor` and `px_grommets` where the product has them. Tool-level standard. *Recorded 2026-10-22.*
+
+- **OrderHub reprices an order line from those values**, read as codes or as the labels the customer saw, by running the same engine file as the tool and the POS. *Stated by Pixfizz, 2026-10-22; not verified in OrderHub.*
+- **A counter-only product** (not published on the storefront) can carry the same `px_rates` card, so counter staff can price custom sizes (canvas, vinyl on metal, laminate) from width and height in OrderHub. *Stated on a client call, 2026-10-06; not verified in OrderHub.*
+- Neither point is covered by an article in `orderhub/` as of 2026-10-22.
+
+---
+
 ## Changelog
 - 2026-05-21: Created. Content sourced from OrderHub help modal articles (orderhub.pixfizz.com). Covers: Jobs, custom statuses, Production Board, Processes, Locations, PDF Layout Studio, PrintNode, Film Scans, OHD, EasyPost, POS category filter, Pixfizz category assignment, Email/SMS/RCS notifications.
 - 2026-06-15: Added pickup-location opening hours and Google Maps link fields (surfaced in the store pickup UI at checkout). Source: slack-kb-sync (client call).
@@ -482,3 +500,4 @@ verified by reading configuration**.
 - 2026-09-29: Corrected the kiosk app line: distributed from myPixfizz Tools, not unreleased. Stock on OrderHub sites: OrderHub overwrites Core stock on each sale, primary location or sum, edit stock only in OrderHub. Superseded the stale 'price variables not in the API' line, pointing at 61 § 13f. Website chat on Twilio Conversations: snippet override under Integrations, chats and replies in OrderHub, assignable to a task. OHD batching to an Epson Order Controller (Settings → Routing, Maximum prints per job, Send Batches Automatically). Source: claude-chat, fireflies-call, slack-message.
 - 2026-10-09: First pass under the orderhub/ rule. Added the pointer to the `orderhub/` mirror at the top. Cut to pointers the sections that only repeated an article: job statuses and the status cascade, Production Board intro, Process configuration, PDF Layout Studio document types, PrintNode architecture, cost and EasyPost auto-print, OHD polling, Epson batching (its not-verified note is resolved by the article) and the status API, EasyPost, the till screensaver, assigning categories to processes, and the notification triggers, email pipeline, placeholders, two-way SMS, log and testing. Resolved where the stock primary-or-sum choice is set. Kept unchanged, and listed for the OrderHub owner, the points where this file and an article disagree: custom statuses scope, Lead time and Production days meaning, the PDF Layout Studio path, PrintNode install scope, OHD updates, where OHD gets print files, the POS category filter path, the Production Board filters. Source: orderhub-article.
 - 2026-10-17: Added Own Amazon S3 Storage: a trailing slash in a bucket CORS allowed origin breaks uploads while the bucket still enables and views. Source: slack-message.
+- 2026-10-22: Added Repricing Custom Tool Lines from Generic `px_` Variant Values (generic variant codes, OrderHub reprices from them, a counter-only product can carry a `px_rates` card; OrderHub side stated, not verified). OHD: print controller hot folder on a NAS picked up late (local second folder), In Production on first job at the controller vs the article (to confirm). EasyPost: tracking every six hours for 21 days. Source: claude-chat, fireflies-call.

@@ -2,7 +2,7 @@
 
 **Authority Scope:** Operational reasoning and troubleshooting guidance.
 
-*Last updated: 2026-09-09*
+*Last updated: 2026-10-22*
 
 ------------------------------------------------------------------------
 
@@ -258,6 +258,16 @@ This is an intermittent issue — root cause unconfirmed. When encountered:
 - Raise with Matjaz/Richard for investigation
 
 Do not manually confirm orders without verifying payment status in Stripe first.
+
+---
+
+## Stripe: Payment Form Unreadable on a Dark Site
+
+**Symptom.** On a dark-themed Shopper site the card form at checkout shows dark labels and text on a dark background, or looks like a light box pasted onto the page.
+
+**Cause.** `checkout/stripe-checkout` mounts the Stripe Payment Element with no `appearance`, so Stripe draws its light default inside its own iframe. Site CSS cannot reach into that iframe. Template-level (Shopper 24). *Verified by reading source (shopper24 backup), 2026-10-02.*
+
+**Fix, per site, no parent change.** Override `checkout/extra-checkout-code` (empty on the parent, rendered at the top of `pages/checkout`) with a script that calls `px-stripe-form.stripeElements.update({ appearance: { theme: 'night', variables: {...} } })` on the page's `px-stripe-form` element. Site-specific. *Live on a dark child site, confirmed 2026-10-22.* Every dark-themed Shopper site needs this until the parent lets `stripe-checkout` read an appearance from a snippet (candidate parent change, not made). Snippet and checkout details: `50_SHOPPER_TEMPLATE_REFERENCE.md` (checkout).
 
 ---
 
@@ -895,6 +905,42 @@ version of that section wrongly said.
 *Verified by reading source: Pixfizz Wiki → Legal & Compliance → Deletion Policies,
 last edited 2025-08-13.*
 
+## Edits to a Page Do Nothing: The Layout Has No `page.content`
+
+**Symptom.** A page is edited and saved, but the live page keeps showing older copy. Nothing errors.
+
+**Cause.** The page's layout (here the default layout, `layouts/main`, renderer type 1) is itself a complete HTML document and never outputs `{{ page.content }}`. The page body is then never rendered; the live site shows the layout's copy only. On the one site seen, the home page held a newer full document and none of its content appeared. *Verified by reading the site backup and by a live fetch the same day, 2026-10-20.* Platform-level (Pixfizz CMS pages and layouts); the rendering rule is **inferred** from that site, not tested on baseline.
+
+**Rule.** For a site built as one self-contained HTML page, either keep the whole document in the layout and leave the page empty, or make the layout a shell that outputs `{{ page.content }}`. Never keep two full copies: the copy that is not rendered goes stale silently.
+
+**Audit check.** Open each layout a live page uses. If it has no `page.content`, edits to its pages do nothing.
+
+---
+
+## A Component Looks Wrong on One Site Only: The Site's Own CSS Is Leaking In
+
+A homepage section, landing page or tool that looks right on the demo site can look wrong on a lab site because the lab's global `style/custom.css` (or the demo site's own) styles bare elements and generic class names, and those rules reach into anything embedded on the page. Site-specific causes, template-level lesson (any Shopper child with its own `custom.css`). Three patterns seen:
+
+| Symptom | Cause seen | Fix in the component |
+|---|---|---|
+| Dark headings on a dark band; photos rounded where none were designed | The site sets `h1..h6 { color: <dark> }` and styles a generic class (`.ph` with radius, gradient and flex). *Verified by query, 2026-10-19.* | Set heading colors explicitly inside every dark band, and reset any generic class the component reuses (`.ph`, `.card`, `.close`, `.btn`) under its own wrapper. |
+| A button's text disappears (white on white) | A dark-theme child sets link color with high specificity, `html body a:not(.btn):not([class*="x-"])...` (0,3,3), beating the component's `.wrap .btn` (0,2,0). *Verified by query, 2026-10-22.* | Scope button and link colors under an id (`html body #<component-id> a.<btn-class>`). |
+| "It zooms when I hover" on a product preview | The site has `img:hover { transform: scale(1.02); }` (and a stronger `.gallery img:hover`), so every image inside the preview scales. *Verified live by computed style, 2026-10-22.* | The preview resets `transform` on its own images (`.stage.stage img, .stage.stage img:hover { transform: none }`). Inline transforms still win. |
+
+**Before delivery:** list the site `custom.css` rules that match the component's elements (walk the CSSOM in the browser) and override each one that changes the look; read the computed color **and** background of every button and link on the live page and fail on contrast below 4.5:1. **On a hover-zoom report,** list the site's `:hover` rules that set `transform` before touching any tool motion code. Tool-side rules: `26_CUSTOM_DESIGN_TOOLS.md`.
+
+**Confirm a delivered fix actually went live** (compare the live asset bytes with the package) before building the next one. See also *Verify a Parent Asset's Live Version* above.
+
+---
+
+## Before Any Test Order on a Live Site, Check Whether Orders Auto-Confirm
+
+When the website setting `auto_confirm_orders` is on, an order is confirmed at creation and fulfillment is queued at once, so an API fulfillment can send the job to the print partner within seconds. There is no Pending window in which to cancel. Behavior: `32_ORDER_LIFECYCLE.md` § Order Lifecycle Statuses / `auto_confirm_orders`. *Verified by reading an order history on a live site, 2026-10-20* (a test order reached the partner's live production system and had to be cancelled by the partner).
+
+**Checklist line:** before placing a test order on a live site, read the status of the latest orders or the auto-confirm setting. If orders auto-confirm, do not place it: switch fulfillment to a test destination, or turn auto-confirm off for the test window, first.
+
+---
+
 ## Changelog
 - 2026-03-21: Initial content from platform documentation export.
 - 2026-04-23: Added CSS snippet logs diagnostic note, password reset Liquid deprecation pattern, fulfillment template DPI failure, URL reserved parameter 404 gotcha, Stripe pending-without-payment issue, FTP original files intermittent failure.
@@ -914,3 +960,4 @@ last edited 2025-08-13.*
 - 2026-10-06: `Price isn't valid`: a product price formula must evaluate at quantity 1, so a tier ladder must start at 1 (or 0). AI-generated template entry: shrinking a heavy archive by palette-quantizing overlay PNGs. Source: claude-chat, vault-doc.
 - 2026-10-06 (later): Added Slow Previews (heavy PNGs in options or uploads, convert to JPEG or WebP) and Template Output Set to JPEG (text cannot print 1c black; regenerate first on a corrupt-image preflight error). Source: gmail.
 - 2026-10-17: `style onload`: an auto-submit inside `section.checkout-page` can fire twice; cap attempts per cart. Production File Regeneration: a production file can be rendered from the admin project page without an order. Stale page cache: a product attribute save does not clear every design page's bare URL; save the design to refresh. Source: claude-chat, fireflies-call.
+- 2026-10-22: Added Stripe: Payment Form Unreadable on a Dark Site (no `appearance` on the Payment Element, per-site fix through `checkout/extra-checkout-code`). Added Edits to a Page Do Nothing (a layout with no `page.content`; rendering rule inferred; audit check). Added A Component Looks Wrong on One Site Only (site `custom.css` leaking into embeds: heading colors and generic classes, high-specificity link colors, `img:hover` transforms; delivery checks). Added the check for `auto_confirm_orders` before any test order on a live site. Source: claude-chat.

@@ -2,7 +2,7 @@
 
 **Authority Scope:** Defines CMS vs Shopper vs Custom vs Shopify responsibility.
 
-_Last updated: 2026-03-13_
+_Last updated: 2026-10-22_
 
 ---
 
@@ -102,9 +102,12 @@ The 14 notification email templates (Settings > Email Notifications) are **not i
 
 On a child site, **Website → Snippets lists only the snippets that site has overridden**, not the roughly one thousand it inherits from the parent. A snippet that "does not exist" in a child's list usually exists on the parent. Use `52_SNIPPET_INVENTORY.md`, or the **Search CMS** box on the Snippets toolbar (full-text search of snippet content), to find it. *Stated on a client call, 2026-09-24.*
 
+**Checking whether a child overrides a given snippet:** open `/admin/snippets/edit_by_name?name=<snippet name>` on the child. It redirects to `/snippets/<id>/edit` when the child has its own copy, and stays on `edit_by_name` when it does not (the snippet is then inherited from the parent). A quick way to list which shared snippets a child overrides. Platform-level. *Verified by query, 2026-10-19.*
+
 ## Changelog
 - 2026-03-13: Added Shopify deployment path as a distinct boundary layer.
 - 2026-07-25: Added Site Assets — No Parent→Child Inheritance, including the silent-failure mode for JS assets and the version-marker practice for confirming a deployed build past browser cache. Source: claude-chat.
 - 2026-07-28: Corrected Site Assets section — assets ARE inherited parent to child; the silent failure previously attributed to asset inheritance is a child override of `integrations/custom-body-scripts`. Added Parent-First Rule scope note (snippets only, not template options or variants). Source: claude-chat.
 - 2026-09-24: Pointed the Parent-First Rule at the new Install-Step Gate. Added "Pages Are Parent-Only" (with the open § 21.5 question) and "A Child Site's Snippet List Shows Only Its Overrides". Source: claude-chat, fireflies-call.
 - 2026-10-06: Added Custom Types Are Per Site (export and import routes, never child to parent) and Email Notification Templates Are Per Site. Source: claude-chat.
+- 2026-10-22: A Child Site's Snippet List Shows Only Its Overrides: `snippets/edit_by_name` redirects only when the child has its own copy. Source: claude-chat.

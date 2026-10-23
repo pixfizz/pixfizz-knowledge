@@ -4,7 +4,7 @@
 
 _Source: CMS backup 2026-05-27. Total: 926 snippets across 23 namespaces._
 
-_Last updated: 2026-09-09_
+_Last updated: 2026-10-22_
 
 ---
 
@@ -227,6 +227,7 @@ Fully documented in `50_SHOPPER_TEMPLATE_REFERENCE.md` Section 5. Not repeated h
 | `checkout/prepay-only-message` | Prepay required message |
 | `checkout/proceed-to-checkout` | Proceed to checkout button/section |
 | `checkout/public-list-addresses` | Public address list (guest checkout) |
+| `checkout/remove-line-confirm` | Confirm box before a cart line is removed; acts only on `orderline_delete` forms with class `px-rm-line`. CSS in `style/remove-line-confirm`. See `20_SHOPPER_CART_RULES.md`. *Added 2026-10-22; not in the 2026-05-27 backup scan.* |
 | `checkout/rush-button` | Rush processing button (primary) |
 | `checkout/rush-button2` | Rush processing button (secondary/special) |
 | `checkout/rush-disclaimer` | Rush processing disclaimer text |
@@ -755,6 +756,17 @@ Added 2026-10-17.
 | `product/shipping-available` | Reads only `product.custom.shipping_unavailable`, `pickup_unavailable` and `extra_charge`, never the site's pickup or delivery settings; parent callers pass only `product`. See `50_SHOPPER_TEMPLATE_REFERENCE.md` § 24. |
 | `admin/checklist/services-hub-v2`, `services/hub-v2`, `services/page-v2`, `services/hub-hero`, `services/visit-band`, `style/services-v2`, `style/services-v2-theme` | **New (2026-10-13), not in the 2026-05-27 scan.** Services v2, gated by the flag and off by default. See `50_SHOPPER_TEMPLATE_REFERENCE.md` § 14. |
 
+
+Added 2026-10-22.
+
+| Snippet | Annotation |
+|---|---|
+| `checkout/remove-line-confirm`, `style/remove-line-confirm` | **New (2026-10-22), not in the 2026-05-27 scan.** Included from `pages/cart` and `modals/shopping-cart`, whose remove forms carry `px-rm-line`. A child override of either page keeps the instant remove until it adds the class and the include. Fails open (plain form post). See `20_SHOPPER_CART_RULES.md`. |
+| `checkout/extra-checkout-code` | Empty on the parent and rendered at the top of `pages/checkout`, before `section.checkout-page`, so a plain `<script>` there registers its `DOMContentLoaded` listener before the parent's. The child's place for checkout gates (approved users only), the Stripe dark appearance and multi-store pickup scripts. See `21_SHOPPER_CHECKOUT_POLICY.md`. |
+| `checkout/stripe-checkout` | Mounts the Stripe Payment Element with no `appearance`, so it is light on dark sites; fix per site through `checkout/extra-checkout-code`. See `21_SHOPPER_CHECKOUT_POLICY.md` § Payment Gateway Notes. |
+| `integrations/google/event/view-item` | Its guard skips only when a `view_item` is already in the dataLayer. A child that removes the `design-now` push must override this snippet empty too. See `50_SHOPPER_TEMPLATE_REFERENCE.md` § 20. |
+| `admin/checklist/disable-user-registration` | Hides only the New Customer column on `/site/login`; registration forms elsewhere still render. Not a gate. See `21_SHOPPER_CHECKOUT_POLICY.md`. |
+| `product/px-option` | Carries the canonical upload dialog class set (`button-class`, `source-button-class`, `local-source-button-class`, `confirm-button-class`, ...) that every custom tool should copy. See `26_CUSTOM_DESIGN_TOOLS.md` § Open the platform upload dialog standalone. |
 ---
 
 ## Known Parent Defects
@@ -800,3 +812,4 @@ The film products must sit in the `film-processing` collection. The override for
 - 2026-09-29: Known Parent Defects: dual-mode stock badge row gains the exact fix placement. Known Parent Defects: footer/logo broken image, custom-body-font Description, film/roll-builder website.products (fixed). Source: claude-chat.
 - 2026-10-06: Added `kiosk/associate-tip` row and an `email-kit/` namespace section (kit 1.0.0 and 1.1.0). Added a third Annotations block (`show_prices` in filter-controls and dual-mode, unfiltered `sections/dynamic/blog`, hard-coded free shipping bar, `modals/promotions` Custom Type, Klaviyo snippets, `kiosk/style` additions, email-shopper superseded, `website/google-review-link` unread). Known Parent Defects: `navigation/style3` `#cart-link-icon`, `icons/ship.svg` no fill, quickview includes a missing `px-option`, film-builder reads missing keys, bottom promotion bar never included, `style/color-announcement-bar` dead, `checkout/rush-button2` always renders, `campaign/landing` uses the nonexistent `json` filter, blog JSON-LD unescaped. CORRECTED `film/roll-builder` to fix pending on the parent, with the child workaround and logged-out launch check. CORRECTED "As low as" (load-more prints `from_pricing` whenever set; collection-filters only when price is 0). CORRECTED `editor/scripts.js` (loaded only when named in the Design Tool Configuration) and noted how `style/editor.css` is loaded. Source: claude-chat.
 - 2026-10-17: Added a fourth Annotations block: `integrations/google/ga4-bridge` (live since 2026-10-12), `view-item` now a dataLayer push, the seven filter snippets' LF/CRLF split fix (2026-10-14), `checkout/available-payment-methods` strip fix, `integrations/custom-links` for head tags, `product/shipping-available` reads product fields only, Services v2 snippets. Updated the `product-details-prints` and `details-filter-dual-mode` annotations for the `view_item` change. Source: claude-chat.
+- 2026-10-22: `checkout/` table: added `checkout/remove-line-confirm`. Fifth Annotations block: remove-line confirm pair, `checkout/extra-checkout-code` render position and uses, `checkout/stripe-checkout` no appearance, `view-item` override-empty rule, `disable-user-registration` is not a gate, `product/px-option` canonical upload classes. Source: claude-chat.

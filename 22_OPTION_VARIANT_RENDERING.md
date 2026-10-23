@@ -2,7 +2,7 @@
 
 **Authority Scope:** Variant rendering behavior only.
 
-_Last updated: 2026-09-09_
+_Last updated: 2026-10-22_
 
 ---
 
@@ -39,6 +39,7 @@ Shopper commonly renders options in two places:
 		- Template options: `options: design.template_options` with `parameter_name: 'template_options'`
 		- Product variants: `options: product.variants` with `parameter_name: 'variants'`
 	- Static product flow renders product variants only.
+	- Template options render **above** product variants on the product page. Platform-level. *Observed 2026-10-22; evidence method not recorded, not verified by query.*
 
 - **In cart** (cart line item editing / display):
 	- Cart uses a cart-specific snippet (commonly `product/px-option-cart`) to render option controls more compactly.
@@ -363,6 +364,7 @@ Template-level (Shopper `product/px-option`) over platform preview widget behavi
 - Long text values (for example generated story paragraphs) make the URL too long: the product page crashes and the project can be saved corrupted. Short values are harmless (`27_LIVE_FINISH_AND_3D_PREVIEWS.md` observes it with `lf_mount`).
 - Do not remove the handler if shoppers switch products on the form. Exclude the long-value options from it (an ignore list in `product/design-now`), keep those values in a client store or in project custom fields (`50_LIQUID_REFERENCE.md` § Projects), and refill the inputs on `pageshow` and `px.fragmentsReloaded` (`17_DESIGN_TOOL.md` § Restoring Input Values After a Product Switch).
 - A text option value is capped at 1,024 characters regardless (`51_CUSTOM_FIELDS_REFERENCE.md` Key Notes).
+- **A tool must not write internal state into an option before real artwork exists.** Template option values are mirrored into the product page URL as they change, so a spec JSON written into an option early shows up in the address bar. *Verified live, 2026-10-22.*
 
 Template-level (Shopper `product/design-now`). *Stated by the core developer, 2025-05; not re-tested by query.*
 
@@ -477,8 +479,18 @@ intended as `read_only: false` can import as effectively read-only, and
 `read_only: true` renders a hidden value input plus a read-back chip with no file
 input, so a script-injected upload lands nowhere.
 
-The `'false'` trap bites **string** fields only. A genuine boolean custom field is
-safe with `{% if collection.custom.x %}`.
+The `'false'` trap bites values that are not real booleans: a field with **no definition** on
+the site (an imported value only) or a field typed as text comes through as the string `'false'`.
+A field with a genuine boolean definition on the site is safe with
+`{% if collection.custom.x %}`. (Corrected 2026-10-22: previously said the trap bites string
+fields only.)
+
+**In JavaScript, never test a custom flag by truthiness when the definition cannot be
+guaranteed.** A product custom field declared boolean was also seen arriving at a tool as the
+string `"false"` (a `spreads_as_pages` product field on a demo site, 2026-10-21; whether that site
+had the boolean definition was not checked, pending confirmation). Tool code must test
+`=== true || === 'true'`. The definitions a tool mount needs on a child site:
+`26_CUSTOM_DESIGN_TOOLS.md`.
 
 ## A Required File-Upload Option Behind a Trigger Silently Kills Add to Cart
 
@@ -657,6 +669,10 @@ Platform-level (Pixfizz CMS). Applies to template options and design options ali
 - **An image upload's Target Element Name accepts several names separated by commas** (admin help text).
 - **Substitution keys can target tags:** `name@[tag1,tag2]`, with the name optional. Elements carry `tags="a,b"` in page XML. Works in the storefront editor (verified 2026-10-08, `17_DESIGN_TOOL.md` § Substitutions bind by element name); the production render is not verified.
 - **A substitution that names a missing element does nothing, silently.** If an option value's substitution targets an element name found on no page of the design, the option renders, can be chosen and is saved on the order, and nothing changes: not the product preview, not the editor, not the print file (renders for two values were byte-identical). Before any preview work, check every design option's substitution targets against the element names on that design's pages. *Verified by query, 2026-10-07.*
+- **An `image_upload` design option only places the photo if a page element carries its target name.** The option's `target_element_name` (for example `image`) must match the `name` of an `<image>` element in the design's page XML (`name="image"`). With an unnamed element the option still renders, the upload succeeds and the value travels in the URL, but the preview and the production file show the empty design, with no error. Check fast: request `/v1/themes/<design id>/preview.jpg?product_id=<id>&width=600` with and without `template_options[image]=db:<id>` in the uploader's own browser session (uploads are session-scoped); the same byte size means the option was not applied. *Verified by preview byte comparison and by reading each design export (`__print_theme.yml`), 2026-10-21.*
+- **Copying an option to other sizes copies its `crop_aspect_ratio`.** Every size then carries the first size's ratio; re-set it per size (`19_XML_TEMPLATE_REFERENCE.md` § Canvas Wrap Geometry). *Verified by reading design exports, 2026-10-21.*
+- **Text template options are written into the page XML when the project is created** (`POST /v1/books.json`): `template_options[name]=X` writes X into `<text name="name">`. An empty value empties the element; a missing value keeps the design default. *Verified by query, 2026-10-20.*
+- **A color wrap can be a design option.** A child option with `value_type: color` and `trigger_value_code: <wrap value code>`, carrying a `background_color` element substitution with element `<implicit>` on the canvas page, sits next to a layout substitution on the wrap value. It imports inside a template export and the server render shows the picked color on the sides. *Verified on experience.pixfizz.com, 2026-10-20.* Live Finish reading it: `27_LIVE_FINISH_AND_3D_PREVIEWS.md`.
 - **A variant and a template option on the same product must not share a code.** `variants[x]` and `template_options[x]` both end in `[x]`, so a script matching input names by suffix finds either. Template-level (Shopper 24 form names).
 - **Copy design options between sites with their values:** `GET /site/<a>/admin/templates/<t>/options/export_all?print_theme_id=<design>`, then POST the tar as `exported_file` to `/site/<b>/admin/templates/<t2>/options/import?print_theme_id=<design2>`. Values, value custom fields and element substitutions travel; the custom field definitions must already exist on the target site. *Verified by query on 60 designs, 2026-10-08.*
 - **Element substitution types offered by the admin form:** `image`, `image_mask`, `image_color`, `image_effect`, `image_crop_flag`, `image_border_width`, `image_border_color`, `image_border_radius`, `text`, `text_color`, `text_font`, `text_font_size`, `qrcode_content`, `shape_color`, `shape_border_width`, `shape_border_color`, `shape_border_radius`, `inline_page_mask`, `inline_page_border_radius`, `element_opacity`, `element_blend_mode`, `background_color`, `layout`, `page_mask`.
@@ -708,6 +724,15 @@ In a template export (`__print_product.yml`), each product's variant types carry
 
 **A priced number variant must ship with a default value.** A number variant's price formula sits on the variant type (`price: value * 20.99`, `variant_values: []`). With a formula and no `default_value`, a template import and a product-only import both answered 500 and left a partial product holding only the variants before the first number variant. The same types with `default_value: '0'` import cleanly, through `variant_types/import` and inside a full template tar. Likely cause: the formula is validated with the default, and `nil * 20.99` is invalid. Platform-level. *Verified by query, 2026-10-06.* Pricing behavior: `30_PRICING_ENGINE.md` § Number Variant Price Formulas.
 
+**Copying a product's variant set to another site** (for example onto a product published from a supplier template, which arrives with no variants: `16_PRODUCT_HIERARCHY.md`). Platform-level. *Verified by query, 2026-10-19 and 2026-10-22.*
+
+- Export: `GET /site/<provider>/admin/products/<id>/variant_types/export_all` returns a gzipped tar holding `__variant_types.yml` plus value images under `assets/`. The product page's **Export All** button is this route; **Import Variants** posts to `/site/<site>/admin/products/<id>/variant_types/import`.
+- Import: `POST /site/<site>/admin/products/<new id>/variant_types/import` with the tar as `exported_file`. The form carries no authenticity token.
+- What survives: every type and value code, child types with their parent and trigger value (`parent_id`, `trigger_value_id` when read back), value images (served from cdn.pixfizz.com on the target site), descriptions and defaults.
+- The YAML: `variant_types[]` with `name`, `code`, `value_type`, `required`, `order`, `published`, `custom` and `variant_values[]` (`code`, `price` as a quoted string, `default`, `order`, `published`), plus empty `__asset_map`, `__image_map`, `__pdf_map` and `__font_map` when there are no images. Ids are present in an export; blank every `id:` for an import file.
+- To reprice, edit the `price: 'N'` lines and blank the ids before import. The tar can be rebuilt in the browser (DecompressionStream, rewrite one entry's size and checksum, CompressionStream).
+- **The import is additive.** Run it only on a product with no variants, or the set is added a second time (compare the `-1` code suffix on collision above). An export is also a reusable seed: build an import tar from one instead of adding variant types and values by hand.
+
 **Rolling a changed template option or variant set across a live range:** configure it on one template, then copy it to the others with the admin Bulk Update Tools (Advanced tab). Never hand-edit dozens of templates and never delete and re-import. See `18_ADMIN_NAVIGATION.md`. *Stated by Alex, 2026-09-26 and 2026-09-29.*
 
 ## Pricing and POS-Relevant Choices Belong on Variants, Not Template Options
@@ -736,3 +761,4 @@ A variant price formula cannot read another variant's value, so when the price d
 - 2026-10-06 (later): § 6.1 what `data-px-no-element-substitutions` does (keeps an input out of preview URLs) and the per-option `skip_for_previews` override. § 6.2 options written into the page URL by `storeOptionSelectionIntoURL`, the long-value crash and the ignore-list fix. Source: gmail (core developer, 2025).
 - 2026-10-09: § 4.2 and § 4.9 the hide-color-label checklist did not reach `selector == 'color'` swatches until the 2026-10-08 parent fix; child overrides keep the defect. Template Option Substitutions: tag targeting works in the editor; a substitution naming a missing element does nothing silently; a variant and a template option must not share a code; copying design options between sites. Variant Type Exports: a priced number variant needs `default_value: '0'` to import. Source: claude-chat.
 - 2026-10-17: § 3.1 product custom keys (`hide_design_options`, `prepay_only`) stored as `"false"` hide every design option and force prepay. § 4.1 textarea whitespace defect defeats `required`. § 4.9 value labels under image tiles truncate at about 6 characters. § 5.2 corrected: `file_upload` reads `option.accept`, not `custom.accept`; markup after `px-file-upload` lands inside it; the internal required check and the capture-phase `invalid` fix; injected files carry `db:<id>`, `file-name`, `file-url`. § 5.2c what project-edit renders (`form#project_update`, `book[template_options]`, file URLs, the mount boots there, `.save-to-cart-button`, read before writing defaults). New § A Non-Additive Finish x Size Price Matrix Is One Variant With Combined Codes. Source: claude-chat.
+- 2026-10-22: § 2 template options render above variants. § 6.2 a tool must not write internal state into an option early (values mirror into the URL). Template Option Substitutions: an `image_upload` option needs a page element with its target name (silent failure, preview byte check), copied options carry the first size's `crop_aspect_ratio`, text options written into `<text name>` at project create, color wrap as a child design option with `background_color`. Unset Booleans: CORRECTED which fields give the string `'false'` (no definition or typed as text; a real boolean definition is safe); test flags with `=== true || === 'true'` in JavaScript when the definition cannot be guaranteed. Variant Type Exports: copying a variant set across sites (`export_all` tar, import route, what survives, YAML keys, repricing, additive import). Source: claude-chat.

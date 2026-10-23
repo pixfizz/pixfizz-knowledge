@@ -83,6 +83,7 @@ Pixfizz Liquid strings are delimited by single quotes (`'...'`). There is **no e
 - If a string contains an apostrophe, rephrase to avoid it (e.g. `we will` instead of `we'll`).
 - This applies to all Liquid contexts: `{{ '...' | t: ns: '...' }}`, `{% assign x = '...' %}`, `{% capture %}` string arguments, etc.
 - **CMS import silently rejects** any snippet file containing this error — the file will not appear in the CMS after import, with no error message during the import process.
+- **A name or phrase that needs an apostrophe can use the typographic apostrophe (`’`, U+2019)** instead of the straight one: `{% assign card = 'Season’s Greetings' %}` sits safely inside a single-quoted string, because only the straight `'` closes it. Check the file is saved as UTF-8. Platform-level. *Not verified by a test render (2026-10-19).*
 
 **Example — WRONG:**
 ```liquid
@@ -540,7 +541,7 @@ Represents an orderline in a cart or order. Atomic commerce unit in Pixfizz.
 | `orderline.quantity` | Quantity |
 | `orderline.units` | Sum of quantities of all orderlines for the same product |
 | `orderline.page_count` | Page count |
-| `orderline.is_draft` | `true` if draft status |
+| `orderline.is_draft` | `true` if draft status. The same flag is `draft` (boolean) in the API orderline, and the admin shows "(Draft)" next to the line, which is easy to miss (`61_PIXFIZZ_API.md` § Draft orderlines). *Stated by the core developer, Slack #development, 2026-10-22.* |
 | `orderline.is_cut_print` | `true` if cut print product |
 | `orderline.cut_print_quantity` | Quantity of cut prints (for non-cut-print projects, equals page count — not `0`) |
 | `orderline.unit_price` | Unit price. Use `currency` filter. |
@@ -947,9 +948,17 @@ Renders a URL to a website asset. Input: asset name string or `Asset` object.
 - `format`: `"jpeg"`, `"png"`, or `"webp"` (images only)
 - `cdn: false` — disable CDN (use for OG/metadata/ld+json URLs)
 
-**A missing asset renders an empty string, with no error.** `{{ 'name.ext' | asset_url }}` for an asset that exists on neither the child nor the parent returns `""`, so an `<img>` gets `src=""` and silently shows nothing. Check every new asset name on the live page (empty `src` or `naturalWidth` 0). Platform-level. *Verified by query, 2026-10-08.*
+**A missing asset renders an empty string, with no error.** `{{ 'name.ext' | asset_url }}` for an asset that exists on neither the child nor the parent returns `""`, so an `<img>` gets `src=""` and silently shows nothing. Check every new asset name on the live page (empty `src` or `naturalWidth` 0). Platform-level. *Verified by query, 2026-10-08.* Seen again on 2026-10-21 in a child site's Pages `page_content`: an image named in the content had not yet been uploaded to the parent, and the page saved and rendered `src=""` with no error, placeholder or log. **Before saving** page content or a snippet that names a new asset, search the assets list of the site that owns it (`/site/<site>/admin/assets?search=<name>`) and confirm every name is there; **after saving**, assert on the live URL that no `img` or `source` has an empty `src` or `srcset`. *Verified by query, 2026-10-21.*
 
 **`asset_url` resolves the child site's asset first, even inside a parent snippet.** A parent snippet calling `asset_url` (with a literal name or a keyword-argument variable) returns the child's asset when the child has one with that name, and the parent's otherwise. So a child can replace an image a parent snippet uses (for example the header logo `brand-logo.svg` read by `header/logo`) by uploading an asset of the same name, with no snippet override. Platform-level. *Verified live on a child site, 2026-10-13 and 2026-10-14.*
+
+**When the child has no asset of that name, a Shopper 24 child falls back to the shopper24 parent's asset, in every child context checked.** Template-level (Shopper 24 parent and child). Three observations:
+
+- inside a parent snippet rendered on a child page (a tool's script and 121 images uploaded only to shopper24 rendered on the demo site). *Verified by query, 2026-10-21.*
+- inside a child site's Pages `page_content` (five assets uploaded only to shopper24, all returned 200 from `cdn.pixfizz.com` on the demo site). *Verified by query, 2026-10-21.*
+- on a child's live page, for an image uploaded only to shopper24. *Verified by query on another child site, 2026-10-22.*
+
+So an image shared by every child (for example a landing card used by all labs) is uploaded **once, on the parent**, and a child that needs a different one uploads its own under the same name. The lookup order is always child first, then parent; a name on neither renders an empty string (above).
 
 ---
 
@@ -1395,6 +1404,7 @@ These behaviours differ from standard Liquid or Shopify Liquid. Confirmed throug
 | `\| money` in an email template | Prints a bare number (`127.8`). Use `\| currency` (verified by query in email Preview, 2026-10-03) |
 | A filter inside a `{% snippet %}` argument, such as `subject: 'Welcome to ' \| append: website.title` | The filter does not run. `{% assign %}` the value first, then pass the variable (verified by query in email templates, 2026-10-03) |
 | A string literal containing `{` or `}` in an email template body | The body save fails silently. Build such strings with `{% capture %}` (verified by query, 2026-10-03) |
+| `{% capture website %}...{% endcapture %}` using the name of a global object | **Redefines the global for the rest of the template.** In an order confirmation email, `{% capture website %}{% snippet 'website/brand' %}{% endcapture %}` replaced `website` with the snippet's output, so a later `{{ website.hostname }}` rendered empty. Never capture into `website`, `order`, `user`, `product` or another global name: use a distinct name such as `brand_html` (an `assign` to a global name is expected to do the same; not verified). Platform-level. *Stated by the core developer, Slack #development, 2026-10-16* |
 
 ---
 
@@ -1891,3 +1901,4 @@ tool never saw the product" in one paste, and nothing else does.
 - 2026-10-06 (later): Projects forms: writing project custom fields with `book[custom][<field>]` hidden inputs in `project_create`, with the Public requirement and the 65,535-byte total. Source: gmail (core developer, 2025).
 - 2026-10-09: asset_url: a missing asset renders an empty string with no error. Source: claude-chat.
 - 2026-10-17: String Quoting: a literal `{` directly before a tag opens an output tag. Website Redirects: regex matches the path including the query string (end rules in `/?(\?.*)?$`), admin routes. asset_url: resolves the child's asset first, even in a parent snippet. snippet: CORRECTED storefront snippets do not see the caller's `collection`; a nested `{% snippet %}` call clears the caller's params (save and restore). Form Types: `user_update` accepts a partial post. Source: claude-chat.
+- 2026-10-22: String Quoting: the typographic apostrophe (`’`) can sit inside a single-quoted string (not verified by test). asset_url: missing asset seen again in a child's Pages `page_content`, with the check-before-save and assert-after-save steps; a Shopper 24 child falls back to the shopper24 parent's asset in a parent snippet, in Pages `page_content` and on a child page (one parent upload for images every child shares). Orderline: `is_draft` row names the API `draft` field and the admin "(Draft)" label. KNOWN CMS LIQUID QUIRKS: capturing into a global name (`website`) redefines it for the rest of the template. Source: claude-chat, slack-message.

@@ -2,7 +2,7 @@
 
 **Authority Scope:** OrderHub order lifecycle, production pipeline, fulfillment destinations, and OrderHub Desktop.
 
-_Last updated: 2026-09-09_
+_Last updated: 2026-10-22_
 
 ---
 
@@ -35,6 +35,12 @@ An order sitting in **Pending** does not flow to production on its own. Nothing 
 Where an order lands as Pending (manual payment methods, gateway not configured, payment awaiting capture), someone must **manually confirm it in admin** before production sees it. This is the most common cause of "the order is in Pixfizz but nothing reached the lab".
 
 Check the Pending queue as part of daily order review on any site that accepts manual or offline payment.
+
+### `auto_confirm_orders`: no Pending window, so check it before any test order
+
+When the website setting `auto_confirm_orders` is on, the order history reads "Order auto-confirmed because auto_confirm_orders setting is enabled." at creation, fulfillment is queued at once, and an API (HTTP) fulfillment sends the job to the print partner within seconds. There is no Pending window in which to cancel a test. On one live site, test orders stayed Pending one morning and every order was auto-confirmed from that afternoon; a later test order reached the print partner's live system and had to be cancelled by the partner. Platform-level setting. *Verified by reading an order history, 2026-10-20.*
+
+Rule for every live site: before placing a test order, read the status of the latest orders (or the auto-confirm setting). If orders auto-confirm, do not place it until fulfillment is switched to a test destination or auto-confirm is off for the test window.
 
 ### Gateway callback webhooks must be configured on the gateway side
 
@@ -72,6 +78,8 @@ In Liquid templates, `order.status` returns a **single-letter code**, not the di
 - `F` = Payment Failed
 
 Write conditionals against the letter, e.g. `{% if order.status == 'P' %}`, and fetch the newest pending order with `user.orders | where: 'status', 'P' | sort: 'created_at' | reverse | first`.
+
+**Shopify orders start in `P` and move at once.** A Shopify + Pixfizz order is always created in `P` and is then immediately moved to `C` or `W`, firing `order.status_changed`. A webhook consumer reacting to order state must listen to `order.status_changed`, not `order.created` (`60_SHOPIFY_INTEGRATION.md` § 9). *Stated by the core developer, Slack #development, 2026-10-21.* The labels for `C` and `W` are not yet confirmed here.
 
 **Pay Now / payment retry.** Orders in Pending (`P`) or Payment Failed (`F`) can be re-paid using the `order_payment` form: `{% form 'order_payment', order: order %}`. This is used to surface a "Pay Now" action on the account orders page and on the empty-cart page for back-from-gateway recovery. (Form tag confirmed in use on a live site; verify the tag name against the current template before reusing.)
 
@@ -297,7 +305,7 @@ Each order has one or more orderlines (individual products). Each shows:
 
 ### Other Admin Order Sections
 - **Abandoned Carts**: carts that never became an order. A cart is flagged abandoned about an hour after it was left. Only **Confirm Order** at checkout creates an order, so a customer who stops before it appears here and not in Orders; this is a repeated pattern on kiosks (`21_SHOPPER_CHECKOUT_POLICY.md` § Kiosk Sessions). *Stated on a client call, 2026-09-24.*
-- **Production Files** — production book files with project, page count, status
+- **Production Files**: production book files with project, page count, status. A project's **Generate new file** refuses while a production file exists ("A new file cannot be generated until the existing one is deleted"); for a test re-render, create a new project rather than deleting files. *Verified by query, 2026-10-19.*
 - **Projects**: saved personalization projects. Every cart item becomes a project the moment it is added, for guests as well as registered customers, so a customer's files can be recovered here even when no order exists. *Stated on a client call, 2026-09-24.*
 - **Cross-Website Order Management** — Super Admin aggregates orders from all websites
 
@@ -509,3 +517,4 @@ nothing, because the cart stores the value freeform either way. Detail and the o
 - 2026-10-06: CORRECTED the Fulfilled status meaning (internal production status, not delivered) and reconciled it with Which notification email fires when; Order Fulfilled and Orderline Fulfilled internal only; CORRECTED the gift card note (gift cards now issue through superadmin orderline scripts). Added Sign-in Token Renewed trigger. Added How notification email templates behave (per site, not inherited, 14 empty on a child, Enabled = non-empty Body, Orderline Fulfilled edit URL, Preview and Versions, Subject runs Liquid, Cart Abandoned needs a Schedule row, HTML only, no inline SVG, SendGrid sending-domain authentication). Added The Shopper email kit, including kit 1.1.0 cart reminders. Cart custom fields promotion: each field needs an Order definition, tested with a placed order. Source: claude-chat, vault-doc.
 - 2026-10-06 (later): Added Fulfillment Hold (Super Admin), in minutes. Source: claude-chat.
 - 2026-10-17: Kiosk Terminal Tracking: corrected, `kiosk_id` was not written on the parent before 2026-10-12 (terminal reached the order only as `order_source` `kiosk-N`); now written by `checkout/order-source-code`, needs an Order `kiosk_id` definition; pickup location is `cart[location_id]`. Scripts: the orderline script can stamp an uploaded file's signed URL onto the orderline (the only server-readable route to the file). Source: claude-chat.
+- 2026-10-22: Order Lifecycle Statuses: new `auto_confirm_orders` subsection (no Pending window; check before any test order on a live site). Other Admin Order Sections: Generate new file refuses while a production file exists. Status codes in Liquid: Shopify orders start in `P` and move to `C` or `W` at once (pointer to 60 § 9). Source: claude-chat, slack-message.

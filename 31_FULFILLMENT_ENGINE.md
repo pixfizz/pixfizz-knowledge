@@ -2,7 +2,7 @@
 
 **Authority Scope:** Job ticket schema and generated file logic only.
 
-_Last updated: 2026-10-06_
+_Last updated: 2026-10-22_
 
 ---
 
@@ -27,7 +27,7 @@ Common settings you'll see in Admin:
 - **Single Page Output**
 - **Multiple Cut Print Copies**
 - **Color Profile** (often sRGB)
-- **Enable Perfectly Clear** (image enhancement) — the underlying billing fields for this were renamed from Perfectly Clear-specific naming to a generic "AI tokens" model as of 2026-07-30 (enhancement can now be billed against OpenAI/Gemini as well as Perfectly Clear). Exact new admin label not yet confirmed — treat "Perfectly Clear" references in admin as potentially stale until verified.
+- **Enable Perfectly Clear** (image enhancement): the underlying billing fields for this were renamed from Perfectly Clear-specific naming to a generic "AI tokens" model as of 2026-07-30 (enhancement can now be billed against OpenAI/Gemini as well as Perfectly Clear). Exact new admin label not yet confirmed: treat "Perfectly Clear" references in admin as potentially stale until verified. Fulfillment settings now also carry **Enable Perfectly Clear Upscaling** (AI upscaling of low-resolution images at fulfillment): see § AI Upscaling at Fulfillment (Perfectly Clear).
 - **Split By Orderline** (fan-out into multiple requests)
 
 These settings affect:
@@ -70,11 +70,17 @@ A fulfillment code routes an orderline to the correct fulfillment destination. T
 
 Practical effect: if a template carries its own fulfillment code, that code wins regardless of location or product configuration. Set a template-level code only when you intend to override location/product routing.
 
-**UI lock.** Once a fulfillment code is set on a template, the product-level fulfillment code field for products using that template is locked and cannot be changed from the product screen. This is the expected consequence of the precedence order above: the template code always wins, so editing the product-level value would have no effect. To change routing for such a product, edit (or clear) the code on the template. Added June/July 2026.
+**UI lock.** Once a fulfillment code is set on a template, the product-level fulfillment code field for products using that template is locked and cannot be changed from the product screen. This is the expected consequence of the precedence order above: the template code always wins, so editing the product-level value would have no effect. To change routing for such a product, edit (or clear) the code on the template. Added June/July 2026. What the lock looks like (*verified by query, 2026-10-20*): when the product's template has a fulfillment code, the product page shows **Fulfillment Code** as a disabled text input with the template's value, and the form has **no** `product[fulfillment]` field at all. When the template has none, the product gets the editable select `product[fulfillment]` with "Website default" first. So "product fulfillment blank, template fulfillment set" is the expected state, not a fault to fix per product: check the template before planning product-level fulfillment edits.
+
+**Products published from another site's template.** The same rule decides what a lab product gets when it is published from a supplier's or template provider's template (Publish Products → Print on Demand, or a template consumer). The wizard's Product Attributes step shows it before anything is published: open `/site/<lab>/admin/manage_products/product_attributes?continue=1&template_id=<provider template>&print_themes=0` and read the Fulfillment Code row. A provider template with a fulfillment code gives a disabled row with that code, so the lab's orders route to the supplier and the product cannot be pointed at a QA destination. A provider template with none gives the editable select, pre-filled with the **provider product's** fulfillment code (null when the provider product has none too); change it there before publishing when a demo site should send to a QA destination. Platform-level. *Verified by query, 2026-10-19 and 2026-10-20.* See `16_PRODUCT_HIERARCHY.md` § Publishing Another Site's Template.
 
 **Moving one site off a shared destination:** create a new destination (Super Admin → Fulfillment → New: code and super account), copy the HTTP or FTP settings and templates, then switch that site's default. Other sites on the old destination are untouched. Several destinations can post to the same print-partner account; each keeps its **own barcode counter** (starting at 100000000000). *Verified by query, 2026-10-14.*
 
 **Global fulfillment codes are internal-only (from 2026-10-12).** Fulfillment codes shared across sites, formerly called "public", are now called **global** and are listed only for omnipotent (super admin) users, so a site admin cannot switch a product or site to one. A code that is already selected is still added to the dropdown (2026-10-13), so existing assignments show. Reason: switching a global code self-service could mismatch supplier SKUs and print specs. New print-on-demand suppliers are routed with template-level fulfillment codes, with product or variant settings where supplier requirements differ. Platform-level. *Stated by the core developer (commit log and technical call), 2026-10-12 and 2026-10-13; not verified in admin.*
+
+**Order fulfillment page lists every code (from 2026-10-22).** The order fulfillment page lists all fulfillment codes. Whether this includes global codes for a site admin is not stated. *Observed in release commits 2026-10-22; behavior not verified.*
+
+**A print-on-demand supplier's order callback can update orders on any site (from 2026-10-22).** A supplier's order callback, hosted on the supplier's own Pixfizz site, was allowed to update orders on any site, not only on its own site. The change was made for one supplier; whether it is a general setting is not stated. *Observed in release commits 2026-10-22; behavior not verified.*
 
 ## Pixfizz Default Fulfillment JSON (vendor-neutral)
 
@@ -264,6 +270,7 @@ Filename Templates control how output files are named (and optionally which fold
 ### Operational guidance
 - Ensure **uniqueness**: include `order.code` + `orderline.barcode` + `idx`.
 - Avoid unsafe filename characters: strip/replace `|`, `/`, `\`, `:` and quotes.
+- **Spaces from a customer field can stall the transfer.** A folder or filename template that prints a customer-entered value (for example `order.last_name`) can produce a folder or filename with a space or an illegal character, and the transfer to the destination stalls on it. Replace spaces in the template, for example `{{ order.last_name | replace: ' ', '_' }}`, and strip the characters above. Cause observed by Pixfizz support on a stuck order folder, fix *stated by the core developer, Slack #development, 2026-10-22.*
 - Use folder routing sparingly (e.g., by category) when a lab watches many hotfolders.
 - **Reverting to the default template flattens folders.** The output filename template controls folder structure. If a customized template that routes into product-category subfolders is reverted to the default, those category subfolders disappear and every file lands flat in the per-order folder. Re-check the template after any reset when a lab relies on category subfolders. Source: #development (2026-06-30).
 - **Cut print filenames use an index counter, not page numbers.** For cut print output, the page number is no longer included in the generated filename; an index counter (`idx`) is used instead to keep filenames unique across the set. If a lab previously relied on page numbers appearing in cut print filenames, expect the sequential `idx` value in that position now. Source: fireflies-call (2026-07-09).
@@ -1021,6 +1028,30 @@ _Verified by reading source, 2026-09-09._
 
 ---
 
+## AI Upscaling at Fulfillment (Perfectly Clear)
+
+From October 2026, images that would print below the target resolution can be enlarged with Perfectly Clear AI upscaling when the order is fulfilled. Platform-level. *Stated by the core developer, Notion Dashboard (New Feature: Automatic AI image upscaling at fulfillment time), October 2026.*
+
+**Settings** (fulfillment settings, visible to omnipotent (Pixfizz staff) users only):
+
+| Setting | Behavior |
+|---|---|
+| **Enable Perfectly Clear** | Prerequisite. Must be checked. |
+| **Enable Perfectly Clear Script** | Optional Liquid script. When filled, it must return `true` for the order, or nothing is processed. |
+| **Enable Perfectly Clear Upscaling** | Liquid script that returns `true` for orders to upscale. Plain `true` upscales every order. |
+| **Perfectly Clear Upscaling DPI** | Optional target DPI. Defaults to the template's output DPI (`dpi` on the definition). |
+| **Perfectly Clear Preset Name** | `none` switches off color correction while still upscaling. |
+
+**Per-template override.** The template definition can switch upscaling on or off for one template and set its own target: `output-perfectly-clear-upscale="true|false"` and `output-perfectly-clear-upscale-dpi="300"`. Perfectly Clear itself must still be enabled in the fulfillment settings. See `19_XML_TEMPLATE_REFERENCE.md` § `<definition>` Attributes.
+
+**Limits.** When the target DPI would need more than Perfectly Clear's maximum output size or scale, the image is upscaled as far as Perfectly Clear allows. Release commits (19 to 21 Oct) also say images are not upscaled more than 10x their original size, resolution checks were fixed for zoomed images, project pages link to the Perfectly Clear processed images, and the `order` Liquid variable was fixed in Perfectly Clear scripts. *Observed in release commits 2026-10-19 to 2026-10-21; behavior not verified.*
+
+**Billing.** Upscaling is usage-based and consumes AI tokens per image by output size: see commercial terms. No rates are recorded here.
+
+How this relates to the earlier rename of the billing flag to **Enable AI Tokens** (Super Admin, `18_ADMIN_NAVIGATION.md` § AI Tokens) is not confirmed: the developer's 2026-10 note names the fulfillment prerequisite **Enable Perfectly Clear**.
+
+---
+
 ## FTP Drop Retention — Files Are Auto-Deleted After a Week
 
 Files left on the Pixfizz FTP drop are **automatically deleted after a week**.
@@ -1086,3 +1117,4 @@ _Verified by reading source, 2026-09-09._
 - 2026-10-06: Added "Custom Tool Fulfillment Standard": the `px_` code contract, one token rule across FTP, OrderHub Desktop and HTTP push, file sets and names per route, the legacy list for old codes, the fixes over earlier files, the harness test, what is not covered, and rollout (file-verified only, no live order yet). Pointer from "Custom Tool Print Files". Scrubbed the client name from the QR code worked example heading. Source: claude-chat.
 - 2026-10-09: HTTP push: one cart line can become many supplier items (loop the `px_print_` files, per-piece codes in `px_spec`, separator-before-entry flag). File-verified only. Source: claude-chat.
 - 2026-10-17: § Asset generation: print PDFs resample to the template DPI with no off switch, and are RGB only with no spot colors. § Fulfillment Code Resolution: admin field `product[fulfillment]` and the "Website default" site setting, moving one site off a shared destination (own barcode counter per destination), global (formerly public) fulfillment codes now internal-only. § `options[]`: map the option codes of every template on the site; never send value names raw. § Custom Tool Print Files: a file emptied on project-edit is not removed, so tools whose piece count can shrink drive the file list from `px_spec`. Source: claude-chat, slack-message, fireflies-call.
+- 2026-10-22: § Fulfillment Code Resolution and Precedence: what the template lock looks like on the product page (disabled text, no `product[fulfillment]` field; editable select with "Website default" when the template has none); products published from another site's template take the provider template's code (locked) or the provider product's code (pre-filled, editable), read from the wizard before publishing. § Asset generation and new § AI Upscaling at Fulfillment (Perfectly Clear): settings, per-template override, limits, usage-based billing (no rates). § Filename Templates: spaces from a customer field stall the transfer, `replace: ' ', '_'`. § Fulfillment Code Resolution: order fulfillment page lists every code; a POD supplier callback can update orders on any site (commit titles only). Source: claude-chat, slack-message, notion-page.
