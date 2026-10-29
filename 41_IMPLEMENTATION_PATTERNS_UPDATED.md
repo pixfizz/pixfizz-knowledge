@@ -1156,6 +1156,12 @@ The same trap on snippets, template options, collections and assets, and the edi
 
 ------------------------------------------------------------------------
 
+## Hit tests on a canvas with `object-fit: contain`
+
+A canvas styled `width:100%` with a `max-height` and `object-fit: contain` is letterboxed inside its element box. `getBoundingClientRect()` returns the box, not the drawn image, so pointer-to-canvas maths is off by the letterbox (clicks landed centimetres away from the item). Use the drawn rectangle: `scale = min(rect.width/canvas.width, rect.height/canvas.height)`, drawn left = `rect.left + (rect.width - canvas.width*scale)/2`, drawn top likewise. Use it for hit tests and for placing DOM handles over canvas items. Browser technique for custom design tools. *Observed in a tool prototype, 2026-10-26.*
+
+---
+
 ## Changelog
 
 - 2026-03-12: Added `style onload` Re-injection Pattern section. Updated Dynamic UI Trigger Pattern.
@@ -1177,3 +1183,4 @@ The same trap on snippets, template options, collections and assets, and the edi
 - 2026-10-06: Added PhotoPrintsComponent hooks: the MobX instance and the members to wrap or shadow (goToCropOptions, goToCropOptionsButtonEnabled, totalPrintsQuantity and others), the five rules (wrap for enforcement, never call the original getter, zero prints already disabled, assert on init and fail open, client guards are not enforcement), where the code goes per deployment, and per-size minimums via the Shopify session key. Source: claude-chat.
 - 2026-10-06 (later): Qualified the `px.fragmentsReloaded` note: not enough for checkout re-injection, but the right hook for a product switch on the product form. Source: gmail (core developer, 2025).
 - 2026-10-22: Added Scripted Admin Writes: select an admin form by a field it must contain, require `_method` patch or put, build FormData field by field, keep a restore copy (a Pages instance deleted by an action-URL match), pointing to 18 for the per-page fields. Source: claude-chat.
+- 2026-10-29: Added hit tests on a canvas with `object-fit: contain` (use the drawn rectangle, not the element box). Source: claude-chat.

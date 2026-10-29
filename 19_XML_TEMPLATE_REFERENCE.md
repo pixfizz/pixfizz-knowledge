@@ -257,6 +257,13 @@ To suppress separate layer output entirely for a page:
 <page type="page2" ... separate-layers="">
 ```
 
+### Assigning Elements to a Layer, and Layers in Renders
+
+- **An element joins a layer with `pdf_layer="<layer name>"`** in the design's page XML, matching a `<layer name="...">` in the definition (for example `<layer name="Text" visibility="on" separate-file="true" />` and `pdf_layer="Text"` on each text element). The page XML is readable in `/v1/themes/<id>` under `templates[].print_page.data` (that endpoint answers JSON only with the header `Accept: application/json`). *Verified by query, 2026-10-27.*
+- **A page render cannot hide a layer.** The preview render (`.jpg`, `.webp`, `.svg`) ignores every parameter tried for it (`hide_layers`, `hide_layers[]`, `layers[Text]=off`, `hide_layer`, `exclude_layers`, `layer`, `layers`, `pdf_layer`, `only_layer`): the SVG is identical. A preview that needs one layer alone must split the page itself. *Verified by query, 2026-10-27.*
+- **The page SVG writes one top-level `<g>` per rendered element**, inside the isolation group, in XML order. An empty placeholder image (left out by the default `hide_placeholders`) gets no group, so match groups to elements by kind and order, skipping empty placeholders. *Verified by query, 2026-10-27.*
+- Sample pages of a design may carry no `pdf_layer` where its print pages do; read the layer from the same-named element on the print page.
+
 ### Design Tool Use
 
 Layers can also be used as a design aid independent of fulfillment. Once defined, layer visibility can be toggled on and off in the admin design tool, making it easier to access and edit elements on different layers — similar to working with layers in Photoshop.
@@ -452,6 +459,10 @@ Common product types with annotated XML definitions.
 - Captions ("Front", "Back") orient the user in the Design Tool without using page numbers.
 - Simple two-page product — no `min`, `max`, `add`, or `grow` needed.
 - **Folded top-fold (landscape) card:** one outside page (7.25 x 10.25 in for a 5x7 card with 0.125 in bleed) with the back panel turned 180 degrees in the top half and the front in the bottom half. Turn the back panel's artwork image itself rather than rotating XML elements; the production PDF keeps it as drawn. *Verified by query and render, 2026-10-16.*
+- **On a folded spread a full-bleed photo must stop at the fold.** A photo box that carries its 1/8 in bleed past the fold prints a strip of the photo (about 3 mm) on the other panel. Check that no editable image on an outside or inside spread crosses `x = width/2` (portrait fold) or `y = height/2` (landscape fold). Template-level. *Found in a design audit, 2026-10-26.*
+- **A converted or generated design must not keep a source photo as a locked image** (`edit="false"`). A studio or preview that shows the customer's photo from its own data hides the mismatch until production. Check every page for `edit="false"` images named like placeholder, photo or main-image. *Found in a design audit, 2026-10-26.*
+- **Words on a busy pattern back** (dots, sparkles, stripes) read badly at card size. Put a locked shape in the paper color behind the words (`edit="false" move="false"`), and draw the same panel in any browser preview so preview and print agree.
+- Converting artwork to XML: a hole cut in an opaque background only becomes a backing shape when it is rectangular; an oval or shaped hole drawn as its bounding box leaves corners in the wrong color.
 - **Shaped photo windows (arch, circle, rounded) need no mask feature.** Put a rectangular image placeholder under a locked full-page artwork PNG with the shape cut out of it. Grow the cut-out a few pixels past the shape, or a faint rectangle edge shows around it. *Verified on design previews, 2026-10-16.*
 
 ---
@@ -889,9 +900,14 @@ edit="false" layout="true" move="false" resize="false" z="-31"
   and honored by the fulfillment renderer. Stacked translucent locked shapes make a gradient
   that prints. *Verified by query (editor and fulfillment render), 2026-10-04.*
 - **Image placeholders can carry display attributes besides the flags:** `rotate`,
-  `grayscale="true"` and `radius="50%"` were seen on live card designs. Anything that re-renders
+  `grayscale="true"` and `radius` were seen on live card designs. Anything that re-renders
   page XML outside the platform (a browser studio, a preview) must honor them. *Verified by
   query, 2026-10-16.*
+- **`radius="50%"` does not make a circle in the platform render** (Corrected 2026-10-29: the
+  2026-10-16 entry read `radius="50%"` in live XML as a circle without checking the render). On a
+  `<shape>` or `<image>` it renders a rounded square. A numeric radius in millimetres, half the
+  element's width, renders a true circle (`radius="13.97"` on a 27.94 mm square); half the height
+  gives a pill. *Verified by query (page render), 2026-10-26.*
 - **`radius` on a shape or image rounds all four corners.** To round only the outer corners of
   a panel split across a binding or fold, run the element past the trim edge so the unwanted
   corners are cut off. *Verified by query (production render), 2026-10-19.*
@@ -914,6 +930,14 @@ these.
   page XML, 2026-10-20.*
 - **`<g>` groups:** children are offset by the group's `x` and `y`. *Verified by reading XML,
   2026-10-20.*
+- **An image `mask` must be WHITE where the photo shows**, with alpha as the keep area. A black
+  mask hides the photo completely: the sample disappears from the collection tile and the
+  product page, and a customer upload seems to do nothing. Under an opaque frame overlay with a
+  cut-out, no mask is needed (§ Greeting Card, shaped photo windows). *Verified on a live product
+  page, 2026-10-26.*
+- **Two or more photo slots on one design need `multi_upload_group` on every upload option**
+  (same value), or Shopper renders separate Upload Image buttons (`22_OPTION_VARIANT_RENDERING.md`
+  § 5.3). Template-level.
 - **`<score>` elements** appear on flat cards (fold or score lines). *Verified by reading XML,
   2026-10-20.*
 - **Masked editable images without `placeholder="true"`** are used as sample photos. Treat a
@@ -936,7 +960,11 @@ these.
 **Platform-level (Pixfizz CMS).**
 
 - **`fontsize` uses the page geometry unit** (millimetres, like `x`, `y`, `width`,
-  `height`). *Verified by query, comparing to rendered proofs, 2026-10-04.*
+  `height`). *Verified by query, comparing to rendered proofs, 2026-10-04.* A generator that
+  writes a point size renders about 2.8 times too big (a family name at `fontsize="59"`
+  overflowed a 338 mm box): divide a point size by 2.8346. A local preview renderer that reads
+  `fontsize` as points shows the wrong size and hides the bug. *Verified on a live product page,
+  2026-10-26.*
 - **`shrink="true"` renders the text at the largest size at which the wrapped text fits the
   box.** In a name box one line high and 48 mm wide: a short name prints full size, a longer
   name slightly smaller on one line, a very long name wraps to two lines at about half size;
@@ -1060,6 +1088,7 @@ re-importing the design:
   `18_ADMIN_NAVIGATION.md`.
 - Layouts in a layouts design are print pages, so the same path edits them.
 - The saved XML comes back with CRLF line endings. Normalize before diffing.
+- A template's design ids are listed on the template page, paginated: `/site/<site>/admin/print_theme/product/<template id>?page=N`.
 
 *Verified by query, 2026-10-03 and 2026-10-04.*
 
@@ -1125,6 +1154,14 @@ field `exported_file`).
 5. Link the layouts designs to every new design under Linked Layouts, unlink any deleted or
    superseded source, and read the links back from each design page.
 
+**Building the export outside the admin page.** A generator cannot run inside an admin page that
+needs `eval` (the admin CSP blocks it, `61_PIXFIZZ_API.md`). Build the tar elsewhere (USTAR, the
+YAML written as text in the export's own layout) and import it through **Templates → Import
+Template**. Placeholder ids (for example `990101...`) on `images/` and `fonts/` entries import fine:
+the importer assigns real ids (*verified by import of a calendar build, 2026-10-14*). Static font
+weights can be cut from a variable Google font with fontTools' instancer; rename name IDs 1, 2, 4,
+6, 16 and 17 so each weight has its own family and full name.
+
 ## Open Platform Question — `fulfillment` on Layers
 
 Logged 2026-08-24 and **not implemented**. Recorded here only so it is not re-proposed as an
@@ -1154,3 +1191,4 @@ documented above. There is no layer-level `fulfillment` attribute. Do not docume
 - 2026-10-06: Added `background-transparent` to definition attributes. Growing Spine: how the spine is inserted at render and the consequences for cover designs. Preview Sets: the page mask is the print area, not the outline, on clear products. Added Element Permission Flags (flag list, no `ecolor`, shape `opacity`, `bgcolor` not applied on layout swap), Text Elements (`shrink`, `valign`, `fontsize` unit) and the mug readable front zone. Layouts: Linked Layouts drive the picker, import does not create them, soft-deleted designs keep their links, link/unlink endpoints. Template Changes: design pages do not follow a size change. Canvas Wrap Geometry: image elements, `crop="false"` fits and image upload options override it. Added Editing Design Pages and Layouts in Place, and Design Import (`__print_theme.yml` format, id remapping, fonts, batch workflow). Source: claude-chat, vault-doc.
 - 2026-10-17: `dpi`: print PDFs are downsampled to it, no opt-out. Growing Spine: preview renderers draw only centre-crossing elements on the spine. PDF Layers: a separate-file layer inside an `<ipage>` renders empty (two-`<ipage>` workaround, not yet tested); platform PDFs are RGB only, no spot colors. Greeting Card: top-fold landscape card, shaped photo windows. Page-count rules: layflat counts spreads. Element flags: image placeholder `rotate`, `grayscale`, `radius`. Text Elements: `kerning` in mm (unit pending confirmation), `<br/>` is not a break, text and shape attributes, render validation (6-digit hex, glyphs in font). Template Changes: whole-range resize from one admin tab. Design Import: quoted-scalar page XML, layout names over 32 characters fail. Source: claude-chat, slack-message.
 - 2026-10-22: CORRECTED Element Permission Flags: text elements have `efontsize` and `ecolor` (only shapes lack `ecolor`); `radius` rounds all four corners, the past-the-trim technique. Element Rotation: `rotate` honored on shape, image and text in production, about each element's center; negative angles; group rotation. New § Drawing Order, Groups and Other Elements Seen in Design Exports (negative `z`, `<g>`, `<score>`, masked editable images, placeholder cover frames, `show_on_preview` spelling, `cmyk()` colors, thin line images and a 500, not verified). Text Elements: display text offset against a CSS line box (Playfair Display, Oswald), site font per weight and the Fontsource TTF conversion. `<definition>` Attributes: `output-perfectly-clear-upscale` and `output-perfectly-clear-upscale-dpi`. Source: claude-chat, notion-page.
+- 2026-10-29: CORRECTED Element Permission Flags: `radius="50%"` renders a rounded square; numeric mm radius makes circles and pills. PDF Layers: `pdf_layer` element attribute, renders cannot hide a layer, SVG group order. Drawing Order: masks are white where the photo shows; multi-photo designs need `multi_upload_group`. Text: point-size `fontsize` renders 2.8x too big. Greeting Card: photo bleed stops at the fold, no locked source photos, panel behind words on busy backs, converter hole rule. Design ids list per template; building exports outside the admin, placeholder ids, static font weights. Source: claude-chat.

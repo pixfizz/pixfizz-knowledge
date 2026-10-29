@@ -190,6 +190,17 @@ Standard megamenu structure:
 
 **The hover megamenu needs `data-toggle="dropdown"` on the anchor.** `theme.min.js` opens a `.navbar-nav .dropdown` item on mouseenter by calling `.dropdown("show")` on its anchor, and only for anchors with `data-toggle="dropdown"`. Without it the dropdown never opens on desktop. The anchor can keep a real `href` (no need for `href="#"`). Template-level (Shopper 24). *Verified by query, 2026-10-14.*
 
+### Mega menu panels: layout and loading rules (2026-10-26)
+
+Template-level (Shopper 24, Bootstrap 4.6). *Verified by live DOM reads, 2026-10-26.*
+
+- `.navbar .container` is `display: flex` (Bootstrap 4.6 uses a descendant selector, not a child one). Any `.container` placed inside a dropdown panel in the navbar becomes a flex row and squeezes its children. Set `display: block` on it.
+- The header has two `body > nav.navbar` rows and `.navbar` has 16px side padding, so below about 1432px (where the 1400px container stops centering) the menu row sits 16px inside the page frame. `@media (min-width:992px){body>nav.navbar{padding-left:0;padding-right:0}}` fixes it. From 576 to 991px the header container has 0 side padding while page containers have 16px, so add 16px to `body>nav.navbar>.container` in that range only.
+- The theme sets `.navbar-light .navbar-nav .nav-link` color and hover color with `!important`; custom top-link colors need `!important` too (see § 18).
+- The account dropdown (`.myaccount .dropdown-menu`) is `display:block; visibility:hidden` and sticks out of the right edge by a few pixels, causing a sideways scroll at some widths. `left:auto; right:0` fixes it.
+- `loading="lazy"` does nothing for a panel hidden with `visibility:hidden` or `opacity:0`: the panel still has a layout box inside the viewport, so every image loads on page load (17 lazy images measured). Hide closed panels with `display:none` and fade in with a keyframe animation instead of a transition.
+- The site sets `scroll-behavior: smooth` on `html`; use `window.scrollTo({top, behavior:'instant'})` for scripted jumps.
+
 ### Megamenu column patterns
 
 **Text link column** (standard):
@@ -258,6 +269,10 @@ Template-level (Shopper 24). *Stated as found during a dark child site build, 20
 - **`.form-control { color: #111 }` is hard-coded in the parent `pages/custom.css`, not a token.** On any dark child, typed text in every form field (checkout included) is invisible until the child adds `html body .form-control { color: <light> !important }`. Candidate parent fix (not done): read it from `style/color-font`.
 - Image-swatch option names carry an inline `style="color:#111111"` in the variant template, so a dark site needs `!important` to recolor them.
 - Shared pxt tools (Live Finish and the custom design tools) take their ink from `--pxt-ink`; see `27_LIVE_FINISH_AND_3D_PREVIEWS.md` § 2.7.
+
+### Reading the brand color from JavaScript (2026-10-26)
+
+The CSS variable `--primary` on `:root` is the Bootstrap default and does not follow the site's theme (it read `#ff6f61` on a child whose buttons are orange). A script that needs the brand color must read `getComputedStyle(document.querySelector('.btn-primary')).backgroundColor`. Template-level (Shopper 24). *Verified by query on two sites, 2026-10-26.*
 
 ### Style snippet inventory
 
@@ -532,7 +547,7 @@ Enlargements/large format: `product-enlargements-bleed-1-8`, `product-enlargemen
 #### Account & User
 | Key | Values / Notes |
 |---|---|
-| `home-page-login-form` | `TRUE` = show login gate on home page |
+| `home-page-login-form` | `TRUE` = whole-site login gate for anonymous visitors, on every page (not only the home page). Breaks password reset unless the site overrides `account/home-login-form`; see § 14 Whole-site login gate. *Corrected 2026-10-29: was "show login gate on home page".* |
 | `account_nav_version` | Account navigation version |
 | `account_saved_projects_version` | Saved projects version: `v1` or `v2` |
 | `account_saved_projects_view` | Default view for saved projects |
@@ -733,6 +748,10 @@ All pages live at `/site/<url>`.
 
 **Generic catch-alls:** `-page-path-1`, `-page-path-1/-page-path-2`, `-page-path-1/-page-path-2/-page-path-3`
 
+**`add-to-cart` renders inside the site layout.** The backup YAML for `pages/add-to-cart` says `layout_name: -1`, but the live page is served at `/site/add-to-cart` with the full layout (header, footer, cart modal); `/add-to-cart` without `/site/` is a 404. A full-screen overlay on that page (the add-to-cart loader) needs `position: fixed` and a high `z-index`, or positioned layout sections paint over it. A child page with the same path in admin may not be the one served: check the live `/site/add-to-cart` before editing a child copy. Template-level (Shopper 24). *Verified by query on two sites, 2026-10-28.*
+
+**`project-edit` (the edit-from-cart page).** The shopper24 Pages entry "Edit Project" renders `section.project-edit > .row > .col-12 > .row` with a `.col-md-6` gallery column (`product/gallery/standard`) and a `.col-md-6.pl-lg-10` column holding `form#project_update` with `product/px-options`. Every template option renders there as `px-option[code="<code>"]`, hidden ones included, so `px-option[code="px_mount"]` reliably marks a line made with a Pixfizz custom tool. Since 2026-10-27 the parent page carries one style block: when the row holds `px-option[code="px_mount"]`, the gallery column is hidden and the form column takes 100% (15px left padding, matching the header frame), so a tool needs no edit-page layout code of its own. Tools still mounted from an older option code (not `px_mount`) do not get this; move them to `px_mount`. Template-level (Shopper 24). *Verified by query, 2026-10-27.*
+
 ---
 
 ## 11. Email Templates
@@ -754,6 +773,8 @@ Two parallel systems exist. The current system is `email-shopper/`.
 > Email templates run outside the storefront session. Project previews in email require `share: orderline.project.share_code`. See `40_PLAYBOOK.md`.
 
 **Current state (2026-10-06).** The 14 notification templates are per site and not inherited, and from 2026-10-03 the supported setup is the **email kit** (`email-kit/*` on shopper24), which keeps each site's template bodies to one line calling parent snippets. The kit, its cart reminder settings and how templates behave in admin are in `32_ORDER_LIFECYCLE.md`; Liquid rules for email context are in `50_LIQUID_REFERENCE.md`. Emails use the asset `logo.png`; the `email-logo.png` uploaded by manage/branding and manage/emails is read by no email template. Inline SVG (`icons/*.svg`) does not render in Gmail or Outlook, so use PNG. *Verified by reading source and by query, 2026-09-30 and 2026-10-03.*
+
+**Email kit logo: a PNG asset named `email-logo.png`.** `email-kit/brand/logo` uses `asset_url` of `email-logo.png`, falling back to `logo.png` (ignored when that resolves to the shopper24 parent's asset). Any other logo name, or an SVG logo, gives a header with the store name in text only; mail clients do not show SVG reliably anyway. Standard for every kit switch: upload a transparent PNG about 960 px wide as `email-logo.png` on the child site. The width in the email is `email-kit/settings/logo-width` (default 160). Template-level (Shopper 24 email kit). *Verified by reading source (shopper24), 2026-10-23.*
 
 **Old default bodies print every option; the kit filters them.** A site still on the old platform default notification bodies prints every template option and variant on the order email: empty print-file rows, hidden variants and zero quantities. The kit's line (`email-kit/parts/line` with `checkout/orderline-pieces`) hides upload options, `hide_from_cart` options, blank values and `db:` values, and prints the quantity and product as `6 x <product>`. So a custom tool or studio install is not finished until the site's order emails use the kit (at least `email-kit/parts/lines`) and a test order email has been read. Note that `hidden` on an option is not `hide_from_cart`: an option with only `hidden` still prints in the cart and in kit emails. Template-level (kit) and site-level (bodies). *Verified by query on a child site, 2026-10-22.*
 
@@ -983,6 +1004,25 @@ The same head block is what fixes meta title and description on Custom Type
 pages, so it is worth doing all of it in one pass rather than only the robots
 tag.
 
+### Whole-site login gate (members-only store)
+
+`admin/checklist/home-page-login-form` = `TRUE` makes `layouts/index` render only `account/home-login-form` for anonymous visitors, on every page: home, product, cart, checkout, account, login. It is server-side Liquid, not a JS redirect. This is the answer to "closed store", "members only" or "forced login" requests; no custom code is needed. Template-level (Shopper 24). *Verified by reading source (shopper24 `layouts/index`) and live on a child site, 2026-10-27.*
+
+- Pair it with `admin/checklist/disable-user-registration` = `TRUE` to remove the register column from `account/login`. The Reset Password modal stays.
+- `user.custom.locked` on a signed-in user shows an "account awaiting approval" message instead of the site (the approval pattern).
+- The heading reads "Please login or register to access the site" (translation key in namespace `account`), even with registration off.
+- The public `/v1/products.json` listing is not gated (see `61_PIXFIZZ_API.md`).
+- **The gate also swallows the password pages.** Unlike the kiosk gate, which exempts `/site/login`, `/site/register` and `/site/password`, this gate has no path exemption. Signed-out visitors on `/site/login/email-sent` and on the reset link `/site/password-reset?reset_token=...` get the sign-in form and cannot set a new password. Any site that turns the gate on needs a site override of `account/home-login-form` that branches on `request.path` (`password-reset`, `email-sent`) and `request.params.view` (`forgot`) and renders, each inside `{% dynamic %}`: `{% form 'forgotten_password', page: 'login/email-sent', reset_page: 'password-reset' %}`, `{% form 'password_reset', page: 'login' %}` with a hidden `reset_token`, and `{% form 'user_login' %}`. Rendered fields: login posts to `?login_user=t` (email, password); forgot to `/password/reset` (target, reset_target, email); reset to `/password` (target, reset_token, password, password_confirmation). *Verified by reading source and live, 2026-10-27.* Candidate parent fix: exempt the password pages in `layouts/index` (not done).
+- With `guest-checkout` = `TRUE`, `account/login` also shows the "Placed an order as a guest?" box, and the Reset Password modal carries a guest-checkout note; adjust copy for a members-only site.
+
+### Product landing pages (`product-landing/*` engine)
+
+- `product-landing/landing` reads its config with `{% snippet 'product-landing/config' %}` **before** `parse_json`, so Liquid inside the config renders first. `{{ 'file.webp' | asset_url }}` inside an `html` block string gives the storefront asset URL. Keep the rendered value free of double quotes and line breaks, or the JSON breaks. Template-level (Shopper 24). *Verified by query, 2026-10-26.*
+- Never paste an asset URL copied from the admin Assets list (`admin.pixfizz.com/fz/...`) into storefront content: it is signed for the admin host and the same path on `cdn.pixfizz.com` answered 403. Use `asset_url`. Platform-level. *Verified by query, 2026-10-26.*
+- The engine's `.pl-wrap` (max 1240px, 20px sides) does not match the Shopper 24 `.container` frame. Per page, override `.pl[data-pl="<key>"] .pl-wrap` to the container widths (100% / 540 / 720 / 960 / 1400) with 16px sides so the page lines up with header and footer.
+- A Website Redirect rule on `/site/shop/<collection path>` overrides the live collection page. Product URLs `/site/product/c/<collection path>?...` are not caught by a `^/site/shop/...` rule. Platform-level. *Verified by query, 2026-10-26.*
+- **Gap:** this file does not yet document the `product-landing/config` schema (its block types, the rule that a site adds its own key and never replaces other keys, and the Pages instance that renders a landing page). Pending: a schema reference from the Holiday Page Kit source.
+
 ## 15. Custom Admin — Shopper v2 (`/site/manage/`)
 
 The Shopper v2 custom admin is a replacement for the legacy `setup/` wizard pages. It uses the `shopper-admin` layout and provides a sidebar navigation to all configuration pages.
@@ -1076,7 +1116,7 @@ Template-level (Shopper 24). Read from the shopper24 backup of 2026-09-28; the m
    - manage/store "Google Review Link" writes `website/google-review-link`; the reviews widget reads `admin/checklist/google-review-link`.
    - manage/seo "Hide from search engines" writes `admin/checklist/launch-no-index`; the site reads `admin/checklist/no-index` (see `81_SEO_AND_GEO_REFERENCE.md`).
    - manage/seo "Social sharing image" uploads an asset named `social-media/open-graph`; the head reads `og-preview-image.jpg` (§ 9).
-   - manage/branding and manage/emails "Email Logo" upload `email-logo.png`; no email template reads it (emails use `logo.png`).
+   - manage/branding and manage/emails "Email Logo" upload `email-logo.png`; the old default email templates do not read it (they use `logo.png`). *Corrected 2026-10-29:* the email kit's `email-kit/brand/logo` reads `email-logo.png` first (§ 11), so on a kit site this upload works.
    - manage/integrations "Google Ads tag" writes `integrations/google/ads-id`, which nothing reads (§ 20).
    - manage/store "Store Location" writes `website/contact/store-location`, which nothing reads (§ 7).
 
@@ -1283,6 +1323,18 @@ if (el.parentNode !== host) { host.appendChild(el); }
 **Symptom:** On a CSS-only filter (hidden radio inputs plus labels, `#r:checked ~ .grid ...`), every click on a label scrolls the page back up to the filter bar.
 **Cause:** clicking a label focuses its radio and the browser scrolls the focused element into view. With the radios at the top of the section (`position: absolute` in a positioned wrapper), each click scrolls there.
 **Fix:** `position: fixed; top: 0; left: 0; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none` on the radios. A fixed element is always in the viewport, so focus does not scroll, and the sibling selectors keep working because the DOM order is unchanged. *Measured: scroll position 1142 to 0 before the fix, 937 to 937 after.*
+
+### Animated GIF product images are served full size on shop tiles (2026-10-26)
+
+WebP and JPG product images on collection tiles are served through the CDN thumbnail path (`cdn.pixfizz.com/.../thumbnail/500/~/<file>`, 10 to 30 KB). Animated GIF product images were served from the original path at full size: 8.5 to 8.8 MB each for a 600x600, 50-frame GIF. Never use an animated GIF as a product or design image. Use a WebP still for the tile; for motion use an animated WebP (about 0.8 MB at 500px) or a lazily loaded MP4. Platform-level (CDN). *Verified by query, 2026-10-26.*
+
+### The photo prints page renders the whole catalog on the server (2026-10-26)
+
+`/site/prints?collection=<path>` renders the entire collection inline (`product/photo-prints` and its recursive option snippets). Server time grows with the number of print sizes (collections of 50 to 71 sizes measured at 4.7 to 8 s). Keep prints collections to the sizes a lab actually sells. Template-level (Shopper 24). *Verified by query (`x-runtime`) on three sites, 2026-10-26.*
+
+**The CMS page cache shows in a response header.** `x-cms-cache-hit` reads `false` (miss or cache off) or `partial` (served from cache, about 0.2 s). Two sites returned `false` on every request; another returned `partial` on repeats. Test any site by fetching a page twice and reading `x-cms-cache-hit` and `x-runtime`. Platform-level. *Verified by query, 2026-10-26.* How the cache is enabled per site is not verified (pending confirmation).
+
+**After a snippet write, some pages keep serving the earlier render for a while** (seen minutes after the write). Add a throwaway query string (`?nc=1`) when verifying, and do not report a page as not updated until a cache-busted load has been checked. Platform-level. *Observed live, 2026-10-26.*
 
 ### Site search results can link into test or hidden collections (2026-09-30)
 **Status:** Open. Platform-level indexing behavior, mechanism unknown.
@@ -1904,6 +1956,12 @@ empty field gives a page with the collection description and no product form. An
 range in its own collection. *Verified by reading source and live, 2026-10-13, and by query,
 2026-10-14.*
 
+**A multi-design product published into a `pdp_layout` collection turns each design into a fake
+"size".** Every collection row becomes a filter choice, so a product published with all its designs
+shows the design names as size options. Check the collection's `pdp_layout` flag before publishing a
+multi-design product into it; give such a product an ordinary collection. *Observed on a child site,
+2026-10-26 (not re-tested).*
+
 **Scope: wall art style ranges only, never everyday prints** (standard stated by Alex,
 2026-10-04). Five-field `collection_filters` size pickers are for ranges sold one size per
 product on a `pdp_layout` shop page: canvas, fine art, metal, acrylic, wood and similar.
@@ -2003,6 +2061,11 @@ CRLF and LF values both parse.
 - **A child override of any of these snippets keeps the old split.** List a site's overrides
   when its filters render empty, and keep joining lines with `\r\n` in any API or script write
   until no site overrides them.
+  Audit any site: `GET /v1/admin/cms_snippets.json?sitename=<site>`, find overrides of the seven
+  snippet names above, and grep each for `split: newline`. Fix: the same one-line find/replace in
+  the override. Seen on a child override of `product/details-filter-dual-mode` after the
+  client re-saved collections in admin (LF-only): only the first filter line rendered.
+  *Verified by query, 2026-10-26.*
 - Check from the storefront: view source, find `<!-- FILTERS: ... -->`; or add
   `?<first url_name>=zzzz` (0 cards) and `?<second url_name>=zzzz` (no change means only one
   filter parsed). On a `pdp_layout` page, load it logged out and count the selector blocks.
@@ -2152,6 +2215,15 @@ weeks. A key that silently mis-checks is worse than one that is obviously off.
 
 ---
 
+### 21.7 Products published from a POD supplier can land in collections that render empty (2026-10-26)
+
+Template-level (Shopper 24). *Verified by query on a consumer site, 2026-10-26.*
+
+- A `pdp_layout` collection renders no product at all when `collection_filters` is empty, and needs `orientation` and `size` custom fields on every product (§ 21.1). POD-published products carry no custom fields, so they do not appear until the filters and the product fields are both set.
+- A collection with `sub_collections` on (`sub_collections_position` ABOVE) lists only its child collections. With no children it renders empty, even with products published to it. Turn `sub_collections` off, or give the products a child collection.
+- Collection `btn_add_to_cart` and `btn_design_tool` off: product pages show Upload photo but no Add to cart.
+- After publishing, load each target collection page logged out and check a product renders; checking the product URL alone misses all three.
+
 ## 22. SEO Defects Found and Fixed at Parent Level (2026-09)
 
 Recorded as a list because every one of them is **generic** — they were parent-level, so they
@@ -2212,6 +2284,7 @@ Template-level (Shopper 24) unless marked.
 - **Card "from" price.** `collection-load-more` prints "As low as" + product `from_pricing` whenever `from_pricing` is set. `collection-filters` only uses `from_pricing` when `product.price == 0`. Collection `load_more` switches the page to the load-more snippet. `from_pricing` is static: re-check it when the lab changes prices. *Verified by query, 2026-10-03.* (`52_SNIPPET_INVENTORY.md` corrected to match, 2026-10-06.)
 - **Delivery / pickup box** (`product/shipping-available`, "This item can be picked up in our store"): every product page variant (product-details, details-filter, prints, dual-mode) skips it when collection `hide_delivery_options` is ticked. Per collection only; a site with no pickup needs it on every collection. *Verified by query, 2026-10-03.* The snippet reads only `product.custom.shipping_unavailable`, `product.custom.pickup_unavailable` and `product.custom.extra_charge`; it does not look at the site's pickup or delivery settings. The parent callers pass only `product`, so collection fields (for example a collection-level `production_time`) do not reach it unless an override passes them, and an override that calls another snippet (for example a checklist read) must restore `product` afterwards (`50_LIQUID_REFERENCE.md` § snippet). *Verified by reading source, 2026-10-02, and live, 2026-10-14.*
 - **Shop tile image for design products.** `collection/collection-filters` draws a live preview when the design has preview pages, else `design.preview_images`, else `design.image` (the design's preview_img). The product image is not used. Set the design preview image, and give each product its own design when two products share one, or both tiles show the same picture. *Verified by reading source and by query, 2026-10-06.* **Imported designs arrive with neither**, so a design product shows no image anywhere until both are set: the collection tile reads the design's `preview_img` (Admin > design > Choose Asset Image, `print_theme[preview_img]`, an asset name), and the product page gallery renders the design pages ticked **Use as preview** (`set_page_as_preview`, `18_ADMIN_NAVIGATION.md`). Set both before publishing a range. *Verified live on experience.pixfizz.com, 2026-10-19.*
+- **Shop tile image for POD supplier designs.** `collection/collection-filters` skips the live preview when either `design.custom.disable_live_preview_on_shop` or `collection.custom.disable_live_preview_on_shop` is true, then uses `design.preview_images`, then `design.image`. For a POD design the design belongs to the supplier site, so setting `disable_live_preview_on_shop` and `preview_img` on the supplier design fixes the tile on every consumer site at once. An asset uploaded only to the supplier site's Assets resolves as the consumer's tile image (*corrected 2026-10-29:* an earlier note said a same-named asset must also exist in the shopper24 parent's Assets). An empty POD design whose first preview page is set renders as a grey placeholder; fix it at the supplier, not per collection. *Verified by reading source (shopper24) and by query on two consumer sites, 2026-10-28.*
 - **Two products that share one design share one URL:** the page shows the first product and the second is unreachable from the collection card. *Verified by query, 2026-10-05.*
 - **Product `unit_intervals` takes a list:** `100,250,500,1000` gives exactly those quantity choices (custom design tools' quantity chips follow it). Platform-level. *Verified by query, 2026-10-06.*
 
@@ -2235,3 +2308,4 @@ Template-level (Shopper 24) unless marked.
 - 2026-10-09: § 14 settled which wins at `/site/photo-prints` (the real page) and added the `product/photo-prints-landing` gate for replacing it on a child, with the parent-stub paste incident. § 17: the live navbar is taller than a harness shows; an admin.pixfizz.com login does not open `user.is_admin` pages. Source: claude-chat.
 - 2026-10-17: §1 there is no `#modalLogin`; custom modal triggers must target an id the layout renders (launch check). §2 widen the header, not the page, when a child needs a wider frame. §3 hover megamenu needs `data-toggle="dropdown"` on the anchor. §5 new rows `checkout-rush-style`, `pickup-phone-not-required`, `autofill-pickup-phone`; CORRECTED `confirm-with-invoice` (Invoice only for `invoice` users, Pro Portal, Pending unless Auto Confirm). §7 contact page map hooks (`location`, `geo-location`, `geo-map` unread). §9 CORRECTED child `favicon.png` takes over within a minute (inherited-default token check); collection image is the `og:image`; sitewide fonts in `integrations/custom-links`. §14 `page_schema` printed raw; `admin_only` is not access control (noindex, out of sitemap, still renders); new *Page content uses the header's frame* (pattern and 5-width edge check); new Services v2 (gated). §17 strip every item when splitting on a captured newline (checkout payment list fixed 2026-10-13); production time "1 day" prints the collection value. §20 CORRECTED GA4 bridge live on the parent since 2026-10-12 (gtag.js keeps the wrapped push, `ga4-server-side-purchase`, `html.head` overrides excluded); `view-item` is a dataLayer push (no more `gtag is not defined`, duplicate removed). §21.1 three-field facets have no empty state; empty `pdp_layout` filters show no product; asset Description is the tile label; size/orientation product fields for provider products; default size by a second filter; line endings (parent split fixed 2026-10-14, child overrides keep the old split); driving filters from script (`Px.CMS.ThemeFilters`); prints flow one row per design product. §21.2 storefront snippet scope (no caller `collection`, nested call clears params). §24 old links follow `url_path` and the clean URL needs the collection; `theme` parameter required; `title_format` = `both`; delivery box reads product fields only. Source: claude-chat.
 - 2026-10-22: §4 `request.path` in `style/custom.css` is the CSS request (scope with `:has()`). §5 `disable-user-registration` row: hides only the New Customer column, not a gate. §11 old default email bodies print every option, the kit filters them (install check). §14 read a Pages instance back exactly through its export. §17 upload dialog button classes and the proposed (not shipped) `helpers/px-upload-dialog-defaults`; new gotchas: CSS filters on `px-design-preview` go on the parent `.px-item`, `<label>` `display: contents` in page content, CSS radio filters jump to the top. §18.2 Stripe Payment Element row. §20 view-item guard only looks back (override empty when removing the design-now push); `pages/editor-scripts.js` is the dataLayer copy of the CMS add-to-cart trigger and calls `fbq()` unguarded; `ga4-server-side-purchase` works only in gtag mode. §21.1 filter values must match the product custom field values exactly (portrait/landscape vs vertical/horizontal); LF `collection_filters` still seen on a child after the parent fix, Ace keeps the newline mode, CRLF re-post. §24 unpublished design redirect to a 404 clean URL, blank `url_path` 404 install check, imported designs need `preview_img` and Use as preview pages. Source: claude-chat, slack-message.
+- 2026-10-29: §3 mega menu panel rules (nested `.container` is flex, frame padding, lazy images in hidden panels). §4 brand color from `.btn-primary`, not `--primary`. §5 `home-page-login-form` is a whole-site gate (corrected). §10 `add-to-cart` renders in the layout; `project-edit` structure and the `px_mount` full-width rule. §11 email kit logo `email-logo.png` (and § 15 correction). §14 whole-site login gate with the password-page override; product-landing engine (Liquid in config, admin asset URLs 403, frame override, redirects). §17 animated GIF tiles, prints page server cost, `x-cms-cache-hit`, cache after snippet writes. §21.1 child override audit. New §21.7 POD-published products in empty collections. §24 supplier design tile image (corrected). Source: claude-chat.

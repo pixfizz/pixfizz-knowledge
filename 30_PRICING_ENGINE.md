@@ -136,6 +136,20 @@ in § `value` and `quantity` Are Both In Scope).
 
 ---
 
+### Converting variant-only print prices to a base price plus differences
+
+The product price must carry the cheapest option. The Photo Prints flow reads variant prices only at the crop and options step, so a cut print priced 0 with the full prices on its variants shows 0 or "+$x" until then. Convert without changing any total at any quantity:
+
+- **Cut prints with a tiered ladder on every finish:** product price = the per-tier minimum across the published finishes, in the ladder shape
+  `{1..1=>a, 2..9=>b, ...}.find { |range,unit_price| range.include?(cut_print_quantity)}.last * cut_print_quantity`.
+  Each finish = its per-tier difference in the same ladder shape, or `d * cut_print_quantity` when the difference is the same at every tier, or blank when it is zero.
+- **Design products with flat variant prices** (for example fine art papers): product price = the cheapest paper, each paper = its flat difference.
+- Use the per-tier minimum, not the default value: a default finish can be dearer than another finish on some sizes.
+
+**`price_forecast` ignores quantity on cut prints.** `/v1/products/<id>/price_forecast.json?quantity=10` on a cut print returned the one-copy tier (the same unit price at quantity 1 and 10, while the ladder's tier for 10 was lower). The forecast cannot verify cut print tiers; check them by arithmetic or a cart test. Platform-level. *Verified by query, 2026-10-23.*
+
+---
+
 ## `pages` Includes Uncounted Pages — Use `(pages - uncounted_pages)` for Books
 
 The `pages` variable in pricing formulas counts **every** page in the project,
@@ -969,3 +983,4 @@ Stated from client calls, not independently verified.
 - 2026-10-09: New § Number Variant Price Formulas: where the formula lives, the result is multiplied by orderline quantity (do not append `* quantity`), decimals and Step, priced number variants add, hidden number variants reprice live, shared range-hash boundaries, graduated area tiers, `px-product-price` shadow root. Linked from the tiered-ladder cart-test note. Source: claude-chat.
 - 2026-10-17: Price Variables resolve in template option value formulas (provider's variables on a consumer); canonical pattern for rounding a book total to .95 with a fixed product price; `price_forecast` float sums need `.round(2)`, page count only from `pages`, wrong option value codes listed at 0, per-page formulas go negative below the base count; Extra Fee `cart.orderlines` loop and bare-number output confirmed live (replaces the pending note), one fee per rush speed; new § Shipping Rate by Cart Content Inside One Shipping Service; hidden Number variant on `/v1/books.json` and project-edit reprices the same line; pointer to the `px_rates` / `pricing.js` tool standard. Source: claude-chat, slack-message.
 - 2026-10-22: New § The Three Ways a Product Is Priced (attribute price, variant prices, `px_rates` card; `px_rates` mode `area`, generic `px_` variant codes, why OrderHub needs type 3). § Platform Price per Quantity: `price_forecast` prices only the variants and template options sent; reading real prices into a prototype; `pages` is SYSTEM pages on `spreads_as_pages` books (system = printed / 2 + 1). New subsection: a flat charge per order line on a variant value is `amount / quantity`. New subsection under Shipping Rate by Cart Content: a per-cart weight estimate by product code (mechanism only, pending a platform test checkout). Source: claude-chat.
+- 2026-10-29: Photo Prints: converting variant-only cut print prices to base price plus per-tier differences (per-tier minimum, not the default); `price_forecast` ignores quantity on cut prints. Source: claude-chat.

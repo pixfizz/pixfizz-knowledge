@@ -2,7 +2,7 @@
 
 **Authority Scope:** Navigation + retrieval guidance only. This file does not introduce new platform or template rules.
 
-_Last updated: 2026-10-22_
+_Last updated: 2026-10-29_
 
 ---
 
@@ -1458,6 +1458,154 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 ### "spreads_as_pages label, printed pages vs system pages, page selector doubled"
 → **51_CUSTOM_FIELDS_REFERENCE.md** § Product (81 total)
 
+## Routes added 2026-10-29
+
+### "Members-only / closed store / forced login, password reset broken behind the gate"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 14 Whole-site login gate
+
+### "Liquid or asset_url inside product-landing/config, landing page frame width"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 14 Product landing pages
+
+### "Mega menu panel squeezed, menu row off the frame, menu images all load"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 3 Mega menu panels
+
+### "Brand color in JavaScript, --primary wrong"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 4 Reading the brand color
+
+### "Add-to-cart loader hidden behind layout, /add-to-cart 404"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 10
+
+### "Edit-from-cart page layout for tools, px_mount marker"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 10 project-edit
+
+### "Email header shows store name instead of logo"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 11 Email kit logo
+
+### "Slow photo prints page, x-cms-cache-hit, page not updated after snippet write"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 17
+
+### "Animated GIF product image heavy"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 17
+
+### "POD products not showing in collection / no Add to cart"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 21.7
+
+### "POD supplier design tile grey or wrong"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 24
+
+### "Design name in cart line"
+→ **20_SHOPPER_CART_RULES.md** The cart line name
+
+### "Add content to the cart page on one site"
+→ **20_SHOPPER_CART_RULES.md** checkout/extra-cart-code
+
+### "Script on pickup/delivery switch, slow switch"
+→ **21_SHOPPER_CHECKOUT_POLICY.md** Switching between pickup and delivery
+
+### "Cut print shows 0 or +$x before options, base plus delta conversion"
+→ **30_PRICING_ENGINE.md** Photo Prints, Converting variant-only print prices
+
+### "Boolean field loses "No""
+→ **51_CUSTOM_FIELDS_REFERENCE.md** Key Notes
+
+### "Canvas clicks offset in a tool"
+→ **41_IMPLEMENTATION_PATTERNS_UPDATED.md** Hit tests on a canvas with object-fit
+
+### "Greeting Card Studio, gcs_ mount, envelopes, store designs"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 7 Greeting Card Studio
+
+### "Photo Book Studio cm sizes, rotated spine text"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 7 Photo Book Studio
+
+### "Wall Design Studio landscape panels, wds_products"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 7 Wall Design Studio
+
+### "Back button repaints page, popstate morph, data-px-no-rerender, px.fragmentsReloaded"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 3 Page layout
+
+### "position sticky not working, overflow-x hidden, kiosk-sticky-bar over tool"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 3 Page layout
+
+### "data-pxt-takeover / data-pxt-ready flash standard"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 3 Page layout
+
+### "pdf.js pink gradient, ShadingType 1, pdf.js 6 boot"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 3 Drawing a design in the browser
+
+### "/upload/image Filedata, upload a canvas image to a project gallery"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 3 Open the platform upload dialog standalone; **61_PIXFIZZ_API.md**
+
+### "upload size limit, 150 MB, 300 megapixels, max-size, pu_max_file_mb"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 3 Upload size limits; § 7 Publication Upload
+
+### "slow photo uploads, upload throughput"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 3 Open the platform upload dialog standalone
+
+### "muted text unreadable, pxt_font_colour_2"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 3 The shared look
+
+### "Live Finish label keys missing"
+→ **27_LIVE_FINISH_AND_3D_PREVIEWS.md** § 2.2
+
+### "board@depth#color mounting syntax"
+→ **27_LIVE_FINISH_AND_3D_PREVIEWS.md** § 2.3
+
+### "preview border double, variants[border] render"
+→ **27_LIVE_FINISH_AND_3D_PREVIEWS.md** § 4
+
+### "flat product preview from photo, binding sprites"
+→ **27_LIVE_FINISH_AND_3D_PREVIEWS.md** § 2.10
+
+### "Nano Banana empty area box, move lettering"
+→ **83_AI_IMAGERY_PRODUCTION.md** B12
+
+### "AI art in templates allowed"
+→ **83_AI_IMAGERY_PRODUCTION.md** A5
+
+### "current template XML / Versions page missing sets"
+→ **18_ADMIN_NAVIGATION.md** § Products (Templates, Versions page bullet)
+
+### "snippet link 404 after revert / override id changed"
+→ **18_ADMIN_NAVIGATION.md** § Website (CMS), Snippets
+
+### "remove product from collection / unpublish"
+→ **18_ADMIN_NAVIGATION.md** § Products (Collections)
+
+### "print_themes=0 published one design / product_id=new price 0"
+→ **18_ADMIN_NAVIGATION.md** § Import and publish routes
+
+### "default_fulfillment Liquid / which fulfillment destination is the site's"
+→ **18_ADMIN_NAVIGATION.md** § Website Settings Worth Knowing
+
+### "color filters on image upload / crop value l t z r / no upload event"
+→ **22_OPTION_VARIANT_RENDERING.md** § 5.1
+
+### "file option bare id / uploaded_file empty / db: prefix"
+→ **22_OPTION_VARIANT_RENDERING.md** § 5.2
+
+### "multi_upload_group label lowercase / upload progress styling"
+→ **22_OPTION_VARIANT_RENDERING.md** § 5.3
+
+### "Back button steps through same page / pushState custom domain"
+→ **22_OPTION_VARIANT_RENDERING.md** § 6.2
+
+### "filter on array custom field / style[]"
+→ **22_OPTION_VARIANT_RENDERING.md** § `collection_filters` Has Two Syntaxes
+
+### "pdf_layer / hide a layer in preview / SVG group order"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Assigning Elements to a Layer, and Layers in Renders
+
+### "radius circle / mask hides photo / fontsize too big"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Element Permission Flags, § Drawing Order, § Text Elements
+
+### "folded card photo past fold / generated template tar outside admin"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Greeting Card, § Design Import (Workflow)
+
+### "provider design tile image blank / parent asset copy"
+→ **18_ADMIN_NAVIGATION.md** § Template Provider and Template Consumers; **50_SHOPPER_TEMPLATE_REFERENCE.md** § 24
+
+---
+
 ## Changelog
 - 2026-03-13: Added Shopify Integration section and Shopify scope warning.
 - 2026-03-26: Added MyPixfizz section pointing to 70/71/72 files.
@@ -1490,3 +1638,4 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 - 2026-10-09: Added 14 routes for the 2026-10-09 sync (number variant formulas, experimental variant API writes, scripted add to cart, project previews, SiteFlow callbacks, snippet saves and admin sessions, editor crop and toolbar, tools inside the variant selector, photo-prints landing, tool lines on reorder and email, one line to many supplier items, design copy, preview defects and MSP mounts, myPixfizz retention). Every target section was written in the same sync. Source: kbsync.
 - 2026-10-17: Added 84 routes for the 2026-10-17 sync (Shopper frame and header, GA4 bridge live, collection filters and line endings, redirects and query strings, publish routes and the add_themes.json 404, template provider and consumer, 2FA, XML foil and DPI and text attributes, calendar tags and transformations, px_rates and pricing.js, upload dialog and crop tool, fulfillment codes, Live Finish install ids, admin users and calendars API, POD catalog sync). Every target section was written in the same sync. Source: kbsync.
 - 2026-10-22: Added 116 routes for the 2026-10-22 sync (publish wizard positions and Create and Tick, POD publish without variants, template export YAML and import failures, saved vs ordered books, content addressed uploads, preview parameters and layouts, the three ways a product is priced and `px_rates` area mode, editor text and QR controls, calendar layouts and week start, the upload dialog standard for tools, Live Finish plates and room scenes, cart remove confirm, approved-user checkout and multi-store pickup, GA4 browser first, Perfectly Clear upscaling at fulfillment, myPixfizz SSO, webhook auto-deactivation, Shopify order status and duplicate users, OrderHub hot folders on a NAS). Every target section name checked against the file; section names are shortened before an em dash. Source: kbsync.
+- 2026-10-29: Added 48 routes for the 2026-10-29 sync (whole-site login gate, mega menu panels, page cache, POD products in collections, cart line name and extra cart code, pickup and delivery switch, cut print base plus delta, boolean custom fields, studio registry rows, popstate morph and sticky layout, pdf.js, upload size limits and `Filedata`, Live Finish label keys and print borders, Nano Banana fixes, bulk user create, `/upload/file`, cross-site asset library, collection Ace fields, filename tags, Etsy order facts, backups without assets, store health staleness, Versions diff correction, publish positions, snippet override ids, crop value and color controls, file option `db:` values, `pdf_layer`, masks and font size units). Every target file name checked against the repo. Source: kbsync.

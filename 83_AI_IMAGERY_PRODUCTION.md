@@ -80,7 +80,7 @@ A scene image inside a set marked `preview="true" fulfillment="false"` **is perm
 
 *Verified by reading source (template definition semantics, `19_XML_TEMPLATE_REFERENCE.md`). Wording approved by the owner, 2026-09-03.*
 
-**Open conflict (2026-10-22), not resolved here.** `26_CUSTOM_DESIGN_TOOLS.md` § Generated template art records generated motif art placed as image elements in Pixfizz-made greeting card templates, which reach production. Whether A5 covers that case or should carve it out is for the owner to decide (see Pending confirmation below). Until then, do not treat either section as settling it.
+**Generated artwork in Pixfizz-made templates is allowed** (owner decision, 2026-10-26; resolves the open conflict recorded 2026-10-22). Generated artwork may be placed as image elements in template designs that Pixfizz makes (greeting cards, notepads, notebook covers, postcards), and those templates may reach production. `26_CUSTOM_DESIGN_TOOLS.md` § Generated template art covers how. A5 still applies in full to imagery passed off as a real product or real premises (A1, A6) and to design tool asset libraries that customers place in their own projects, unless the owner says otherwise.
 
 | What A5 protects against | Preview-only scene |
 |---|---|
@@ -277,6 +277,28 @@ itself (natural perspective, lighting and type weight), but check every date and
 afterwards: it can swap them. The live studio preview always uses the blank plate plus a
 CSS or canvas perspective transform at the measured corner points. *2026-10-18 and
 2026-10-19.*
+
+**Reserving space for a name or photo.** Asking for an area "completely empty, reserved for a
+name or photo" often produces a visible flat box or a lighter or darker panel there (6 of 12
+images in one run), and "the right 45% plain" produced a hard seam between two halves. What
+works: describe "ONE continuous seamless background, no panels, no columns, no boxes", say where
+the lettering sits, and that "everything else is plain". Regenerate rather than patch when a
+seam crosses the whole canvas. A small leftover box can be patched with an edit (which returns
+about 1200 px wide): upscale the edit and composite only the box region over the 4K original
+with a feathered mask. Pro at 4K returns 4800 x 3584 (4:3). *From a holiday sign art run,
+2026-10-26.*
+
+**Moving baked-in lettering.** Pixel patching (moving boxes or glyph alpha with inpainting)
+left ghosts and smudges on textured or framed art, and regenerating with the old image as
+reference plus "move the lettering lower" barely moved it. What worked: a fresh generation
+that states positions as percentages of the height ("top of the first word at 30%, bottom of
+the last at 55%") plus "the area above is plain". On a plain, uniform background a full-width
+row shift, with filler rows taken from a plain band below the text, is clean. *2026-10-26.*
+
+**Flat products from one top-down photo.** For a product that lies flat (notebook, card,
+print, coaster, mouse pad), generate a top-down photo with a plain matte white face, square to
+the frame, so no perspective warp is needed. The compositing (white-face mask, multiply) is in
+`27_LIVE_FINISH_AND_3D_PREVIEWS.md` § 2.10. *2026-10-26, headless render only.*
 
 ---
 
@@ -479,7 +501,6 @@ Suggested delivery: a short setup walkthrough on `help.pixfizz.com` covering sub
 - Whether Pixfizz has or wants any commercial relationship with Higgsfield, and whether this file should carry a referral link.
 - Disclosure and provenance-watermark obligations for AI-generated advertising imagery in the markets where Pixfizz customers operate (US, UK, EU, CA, ZA).
 - Whether an equivalent file is wanted for still-image-only tooling, given several Pixfizz customers will not need video at all.
-- Whether A5 allows generated motif art inside Pixfizz-made template designs that reach production (greeting card art is generated this way, `26_CUSTOM_DESIGN_TOOLS.md` § Generated template art), or whether A5 should name that case.
 
 ---
 
@@ -491,3 +512,4 @@ Suggested delivery: a short setup walkthrough on `help.pixfizz.com` covering sub
 - 2026-09-29: A6 never pass off a generated room or lab as the client's premises. B11 seamless hero loop (same start and end frame), Kling keeps input aspect, MP4 assets play via asset_url. Source: claude-chat.
 - 2026-10-17: B8: widening an existing image with Nano Banana (per-side grey canvases, ECC registration, original blended back). B11: ping-pong reveal loops (forward clip plus reverse, cut before the end-keyframe hold), keyframe discipline (two-step middle keyframe, fix geometry in stills, check hand grips), vendor notes on keyframe-holding models and web re-encode. Source: claude-chat.
 - 2026-10-22: New B12 product plates and preview scenes (edit-mode resolution and re-lighting, scale and straight-on scene prompts, outpainted walls, camera angles, object geometry and bevels, thin paper stacks by one fresh generation (the Blender route was rejected), exact designs placed on a blank plate rather than generated). B8 pointer to B12. Pending: A5 and generated template motif art. A5: pointer to the open conflict with `26_CUSTOM_DESIGN_TOOLS.md` § Generated template art. Source: claude-chat.
+- 2026-10-29: A5 open conflict resolved by owner decision (26 Oct): generated artwork is allowed in Pixfizz-made template designs that reach production; customer-placeable libraries and A1/A6 unchanged; pending item removed. B12: reserving space for a name or photo, moving baked-in lettering, flat products from one top-down photo. Source: claude-chat.

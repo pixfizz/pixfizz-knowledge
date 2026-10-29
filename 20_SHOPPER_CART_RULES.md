@@ -27,6 +27,14 @@ Two limitations apply, and both fail silently:
 
 **The cart's Edit link** (to `/site/project-edit?cart=t&project_id=`) is removed per product by the product custom field `hide_edit_in_cart`. Set it on any custom tool product with no edit path. Template-level. *Verified by query, 2026-10-13.*
 
+## The cart line name: `cart_product_name_format`
+
+The product custom field `cart_product_name_format` sets the cart line name: blank (default) shows the product name only, `design` shows `orderline.design.name` only, `both` shows the design name then the product name (for example "Photo Strip 4 x 10 in Notepad"). It works for custom design tool lines as long as the project carries a `theme_id`. Set it per product instead of editing a shared cart snippet. The definition already exists on Shopper 24 children. Write path: `PUT /v1/admin/products/<id>.json` with `product[custom][cart_product_name_format]=both` is a partial update (no other field touched). For extra text under the line name, `checkout/cart-extra-product-details` is an empty parent hook a child can override. Template-level (Shopper 24). *Verified by query on two children (write read back and diffed), 2026-10-26.*
+
+## `checkout/extra-cart-code`: the cart page's child hook
+
+`checkout/extra-cart-code` is empty on the parent and rendered by `pages/cart` inside the cart footer, in the **left** column (a `col-12 col-md-7` nested inside the outer `col-12 col-md-7`), before the summary column exists in the DOM. A child override is the clean way to add cart content on one site without overriding `pages/cart`. A script there that targets the summary column must wait for `DOMContentLoaded`; `closest('.col-md-7')` returns the footer's inner column, and the summary column is the outer column's next sibling: `inner.parentElement.closest('.col-md-7').nextElementSibling`. Template-level (Shopper 24). *Verified by reading source (shopper24 backup 2026-10-20) and live, 2026-10-28.* A progress bar toward an automatic discount should read `cart.orderlines_total`, the same value the discount reads, and keep its threshold in step with the discount. In an automatic discount formula, `ol.price` is the line total; one unit is `ol.price | divided_by: ol.quantity` (as in the bundle pattern in `30_PRICING_ENGINE.md`).
+
 ## Photo prints
 - Quantity not editable in cart.
 - Quantity is per-photo in Photo Prints UI; orderline priced via `cut_print_quantity`.
@@ -276,3 +284,4 @@ A parent snippet `checkout/cut-print-upright` was delivered as paste blocks on 2
 - 2026-10-09: Added Reorder, order details and emails for a custom tool line (Reorder drops template option files, order details prints every variant, the email line shows the catalog photo). Added Cut prints with autorotate show sideways in the cart, with the delivered parent fix marked not verified live. Source: claude-chat.
 - 2026-10-17: Text-type variants never show on the cart line; `hide_edit_in_cart` removes the cart Edit link; the header mini-cart repeats each line's remove form (scope cart scripts to the main list); new section: a static product with no image shows no thumbnail anywhere (launch check filtered to static products). Source: claude-chat.
 - 2026-10-22: New section: removing a cart line asks for confirmation (parent snippets `checkout/remove-line-confirm` and `style/remove-line-confirm`, opt-in class `px-rm-line`, child overrides of `pages/cart` or `modals/shopping-cart` keep the instant remove, fails open). Photo prints: image selection resets after a quantity update (live 2026-10-21). Source: claude-chat, slack-message.
+- 2026-10-29: New sections: the cart line name (`cart_product_name_format` values, partial PUT write, `checkout/cart-extra-product-details` hook) and `checkout/extra-cart-code` (left-column placement, finding the summary column, discount progress bar reads `cart.orderlines_total`). Source: claude-chat.

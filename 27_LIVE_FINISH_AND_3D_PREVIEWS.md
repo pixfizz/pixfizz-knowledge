@@ -107,7 +107,12 @@ Every value is a quoted string. Lengths carry their unit (`0.75in`, `6mm`). `lf_
   `lf_standoff_variant: 'none'`, `lf_render_variants: 'none'`) and the standoff color and
   size even when no standoffs are offered. 0.17.1 still logs an error for each undeclared
   key (seen: `lf_corner_variant`, `lf_mounting_variant`, `lf_standoff_color`,
-  `lf_standoff`). *Seen 2026-10-05.*
+  `lf_standoff`). *Seen 2026-10-05.* **The label keys must still be declared** even though
+  from 0.23.0 the engine ignores their values and sets the wording itself: `lf_label`,
+  `lf_off_label`, `lf_light_label`, `lf_sample_note`, `lf_closeup_label`, `lf_wall_label`,
+  `lf_compare_label`, `lf_tilt_label`. The parent snippet still lists a missing one in
+  `data-config-missing`, and 0.24.3 logs "the mount does not declare: ...". Keep all eight in
+  every mount. *Verified live, 2026-10-26.*
 - **Feature keys** (from 0.8.0): off when omitted, reported only when the mount uses
   their feature. `lf_holes_variant`, `lf_holes`, `lf_hole`, `lf_frame` (float frame),
   `lf_stand`, `lf_curve`; canvas (0.10.0): `lf_bar`, `lf_bar_variant`, `lf_bars`, `lf_wrap`,
@@ -115,6 +120,9 @@ Every value is a quoted string. Lengths carry their unit (`0.75in`, `6mm`). `lf_
   (0.13.0): `lf_mat_variant` (takes a comma list, first choice shown wins); ornaments:
   `lf_ornament`, `lf_ornament_shape`, `lf_ornament_sides`, `lf_ribbon_variant`,
   `lf_ribbons`, `lf_ribbon`, `lf_backdrop`, `lf_sample_page`, `lf_material_filter`.
+  An ornament can follow a material variant without the Materials button:
+  `lf_finish_variant: 'type'` with `lf_looks: 'metal:white-gloss,wood:wood-matte'` switches
+  the ornament base live. *Verified live, 2026-10-26.*
 - `*_variant` keys name the **variant or option code** the preview follows; the plural key
   maps that choice's value codes to looks or settings (`value:look,value:look`). Two maps
   may read the same variant (corners and mounting both following a backing choice,
@@ -145,7 +153,9 @@ Every value is a quoted string. Lengths carry their unit (`0.75in`, `6mm`). `lf_
 - **Mountings:** `flat`, `float`, `standoffs`, `easel`, `block`, `stand`, `floatframe`
   (needs `lf_frame`), `curved` (concave only, needs `lf_curve`), `loose` (a print lying on
   a table), `board`, `standout`, `picture` (framed, 0.13.0), `ornament`. Any value can
-  carry its own depth: `float@0.5in`. Convex curves have no rendering.
+  carry its own depth: `float@0.5in`. Convex curves have no rendering. With an edge color the
+  depth comes first: `board@0.1875in#black`; `board#black@0.1875in` is rejected. *Seen
+  2026-10-27.*
 - **Rooms** live in the asset's registry; `lf_room` is one room or a comma list
   (`sofa`, `bedroom`, `hallway`, `sideboard`) and a Change room button cycles them.
   The furniture in each room photo is calibrated to a real width, so the print hangs at
@@ -328,6 +338,22 @@ the photo). Tool-level technique, platform-independent. *From prototype and plat
   in R (one batch went from 10.9 MB to 1.4 MB with no visible change). A sharp textured
   background (a wood fence close-up, 814 KB at q82) drops below 300 KB by softening only the
   band the print covers (bilateral filter) and shipping at 1320 px wide around q60 to q66.
+- **Flat products from one top-down photo.** For a product lying flat (notebook, card, print,
+  coaster, mouse pad), a top-down photo with a plain matte white face needs no perspective
+  warp. Find the white face as the largest near-white region, fill holes, close and blur the
+  edge 1 px: that is the mask; store the face box in the plate meta. Draw the customer design
+  into the box, keep it only inside the mask (`destination-in`), then draw it over the photo
+  with `multiply`, so the photo's light, shadow and binding carry through. One photo per size,
+  because the face ratio is fixed. *Verified in a headless render, 2026-10-26; not yet on a
+  live site.* Generating the photo: `83_AI_IMAGERY_PRODUCTION.md` § B12.
+- **Bindings (wire, spiral, comb): stamp sprites, never tile a photo strip.** A tiled strip
+  shows seams, repeated shadows and broken gloss, and its backdrop prints a grey column beside
+  the cover. Cut ONE loop (wire, spiral) or ONE tooth (comb) as a transparent sprite with its
+  own contact shadow and stamp it once per hole at the real pitch. A spiral sprite is exactly
+  one turn (front stroke with its hole plus the back stroke). Draw a comb spine as one
+  continuous tube (a column profile stretched to length) with rounded ends. Matte: the object
+  fully opaque, the soft shadow capped at 0.45 alpha and kept only on the cover side of the
+  edge. *Decided by review, 2026-10-26.*
 - **Replacing a plate asset:** uploading a file with the same name does not overwrite an asset;
   upload the replacement on that asset's own edit page (`26_CUSTOM_DESIGN_TOOLS.md` § 3, tool
   assets).
@@ -520,6 +546,13 @@ Level: **platform (Pixfizz CMS)**.
   gives in the path form. Request it from the site's own host. The render includes the
   bleed and is capped at 1200 px on the longest side (`61_PIXFIZZ_API.md` § Preview
   resolution). *Verified by query, 21 Sep 2026.*
+- **The render draws print border variants.** `preview.jpg` with the product's border variants
+  in the query (`variants[border]=border`, `variants[width]=0.75`, `variants[border-color]=#hex`,
+  `variants[stroke]=yes`) draws the border, its width, color and keyline. Without those
+  variants in the query the page render shows no border, which is why a check on 27 Oct read as
+  "the render ignores the border". Before drawing any print-side effect in a preview (border,
+  keyline, mat), probe the render with that variant set; if it already shows it, the preview
+  must not draw it again. *Verified by query on a client theme, 2026-10-29.*
 - The uploaded photo is in the product form as `template_options[photo]=db:<image id>`.
   Read option values the way the platform does (`17_DESIGN_TOOL.md` § Custom Design
   Tools, Browser-Side Rules).
@@ -738,6 +771,18 @@ imported this way rendered on a plain background with no backdrop scene, and its
 links pointed at the source site's paths. After any import, rewrite both to the target site's
 ids. The 3D Preview equivalent is a wrong `p3d_page` (§ 3.2). *Verified live, 2026-10-14.*
 
+**Templates shared across two ranges share the mount.** When two product ranges use the same
+print templates size for size (for example enlargements and fine art prints), a template option
+set on one range's template also lands on the other range's product, so one mount must cover
+both ranges' variant codes (`lf_finish_variant: 'paper-type,finish'`). *Verified by query,
+2026-10-27.*
+
+**Importing a template option archive without hands:** POST the tar as `exported_file`
+(FormData, with the page's `authenticity_token`) to
+`/site/<site>/admin/templates/<template id>/options/import`; the response redirects to the new
+option's edit page. Copying an option to many templates with Template Options Copy: post one
+target per request (`18_ADMIN_NAVIGATION.md`). *Verified 2026-10-26 and 27.*
+
 **Test a mount before installing it:** on the live product page, build `#lf-root` or
 `#p3d-root` with the mount's data attributes inside the product form's `px-option-selector`,
 load the parent asset and call its init. Nothing is written to admin. *Verified 2026-10-06.*
@@ -781,3 +826,4 @@ A preview is not finished until all of this is true.
 - 2026-10-09: § 2.3 canvas weave and metal corner rules. § 6 grid design previews that never load (lazy observer on a 0 x 0 img) and the wall view overflow on oversize prints (0.17.1). § 7 MSP templates are shared from msphub, enumerate the sites before a mount; test a mount on the live page before installing. Source: claude-chat.
 - 2026-10-17: § 2.3 ornament-only bases from Live Finish 0.22.0 (`acrylic` for non-ornament glass); room plates at 4:5 with props inside the middle 85%. § 2.4 read the supplier spec sheet before modelling a preview. § 3.2 the "View in 3D" fallback button as the symptom of a wrong `p3d_page`. § 6 engineering lessons: hit testing on turned `preserve-3d` containers, brushed metal with `feTurbulence`. § 7 a mount copied from another site carries that site's backdrop and material-filter ids. Source: claude-chat.
 - 2026-10-22: § 2.2 `lf_mat_variant` may name a template option, `lf_mats` `@flat` printed border, color wrap as a design option read by `lf_wrap_color_variant`. § 2.5 stage resets `transform` on its images (site `img:hover` zoom). New § 2.10 photo plates (one plate for many sizes, objects on the print, full-resolution masks, cylinders, fabric, banners, plate weight, shared preview UI standard) and § 2.11 room scenes at true scale (scale from a height, wall-plane calibration, outpainted rooms, keep-outs). § 3.2 msphub mug `p3d_page` `front` case. § 3.3 Blender GLB pipeline for tool previews; never replace an approved preview. § 4 CDN textures: the 21 Oct and 18 Oct observations reconciled into one safe rule; CDN JS as ES modules; C2PA chunk. § 6 three 0.160.0 `+esm` loading, r160 tone mapping notes, r142 on experience. § 7 MSP preview fixes go on the msphub template. § 8 approved-preview comparison. § 4: experimental `canvas` format for `px-preview` components, JSON on book and theme preview endpoints (commit titles only, not for production use). Source: claude-chat, slack-message.
+- 2026-10-29: § 2.2 the eight label keys must still be declared (ignored from 0.23.0, still reported missing); ornament base following a material variant. § 2.3 `lf_mountings` depth before edge color. § 2.10 flat products from one top-down photo (white-face mask, `destination-in`, multiply); binding sprites, never tiled strips. § 4 the theme render draws print border variants passed in the query; probe before drawing an effect. § 7 a shared template carries one mount for two ranges; template option import by POST; Template Options Copy one target per request. Source: claude-chat.

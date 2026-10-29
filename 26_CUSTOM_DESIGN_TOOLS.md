@@ -166,12 +166,17 @@ not exist.
 | Design Brief (Design Service) | `design-brief.js` | `1.0.0` | `dsn_` | `dsn_mount` | **Unfinished.** Demo install on experience.pixfizz.com. |
 | Film Order Builder | `film-builder.js` | prototype, no version | `pxfb_` | host element `#pxfb` | **In progress** (status of 19 Sep). Rate card in the asset is demo data. |
 | Custom Framing | not recorded | - | - | - | Demo install on experience.pixfizz.com only (29 Sep sweep). |
+| Greeting Card Studio | parent asset on shopper24 | 0.5.x (October 2026) | `gcs_` | Pages page `page_content` block | **Live** on several client sites and experience.pixfizz.com (§7). |
+| Photo Book Studio | parent asset on shopper24 | 3.4.4 (24 Oct) | `pbs-` (`pbs-config`) | not recorded | **Live** on several client sites and experience.pixfizz.com (§7). |
+| Wall Design Studio | `wall-design-studio.js` | 0.8.6 on shopper24 (27 Oct) | `wds_` | not recorded | Engine live for a print-on-demand wall tile range (§7). |
 | Wall Designer | not built | prototypes 0.2.1 (metal and acrylic) and 0.3.0 (magnetic wall tiles) | - | - | **Prototype**, 6 Oct. Baseline test template built 26 Sep. Nothing installed. |
 | Board Engraver | not built (`board-engraver`) | prototype 0.0.1 (27 Sep) | `be_` | `be_mount` (proposed) | **Prototype.** Awaiting review. |
 | Custom Sized Prints | not recorded | 0.2.1 stated as shipped (22 Oct); 0.3.0 room scenes in local render | `cp-` classes; generic `px_` codes | not recorded | **In build.** Priced by `px_rates` mode `area` (§ 1). Where it is installed is not stated in the sources (22 Oct). |
 | Restoration Estimator | not built | - | `rst_` | `rst_original` | **Specified 4 Aug 2026, never started.** Needs revisiting. |
 | Acrylic Statue Designer | not built | - | `astat_` | `astat_artwork` | **Specified 21 Aug 2026, never started.** Needs revisiting. |
 | Collage Wall | not built | - | - | - | **Unfinished.** Its template emitter is the reference shape for the Wall Designer baseline test. |
+
+Rows for Greeting Card Studio, Photo Book Studio and Wall Design Studio were added 2026-10-29 from working notes, not from a new sweep; Calendar Studio and other studio tools are not yet recorded here.
 
 **Version banners are not reliable on every tool.** Three cases found on 19 Sep:
 Sticker Designer's header banner still read `2026.08.26-11` while the asset was
@@ -372,7 +377,15 @@ customer's first file. *Decided by Pixfizz, 2026-10-19.*
   tool can cut print files from `url` in the browser. A generated file (a print file) is
   uploaded without the dialog by POSTing FormData `data` to `/upload/image` with the CSRF
   token; the response carries the same fields. *Verified by query on experience.pixfizz.com,
-  2026-10-19.*
+  2026-10-19.* The multipart field `Filedata` (plus `name`) is also accepted, including with
+  `?gallery_id=<project gallery id>` to put a canvas-rendered image straight into a project's
+  gallery (pixel size kept); the field names `file`, `image` and `upload` answer 400 "failed
+  to parse file from the request", and url-encoded `url` and `name` copy an existing upload
+  by URL. *Verified by query on experience.pixfizz.com, 2026-10-26* (`61_PIXFIZZ_API.md`
+  has the endpoint). A guest with no `gallery_id` also gets a stored image (default gallery).
+  A PDF posted to `/upload/image` comes back as a 300 dpi raster of the page with bleed,
+  while the original PDF stays downloadable at the returned `url`. *Verified by query,
+  2026-10-24.*
 - `gallery-id` routes uploads into that gallery; without it, uploads go to a hidden uploads
   area. Picks from My Galleries return the existing image id and are **not** copied into
   `gallery-id`: copy them server-side (`61_PIXFIZZ_API.md`, `POST /upload/image?gallery_id=`).
@@ -393,6 +406,25 @@ customer's first file. *Decided by Pixfizz, 2026-10-19.*
   `input[type=file]` from a `DataTransfer` and dispatch `change`; the files upload exactly
   like a user pick (12 to 14 canvas-generated JPEGs in one run). Useful for hand-off tests
   without real photos. Platform-level. *Verified by query, 2026-10-19.*
+
+**Upload size limits.** The server accepts up to 150 MB per file on `file_upload` and
+`image_upload` options, and image uploads also stop at 300 megapixels. In the browser
+`px-image-upload` defaults to 50 MB; raise it with `max-size="150mb"`. A tool's own size
+setting only governs its storefront check, so it must not exceed the 150 MB server limit, or a
+file passes the tool and then fails the upload. The admin upload is a separate ceiling of
+50 MB (`61_PIXFIZZ_API.md`) that no tool, option or custom field can raise. Platform-level.
+*From the core developer (#development, 6 Aug 2026 for the server limits, 16 May 2024 for
+`max-size`); not re-tested by query.*
+
+**Uploads are slow on storefront hosts.** Measured 2026-10-27 (a 4 MB POST from Europe): two
+Shopper 24 child storefronts took 1.4 to 12 Mbit/s, admin.pixfizz.com 34, a CDN reference 35 to
+82; a 1.2 MB photo to `/upload/image` took 27.8 s to send and 1.8 s to process. The dialog sends
+originals two at a time, so a batch from a phone can take minutes. Why storefront hosts ingest
+slower is pending confirmation with the core developer. Tool-side waits worth removing in every
+studio: create the upload project on intent (hover, focus or touch of the add-photos control),
+and close the dialog under 1 s after the last `upload-success` (the next `upload-start` fires
+in the same tick). To measure a site: time a `no-cors` `fetch` POST of 4 MB from the page
+console to the storefront host and to a CDN speed endpoint. Platform-level (hosting).
 
 **Upload dialog check before a studio install is done** (decided by Pixfizz, 2026-10-22):
 This Device, My Galleries and the phone QR all show; the buttons carry `btn` classes with
@@ -519,6 +551,14 @@ progress in a hidden or background browser pane, so `getComputedStyle` keeps the
 inject `transition: none !important` before reading. A parent-level fix (stop mapping ink from
 the page font colors, or only on light sites) is a candidate and not done.
 
+**Muted text can also fail on light sites.** `--pxt-ink-muted` maps from the site's second font
+color (`pxt_font_colour_2`), which some sites set to a light grey meant for text on dark bands
+(`#d6d6d6` read 1.3 to 1.5:1 on white). Site fix: retoken `.pxt { --pxt-ink-muted: <dark grey> }`
+and darken `--pxt-primary` until white button text reaches 4.5:1. Parent fix to do: guard the
+mapping (fall back to `#667085` when the site color is too light for text on white). Every tool
+install gets a contrast sweep: all text inside `.pxt` at 4.5:1 or better. Template-level.
+*Verified by query on a child site, 2026-10-27.*
+
 **Text a tool draws outside its own surfaces sits on the page background.** A tool header
 (studio label, moved H1, intro line) rendered on the page rather than on a tool card keeps the
 tool ink and becomes invisible on a dark site (contrast about 1.0). Either give that text the
@@ -632,7 +672,41 @@ Standing rules for every tool, stated by Alex, 3 and 6 Oct 2026.
   the tool's own style snippet (`.pxt-<tool>.ff-root { padding-left: 0; padding-right: 0;
   background: transparent }`); after it heading, stage and footer matched at 375, 768, 1200,
   1600 and 2560 px on two sites. Other tools on the same shell were not re-measured.
-  Template-level. *Verified by query, 2026-10-20.*
+  Template-level. *Verified by query, 2026-10-20.* A child theme may use `.container-fluid`
+  for header and footer: frame code that measures only `.container` falls back to an invented
+  width. Measure the footer `.container` / `.container-fluid`, then the container holding
+  `.navbar-brand`. Header and page body can also carry different side padding (a nav with its
+  own padding around the container, 0 padding below 992 px), so a tool that owns the page
+  copies the header frame, not the body's. *Seen on two child sites, 2026-10-26 and 27.*
+- **Sticky breaks under `overflow-x: hidden`.** A common site guard `html, body { overflow-x:
+  hidden }` makes body a scroll container that never scrolls, and every `position: sticky`
+  inside it (stage, price and action bar) stops sticking. `overflow-x: clip` on `html` and
+  `body` stops sideways scroll without creating a scroll container. Belongs in
+  `style/px-tool-theme`, which renders only on tool pages; tools that do not load it carry the
+  same lines in their own style snippet. Browser behavior, template-level fix. *Verified by
+  query at 1440 and 375 px, 2026-10-23.*
+- **The Shopper cart status bar covers a tool action bar.** `#kiosk-sticky-bar` is fixed,
+  60 px, z-index 150 at the bottom of the page; hide it on tool pages as on photo prints.
+  Template-level. *Verified by query, 2026-10-23.*
+- **Takeover flag standard** (decided by Pixfizz, 2026-10-23, adopted per tool at its next
+  version): the tool root carries `data-pxt-takeover` in the server HTML and the JS sets
+  `data-pxt-ready` on boot; one rule in `style/px-tool-theme` hides
+  `.product-single:has([data-pxt-takeover]:not([data-pxt-ready]))` with a 4 s `visibility`
+  fail-open. Never hide a page whose tool does not set the ready flag. Server response time
+  (about 1.8 s on one studio page) still shows the previous page meanwhile; CSS cannot fix that.
+- **Back and Forward repaint the page.** The platform's `cms_bundle.js` (live-fragment filters)
+  listens to `popstate`: when the path is unchanged and the query string differs from the one it
+  stored at load (or at its own last filter push), it fetches the current URL and morphs the
+  page (`document.body`, or the `[data-px-live-fragment]` elements if any), then fires the
+  window event `px.fragmentsReloaded`. Scripts are not re-run, so a tool that `pushState`s a
+  query change on its own page is repainted to server HTML on Back. Opt-out:
+  `data-px-no-rerender="true"` on an element (the morph skips it), `"children"` keeps only its
+  children; body attributes are still replaced, so restore body classes on
+  `px.fragmentsReloaded`. A capture-phase `popstate` listener with `stopImmediatePropagation`
+  did not stop the morph. Rule: prefer no history writes (`17_DESIGN_TOOL.md` § A tool mounted
+  by `custom_script`); a tool that must own URL state sets `data-px-no-rerender` on its root,
+  its dialogs and any iframes it appends to `body`. Platform-level. *Verified by reading
+  `cms_bundle.js` and by query on a live child site, 2026-10-24.*
 - **Where to start is never in doubt.** The first call to action (upload, choose a photo,
   start designing) sits right under the tool heading as the primary button, with one line
   saying exactly what to supply, and is repeated inside the main preview as a card that is
@@ -714,6 +788,19 @@ option validation both apply to everything it renders or leaves behind there.
   non-placeholder image. *Seen on a client site's designs, 2026-10-21.*
 - **pdf.js in a sandboxed page:** set `workerSrc` to a `blob:` URL that `importScripts` the CDN
   worker; a cross-origin worker URL is refused.
+- **Preview customer PDFs with pdf.js 6.2.108 or later.** pdf.js 3.11, 4.10 and 5.4 log
+  "FormatError: Unsupported ShadingType: 1" and paint function-based gradients (seen from
+  Chrome "print to PDF" files) as a hot pink placeholder; Poppler and pdf.js 6.2.108 draw them
+  correctly. Load `pdfjs-dist@6.2.108/build/pdf.min.mjs` by dynamic import with its own
+  `pdf.worker.min.mjs`, keep the older site asset only as a fallback, and pass `canvas` as
+  well as `canvasContext` to `page.render`. The platform raster stays the print source.
+  *Verified by query, 2026-10-24.*
+- **Loading pdf.js 6 from a `<style onload>` boot:** pdf.js 6 sets `window.pdfjsLib` itself
+  when it loads, so a boot that returns early on `if (window.pdfjsLib)` never sets the worker,
+  and a polling fallback then hands it the old 3.x worker ("could not read the pages"). Check
+  the version, and never give a 6.x library the asset worker. Inside an inline `onload` handler
+  the scope includes `document`: a bare `URL` is `document.URL` (a string), so write
+  `window.URL` and `window.Promise`. Template-level. *Found in a tool build, 2026-10-27.*
 
 ### Design first: a prototype of an existing tool starts from the live tool
 
@@ -743,6 +830,14 @@ left as an icon, upload chip only where the chosen design needs a photo. Tool co
   click (see *The product form refuses silently*).
 - Test a scroll jump with `element.click()` from script: a test runner's own click scrolls the
   element into view and hides the jump.
+- **Photo ids from `px-upload-dialog` are strings** (`g<gallery image id>`). Code that reads an
+  id back from a data attribute with `+value` gets `NaN` and silently does nothing; compare as
+  strings (`String(a) === String(b)`). Prototypes with numeric ids hide this, so test swap and
+  zoom on the platform build. Tool-level. *Reproduced live, 2026-10-26.*
+- **Logo, artwork and photo uploads all land in the same project gallery.** Keep the ids
+  uploaded as logo or artwork and never let them join the photo pool. When two features share
+  one object (a card logo and an envelope logo), every field either one reads (aspect ratio,
+  size) must be set by every path that creates it. Tool-level. *2026-10-26.*
 
 ### Generated template art
 
@@ -766,8 +861,9 @@ Template-level, not platform rules. *Verified by reading source and by review, 2
   art on pure white (unmultiply against white); light or glowing art on pure black (alpha
   from the max channel); dark art with highlights on solid magenta (color-distance key plus
   despill); satin or glossy art by flood-filling the background from the edges so highlights
-  stay opaque. Whether generated motif art may sit in a template that reaches production is
-  an open question against `83_AI_IMAGERY_PRODUCTION.md` § A5.
+  stay opaque. Generated artwork may sit in Pixfizz-made templates that reach production
+  (owner decision, 2026-10-26, recorded in `83_AI_IMAGERY_PRODUCTION.md` § A5); A5 still
+  covers customer-placeable asset libraries.
 - **Patterns keep their physical size in landscape.** Pattern CSS in `cqw` (percent of card
   width) makes every tile 40% larger on a 7 in landscape card than in portrait: scale the
   pattern by 5/7 in landscape. Bands that need whole repeats are generated per box as an SVG
@@ -1319,6 +1415,16 @@ moved verbatim and standardising arguments is a separate step.
 - Product `unit_intervals` takes a list (`100,250,500,1000` gives exactly those choices) and
   the tool's quantity chips follow it; a 100 to 1000 in steps of 50 setting gives 19 chips.
   Verified by query, 6 Oct.
+- 3.0.0 (24 Oct) labels any rounded-corner surcharge "per order", because it was built on a
+  site where corners are a flat amount / quantity. On a site that prices corners per card the
+  label is wrong while the cart price is right. Fix in the tool: read `price_forecast` at two
+  quantities and label per card when the surcharge scales. Until then, check the corners price
+  shape before moving a site from 1.x to 3.0.0.
+- Single and double sided as separate products on one shared template: unpublish the other
+  `bc_sides` value on each product, or the tool offers "Front and back" at the single price.
+  3.0.0 hides the sides choice when one value is published.
+- Admin: `POST /admin/variant_values/<id>/update_flags` returned 500 but saved the flag.
+  Re-read the value before retrying. *Seen 2026-10-24.*
 
 ### Cover Studio: in test
 
@@ -1363,6 +1469,11 @@ fail, so blank is a real decision rather than an omission, and `pu_generic: true
 declares a title deliberately unspecified, which reads differently to a setup nobody
 finished. **"Generic by design" and "someone forgot to fill the fields in" are
 different states and must not be inferred from absence.**
+
+**`pu_max_file_mb` defaults to 250**, above the 150 MB server limit (§ 3 Upload size limits): a
+150 to 250 MB file passes the tool's check ("This file is N MB. The limit is N MB.") and then
+fails the upload. Set it to 150 or lower in the mount until the default is lowered in a release.
+*Verified by reading source, 2026-10-26.*
 
 **1.13.2: `pu_cart_image: 'product'`** makes the tool write the catalog image (design image,
 then product image, then first design preview image) as its preview file, so the cart and
@@ -1542,6 +1653,78 @@ assembled into one order. **The rate card in the current asset is demo data**, b
 from two real customer exports for the prototype. It is not a Pixfizz price list and
 must not be quoted to a client. Respecced 16 Sep 2026.
 
+### Greeting Card Studio: live
+
+Holiday and greeting cards in a full-page studio modelled on Photo Book Studio, mounted on a
+Pages page (`page_content` JSON block, § 4). Version 0.5.x on shopper24 (October 2026).
+Template-level, read from source and installs unless marked.
+
+- **Only its own variants are sent.** `price_forecast` and the cart hand-off are built from the
+  mount's variant types only: paper, finish, corners, envelope, `gcs_env_print`,
+  `gcs_env_flap`, `gcs_env_logo`. Any other variant on a `gcs-*` product (a lab's proof or rush
+  option) is never sent, so it is not applied and, if required with no default, can block Add
+  to cart. Do not add other variants to studio products until the studio supports them. A lab
+  with no paper, finish or corners choice installs with `gcs_paper_variant`,
+  `gcs_finish_variant` and `gcs_corners_variant` set to `'none'` and only `gcs_envelope` on the
+  products. *Verified by reading source, 2026-10-27.*
+- **A site's own card designs** show next to the Pixfizz and MSP designs: mount arguments
+  `gcs_store_collection`, `gcs_store_products` (`role:product id`) and `gcs_store_files` (a
+  site asset index). Designs are matched by theme code to a library built from the site's
+  template exports; codes ending `-upload` are skipped. Each store design keeps its own card
+  type and orientation, with the front fixed and logo, photo and words on the back and inside,
+  handed to the editor by element name. Store products that name variants differently use
+  `gcs_store_paper_variant` and `gcs_store_envelope_variant`. Ship the site's own font files
+  (woff2) with the library so the preview uses the print fonts.
+- **"Your own design" and printed envelopes** on a site, 2026-10-26 (verified by query and on
+  the live studio):
+  1. The `gcs-own-*` blank card templates live on the Pixfizz Templates provider. A consumer
+     site only publishes them: one collection (kept out of the menu), then the Publish
+     Products POST per template (`18_ADMIN_NAVIGATION.md`). No import.
+  2. Envelope file options (`px_print_envelope`, `px_print_envelope_back`,
+     `px_print_addresses`, `px_spec`) live on the shared card templates (hidden, hide from
+     cart), so every consumer gets them. Templates without them take an options import.
+  3. Per product, the variants `gcs_env_print` (none default, return address, recipients),
+     `gcs_env_flap` (front default, flap) and `gcs_env_logo` (none default, logo): a 3-type
+     `__variant_types.yml` with blank ids, imported with the product variant type import
+     (`61_PIXFIZZ_API.md`). Additive: check the product has no `gcs_env_print` first.
+  4. Mount: add the own collection to `gcs_collection`, `gcs_diy true`, `gcs_env full` (or
+     `return`), `gcs_env_logo` `either` or `with`, `gcs_env_flap true`, `gcs_env_colors` = the
+     `gcs_envelope` value codes the site publishes.
+  Not verified: a real order with envelope files reaching production.
+- Not verified live: setting `crop: false` on a filled logo element from the editor script.
+
+### Photo Book Studio: live
+
+Full-page photo book wizard (3D book stage, collections mode on sites with several sizes),
+asset on shopper24, 3.4.x in October 2026.
+
+- **Geometry is in inches inside.** The 3D book is sized as inches x ppi (ppi fitted to a 12 in
+  book), and hinge and spine assume inches. In collections mode the size comes from the product
+  name or `ga_size` (`25x25`). Before 3.4.2 a cm value was used raw, so a 25 cm book drew as
+  25 in and overflowed the stage. 3.4.2 divides by 2.54 (cm) or 25.4 (mm) when the `pbs-config`
+  unit is set and multiplies back for labels. *Verified live on four sites, 2026-10-24.* Rule
+  for every studio in this family (Calendar Studio, Greeting Card Studio): keep geometry in one
+  internal unit and convert only for labels.
+- **Rotated elements.** Design XML uses `rotate="90"` on elements (a spine title); the editor
+  rotates around the box center. Before 3.4.3 the studio ignored it and spine text drew flat on
+  the front cover. 3.4.4 applies a CSS rotate and draws a rotated element only on the face whose
+  interior holds its center (spine text sits exactly on the front/spine boundary, so a plain
+  bounds check is not enough).
+- 3.3.0 got stuck on its snippet loader after Back, because of the platform `popstate` morph
+  (§ 3 Page layout, Back and Forward repaint the page).
+
+### Wall Design Studio: live engine
+
+The wall studio engine on shopper24 (`wall-design-studio.js`, 0.8.6 live on 27 Oct; behavior read from the 0.8.5 source), used for a
+print-on-demand supplier's wall tile range. Separate from the Wall Designer prototype below.
+
+- **Landscape panels use the portrait product.** A layout marked landscape builds panels with
+  width and height swapped (`turned = true`) but keeps the portrait size label, and the cart
+  hand-off adds the **portrait** product (40x60 for a 60x40 piece); the print file is rotated
+  90 degrees and the line name says "landscape". So a lab maps only portrait and square
+  products in `wds_products`; landscape twins are not used. *Verified by reading source,
+  2026-10-27.* Not yet confirmed in a live cart that production reads the rotation correctly.
+
 ### Wall Designer: prototype
 
 Multi-panel wall art: splits (one photo across several panels), clusters and gallery walls.
@@ -1695,3 +1878,4 @@ once.
 - 2026-10-09: § 3 the shared look: `.pxt-step` and `.pxt-shell` are contract names a tool must not reuse; pointer to the variant-selector rules in 17. Source: claude-chat.
 - 2026-10-17: § 1 the rate card moves from the mount to the snippet-type product custom field `px_rates` (printed by `product/design-now` as a JSON script tag), and the agreed `pricing.js` engine contract shared with OrderHub (versioned, `px_price` plus text choice variants); § 4 pointer that `px_rates` is pricing data. § 3 tool assets one stem per tool and a new asset per version; upload dialog button classes and text attributes, `upload-success` storage, progress detail, closing the dialog mid-upload, `preview` is a 250 px long-edge thumbnail; new § Using the platform crop tool standalone (`px-image-adjust-tool`); shared look: text outside tool surfaces on dark sites and full dark mode by tokens, `:where()` element resets, wording and stage standards. CORRECTED § 3 page layout: description and delivery box stay in the tool's right column. CORRECTED § 4 mount option code is `px_mount` for every tool, `px_` codes without tool prefix; filter-switched siblings share one mount. § 6 the project edit page has no price; a tool can reopen its saved state on project-edit. § 7 Sticker Designer `inline` is not full width (site CSS pattern); Gang Up canvas resolution ceiling on long sheets. Source: claude-chat, slack-message.
 - 2026-10-22: § 1 books counted in spreads price in system pages; `px_rates` mode `area` with generic `px_` size codes and counter-only products. § 2 and § 7 Custom Sized Prints moved to in build, priced by `px_rates` (CORRECTED: rate per square inch was on variants). § 3 upload dialog CORRECTED to mandatory for every tool taking a customer file, a tool opens calm, `sources` required, no button look of its own, classes read once at connect, canonical Shopper class set and repo check, `SUPPORTED_FILE_TYPES` and no `accept`, print wording for the five photo-worded attributes, `url` same-host and untainted, feeding files in a test, studio install upload dialog check; new § attaching a file (`file-url` is content addressed, edit-from-cart restore); defend against site `custom.css` (link overrides, generic classes, `img:hover` zoom, contrast check); wording and stage standards (resolution only under 100 dpi, quiet drags, no panel scroll jump, admin terms and collapsed variant trees); page layout (CSS-only takeover with `:has()`, measure the first heading inside the tool); new § the product form refuses silently (`step="any"`, `checkValidity`, retired multiple choice options), § tools that show a design gallery (`preview.webp` tiles, `layouts.json`, `template` nil in the mount), § drawing a design in the browser, § design first from the live tool, § testing a tool (host CSS), § generated template art. § 4 `template` is nil in the mount scope; a tool on a Pages page takes a `page_content` JSON block (parent-only asset resolves from a child). § 5 TemplateOptionType definitions check, price gate covers tool prices, `hidden` is not `hide_from_cart`. § 8 dpi from XML by hand, upload dialog check. Source: claude-chat.
+- 2026-10-29: § 2 registry rows for Greeting Card Studio, Photo Book Studio, Wall Design Studio. § 3 upload: `Filedata` field and copy-by-URL on `/upload/image` (also `data`), PDF raster, upload size limits (150 MB and 300 MP server, `px-image-upload` 50 MB default, `max-size`), slow storefront upload throughput and tool-side waits; strings for upload pool ids, shared logo objects; frame with `.container-fluid` and header padding; sticky under `overflow-x: hidden` (use `clip`), `#kiosk-sticky-bar`, takeover flag standard; platform `popstate` morph and `data-px-no-rerender`; muted ink guard and contrast sweep; pdf.js 6.2.108 for customer PDFs and loading it from a style-onload boot. Generated template art: owner decision allows it (A5). § 7 Publication Upload `pu_max_file_mb` default above the server limit; Business Cards 3.0.0 corners label, sides publishing, `update_flags` 500; new Greeting Card Studio, Photo Book Studio and Wall Design Studio entries. Source: claude-chat.

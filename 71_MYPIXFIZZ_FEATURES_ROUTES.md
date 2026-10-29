@@ -451,6 +451,13 @@ brand page).
 - **Store health check:** checks a storefront for what stops customers buying or finding it
   (groups: buying, look, Google), with fix, look and good findings. Keeps the last 10 runs per brand;
   an optional weekly run can be switched on.
+  Reading its numbers (through the Pixfizz connector's `store_health`, *verified by query and a
+  fresh crawl, 2026-10-28*): the `last_full_check` block can be weeks old (one said 6 broken menu
+  links and no sitemap; a crawl the same day found every link working and `/sitemap.xml` present),
+  so never quote it to a customer without a fresh crawl; the `products_now` block is current.
+  "Products with no image" read 90 to 99 percent on all 15 Shopper stores checked, because design
+  products take their picture from the design, so it is not a real defect. "Products with no price"
+  includes unpublished products. Neither count should be scored or quoted as is.
 - **Promo codes:** one shared code, or a batch of single-use codes (up to 5,000), percentage or
   amount, with start and end dates.
 - **Customer export:** download the store's customers as a spreadsheet; every export is logged.
@@ -577,3 +584,4 @@ When asking Lovable to modify or build features, always specify:
 - 2026-10-06: Rewrote the route map to the current source (commit d6290ee): corrected the old routes table (no `/portal` prefix, `/dashboard` is the customer dashboard, `/lead-inbox`, `/pipeline/:id`, `/product/*`, `/admin/onboarding`, `/welcome`), routing basics (role redirect, portal preview mirror, mobile support app), admin navigation from `adminNav.ts`, brand page tabs and storefront types, Support (ticket types, urgency, urgent alerts, order error form and known errors, awaiting-customer reminder and auto-resolve, project requests), Brand Performance v2, Launch Plan, Marketing (Campaign Manager), Shopper Configure with the In-store kiosk section, Shopify Style, the Tools catalog (Shopper Setup, Kiosk, Live Finish, Template resizer, customer Catalog Manager, Static Product Uploader, Pricing formula builder, Merge users, Store health, Promo codes, Customer export, Blog, Shopper tools catalog, Shopper Upgrades), and the customer sidebar. Catalog Manager corrected: it now also has a customer route. Restored the task rules, billing run, FX tracker, Support Contacts and SLA checking details. Source: claude-chat.
 - 2026-10-17: Brand Connections and Catalog: the POD Catalog nightly sync owns every row of a site-synced supplier (fields it rewrites, fields that survive, hand-loaded rows switched off overnight, family grouping). Catalog Manager: the "no variant write" reason corrected against 61 § 13g. Source: claude-chat.
 - 2026-10-22: Brand Connections and Catalog: how the POD Catalog sync picks a product's category (first collection in API order, `SKIP_COLLECTION` prefixes and suffix, category map, fix at the source, `Test` display-name prefix). Prompt-Writing Notes: Pixfizz admin terms and collapsed variant trees in tool screens, pointer to 26. Source: claude-chat.
+- 2026-10-29: Store health check: `last_full_check` can be stale, and the no-image and no-price counts are not defects as reported. Source: claude-chat.

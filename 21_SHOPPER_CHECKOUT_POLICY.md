@@ -58,6 +58,16 @@ Template-level (Shopper 24 `pages/checkout`). *Verified by reading source (live 
 - So on a site with several pickup stores, any script that chooses a different store must re-point those hidden `cart[location_id]` inputs, or it races the parent's own request. A plain `<script>` in `checkout/extra-checkout-code` renders before `section.checkout-page`, so its `DOMContentLoaded` listener registers first.
 - **No fixed time locks on a checkout auto-click.** A re-render that lands inside the lock is never corrected. Wait on `document.readyState` and on `.px-live-fragment-loading` clearing (the parent's own kiosk film script does the same), and cap the attempts. Same rule as live re-renders in `50_SHOPPER_TEMPLATE_REFERENCE.md` § 17, *Live `selectors:` re-renders patch the DOM*.
 
+## Switching between pickup and delivery
+
+Template-level (Shopper 24). *Verified live on a demo site, 2026-10-28.*
+
+- The "In-store pickup" and "Deliver to my address" rows are labels whose first labelable descendant is the hidden submit button of a form posting to `/v1/carts/_mine` (`_method=put`, `target=/site/checkout?...`, `data-px-live-reload-selectors=["section.checkout-page"]`). A click anywhere on the row submits that form directly; the radio's own `onchange` never fires from a row click. A script that reacts to the switch must hook the label click, not the radio.
+- The switch is one server round trip: the cart PUT plus a full `/site/checkout` render returned for the live reload. Measured 3.0 to 4.2 s with an 8-line cart (`/site/checkout` alone 1.7 to 1.9 s server time). The delay is server-side, not the browser.
+- The live reload morphs `section.checkout-page` in place (the section node survives), so detect new content by an element you injected disappearing, not by the section being replaced.
+- `checkout/extra-checkout-code` is empty on the parent and is the clean child hook for checkout scripts, for example an instant "Loading delivery options..." line and locking payment while the switch runs.
+- A real speed fix needs the platform (a lighter live-reload target or a faster cart PUT). Pending: core developer.
+
 ## Film processing
 If not disabled by `admin/checklist/hide-film-order-checkout`, and any orderline has:
 - `orderline.product.custom.film_processing`
@@ -245,3 +255,4 @@ On a child site, set the checklist keys with **Override Snippet** on the parent'
 - 2026-10-06: Kiosk mode: carts are per domain. Added Kiosk associate tip (gates, fields, fee precedence, stale-mode fix, dead CSS selector fix, Order definitions as an install step). Added Pay in Store maximum cart total (number only, inclusive, blank disables, decided in the resolution block), the `rush_option` vs `rush_sameday` field difference, and `checkout/rush-button2` always rendering. Source: claude-chat.
 - 2026-10-17: New Pickup contact phone section (pre-filled is not saved, `pickup-phone-not-required` vs `dont-require-pickup-contact-details` vs `autofill-pickup-phone`, `required` gap, `/site/setup/storefront`). Rush: three-way labels and disclaimer, radio style loses the choice (use `checkout-rush-style` = `DROPDOWN`), `pages/confirm` old rush checkbox. Payment: empty method list after a page save (CRLF, fixed 2026-10-13), Invoice offered only to `invoice` users. Source: claude-chat.
 - 2026-10-22: Guest checkout: contact fields are browser-side only (server acceptance stated, not verified), no guest checkout for film orders. New sections: Restricting checkout to approved users on a child site (`disable-user-registration` only hides the New Customer column, gate via `checkout/extra-checkout-code` and `user.category`, where Category is set) and Multi-store pickup (checkout posts the first public address, re-point `cart[location_id]`, no time locks). Payment Gateway Notes: Stripe Payment Element on dark sites. Payment Gateway Notes: Authorize.net receives the order address for AVS (which address not confirmed). Source: claude-chat, slack-message.
+- 2026-10-29: New section: switching between pickup and delivery (label click submits the cart PUT form, 3 to 4 s server round trip, live reload morphs in place, `checkout/extra-checkout-code` hook). Source: claude-chat.

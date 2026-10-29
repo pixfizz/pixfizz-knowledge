@@ -361,6 +361,13 @@ Marketplace integrations are the simplest from a storefront perspective — the 
   - **API automation:** use the external order API to push marketplace orders into Pixfizz programmatically (requires development)
 - Configure production routing and fulfillment
 
+**How the built-in Etsy integration presents orders** (platform-level; *read on an Etsy-enabled client site's admin and storefront, 2026-10-28*, unless marked):
+- An Etsy order arrives as a cart. Its orderlines carry SKU `<Etsy listing id>:<product code>` and the options `Personalization` and `etsy_transaction_id`; the cart carries `cart.custom.etsy_receipt_id`. The admin abandoned-cart page shows "Etsy Receipt ID" and "Etsy Cart Link".
+- The cart link is `https://<host>/custom/etsy/order/<cart id>`. It signs the browser in as the cart's user and lands on `/site/cart`; an admin session in that browser is replaced (*stated on a client call, 2026-10-07, consistent with tests*). Open it in a private window when testing.
+- Abandoned cart statuses in admin: Active, Recovered (the customer approved and the order is confirmed), Abandoned (left unfinished).
+- On the Etsy-enabled site the Cart Abandoned email went out once, at cart creation ("email #1 sent at" equal to the cart's Created At), with an empty Schedule list. Whether Schedule rows add reminders for Etsy carts is not verified.
+- The webhook sets an option by code: a design option with that code wins, otherwise the template option with that name (*stated by the core developer, Slack #development, 2026-10-09*). **Pending confirmation:** Etsy variations mapped to template options still failed in a test on 2026-10-14.
+
 ### Phase 4: Production Verification
 
 - Place test orders through the marketplace workflow
@@ -568,6 +575,12 @@ Pixfizz includes 14 email templates mapped to the order lifecycle. Configured in
 - Sign-in Token Renewed
 
 Review and customize all active templates before launch — default content references generic Pixfizz copy that should be replaced with the customer's brand voice.
+
+---
+
+## Site Backups: Ask for the One Without Assets
+
+For template, snippet, CSS or homepage work, request the CMS backup **without assets** (on a large site this is a few hundred KB and downloads at once). Ask for the full backup with assets only when the task needs the asset files themselves. On one client site the "with assets" download cancelled itself repeatedly once it passed about 1 GB (*seen 2026-10-26*; not verified whether the cut-off is the browser, a proxy or the platform). Asset names can be checked in admin at `/site/<site>/admin/assets?search=<name>` instead.
 
 ---
 
@@ -807,3 +820,4 @@ After any domain change, repoint payment-provider webhooks that carry the old do
 - 2026-09-29: CORRECTED where the GTM and GA4 fields live; Setup and Manage path unverified. Added the rule for customer setup steps (system named, click path, value inside the step, never above/below). Pre-launch checklist gains favicon.png and footer/logo override. Corrected the kiosk desktop app note: now distributed from myPixfizz Tools, optional, with domain lock, USB import and idle reset. Source: claude-chat, fireflies-call.
 - 2026-10-17: Content Completeness: shopper24 terms and shipping-and-returns pages ship placeholder text to children (lorem ipsum, placeholder phone) with the scan check. Launch Check: every static product needs an image; a blank 200 from a pixfizz.com subdomain is not a live store. SEO Migration: redirect regexes match the query string, end rules in `/?(\?.*)?$`. Handoff checklist: real phone on shipping-and-returns, nav and footer links load logged out, client-owned analytics IDs, noindex off and sitemap generated. Source: claude-chat.
 - 2026-10-22: Marketplace Phase 1: Etsy integration is enabled per site by the Pixfizz core developer (observed in a release commit and stated by support, not stated as a rule by the developer); no site-owner setting seen. Source: slack-message.
+- 2026-10-29: Marketplace Phase 3: how the Etsy integration presents orders (SKU format, options, receipt id, cart link signs in as the cart user, abandoned cart statuses, one Cart Abandoned email at creation, option mapping by code; template-option variations pending). New § Site Backups: ask for the one without assets. Source: claude-chat, slack-message.

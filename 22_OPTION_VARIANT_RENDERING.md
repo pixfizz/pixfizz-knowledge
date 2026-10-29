@@ -100,6 +100,8 @@ These are the selectors explicitly handled in the snippet you provided:
 - Uses `value.custom.hex` for the swatch color
 - **`admin/checklist/hide-color-label` did not reach this branch** until a parent fix on 2026-10-08. The checklist capture ran only inside the `option.type == 'color'` branch; this branch tested the same variable without setting it, so value names always showed. The parent fix repeats the capture right after `{% elsif option.custom.selector == 'color' %}`. A child with its own override of `product/px-option` keeps the defect: list the child's snippets before calling a parent fix done. `option.custom.hide_value_labels` does not reach this branch. Hover names already work (`title` plus `data-toggle="tooltip"` on the swatch). Template-level (Shopper 24). *Verified by reading source and by query, 2026-10-08.*
 
+- **Variant label images are served as PNG.** Shopper 24 renders a variant value's label image as `cdn.../thumbnail/300/~/<name>.png` with no `format/webp`, so a photo swatch costs about 180 KB at 300 px whatever the asset's own format. Product gallery images already use `format/webp`. Keep label images small and simple. Template-level (Shopper 24). *Verified by reading the live HTML, 2026-10-26.*
+
 > Separate from `option.type == 'color'`, which can render either a palette picker (`option.color_palette`) or an `<input type="color">`.
 
 ### 4.3 `checkbox` (Multiple choice rendered as checkbox)
@@ -256,6 +258,8 @@ Shopper renders a `<px-image-upload>` web component with:
 - optional image adjustments driven by admin checklist:
 	- `enable-image-filters-image-upload`
 	- `enable-image-color-image-upload`
+	- When either key is TRUE, `product/px-option` puts `image-adjust-tool-image-filters` / `image-adjust-tool-image-color-adjustments` on **every** image upload on the site; the attribute's presence enables the control, its value is ignored. Template-level. *Verified live, 2026-10-24.*
+	- `px-image-upload` copies every `image-adjust-tool-*` attribute onto the crop modal at the moment Adjust is clicked. A tool that removes the two attributes before that click gets crop and rotate only for that one upload, without changing the site setting. Platform-level. *Verified by reading source (cms_bundle 20261023172211) and live, 2026-10-24.*
 **Value and crop (platform-level, the `px-image-upload` web component):**
 - The upload lives in the component's `value` attribute as `db:<image id>`, optionally followed by crop data `@{l:..,t:..,r:..,z:..}`; no crop is plain `db:<id>`. `px-multi-image-upload` carries it the same way. The option code differs per template (`photo`, `upload-image`), so find the control by tag, scoped to its `px-option` where there are several. `px-option-selector` fires a bubbling `change` after an upload. *Verified by query and by reading source, 2026-09-26 and 2026-09-29.*
 - Setting `value` to `db:<existing image id>` from script updates the hidden input and fires that `change`, which tests an upload flow without the dialog. *Verified by query, 2026-09-26.*
@@ -263,6 +267,17 @@ Shopper renders a `<px-image-upload>` web component with:
 - **With no Crop Aspect Ratio on the option, Adjust shows no crop box at all**: the customer can only filter, rotate and reset, and the photo fills the placeholder centered. *Verified live, 2026-09-29.*
 - The Adjust dialog copies every `crop-*` attribute of the upload onto `px-image-adjust-tool` (prefix stripped) when it opens. `crop-rotation-mode` is also observed; its values are unknown.
 - Not verified: a crop moved by hand after a ratio change, end to end into the production file.
+- **`crop-aspect-ratio` on a template option belongs to the template**, so every design on it shares one ratio. Designs whose photo windows differ (a round window on one design, a rectangle on another) need the page or tool to set the ratio per design (above: the attribute is observed). *Verified live, 2026-10-24.*
+- **What the crop value means** (platform-level; read from cms_bundle 20261023172211 and checked against the real bundle in a test harness, crop box within 0.6% over ten cases, 2026-10-24):
+  - Keys: `l`, `t`, `z`, `r`, each omitted when 0; color keys `crop:0`, `gry`, `sep`, `brt`, `sat`, `cnt` may follow.
+  - Crop box: the largest box of `crop-aspect-ratio` that fits inside the rotated image, divided by `1 + z/100` when `z > 0`. `z < 0` is shrink to fit (only when enabled).
+  - Box centre = image centre + (`-W*l/100`, `-H*t/100`) in the image's own axes (W, H unrotated), rotated with the image. A positive `l` moves the box left.
+  - `r` is 0, 90, 180 or -90 in image rotation mode. Rotate adds 90, wraps 270 to -90, and resets `l`, `t` and `z`.
+  - The geometry is relative, so any resolution of the same image gives the same crop.
+- **`px-image-upload` fires no event of its own on upload or on crop Submit**: watch its `value`, `img-src`, `img-width` and `img-height` attributes (`px-image-adjust-tool` fires `confirm` and `cancel`). After an upload `img-src` is the largest thumbnail and `img-width`/`img-height` are the original pixels; the full-resolution URL is only in the upload-success result (`detail.files[0].result.url`). *Verified by reading source, 2026-10-24.*
+- **The crop modal re-renders its crop box on every change.** `.px-image-upload-crop-modal-overlay` is prepended to `body`; anything added inside `.px-crop-box` is wiped, while a `::after` rule on `.px-crop-box` survives. *Verified by reading source, 2026-10-24.*
+- A `px-image-upload` outside `px-multi-image-upload` is not touched by `px-option-selector`, but its hidden input still posts with the form unless its `name` is removed. *Verified by reading source, 2026-10-24.*
+
 - **An image upload option crops the customer's image to fill, whatever the element says.** With no crop props on the `db:<id>` value, the server crops to fill even when the page XML element has `crop="false"`. To keep a logo whole, add a hidden multiple-choice option whose single default value carries an `image_crop_flag` element substitution with cropping off; image upload options have no substitution panel of their own. Whether the option's Crop Aspect Ratio field also drives this is not tested. Platform-level. *Verified on baseline.pixfizz.com, 2026-10-05.* Details: `17_DESIGN_TOOL.md` § Image crop flag.
 
 ### 5.2 `file_upload` (`option.type == 'file_upload'`)
@@ -284,6 +299,8 @@ Shopper renders a `<px-file-upload>` component.
 - **The required check sits on the component's own internal button** (custom validity "Please upload a file"). If the component is hidden or restyled, the browser has nowhere to show the bubble and Add to Cart silently does nothing. Catch the `invalid` event in the capture phase on the form, filter to the component, `preventDefault()`, and show your own message. See § A Required File-Upload Option Behind a Trigger Silently Kills Add to Cart.
 - A script-injected file (DataTransfer, above) sets `value` to `db:<id>` plus `file-name` and `file-url`, exactly like a picked file.
 *Verified live, 2026-10-13.*
+- **A file option's value must be `db:<file id>`.** `px-file-upload` posts to `/upload/file` (field `data`) and stores `db:<id>`. A tool that writes a file option itself must use the same form: a bare id is saved on the project but its uploaded file stays empty, so the orderline preview and checkout ignore it. Platform-level. *Verified by reading source (cms_bundle 20261023172211) and by query, 2026-10-26.*
+- **A file option can be set after the project is saved:** `PUT /v1/books/<id>.json` with `book[template_options][<code>]=db:<id>`. The cart line follows the project, so a line already in the cart picks it up. *Verified by query, 2026-10-26.*
 ### 5.2b Targeting a specific upload by option code
 Every option is wrapped in `<px-option code="...">`. When a product has more
 than one upload option, scope any DOM query to the wrapper —
@@ -321,11 +338,16 @@ This is a key advanced behavior.
 
 If `option.custom.multi_upload_group` is set, Shopper:
 - Opens a wrapper `<px-multi-image-upload ...>`
-- Groups multiple upload options under a single “Upload Photos” experience
+- Groups multiple upload options under a single upload experience. **The group value is shown to the customer as the group heading**, exactly as typed (a value `grid` showed as a lowercase "grid"), so use a customer-readable word such as `Photos`. *Observed live, 2026-10-24.*
 - Starts the wrapper when the group changes vs `previous_option.custom.multi_upload_group`
 - Closes the wrapper when the group changes vs `next_option.custom.multi_upload_group`
 
 This allows “upload many images” flows while still storing each uploaded image against a distinct option code.
+
+- The grouped control shows one "Upload N images" button; each slot then gets a drag handle, a thumbnail, Upload Image and Adjust, and slots can be reordered by drag. *Observed live, 2026-10-24.*
+- **Grouped options must be adjacent in option order**: the wrapper opens and closes whenever the group value changes between neighbours, so a different option between two members splits the group.
+- A design with two or more photos needs `multi_upload_group` on **every** upload option, same value; without it Shopper renders separate Upload Image buttons (`19_XML_TEMPLATE_REFERENCE.md` § Drawing Order, Groups and Other Elements).
+- **Upload progress** (platform-level, `px-upload-dialog` progress screen): the progress card is the upload dialog itself, `<dialog class="px-upload-dialog" data-screen="progress" open>` (non-modal), in light DOM. Markup `.px-ud-progress > .px-ud-spinner + .px-upload-info`, text labels `upload-info-text` ("Uploading...") and `upload-info-extended-text` ("Uploading {{count}} of {{total}}..."), close button `.px-ud-close`. Platform CSS fixes it to the bottom (`position:fixed; bottom:16px`). Restyle from Shopper CSS with `html body .px-upload-dialog[data-screen=progress]`. *Verified by reading source (cms_bundle 20261023172211) and live with a scripted 4-file upload, 2026-10-24.*
 
 ---
 
@@ -364,6 +386,8 @@ Template-level (Shopper `product/px-option`) over platform preview widget behavi
 - Long text values (for example generated story paragraphs) make the URL too long: the product page crashes and the project can be saved corrupted. Short values are harmless (`27_LIVE_FINISH_AND_3D_PREVIEWS.md` observes it with `lf_mount`).
 - Do not remove the handler if shoppers switch products on the form. Exclude the long-value options from it (an ignore list in `product/design-now`), keep those values in a client store or in project custom fields (`50_LIQUID_REFERENCE.md` § Projects), and refill the inputs on `pageshow` and `px.fragmentsReloaded` (`17_DESIGN_TOOL.md` § Restoring Input Values After a Product Switch).
 - A text option value is capped at 1,024 characters regardless (`51_CUSTOM_FIELDS_REFERENCE.md` Key Notes).
+- **`pushState` on custom domains, `replaceState` on `*.pixfizz.com`.** `product/design-now` branches on `request.host contains 'pixfizz.com'`: on a `*.pixfizz.com` address every write replaces the history entry; on a lab's own domain each write adds one. A custom design tool that writes options programmatically can add several long entries per upload, so Back steps through copies of the same page, and reloading one of those URLs prefills the form from stale values. The fault never shows on a `*.pixfizz.com` test site: **test tool Back behavior on a custom domain**. *Verified by reading source (shopper24) and live on a client custom domain, 2026-10-23.*
+  - Fix pattern (template-level, no platform change): `storeOptionSelectionIntoURL` returns early when any template option or variant code on the product contains `_mount` (a tool product never switches products on its form). A tool can also set `window.storeOptionSelectionIntoURL` to a no-op while it owns the page and strip `template_options[`/`variants[` params on load. Whether the parent carries the early return yet is not verified here; check `product/design-now` on the parent. Pending confirmation: a platform-side `replaceState` everywhere.
 - **A tool must not write internal state into an option before real artwork exists.** Template option values are mirrored into the product page URL as they change, so a spec JSON written into an option early shows up in the address bar. *Verified live, 2026-10-22.*
 
 Template-level (Shopper `product/design-now`). *Stated by the core developer, 2025-05; not re-tested by query.*
@@ -659,6 +683,8 @@ label | url_name | filter_attribute | default_value | snippet_args
 `product/filter-controls`. With `asset_images: true` the field value must be an **asset
 filename**, not a label.
 
+**Filtering on an array product custom field.** A filter line can point at a custom field whose value is an array, for example `Thickness | style | product.custom.style | 1/8 in | control_type: radio` with product values `["1/8 in"]` and `["1/4 in"]`; it switches products correctly. The storefront sends the parameter as `style[]=...`; a hand-typed URL with `style=...` (no brackets) is ignored, so test a filter by clicking, not by typed parameters. Template-level (Shopper 24). *Verified by query, 2026-10-27.*
+
 ---
 
 ## Template Option Substitutions: Target Elements, Types and Limits
@@ -762,3 +788,4 @@ A variant price formula cannot read another variant's value, so when the price d
 - 2026-10-09: § 4.2 and § 4.9 the hide-color-label checklist did not reach `selector == 'color'` swatches until the 2026-10-08 parent fix; child overrides keep the defect. Template Option Substitutions: tag targeting works in the editor; a substitution naming a missing element does nothing silently; a variant and a template option must not share a code; copying design options between sites. Variant Type Exports: a priced number variant needs `default_value: '0'` to import. Source: claude-chat.
 - 2026-10-17: § 3.1 product custom keys (`hide_design_options`, `prepay_only`) stored as `"false"` hide every design option and force prepay. § 4.1 textarea whitespace defect defeats `required`. § 4.9 value labels under image tiles truncate at about 6 characters. § 5.2 corrected: `file_upload` reads `option.accept`, not `custom.accept`; markup after `px-file-upload` lands inside it; the internal required check and the capture-phase `invalid` fix; injected files carry `db:<id>`, `file-name`, `file-url`. § 5.2c what project-edit renders (`form#project_update`, `book[template_options]`, file URLs, the mount boots there, `.save-to-cart-button`, read before writing defaults). New § A Non-Additive Finish x Size Price Matrix Is One Variant With Combined Codes. Source: claude-chat.
 - 2026-10-22: § 2 template options render above variants. § 6.2 a tool must not write internal state into an option early (values mirror into the URL). Template Option Substitutions: an `image_upload` option needs a page element with its target name (silent failure, preview byte check), copied options carry the first size's `crop_aspect_ratio`, text options written into `<text name>` at project create, color wrap as a child design option with `background_color`. Unset Booleans: CORRECTED which fields give the string `'false'` (no definition or typed as text; a real boolean definition is safe); test flags with `=== true || === 'true'` in JavaScript when the definition cannot be guaranteed. Variant Type Exports: copying a variant set across sites (`export_all` tar, import route, what survives, YAML keys, repricing, additive import). Source: claude-chat.
+- 2026-10-29: § 4.2 variant label images served as PNG. § 5.1 site checklist keys put color controls on every upload; removing the attributes before Adjust; crop ratio is per template; crop value geometry, no upload event, crop modal re-render, standalone upload posts. § 5.2 file option value must be `db:<id>`; setting it after save via `/v1/books`. § 5.3 group label shown as heading, reorder, adjacency, upload progress markup. § 6.2 pushState on custom domains only, `_mount` early-return fix. `collection_filters`: array custom field filters send `name[]`. Source: claude-chat.
