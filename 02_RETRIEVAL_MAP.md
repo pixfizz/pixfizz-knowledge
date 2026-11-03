@@ -2,7 +2,7 @@
 
 **Authority Scope:** Navigation + retrieval guidance only. This file does not introduce new platform or template rules.
 
-_Last updated: 2026-10-29_
+_Last updated: 2026-11-03_
 
 ---
 
@@ -599,6 +599,15 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 
 ### "Where does a custom design tool read its settings from / can I put this in a product custom field?"
 → **26_CUSTOM_DESIGN_TOOLS.md** § 4 — the mount argument list, and nothing else. Supersedes the settings cascade in every spec written before 11 Sep 2026.
+
+### "What settings can I change on my studio / design tool / mount? What does `<prefix>_<setting>` do? Which values does it accept? Is it safe to change?"
+→ **28_TOOL_SETTINGS_REFERENCE.md** § 6 — every setting per tool, rated Yes / With care / No. How to edit a mount safely: § 3.
+
+### "Cut spot color name / CutContour / CutPath / cut line prints instead of cutting?"
+→ **28_TOOL_SETTINGS_REFERENCE.md** § 6.2 (`stk_cut_spot`, `gu_cut_spot`): the name must match the RIP's cut spot letter for letter.
+
+### "The console says a mount setting is missing / data-config-missing?"
+→ **28_TOOL_SETTINGS_REFERENCE.md** § 3 (pass every setting, every time) and the tool's table in § 6.
 
 ### "How do I install a custom design tool on a new site?"
 → **26_CUSTOM_DESIGN_TOOLS.md** § 5. Two steps, not four — `41_IMPLEMENTATION_PATTERNS_UPDATED.md` and `51_CUSTOM_FIELDS_REFERENCE.md` carry the same order.
@@ -1639,3 +1648,4 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 - 2026-10-17: Added 84 routes for the 2026-10-17 sync (Shopper frame and header, GA4 bridge live, collection filters and line endings, redirects and query strings, publish routes and the add_themes.json 404, template provider and consumer, 2FA, XML foil and DPI and text attributes, calendar tags and transformations, px_rates and pricing.js, upload dialog and crop tool, fulfillment codes, Live Finish install ids, admin users and calendars API, POD catalog sync). Every target section was written in the same sync. Source: kbsync.
 - 2026-10-22: Added 116 routes for the 2026-10-22 sync (publish wizard positions and Create and Tick, POD publish without variants, template export YAML and import failures, saved vs ordered books, content addressed uploads, preview parameters and layouts, the three ways a product is priced and `px_rates` area mode, editor text and QR controls, calendar layouts and week start, the upload dialog standard for tools, Live Finish plates and room scenes, cart remove confirm, approved-user checkout and multi-store pickup, GA4 browser first, Perfectly Clear upscaling at fulfillment, myPixfizz SSO, webhook auto-deactivation, Shopify order status and duplicate users, OrderHub hot folders on a NAS). Every target section name checked against the file; section names are shortened before an em dash. Source: kbsync.
 - 2026-10-29: Added 48 routes for the 2026-10-29 sync (whole-site login gate, mega menu panels, page cache, POD products in collections, cart line name and extra cart code, pickup and delivery switch, cut print base plus delta, boolean custom fields, studio registry rows, popstate morph and sticky layout, pdf.js, upload size limits and `Filedata`, Live Finish label keys and print borders, Nano Banana fixes, bulk user create, `/upload/file`, cross-site asset library, collection Ace fields, filename tags, Etsy order facts, backups without assets, store health staleness, Versions diff correction, publish positions, snippet override ids, crop value and color controls, file option `db:` values, `pdf_layer`, masks and font size units). Every target file name checked against the repo. Source: kbsync.
+- 2026-11-03: Added 3 routes to the new 28_TOOL_SETTINGS_REFERENCE.md (per-tool mount settings, cut spot names, missing mount settings). Source: claude-chat
