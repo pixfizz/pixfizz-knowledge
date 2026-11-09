@@ -230,6 +230,31 @@ whatever resolution is asked, and it re-lights the region it keeps (10 to 25% br
 paste an edit into a 4K plate: generate the blank natively at full resolution, and use edits
 only to build masks or patch a small region back into the original.
 
+**The number of input images decides the mode.** With the Nano Banana tool used here, one input
+image puts it in edit mode: output 1024 x 1024 whatever resolution is asked, and it tends to add
+a frame. Two or three input images put it in generate mode, where the output follows the aspect
+ratio and resolution (2048 x 2048 at 2K, 6336 x 2688 at 4K 21:9). To get a 2K product photo from
+a single design, pass the same reference twice (inputs 1 and 2): the design is kept as well as
+in edit mode. Pad each reference to a square on white first, and when a reference is a scene
+preview say "use the attached image only for the card itself, ignore its background". Tool
+behavior. *Verified by test, 2026-11-01 and 2026-11-06.*
+
+**A register that worked for paper goods:** a premium online print shop hero style, warm oat
+linen, three-quarter view, real paper thickness, one or two props, almost shadowless soft
+daylight, specific short real-looking text (names, addresses), Pro tier. For a landing hero,
+"the LEFT 45 percent empty linen" left room for the copy on a 21:9 4K output, cropped to
+2.3576:1 and saved at 2400 x 1018 WebP (about 290 KB). On a textured, continuous background this
+worked; on the holiday sign run below a "right 45% plain" request gave a seam, so check for a
+seam either way. *Verified by test, 2026-11-01.*
+
+**Library art with a cut-out background: generate on flat magenta.** Drawings generated on white
+keep white in every enclosed gap (handle holes, wheel spokes, between items), because a
+silhouette cut only clears white joined to the outside. Generate on flat `#FF00FF` and key that
+color everywhere: enclosed gaps clear too; despill the edges. On magenta the Pro model also
+rarely draws a sticker border. An automatic "pure white enclosed" clear also removes drawn
+highlights (a teapot, a glass): review every cleared region against the drawing before upload.
+*Found in a test run of 17 drawings, 2026-11-06.*
+
 **Scene prompts:**
 - Ask for scale in frame terms. With a scale cue alone, scene shots put a 12 x 18 in garden flag
   at about 15% of the frame; "medium-wide, flag fills about 40 percent of the image height"
@@ -513,3 +538,4 @@ Suggested delivery: a short setup walkthrough on `help.pixfizz.com` covering sub
 - 2026-10-17: B8: widening an existing image with Nano Banana (per-side grey canvases, ECC registration, original blended back). B11: ping-pong reveal loops (forward clip plus reverse, cut before the end-keyframe hold), keyframe discipline (two-step middle keyframe, fix geometry in stills, check hand grips), vendor notes on keyframe-holding models and web re-encode. Source: claude-chat.
 - 2026-10-22: New B12 product plates and preview scenes (edit-mode resolution and re-lighting, scale and straight-on scene prompts, outpainted walls, camera angles, object geometry and bevels, thin paper stacks by one fresh generation (the Blender route was rejected), exact designs placed on a blank plate rather than generated). B8 pointer to B12. Pending: A5 and generated template motif art. A5: pointer to the open conflict with `26_CUSTOM_DESIGN_TOOLS.md` § Generated template art. Source: claude-chat.
 - 2026-10-29: A5 open conflict resolved by owner decision (26 Oct): generated artwork is allowed in Pixfizz-made template designs that reach production; customer-placeable libraries and A1/A6 unchanged; pending item removed. B12: reserving space for a name or photo, moving baked-in lettering, flat products from one top-down photo. Source: claude-chat.
+- 2026-11-09: B12 input count decides edit or generate mode (pass one reference twice for 2K), paper goods register and hero space, library art generated on flat magenta and keyed. Source: claude-chat.

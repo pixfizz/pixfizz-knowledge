@@ -64,6 +64,8 @@ Internally there are two master Shopify CMS sites: a **staging** master used to 
 | Pixfizz Option Addons | `pixfizz.option_addon_products` | Product | Variant-level option addon override. |
 | Pixfizz Static Product Code | `pixfizz.static_product_code` | Single line text | Variant-level override. Takes precedence over product-level value, same pattern as `product_sku`. |
 
+**Creating the definitions in the Shopify admin (2026 UI).** The metafield definition form fills the namespace and key as `custom.<name>` and shows it under the Name field; click that line to edit it to `pixfizz.<key>`. A definition left in `custom` is never read by the integration. *Verified in a client store's admin, 2026-11-04.*
+
 ### SKU Precedence Rule
 
 For products WITH Shopify variations: the SKU **must** be set on the variant metafield. The product-level SKU is the fallback only.
@@ -172,9 +174,19 @@ Five snippets must be created in the Shopify theme. All are referenced by `{% re
 - Builds a map of Shopify variant IDs → Pixfizz SKUs
 - Builds an addon map (page addons + option addons) per variant
 - Reads the selected variant from the product form
-- Calls `Pixfizz.Shopify.launchProduct(sku, integration_type, product_id, variant_id, parameters)`
+- Calls `Pixfizz.Shopify.launchProduct(sku, integration_type, product_id, variant_id, parameters)`, or for `integration_type = photo-prints` calls `Pixfizz.Shopify.launchPhotoPrints(parameters)` instead (§ 6, *Photo-prints products*)
 
 **Note:** This snippet may need adjustment for themes other than Dawn, specifically the `form = document.querySelector('form[action*="/cart/add"]')` selector.
+
+**Older installs may lack the photo-prints branch.** Some stores' installed copy of this snippet always calls `launchProduct(...)` and ignores `integration_type = photo-prints`, so a photo-prints product opens the single-photo editor (one photo, one size) instead of the photo prints editor. Check that the installed snippet branches, and wrap the call if it does not:
+```liquid
+{%- if integration_type == 'photo-prints' -%}
+  Pixfizz.Shopify.launchPhotoPrints(parameters)
+{%- else -%}
+  Pixfizz.Shopify.launchProduct(...)
+{%- endif -%}
+```
+Keep the store's existing `launchProduct` arguments in the `else` branch. Template-level for the integration (store theme snippet). *Verified on a support ticket, 2026-11-06 (customer confirmed the fix).*
 
 ---
 
@@ -241,6 +253,17 @@ onclick="{% render 'pixfizz-orderline-quantity-handler', item: item, cart: cart,
 
 ---
 
+### Installing the snippets as a Shopify collaborator
+
+A Pixfizz staff member working in a store as a **Shopify collaborator** in the browser cannot write theme files through the API:
+- Admin REST through the admin proxy (`https://admin.shopify.com/store/<store>/admin/api/<version>/...`) answers GET (theme list, theme assets), but an asset PUT answers **403**, and GraphQL through the same path returns HTML.
+- Writes go through the theme **code editor** UI. Paste the whole file, save, then read it back with a REST GET and compare byte for byte. The first save after a paste sometimes does not take (the tab keeps its unsaved dot): always read back.
+- A new template created in the code editor (`templates/product.<suffix>.json`) starts as a copy of `product.json`: replace all of it.
+
+Shopify-side behavior, not Pixfizz. *Verified in a client store, 2026-11-04.*
+
+---
+
 ## 6. Product Page Template
 
 For Pixfizz products, the standard Shopify buy button block is replaced with a "Personalize" button.
@@ -267,6 +290,16 @@ For `pixfizz.integration_type = photo-prints` the size is chosen inside the Pixf
 - `/products/<handle>?view=<template suffix>` renders any alternate product template without assigning it, so test it there first: Personalize should open the photo prints modal with no JS errors.
 
 *Verified by test on a client Shopify theme, 2026-10-11.*
+
+### A custom design tool inside the Personalize window (no `api.js` change)
+
+The Pixfizz-side page `shopify/product` (the options-to-cart window) creates the project by POSTing `#create-project-form` to `/v1/books.json`, then posts add to cart with `project.options.shopify_variant_id`. A custom design tool mounted by a template option's `custom_script` can take this page over without any change to `api.js`:
+- The tool can rewrite the form's hidden `product_id`, `theme_id` and `custom[shopify_variant_id]` inputs (to switch to another template or Shopify variant), write its photo value into `template_options[<code>]`, then call `form.requestSubmit()`. Design options (for example an `image_upload` photo) render in the form as `template_options[<code>]`, like template options.
+- **The master's `shopify/px-option` does not render `custom_script`.** A store's Pixfizz site needs a child override of `shopify/px-option` that adds `{{ option.custom.custom_script }}` after `</px-option>`. Same override caveat as § 1: a later master fix to `px-option` does not reach that override.
+- **`launchProduct` never opens full screen.** The store theme's handler can call `Pixfizz.Shopify.openModal(url, {fullscreen: true, className: ...})` itself. In full screen there is no close button, so the page inside must post `{type: 'close'}` to close the window.
+- Extra data the tool needs (Shopify variant ids and prices) can ride in the URL query the theme handler builds.
+
+Platform-level (Shopify + Pixfizz master), with a site-level `px-option` override. *Verified by reading source (production master backup, 2026-11-04) and a local harness against a live store page; not yet verified in a real Shopify window.* Tool build rules: `26_CUSTOM_DESIGN_TOOLS.md`.
 
 ### Editor `domready` message (integration mode)
 
@@ -490,7 +523,8 @@ Required metafields:
 ### General rules
 - Shopify product must have "Track QTY" disabled
 - For photo prints: set `pixfizz.adjust_cart_qty` to `false` on the product
-- SKU format: `theme-code:product-code` (no spaces, no typos)
+- SKU format: `theme-code:product-code` (no spaces, no typos). A product code alone does not resolve.
+- **Publish an imported design to a collection before testing it on the Shopify path.** The Pixfizz page `/site/shopify/product` resolves the SKU with `website.design_products | where: 'sku', params.sku`, and a freshly imported template's design is not in `design_products` until it is published to a collection (the publish link after an import: `18_ADMIN_NAVIGATION.md`). Unpublished, the window renders an empty options form. Platform-level. *Verified by query on a client integration site, 2026-10-31.*
 - **Edit product/variant ID mapping CSVs in a plain-text editor, not Excel.** When preparing a CSV that maps Shopify product/variant IDs to Pixfizz codes, do not open or save it in Excel — Excel silently reformats long numeric IDs (scientific notation, dropped leading characters) and corrupts the mapping. Use a plain-text/code editor (e.g. VS Code) so the IDs stay intact. Source: fireflies-call (2026-07-10).
 
 ---
@@ -1022,3 +1056,4 @@ Variant-value image swatches in the Shopify modal take the image's natural width
 - 2026-10-06: § 15: Troubleshooting My Projects and My Galleries (missing `pixfizz-product-api` Shopify page hangs the project loader, gallery create needs the Pixfizz user id, `customer.css` 404 on any theme without it, logged-out empty states, `options-to-cart` creates no saved projects, the "Theme file is invalid" red herring). Source: claude-chat.
 - 2026-10-17: § 1 a master snippet fix does not reach an integration site that overrides the snippet (`px-option` Required variant case). § 6 photo-prints products: hide the Shopify variant picker on a duplicated product template (the Personalize button reads the whole sku map, not the selected variant). § 11 `photo-prints` Add to Cart hangs at 0% when a design product sku has no exact match among the `pixfizz.product_sku` values. Source: claude-chat, slack-message.
 - 2026-10-22: § 9 Shopify orders are created in `P` then moved to `C` or `W`: listen to `order.status_changed`, not `order.created`. § 11 new troubleshooting entries: order missing in Pixfizz from duplicate users (same `external_id` with a different `external_source`, or one order mixing two users' projects; merge, then duplicate and confirm in Shopify; merge direction and `imsure`), and Add to Cart landing on an empty cart when the project lacks `shopify_product_id` / `shopify_variant_id` (one-off, custom site code). Source: slack-message.
+- 2026-11-09: § 2 metafield definitions default to `custom.<name>`; edit to `pixfizz.<key>`. § 5 launch product handler: photo-prints branch, older installs may lack it (ticket); new Installing the snippets as a Shopify collaborator (asset PUT 403, write through the code editor and read back, new product template starts as a copy). § 6 new A custom design tool inside the Personalize window (no `api.js` change, `shopify/px-option` override for `custom_script`, `openModal` full screen needs a `close` message). § 10 publish an imported design to a collection before testing on the Shopify path; a product code alone does not resolve. Source: claude-chat, support-ticket.

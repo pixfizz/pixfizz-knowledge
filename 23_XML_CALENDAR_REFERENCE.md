@@ -2,7 +2,7 @@
 
 **Authority Scope:** XML definition structure for calendar and planner products — date sequence vocabulary, set parameters, and annotated real-world examples. Platform-level — not Shopper-specific.
 
-_Last updated: 2026-10-22_
+_Last updated: 2026-11-09_
 
 ---
 
@@ -647,6 +647,20 @@ baseline.pixfizz.com, 2026-10-20.*
   names, grids, holidays and every `set-text` / `set-color` target stay on the design page.
 - A design theme import accepts layouts with a blank `id:`; they are created and listed by
   `/v1/themes/<id>/layouts.json` with name and tags.
+- **Adding an image to a calendar grid page by editor script (prints).** In the hidden editor:
+  clone an image element from the photo page (`photoPage.image_elements[0].clone()`; `clone()`
+  ignores overrides passed to it), add it with `gridPage.actions.addElement.call(gridPage, el)`
+  (the action needs the page as `this`), then `el.update({x})`, `({y})`, `({width})`,
+  `({height})`, `({name})` one key per call; register the image
+  (`galleries.project._addDbImage(json); images.register(id, data)`), then `el.update({id})`,
+  `el.update({placeholder: false})`, and `saveProject()`. Saved XML:
+  `<image name="..." src="db:..." x y width height zoom="1"/>`. The element printed in the
+  production PDF, and a transparent PNG kept its transparency on the day cell. Platform-level
+  (editor, bundle 20261023172211). *Verified by render, 2026-10-29.* General pattern:
+  `17_DESIGN_TOOL.md` § Text, image and layout calls.
+- There is no platform fill for a per-day user image: never import templates carrying a per-day
+  image slot tagged with an invented fill such as `cal:calendar-month:fill:user-calendar-image`
+  (seen in one tool build). *Not verified beyond one tool build.*
 
 ---
 
@@ -679,3 +693,4 @@ edit was ever made.
 - 2026-09-19: Added per-month backgrounds and colors as calendar transformations rather than XML: element naming, the Dates flag on each element, Set Image and Element Color, the date series name having to match the page exactly (with the "Could not find definition for dates" error it produces on a multi-page calendar), the absence of any odd/even shortcut, and the bulk XML naming and WebP quality 90 tips. Source: loom-video (2026-09-14).
 - 2026-10-17: Corrected `weekday` on `<defdate>` and `<dateshift>` (the weekday inside the Monday-to-Sunday week, not the nearest occurrence; Sunday-start needs `day="-6"`, Monday-start does not). Added Calendar Element Tags, Fills and Transformations: 1-based `idx` tags, the full fill list, `calendar_transformations` fields and actions in an export, transformations reach only date-tagged elements, transformation beats design-option substitution, website-calendar captions need `book[calendars][]`, the cover-year pattern. Source: claude-chat.
 - 2026-10-22: § 6 Named Date Sequence Patterns: week start is in the date rule, a twin template per week start (twin rendering not verified). § Calendar Element Tags, Fills and Transformations: order of operations at render (date fill, Colors design option, transformations) and Colors options on calendar pages. New § Per-Page Photo Layouts on Calendar Templates (`cal:` tags in layouts are not resolved, `setLayout` replaces only `layout="true"` elements, the photo-frames-only pattern, blank layout ids on import). Source: claude-chat.
+- 2026-11-09: Per-Page Photo Layouts: adding an image to a calendar grid page by editor script (prints, transparency kept); no platform fill for a per-day user image. Source: claude-chat.

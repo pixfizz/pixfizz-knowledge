@@ -2,7 +2,7 @@
 
 **Authority Scope:** Defines CMS vs Shopper vs Custom vs Shopify responsibility.
 
-_Last updated: 2026-10-22_
+_Last updated: 2026-11-09_
 
 ---
 
@@ -94,6 +94,23 @@ Moving a type between sites (platform-level, admin routes, *verified by query, 2
 
 Importing a type onto a child changes that child's data model: treat it as a deliberate change that needs the site owner's sign-off, and never import in the other direction, from a child onto the parent.
 
+**Products inheritance shares records; it brings no CMS content.** A site set to inherit Products from another returns the same collections and products with the same ids, so a change through either site changes both. It brings no snippet overrides, custom types or Pages instances: those follow the Design (CMS) parent and the per-site rules in this file. Re-pointing a site's Design parent (for example making a Custom CMS site a Shopper 24 child) needs the global super admin website form; the site-scoped form lists only related sites. Detail and the dedicated catalog parent pattern: `18_ADMIN_NAVIGATION.md` § Website Management (Super Admin). *Verified by query, 2026-11-03 and 2026-11-05.*
+
+## Moving a Shopper Child Onto Another Admin: What the CMS Tar Does Not Carry
+
+Platform-level. *Verified by query on one child moved onto an existing admin, 2026-11-06.*
+
+**A Shopper CMS tar carries snippets and assets only.** Moving a finished child onto another (for example an older, existing) admin also needs these copied separately, each read back on the destination:
+
+1. **Custom type definitions:** export and import as in the section above (definitions only; the destination assigns new ids).
+2. **Custom type instances** (Pages, Services and the like): `GET /v1/admin/custom_types/<source type id>/custom_type_instances.json?sitename=<source>`, then `POST {custom_type_instance:{custom:{...}}}` to `/v1/admin/custom_types/<destination type id>/custom_type_instances.json?sitename=<destination>` (`61_PIXFIZZ_API.md`). Replace site-specific ids inside the content first: a tool configuration that names a holiday calendar id points at the source site's calendar.
+3. **Website redirects:** read `website_redirect_config[json_redirects]` on the source and post it, with the destination form's `authenticity_token`, to `/site/<destination>/admin/pages/update_redirects` (`50_LIQUID_REFERENCE.md` § Website Redirects).
+4. **Holiday calendars and their dates:** read each date from the source's calendar edit forms, create the calendar on the destination, then post each date (admin calendar forms, `61_PIXFIZZ_API.md`). A tool that reads a holiday calendar reads the **storefront site's** calendar, while the products come from the products parent, so the calendar belongs on the storefront site.
+
+**Check after the switch:**
+- An older admin keeps its **own** `website[default_fulfillment]`: confirm it is the code the new storefront should route to (one moved child still carried an unrelated old code).
+- **Shipping services follow the products parent** (shown as "inherited from <parent>"). A new products parent with no shipping services leaves checkout with nothing to offer (`21_SHOPPER_CHECKOUT_POLICY.md` § A Bare Child Site).
+
 ## Email Notification Templates Are Per Site
 
 The 14 notification email templates (Settings > Email Notifications) are **not inherited** from the Shopper parent. A child site starts with 14 empty templates, and a parent change reaches a child's emails only through snippets the child's template bodies call at send time. That is why the Shopper email kit keeps each template body to one line that calls parent snippets. *Verified by query, 2026-10-03.* See `32_ORDER_LIFECYCLE.md`.
@@ -111,3 +128,4 @@ On a child site, **Website → Snippets lists only the snippets that site has ov
 - 2026-09-24: Pointed the Parent-First Rule at the new Install-Step Gate. Added "Pages Are Parent-Only" (with the open § 21.5 question) and "A Child Site's Snippet List Shows Only Its Overrides". Source: claude-chat, fireflies-call.
 - 2026-10-06: Added Custom Types Are Per Site (export and import routes, never child to parent) and Email Notification Templates Are Per Site. Source: claude-chat.
 - 2026-10-22: A Child Site's Snippet List Shows Only Its Overrides: `snippets/edit_by_name` redirects only when the child has its own copy. Source: claude-chat.
+- 2026-11-09: Custom Types Are Per Site: Products inheritance shares records but brings no CMS content; re-pointing the Design parent needs the global super admin form. New section: Moving a Shopper Child Onto Another Admin (the CMS tar carries snippets and assets only; copy custom type definitions, instances, redirects and holiday calendars; check the old admin's default fulfillment and the products parent's shipping services). Source: claude-chat.

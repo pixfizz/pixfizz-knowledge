@@ -367,6 +367,10 @@ Marketplace integrations are the simplest from a storefront perspective — the 
 - Abandoned cart statuses in admin: Active, Recovered (the customer approved and the order is confirmed), Abandoned (left unfinished).
 - On the Etsy-enabled site the Cart Abandoned email went out once, at cart creation ("email #1 sent at" equal to the cart's Created At), with an empty Schedule list. Whether Schedule rows add reminders for Etsy carts is not verified.
 - The webhook sets an option by code: a design option with that code wins, otherwise the template option with that name (*stated by the core developer, Slack #development, 2026-10-09*). **Pending confirmation:** Etsy variations mapped to template options still failed in a test on 2026-10-14.
+- **The order stores the Etsy variation value as its name, not a value code.** `create_order` writes the formatted value into the template option as given (for example "Cream"), while the edit page radios use value codes ("With Cream Tassel"), so no radio is checked and the option looks empty in the DOM. Fields not submitted keep their stored value on project update (the option kept "Cream" after Save). A personalize page or tool must therefore match the Etsy value to a radio by code **or** label, and a second visible option that drives the preview can contradict it (a buyer saw the default color instead of the one bought). Platform endpoint, seen on an Etsy-enabled client site. *Verified live, 2026-10-29.*
+- **A later test passed (2026-10-29):** each variation whose `formatted_name` matched a template option name on the design was set on that template option (for example a style and a material choice), and the others were stored as orderline options (for example `Personalization`, a hanger choice, an agreement checkbox), next to `etsy_transaction_id`. *Verified by query on two test carts, 2026-10-29.* Not verified: that the mapped value drives the preview and the print file; check the project.
+- **The order endpoint** (*verified by query, 2026-10-29*): `POST https://<site host>/custom/etsy/create_order`, HTTP Basic auth, JSON body. It answers 201 with the cart JSON (`id`, `custom.etsy_receipt_id`, orderlines with `options` and `template_options`). Body fields: `name`, `first_line`, `second_line`, `city`, `state`, `zip`, `country_iso`, `receipt_id`, `buyer_email`, `buyer_user_id`, `message_from_buyer`, and `transactions[]` with `transaction_id`, `quantity`, `listing_id`, `sku`, `price {amount, divisor, currency_code}` and `variations[] {formatted_name, formatted_value}`. `listing_id` is the design code (the Etsy listing id) and `sku` the product code; each transaction becomes one project in the one cart.
+  - **Numbers must be JSON numbers:** `quantity`, `transaction_id`, `receipt_id`, `buyer_user_id`, `amount` and `divisor`. A string `quantity` answers 500 (`undefined method 'times' for "1":String`). Look up any 500 reference under Admin → Advanced → Error Query.
 
 ### Phase 4: Production Verification
 
@@ -549,6 +553,9 @@ Use this checklist before declaring a site ready for launch.
 - [ ] `no-index` off and `/sitemap.xml` generated at go-live (every page of six audited sites still carried noindex, and most had no sitemap)
 - [ ] Favicon uploaded as a site asset named exactly `favicon.png` (512x512, transparent) and the live head icon link points at it; see `50_SHOPPER_TEMPLATE_REFERENCE.md` § 9
 - [ ] `footer/logo` overridden on the site; the parent's points at an asset most child sites do not hold, so an un-overridden footer shows a broken image
+- [ ] Social sharing image uploaded as a site asset named exactly `og-preview-image.jpg` (1200 x 630 JPG, logo on the brand background at least, evergreen); without it every shared link shows the parent's stock camera photo. See `50_SHOPPER_TEMPLATE_REFERENCE.md` § 9. *Verified by reading source, 2026-11-06.*
+- [ ] Photo prints: every prints link is `/site/prints?collection=<path>` (without `collection` the page lists nothing); the prints collection holds cut print templates only; `print_ux` = `TRUE` plus the two redirects, and no storefront `href` to `/site/product/c/<prints collection>`; the `/site/photo-prints` landing has its description, `starting_at`, `pricing`, `features` and `photo-prints*.webp` assets filled. See `50_SHOPPER_TEMPLATE_REFERENCE.md` § 25 and § 14. *Verified live and by query, 2026-11-02 and 2026-11-06.*
+- [ ] Moving a finished child onto another admin: custom types, instances, redirects and holiday calendars copied (the CMS tar carries only snippets and assets), the admin's `default_fulfillment` checked and shipping services present on the products parent. See `13_TEMPLATE_BOUNDARIES.md` § Moving a Shopper Child Onto Another Admin. *Verified by query, 2026-11-06.*
 
 ---
 
@@ -603,6 +610,15 @@ seed. Check these by hand after every import, on the live site:
    carry the override silently reverts it to the parent value.
 5. **Every value snippet's trailing whitespace**, if the bundle was generated rather
    than exported. See 01_CODE_GOVERNANCE_UPDATED.md.
+6. **The Website title (Settings → General, `website[title]`).** The parent-rendered
+   Terms and Shipping pages and the services heading print the company name from this
+   platform setting, not from the `website/brand` snippet, so a blank or stale title
+   shows there even when the brand snippet is right. *Verified by reading the Shopper 24
+   parent backup and by use on client sites, 2026-11-02 and 2026-11-03.* Route:
+   61_PIXFIZZ_API.md § 13h *Site settings*.
+7. **Shipping service formulas.** A service whose formula is `0` is free at checkout.
+   Open each service under Shipping and confirm the formula is intended. *Verified by
+   query, 2026-11-03.*
 
 **A local render verifies the file, not the site.** Rendering a snippet through a
 Liquid engine and screenshotting it says nothing about a live storefront. Load the
@@ -821,3 +837,4 @@ After any domain change, repoint payment-provider webhooks that carry the old do
 - 2026-10-17: Content Completeness: shopper24 terms and shipping-and-returns pages ship placeholder text to children (lorem ipsum, placeholder phone) with the scan check. Launch Check: every static product needs an image; a blank 200 from a pixfizz.com subdomain is not a live store. SEO Migration: redirect regexes match the query string, end rules in `/?(\?.*)?$`. Handoff checklist: real phone on shipping-and-returns, nav and footer links load logged out, client-owned analytics IDs, noindex off and sitemap generated. Source: claude-chat.
 - 2026-10-22: Marketplace Phase 1: Etsy integration is enabled per site by the Pixfizz core developer (observed in a release commit and stated by support, not stated as a rule by the developer); no site-owner setting seen. Source: slack-message.
 - 2026-10-29: Marketplace Phase 3: how the Etsy integration presents orders (SKU format, options, receipt id, cart link signs in as the cart user, abandoned cart statuses, one Cart Abandoned email at creation, option mapping by code; template-option variations pending). New § Site Backups: ask for the one without assets. Source: claude-chat, slack-message.
+- 2026-11-09: Marketplace Phase 3: Etsy variations mapped to template options passed a later test (mapping by name, the rest as orderline options); new `create_order` endpoint payload and numeric-type rule. Post-Import Checks: Website title feeds the legal pages' company name; shipping formula 0 is free. Round 2: Pre-Launch Handoff Checklist: social sharing image, photo prints setup, child moved onto another admin. Marketplace: Etsy orders store the variation value name, not the code. Source: claude-chat.

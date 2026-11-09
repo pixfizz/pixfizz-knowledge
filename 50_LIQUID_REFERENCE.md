@@ -922,6 +922,27 @@ Worth recording because a malformed set has previously taken a site down. Target
 root-relative paths, same rule as navigation hrefs below.
 *Config shape stated by the core developer; query-string matching verified live, 2026-10-10 and 2026-10-11.*
 
+More behavior (platform-level):
+- **Rules apply to `/site/...` storefront paths**, not only legacy root paths:
+  `["^/site/shop/<old>/?$", "/site/<new>"]` redirected a fetch of `/site/shop/<old>`.
+  *Verified by query on a client site, 2026-11-01.* A rule for a collection's product pages,
+  `^/site/product/c/<collection>/?(\\?.*)?$`, affects only that collection
+  (§ 25 of `50_SHOPPER_TEMPLATE_REFERENCE.md`). *Verified live, 2026-11-06.*
+- **One rule can catch a collection and all its sub-collections:**
+  `^/site/shop/<collection>[^?]*/?(\?.*)?$` (in the JSON, `\\?`) answered 301 for the
+  collection, its sub-collections and a sibling path starting with the same name, so check
+  that no other collection path starts with that name. *Verified by query, 2026-11-05.*
+- **Create the target first.** A redirect to a page that does not exist yet lands on the 404.
+  *Not verified (stated in a working note, 2026-11-01).*
+- **A saved rule works within seconds.** To add one by script, append a pair to the existing
+  list, check `JSON.parse` gives the old list plus one, post, and read back. *Verified by query,
+  2026-10-30.*
+- **Pending confirmation: redirecting one product by its query string.** A working note of
+  2026-11-01 says a rule matches the path only, so a product whose identity is in the query
+  string (`/site/product?product=<id>`) cannot be redirected per product. That conflicts with the
+  query-string matching above and was not tested. Until settled, retire such a product without a
+  redirect: `sold_out` and `hide_from_search` on, and `btn_add_to_cart` false. *Not verified.*
+
 ---
 
 # FILTERS
@@ -1332,6 +1353,13 @@ Three conditions apply:
 
 Redirects to another URL.
 
+- `{% redirect_to '/site/etsy-order' %}` and `{% redirect_to some_variable %}` both work in a page
+  body, and both return a **real server redirect** (a `fetch` with `redirect: 'manual'` gets an
+  `opaqueredirect`). A query string in the target is kept. Platform-level.
+  *Verified live on a client site, 2026-10-29.*
+- Put it inside a condition at the very top of the page. A Liquid parse error in any branch
+  breaks the page for every visitor, so try the tag on a gated test page before a live one.
+
 ---
 
 ## return_404
@@ -1396,6 +1424,7 @@ These behaviours differ from standard Liquid or Shopify Liquid. Confirmed throug
 | `== 'true'` on boolean Custom Type field | Use `{% if instance.custom.field_name %}` directly — boolean fields evaluate as truthy/falsy |
 | `{% assign var = nil %}` | `{% assign var = '' %}` (then test with `!= ''`) |
 | Checklist snippet capture without `strip` | Always pipe through `strip` after capture — snippet renders with trailing newline that breaks `== 'TRUE'` |
+| `{{ 'file.pdf' \| asset_url }}` inside a quoted `{% snippet %}` keyword argument | The inner quotes end the string. Capture first and pass the variable: `{%- capture my_url -%}{{ 'file.pdf' \| asset_url }}{%- endcapture -%}` then `my_arg: my_url`. Template-level. *Verified by query on a live lab site, 2026-11-02.* See `26_CUSTOM_DESIGN_TOOLS.md` § Rules for a mount block |
 | `{% if product != blank %}` to detect a nil object | Test an attribute that always exists on a real one: `{% if product.id %}`. Nil yields nil, which is falsy in every engine. `!= blank` is not portable and can take the "it exists" branch for an object that is nil |
 | `product.custom.x != blank` to test whether a field was set | `{% assign v = product.custom.x \| default: '' \| strip %}{% if v != '' %}`. Comparing against the empty string behaves identically everywhere; `!= blank` does not |
 | A filter inside an `{% if %}` condition — `{% if flag \| strip == 'TRUE' %}` | **Syntax error, not a no-op.** `{% assign %}` first, then compare. See *Authoring Traps in Parent Snippets* below (verified by test, 2026-09-08) |
@@ -1902,3 +1931,4 @@ tool never saw the product" in one paste, and nothing else does.
 - 2026-10-09: asset_url: a missing asset renders an empty string with no error. Source: claude-chat.
 - 2026-10-17: String Quoting: a literal `{` directly before a tag opens an output tag. Website Redirects: regex matches the path including the query string (end rules in `/?(\?.*)?$`), admin routes. asset_url: resolves the child's asset first, even in a parent snippet. snippet: CORRECTED storefront snippets do not see the caller's `collection`; a nested `{% snippet %}` call clears the caller's params (save and restore). Form Types: `user_update` accepts a partial post. Source: claude-chat.
 - 2026-10-22: String Quoting: the typographic apostrophe (`’`) can sit inside a single-quoted string (not verified by test). asset_url: missing asset seen again in a child's Pages `page_content`, with the check-before-save and assert-after-save steps; a Shopper 24 child falls back to the shopper24 parent's asset in a parent snippet, in Pages `page_content` and on a child page (one parent upload for images every child shares). Orderline: `is_draft` row names the API `draft` field and the admin "(Draft)" label. KNOWN CMS LIQUID QUIRKS: capturing into a global name (`website`) redefines it for the rest of the template. Source: claude-chat, slack-message.
+- 2026-11-09: Pitfalls table: `asset_url` inside a quoted snippet argument (capture first). Website Redirects: rules apply to `/site/` paths, one rule for a collection and its sub-collections, create the target first, rules work within seconds, per-product query-string redirect pending confirmation (retire with `sold_out` and `hide_from_search`). redirect_to: literal and variable targets, real server redirect keeping the query string, top-of-page and parse-error caution. Source: claude-chat.

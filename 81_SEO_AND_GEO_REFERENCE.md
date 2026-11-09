@@ -2,7 +2,7 @@
 
 **Authority Scope:** How AI-powered search works, Generative Engine Optimization (GEO) practice, and what the Pixfizz platform and Shopper template currently do for AI search visibility. Industry concepts are general knowledge. Platform and template capabilities are tagged explicitly.
 
-_Last updated: 2026-10-22_
+_Last updated: 2026-11-09_
 
 ---
 
@@ -160,7 +160,7 @@ This is the platform-truth section. Map each signal to what the platform and tem
 - `[SHOPPER]` **LocalBusiness JSON-LD: placeholders exist** in the Shopper template. They are present but should not be assumed populated or emitted correctly by default. `[CONFIRM]` whether they are active out of the box, whether they include geo-coordinates and `sameAs`, and what configuration is required.
 - `[GAP]` **Review / AggregateRating schema: not currently emitted.** There is on-page review display (Google rating/review fields, `Google_Summary` custom field with `rating` and `review_count`) but no review structured-data output. This is a build opportunity (see Pending Confirmation).
 - `[CONFIRM]` **FAQPage, HowTo, Article JSON-LD**: output status unconfirmed. Do not tell customers Pixfizz emits these until confirmed. **Partly answered (2026-10-06):** the Shopper blog post page emits **BlogPosting** JSON-LD (verified by reading source, shopper24 backup 2026-09-24), with the escaping defect recorded in Part G. FAQPage and HowTo remain unconfirmed.
-- `[SHOPPER]` Per-object SEO meta fields exist: `meta_title` and `meta_description` on products, collections, subcollections, custom pages, blog posts, and services (see `51_CUSTOM_FIELDS_REFERENCE.md`). Site-level title/description via `update-website-title`, `update-website-description`, and the `seo-tdks` checklist key.
+- `[SHOPPER]` Per-object SEO meta fields exist: `meta_title` and `meta_description` on products, collections, subcollections, custom pages, blog posts, and services (see `51_CUSTOM_FIELDS_REFERENCE.md`). Site-level title/description via `update-website-title`, `update-website-description`, and the `seo-tdks` checklist key. **Shopper appends the store name to the page title**, so a `meta_title` ending in `| <store name>` shows the name twice: leave the store name out of `meta_title`. *Verified by query on a client site, 2026-11-03.*
 - `[SHOPPER]`/`[GENERAL]` **High-fidelity product attributes**: the current Product schema is a sound baseline but emits only a fraction of what Google now recommends. See **Part F** for the current baseline, Google's required-vs-recommended set, and prioritized Shopper upgrades. A standalone **Schema Builder** tool (`pixfizz-schema-builder.html`) generates paste-ready JSON-LD for a site-wide Organization/policies block and for a full single Product block.
 
 ### Quotable content
@@ -347,6 +347,8 @@ reading source and by crawler output** unless stated otherwise.
   self-canonical duplicates. Build it from `request.path` plus the product and theme
   parameters (parent change, not done). *Verified by reading source, 2026-10-13.*
 
+**Every child needs its own social sharing image (2026-11-06).** `og:image` on the home page and non-product pages comes from the asset `og-preview-image.jpg`; a child without its own inherits the parent's stock camera photo, so every shared link shows it. Upload a 1200 x 630 JPG with that exact name per site, and add it to every launch audit next to the favicon. On Pages instances `og:title` is the site title, not the page title. `[SHOPPER]` *Verified by reading source, 2026-11-06.* Detail: `50_SHOPPER_TEMPLATE_REFERENCE.md` § 9.
+
 ### Search Console verification branches on container presence
 
 **Verified by reading source (the setup standard, 2026-09-02).** How a Shopper site verifies with
@@ -419,3 +421,4 @@ For the storefront tagging standard itself and the server-side revenue path, see
 - 2026-10-06: Part D: BlogPosting JSON-LD confirmed on the blog post page (Article question partly answered). Part G: added footer sitemap link with no protocol and /sitemap.xml existing only after the first crawl, unpublished blog posts reachable and listed by the homepage section, unescaped BlogPosting JSON-LD, no `json` filter breaking JSON-LD, social sharing image asset name. Pending Confirmation narrowed to FAQPage / HowTo. Source: claude-chat.
 - 2026-10-17: Part D Crawlable: Schedule Website Crawl regenerates the sitemap within minutes and reports missing LD+JSON descriptions; unpublished designs and `admin_only` pages leave the sitemap; a custom-domain site is still served on the pixfizz host with no redirect; CORRECTED redirect anchors must allow a query string. Trust and local: the Google feed is `/feed/products.xml` and its gaps. Part G: collection image is the `og:image`; product x theme URLs are self-canonical duplicates; canonical keeps tracking parameters. Source: claude-chat.
 - 2026-10-22: Part D Crawlable: sitemap and product feed responses are cached for about a minute (commit titles only). Source: slack-message.
+- 2026-11-09: Part D Structured data: Shopper appends the store name to the page title (keep it out of `meta_title`). Part G: every child needs its own `og-preview-image.jpg`; `og:title` on Pages is the site title. Source: claude-chat.

@@ -317,6 +317,17 @@ the photo). Tool-level technique, platform-independent. *From prototype and plat
   the green edit only to build the mask (components over 2% of the frame, close 15 px, convex
   hull). Scale the edit to the blank and align it with an ECC affine registration (green area
   masked out) before taking the mask: it costs a second and removes a shifted edge.
+- **White fleece with a stitched edge: refine the coarse mask at full resolution.** A white
+  fleece face with a light gray whip-stitch edge cannot be masked by a brightness threshold:
+  the face shades from about 240 to 215 across a 4K flat lay, the stitches sit at about 205 and
+  a lit white duvet beside it reads 248, so a threshold either eats the shaded half of the face
+  or leaks into the bedding. What worked: the upscaled green edit as the coarse mask, then at
+  full resolution, inside a 13 px band round the coarse edge, keep a pixel when it is at least
+  93% of the local face light (a 40 px normalized blur of the face core); the yarn reads about
+  85%, so the stitches stay outside the print and show over it. Fit the quad with a line per
+  side from the middle rows and columns only (avoiding rounded or folded corners), intersect,
+  then grow it 2% so the print runs under the stitches. *Verified by local render, 2026-11-05;
+  not yet live.*
 - **Round products map a cylinder, not a quad.** Koozies, a gaiter, a mask on a face cannot be a
   homography. Fit the cylinder from the green silhouette (center, half width, top and bottom
   edges with their bow) and map `u = 0.5 + asin(dx / rx) * r / w` (r = radius, w = print width,
@@ -338,6 +349,9 @@ the photo). Tool-level technique, platform-independent. *From prototype and plat
   in R (one batch went from 10.9 MB to 1.4 MB with no visible change). A sharp textured
   background (a wood fence close-up, 814 KB at q82) drops below 300 KB by softening only the
   band the print covers (bilateral filter) and shipping at 1320 px wide around q60 to q66.
+  A smooth map gets lighter with a 1.6 px blur and values rounded to even numbers before the
+  lossless WebP is written: 1600 x 1986 maps fell from 450 KB to 120 to 160 KB with no visible
+  change. *Verified by local render, 2026-11-05.*
 - **Flat products from one top-down photo.** For a product lying flat (notebook, card, print,
   coaster, mouse pad), a top-down photo with a plain matte white face needs no perspective
   warp. Find the white face as the largest near-white region, fill holes, close and blur the
@@ -506,6 +520,11 @@ real product, it was right in one pass.
     accepts, as `p3d-model-<name>.js` does. Never `fetch()` an embedded `data:` URL: a strict
     `connect-src` CSP blocks it and the stage stays blank while a local test passes; decode
     the base64 with `atob` into an ArrayBuffer.
+- **A tool with its own 3D mug takes the preview-3d look.** A design tool that draws its own
+  3D mug reuses the 3D Preview engine's look (lights, environment, ink-only print band, flat
+  wall, handle strip rule) rather than a prototype copy, so the tool and the product page
+  match. Tool-level. *Verified by reading source (preview-3d 0.7.2 against a tool prototype),
+  2026-11-06.*
 - **Never replace an approved, live preview with a new technique.** A prototype round that
   swapped a locked, live 2D preview for a new GLB model came out clearly worse. New models are
   for products with no approved preview yet. Before publishing, screenshot the approved preview
@@ -533,6 +552,29 @@ real product, it was right in one pass.
   instead of it, never alongside it.
 - Every new Live Finish version is also taken into the myPixfizz setup tool, so its
   preview runs the same asset the storefronts run.
+
+### 3.6 Round products (spheres, golf balls)
+
+Level: **template-level tooling** (preview engine and tool previews), not platform.
+
+- **Print projection.** Project the flat print file straight along the print axis
+  (orthographic), the way a UV printer lays ink on a ball. For each texel of the
+  equirectangular color texture take its direction `d`; if it faces the print axis, use
+  `s = x*R/D + 0.5`, `t = 0.5 - y*R/D` (R ball radius, D print diameter). Precompute `s, t`
+  per texel once and repaint only the cap region on change. This shows the edge stretch
+  honestly and keeps the print crisp; put the print axis on the UV equator (three.js `+Z` =
+  u 0.25) to avoid pole distortion. *Verified by local render, 2026-11-03.*
+- **Dimples.** Bake an object-space normal map in Blender onto a UV sphere whose UVs follow
+  three.js `SphereGeometry` exactly; convert Blender `(x, y, z)` to three `(x, z, -y)`. Use
+  `MeshStandardMaterial` with `normalMapType = ObjectSpaceNormalMap`. A 2048 x 1024 WebP is
+  about 80 KB. Clearcoat is wrong for dimpled covers (it lays a smooth highlight over the
+  dimples). *Verified by local render, 2026-11-03.*
+- **Environment.** `PMREMGenerator.fromScene` with `ShaderMaterial` or bright
+  `MeshBasicMaterial` panels rendered the ball black under headless SwiftShader. A canvas
+  equirect (gradient plus blurred softboxes) passed through `fromEquirectangular` works
+  everywhere. *Verified by local render, three r128, 2026-11-03.*
+- **Rotation.** Turntable only: yaw from horizontal drag, fixed tilt (26 § 3, wording and
+  stage standards). *Decided by Pixfizz, 2026-11-03.*
 
 ---
 
@@ -632,6 +674,11 @@ a row, read the version from the live console (§ 3.5).
   tick). Collection grid previews paint blank for 5 to 25 s. Until it is fixed: never
   report a preview as missing from a screenshot taken without scrolling; scroll one tick
   and wait 3 s. *Verified live on one site, 29 Sep 2026; other Shopper sites not verified.*
+- **`px-project-preview` has its own lazy loading.** The component supports `loading="lazy"`
+  (renders only after it intersects the viewport) and also skips rendering while not visible
+  (`checkVisibility` / `content-visibility: auto`). Use the attribute rather than custom lazy JS.
+  Previews never draw in a hidden browser pane, so test in a visible one. Platform-level.
+  *Verified by reading the component source and by test, 2026-10-29.*
 - **In a collection grid some design previews never load (platform, open).** With
   `loading="lazy"`, `px-design-preview` observes its own shadow `<img>`, which is 0 x 0 until
   it has a src. In a Shopper 24 grid at 1440 px the third column never intersected, so 16 of
@@ -646,6 +693,14 @@ a row, read the version from the live console (§ 3.5).
   roughly 60 in wide needs a room that covers it or a zoom-out rule before it ships with the
   wall view on. A zoom-out that only triggers where true scale fails is built in 0.18.0, not
   installed. *Verified by query, 2026-10-09.*
+- **A tool face can be covered by the page render (fixed in Live Finish 0.26.1).** When a tool
+  calls `LiveFinish.face()` before Live Finish has drawn its first art, the page render
+  (started by Live Finish's own refresh) can land after the tool face and cover it: a puzzle
+  tool showed the empty template at 390 px in 2 of 3 runs on 0.26.0. 0.26.1 drops any art load
+  that is not the current tool face once `face()` is set. A tool that can be ready before Live
+  Finish needs Live Finish 0.26.1 or later. Do not log "Live Finish has no face()" before the
+  tool's wait for Live Finish is over: early in the page it is simply not loaded yet.
+  Template-level. *Seen in repeated live runs on a lab page, 2026-11-02; not verified by query.*
 - **Crop-ratio swap with a landscape upload.** Uploading a landscape image into the live
   preview swaps the crop ratio. Reported 29 Sep 2026; cause and fix not recorded.
 - **Canvas still needs fixes** for finishes, stretched edges and frames (reported).
@@ -707,6 +762,15 @@ a row, read the version from the live console (§ 3.5).
   redefinition error; `colorspace_fragment` is fine.
 - For printed products in WebGL, Khronos PBR Neutral tone mapping keeps photo colors true;
   ACES washes them out. r160 has no `NeutralToneMapping`, so apply it in the final pass.
+- **A three.js canvas needs an explicit CSS size.** `renderer.setSize(w, h, false)` sets the
+  drawing buffer to `w * devicePixelRatio`; without a CSS size (`width: 100%; height: 100%` or
+  fixed px) the canvas displays at the buffer size, so on a Retina screen it renders at 2x,
+  the scene center lands bottom right and half the content is off screen. `position: fixed;
+  inset: 0` does not size a canvas. Measure the canvas (`getBoundingClientRect`) for all pixel
+  maths, not `innerWidth` / `innerHeight`, and observe it with a `ResizeObserver` (embedding
+  frames resize after load). Headless tests at pixel ratio 1 hide the fault: always render a
+  check at device scale factor 2. Browser behavior. *Found on a prototype, 2026-11-08; not
+  verified by query.*
 - A browser pane that is hidden throttles `requestAnimationFrame`: a WebGL page looks
   frozen mid-animation. Expose a manual step hook for tests and recordings.
 - **A turned `preserve-3d` container still takes the clicks.** A container rotated 180
@@ -777,6 +841,18 @@ set on one range's template also lands on the other range's product, so one moun
 both ranges' variant codes (`lf_finish_variant: 'paper-type,finish'`). *Verified by query,
 2026-10-27.*
 
+**A template shared by different products: gate the mount by design code.** Older photo print
+templates often carry several designs and products (a print design and a block-mount design on
+one 5x7 template, plus several product attributes), and `lf_mount` reaches all of them. Before
+importing a mount, open the template page and list its designs and product attributes. When the
+template is shared, gate by design code: `lf_look: 'off'`, `lf_design_looks:
+'<pattern>:<look>/<mounting>'`, `lf_design_code: design.code`. Set `lf_finish_variant` to a code
+the pages do not have (for example `'finish'`): with `'none'`, 0.25.1 logs a wrong "the preview
+never shows" `console.error`. A design published with two products (a block mount and an
+enlargement on the same design) cannot be told apart by design code; it needs its own design
+first. Template options on a shared template: platform-level; the rest tool-level. *Verified by
+reading the admin on a client site, 2026-10-29.*
+
 **Importing a template option archive without hands:** POST the tar as `exported_file`
 (FormData, with the page's `authenticity_token`) to
 `/site/<site>/admin/templates/<template id>/options/import`; the response redirects to the new
@@ -827,3 +903,4 @@ A preview is not finished until all of this is true.
 - 2026-10-17: § 2.3 ornament-only bases from Live Finish 0.22.0 (`acrylic` for non-ornament glass); room plates at 4:5 with props inside the middle 85%. § 2.4 read the supplier spec sheet before modelling a preview. § 3.2 the "View in 3D" fallback button as the symptom of a wrong `p3d_page`. § 6 engineering lessons: hit testing on turned `preserve-3d` containers, brushed metal with `feTurbulence`. § 7 a mount copied from another site carries that site's backdrop and material-filter ids. Source: claude-chat.
 - 2026-10-22: § 2.2 `lf_mat_variant` may name a template option, `lf_mats` `@flat` printed border, color wrap as a design option read by `lf_wrap_color_variant`. § 2.5 stage resets `transform` on its images (site `img:hover` zoom). New § 2.10 photo plates (one plate for many sizes, objects on the print, full-resolution masks, cylinders, fabric, banners, plate weight, shared preview UI standard) and § 2.11 room scenes at true scale (scale from a height, wall-plane calibration, outpainted rooms, keep-outs). § 3.2 msphub mug `p3d_page` `front` case. § 3.3 Blender GLB pipeline for tool previews; never replace an approved preview. § 4 CDN textures: the 21 Oct and 18 Oct observations reconciled into one safe rule; CDN JS as ES modules; C2PA chunk. § 6 three 0.160.0 `+esm` loading, r160 tone mapping notes, r142 on experience. § 7 MSP preview fixes go on the msphub template. § 8 approved-preview comparison. § 4: experimental `canvas` format for `px-preview` components, JSON on book and theme preview endpoints (commit titles only, not for production use). Source: claude-chat, slack-message.
 - 2026-10-29: § 2.2 the eight label keys must still be declared (ignored from 0.23.0, still reported missing); ornament base following a material variant. § 2.3 `lf_mountings` depth before edge color. § 2.10 flat products from one top-down photo (white-face mask, `destination-in`, multiply); binding sprites, never tiled strips. § 4 the theme render draws print border variants passed in the query; probe before drawing an effect. § 7 a shared template carries one mount for two ranges; template option import by POST; Template Options Copy one target per request. Source: claude-chat.
+- 2026-11-09: New § 3.6 round products (orthographic print projection, object-space dimple normal map, canvas equirect environment, turntable rotation). § 3.3 a tool's own 3D mug takes the preview-3d look. § 2.10 white fleece mask refined at full resolution, lighter smooth maps. § 6 tool face covered by the page render (fixed in 0.26.1), `px-project-preview` `loading="lazy"`, three.js canvas needs an explicit CSS size on Retina. § 7 gate a mount by design code on a shared template; `lf_finish_variant` `none` false error. Source: claude-chat.

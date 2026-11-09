@@ -27,6 +27,8 @@ Pricing formulas are set on the **Product Attribute** in the admin:
 
 `px_rates` has a mode `area` for anything sold by size (custom sized prints, canvas, banners): graduated or whole tiers per stock, a minimum per item, extras priced each, per area, per linear foot or per grommet, with the unit in `sq_in` or `sq_ft`. The variant codes are generic, with no tool prefix: `px_width_in`, `px_height_in`, `px_stock`, `px_price`, plus `px_hanging`, `px_depth`, `px_edge`, `px_edgecolor` and `px_grommets`; OrderHub reprices an order line from those values (codes, or the labels the customer saw). Why type 3 instead of type 2 for area pricing: per-stock Number variants with range-hash Ruby formulas price correctly in the cart, but OrderHub cannot evaluate Ruby formulas, so it cannot reprice them. A product that is not published (sold at the counter only) can carry the same card, so OrderHub prices custom work from width and height. *Stated in the tool build notes, 2026-10-22; engine contract and file in `26_CUSTOM_DESIGN_TOOLS.md` § When the tool computes the price.*
 
+**Metric area cards need engine version 2.** From `pricing-area.js` version 2 an `area` card can use `sq_cm` or `sq_m`, but only with `"engine": 2`; a version 1 engine (OrderHub, POS) refuses such a card (reason `engine`) instead of reading square-meter rates as square inches, and a metric unit on a card without `"engine": 2` is refused as `bad-engine`. Metric area is measured in mm rounded to the micron. New extra part `lin_m` (per linear meter). Order lines may carry `px_width_mm` / `px_height_mm` instead of the inch variants (inches win when both are present). Inch cards price exactly as in version 1. Tool-level. *Not verified (stated in the tool build, 2026-11-03).* Full text: `26_CUSTOM_DESIGN_TOOLS.md` § 1, Mode `area`.
+
 ## Price Variables
 - Admin-defined numeric constants available by name in formulas.
 - Used to centralize pricing inputs across products/options.
@@ -136,6 +138,8 @@ in § `value` and `quantity` Are Both In Scope).
 
 ---
 
+**A variant price written as `<price> * cut_print_quantity` still applies on a template that is not a cut print.** `price_forecast` on such a product added each variant value's price once on top of the base price (base plus a finish plus a mounting value summed as expected). *Verified by query, 2026-11-01.*
+
 ### Converting variant-only print prices to a base price plus differences
 
 The product price must carry the cheapest option. The Photo Prints flow reads variant prices only at the crop and options step, so a cut print priced 0 with the full prices on its variants shows 0 or "+$x" until then. Convert without changing any total at any quantity:
@@ -176,6 +180,10 @@ blocks, sheet-based, and volume discount + per-page.
 RATIONALE: High-impact pricing gotcha. Raw `pages` silently includes uncounted XML pages, causing overcharging on book products. Not previously documented.
 SOURCE: "Pixfizz customer support agent" chat, May 3 2026
 SOURCE TYPE: claude-chat
+
+### Never use `extra_pages` in an option value price on a single-page product with a preview page
+
+On a single-page product whose XML definition has a `<page type="preview">` set (for example a puzzle with a preview page before its print page), **`extra_pages` is 1 in the cart**. An option value priced `<add-on> + extra_pages * <add-on>` therefore charged the add-on twice in the cart, while `price_forecast.json` and the product page label showed it once, so the mismatch only appears at the cart. The same doubled total came through the store's own product form, so it was not caused by the custom tool on the page. Fix: a plain price on each option value (read back after the edit; the cart then matched the forecast). Rule: on such a product, never reference `extra_pages` in an option value price; and compare a cart total against `price_forecast.json` for any product whose option values carry formulas. Platform-level (pricing variables), seen on a client site. *Verified by query, 2026-11-02.*
 
 ### `pages` on a product whose artwork is uploaded, not designed
 
@@ -534,12 +542,34 @@ The promo code guard (`cart.promocode_code == blank`) prevents stacking a catego
 
 Runs automatically during slow months, turns itself off when the month changes.
 
+**Percentage off by number of items (cannot be one promo code):** a "more items, bigger percentage" offer was built as one Automatic Discount whose Liquid counts the eligible orderlines and returns the discount amount for the matching tier, inside a date window. Shape (category, tiers, rates and dates are placeholders):
+
+```liquid
+{%- assign today = 'now' | date: '%Y%m%d' | plus: 0 -%}
+{%- if today >= 20261101 and today <= 20261130 -%}
+  {%- assign n = 0 -%}{%- assign eligible = 0 -%}
+  {%- for line in cart.orderlines -%}
+    {%- if line.product.category == '<category>' -%}
+      {%- assign n = n | plus: line.quantity -%}
+      {%- assign eligible = eligible | plus: line.price -%}
+    {%- endif -%}
+  {%- endfor -%}
+  {%- if n >= <tier 3 count> -%}{{ eligible | times: <rate 3> }}
+  {%- elsif n >= <tier 2 count> -%}{{ eligible | times: <rate 2> }}
+  {%- elsif n >= <tier 1 count> -%}{{ eligible | times: <rate 1> }}
+  {%- endif -%}
+{%- endif -%}
+```
+
+Whether an orderline exposes `price` and `quantity` under exactly these names, and whether "items" means lines or copies, must be checked on the site before use. *Reported working by a customer, Nov 2026 (customer-written, built on `cart.orderlines` and `line.product.category`); not verified by query.*
+
 ### Key rules
 
 - The formula must return a numeric value. If the formula returns nothing (no branch matches), no discount is applied.
 - The discount is an **amount**, not a percentage — the formula does the percentage math itself.
 - Automatic discounts are separate from promo codes and extra fees. They are a distinct discount mechanism.
-- Admin location: **Marketing → Automatic Discounts** in Main Admin. Not Promotions, which is the wrong guess people reach for first. Confirmed by AdeB, 2026-09-19.
+- Admin location: **Marketing → Automatic Discounts** in Main Admin. Not Promotions, which is the wrong guess people reach for first. Confirmed by Pixfizz staff, 2026-09-19. Admin routes (list, new, edit) and the Promocodes route are in `18_ADMIN_NAVIGATION.md` § Marketing. *Verified by reading source (live admin navigation), 2026-11-03.*
+- **A percentage Automatic Discount rounds the saving, half up.** A formula of the form `sum | times: pct | divided_by: 100.0 | round: 2` rounds the **saving**, not the discounted total. A custom tool or page that displays the discounted price must do the same, or it shows a saving one cent low on some carts while the cart charges one cent more. In JavaScript work in whole cents: `save = Math.round(cents * pct / 100)`, `net = cents - save`. *Verified by query on a client site, 2026-11-02.* See `20_SHOPPER_CART_RULES.md` § Hiding options and variants from the cart line.
 
 ---
 
@@ -984,3 +1014,4 @@ Stated from client calls, not independently verified.
 - 2026-10-17: Price Variables resolve in template option value formulas (provider's variables on a consumer); canonical pattern for rounding a book total to .95 with a fixed product price; `price_forecast` float sums need `.round(2)`, page count only from `pages`, wrong option value codes listed at 0, per-page formulas go negative below the base count; Extra Fee `cart.orderlines` loop and bare-number output confirmed live (replaces the pending note), one fee per rush speed; new § Shipping Rate by Cart Content Inside One Shipping Service; hidden Number variant on `/v1/books.json` and project-edit reprices the same line; pointer to the `px_rates` / `pricing.js` tool standard. Source: claude-chat, slack-message.
 - 2026-10-22: New § The Three Ways a Product Is Priced (attribute price, variant prices, `px_rates` card; `px_rates` mode `area`, generic `px_` variant codes, why OrderHub needs type 3). § Platform Price per Quantity: `price_forecast` prices only the variants and template options sent; reading real prices into a prototype; `pages` is SYSTEM pages on `spreads_as_pages` books (system = printed / 2 + 1). New subsection: a flat charge per order line on a variant value is `amount / quantity`. New subsection under Shipping Rate by Cart Content: a per-cart weight estimate by product code (mechanism only, pending a platform test checkout). Source: claude-chat.
 - 2026-10-29: Photo Prints: converting variant-only cut print prices to base price plus per-tier differences (per-tier minimum, not the default); `price_forecast` ignores quantity on cut prints. Source: claude-chat.
+- 2026-11-09: New: never use `extra_pages` in an option value price on a single-page product with a preview page (doubles in the cart). Automatic Discounts: percentage off by number of items pattern (customer-reported, not verified). Round 2: metric `area` cards need engine version 2 (not verified); `* cut_print_quantity` variant prices still apply on a non-cut-print template; Automatic Discounts: saving rounded half up (tools must match), admin routes pointer. Source: claude-chat, support-ticket.

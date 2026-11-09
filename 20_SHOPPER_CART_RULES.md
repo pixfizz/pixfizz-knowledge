@@ -2,7 +2,7 @@
 
 **Authority Scope:** Cart behavior only.
 
-_Last updated: 2026-10-22_
+_Last updated: 2026-11-09_
 
 ---
 
@@ -27,6 +27,10 @@ Two limitations apply, and both fail silently:
 
 **The cart's Edit link** (to `/site/project-edit?cart=t&project_id=`) is removed per product by the product custom field `hide_edit_in_cart`. Set it on any custom tool product with no edit path. Template-level. *Verified by query, 2026-10-13.*
 
+**Set-selling tools: hide Edit per line, not per product (2026-11-02).** A tool that puts several cart lines in for one piece (a multi-panel wall set: "Wall <id> part <n> of <total>, ...") must not offer the per-line Edit link, which opens one line in the design tool and breaks the set. `hide_edit_in_cart` is a product field, so it would also hide Edit on the same product sold alone. The Shopper 24 parent cart page therefore sets `px_wall_line` from `orderline.project.name` (first word `Wall`, third word `part`), and every Edit link checks `hide_edit_in_cart or px_wall_line`. A new set-selling tool should name its lines the same way or extend that flag. Template-level (Shopper 24 `pages/cart`). *Verified by query on a client site, 2026-11-02.*
+
+**A tool that shows a discount must round exactly like the Automatic Discount formula.** The formula does `sum | times: pct | divided_by: 100.0 | round: 2`, rounding the **saving** half up. Rounding the discounted total instead makes the shown saving a cent low on some carts (the cart charges one cent more than the tool showed). In JavaScript work in whole cents: `save = Math.round(cents * pct / 100)`, `net = cents - save`. See `30_PRICING_ENGINE.md` (automatic discounts). *Verified by query on a client site, 2026-11-02.*
+
 ## The cart line name: `cart_product_name_format`
 
 The product custom field `cart_product_name_format` sets the cart line name: blank (default) shows the product name only, `design` shows `orderline.design.name` only, `both` shows the design name then the product name (for example "Photo Strip 4 x 10 in Notepad"). It works for custom design tool lines as long as the project carries a `theme_id`. Set it per product instead of editing a shared cart snippet. The definition already exists on Shopper 24 children. Write path: `PUT /v1/admin/products/<id>.json` with `product[custom][cart_product_name_format]=both` is a partial update (no other field touched). For extra text under the line name, `checkout/cart-extra-product-details` is an empty parent hook a child can override. Template-level (Shopper 24). *Verified by query on two children (write read back and diffed), 2026-10-26.*
@@ -49,6 +53,10 @@ The product custom field `cart_product_name_format` sets the cart line name: bla
 `sections/dynamic/free_shipping_progress_bar` (gated by `admin/checklist/activate-free-shipping-progress-bar`) hard-codes its threshold to `99` in the parent snippet. It is **not linked to the shipping rules**: changing a shipping method's free threshold does not move the bar. A different threshold needs a site **Override Snippet** of the section, kept in step with the shipping method by hand. The snippet also reads `config/free-shipping-note`, which does not exist on the parent. Template-level (Shopper 24). *Verified by reading source, shopper24 backups of 2026-09-24 and 2026-09-28.*
 
 ## Cart links and adding to the cart from outside the product page
+
+**The first view of each new cart reloads the cart page once.** On Shopper 24, `pf-order-source-sync` (and `pf-utm-sync` when GA cookies exist) save to the cart by clicking a hidden form submit (`PUT /v1/carts/_mine`, target `/site/cart`), which reloads the whole cart page on the first visit of each new cart: about 1.5 s on every first cart view. A change is proposed, not built. Template-level (Shopper 24). *Verified by reading source and by live test, 2026-11-05.*
+
+**`/v1/carts/_mine.json` is light enough for a cart pop-up.** It returns the cart with its orderlines (`product_name`, `unit_price`, `quantity`, template option codes) and the subtotal in about 0.36 s at 6 items. *Verified by measurement, 2026-10-29.*
 
 **GET links.** `/site/add-to-cart?book=<project_id>&quantity=` and `/site/cart?add_print_product=<project_id>` add a **saved project** only. No GET link adds a static product, and no URL parameter applies a promo code. Template-level (Shopper 24). *Verified by reading source, shopper24 backup 2026-09-24.*
 
@@ -140,6 +148,19 @@ whose code contains `_preview` and carries an uploaded file, ahead of `static_pr
 show the product image in checkout is a tool change (the tool writes the catalog image as its
 preview file, with a fallback), not a checkout change. See `26_CUSTOM_DESIGN_TOOLS.md` § 6,
 *The tool chooses its own cart image*.
+
+**A tool that rotates its art onto the template page needs its own cart picture (2026-11-03).**
+A project-route tool that turns a horizontal design 90 degrees onto a vertical template page
+gets a sideways picture from `px-project-preview` on the cart and order pages, and the cart
+Edit link (the design tool URL, `/v1/editor?book=<id>&cart=t`) opens the editor with the art
+turned. Fix the picture by storing the upright art in a hidden File Upload option
+`<prefix>_preview` as `db:<id>` (`PUT /v1/books/<id>.json`), the `_preview` rule above. Until
+the tool can reopen its own line, set the product custom field `hide_edit_in_cart` = true
+(`pages/cart` then hides the button and unlinks the image). **The PUT accepts and echoes a
+template option the design does not have**, and the cart ignores it, so a tool cannot detect a
+missing `_preview` option from the PUT response: check the template's options list instead.
+Template-level (Shopper 24) plus platform API behavior. *Verified live on a client site,
+2026-11-03.*
 
 **Rule: when extending a preview-code list, assert that the tool's own line now
 renders an `<img>` with the expected URL.** The no-regression assertion is necessary
@@ -285,3 +306,4 @@ A parent snippet `checkout/cut-print-upright` was delivered as paste blocks on 2
 - 2026-10-17: Text-type variants never show on the cart line; `hide_edit_in_cart` removes the cart Edit link; the header mini-cart repeats each line's remove form (scope cart scripts to the main list); new section: a static product with no image shows no thumbnail anywhere (launch check filtered to static products). Source: claude-chat.
 - 2026-10-22: New section: removing a cart line asks for confirmation (parent snippets `checkout/remove-line-confirm` and `style/remove-line-confirm`, opt-in class `px-rm-line`, child overrides of `pages/cart` or `modals/shopping-cart` keep the instant remove, fails open). Photo prints: image selection resets after a quantity update (live 2026-10-21). Source: claude-chat, slack-message.
 - 2026-10-29: New sections: the cart line name (`cart_product_name_format` values, partial PUT write, `checkout/cart-extra-product-details` hook) and `checkout/extra-cart-code` (left-column placement, finding the summary column, discount progress bar reads `cart.orderlines_total`). Source: claude-chat.
+- 2026-11-09: Cart links: the first view of a new cart reloads once (order source and UTM sync), `/v1/carts/_mine.json` is fast enough for a pop-up. Hiding options and variants from the cart line: set-selling tool lines hide Edit through `px_wall_line` (project name), and a tool's shown discount must round the saving like the Automatic Discount formula. The Cart Fly-Out Preview Block (The method lesson): a tool that rotates its art needs its own `_preview` picture and `hide_edit_in_cart`; the books PUT echoes options the design lacks. Source: claude-chat.

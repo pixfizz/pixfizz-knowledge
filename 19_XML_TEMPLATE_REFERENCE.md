@@ -2,7 +2,7 @@
 
 **Authority Scope:** XML template page parameters, filters, and production output behaviour. Platform-level — not Shopper-specific.
 
-_Last updated: 2026-10-22_
+_Last updated: 2026-11-09_
 
 ---
 
@@ -31,7 +31,7 @@ The root element of every XML template definition.
 
 | Attribute | Description |
 |---|---|
-| `unit` | Unit system for all dimension values. Common values: `inch`, `mm`. |
+| `unit` | Unit system for all dimension values. Common values: `inch`, `mm`. **A definition with no `unit` attribute reads as mm.** Live canvas templates with no `unit` carried page sizes that only make sense in mm (a `width="348" height="468" bleed="24"` page is an A3 face of 300 x 420 mm plus bleed), next to posters on the same site that set `unit="mm"` explicitly. A tool that reads a definition must treat a missing `unit` as mm, never inches (a 25.4x misread otherwise). *Verified by reading live template JSON, 2026-11-03; the platform default in source is not verified.* `unit="mm"` works for cut prints (*verified by query, 2026-11-04*). |
 | `dpi` | Target resolution for production output. Print PDF images are downsampled to this resolution; there is no setting to turn the downsampling off. *Stated by the core developer, 2026-10-16.* |
 | `output` | Output file format. Common values: `pdf`, `jpeg`. |
 | `minimum-dpi` | Minimum acceptable image resolution. Used for image quality warnings in the Design Tool. |
@@ -197,6 +197,14 @@ A `<set>` groups one or more `<page>` elements. For calendar/planner products, s
 	<page type="preview" bleed="0" width="10" height="10" />
 </set>
 ```
+
+**Reading the print size from a definition.** Many lab templates put this preview set **first**,
+before the print set. Code that takes the first `<page>` of the definition (`querySelector('page')`)
+gets the preview page (10 x 10 above), not the print size. Read the first page inside a `<set>`
+that is not `preview="true"`. *Verified by reading several site exports, 2026-11-01.*
+
+Adding a preview set to a template that already has projects shifts those projects' pages: see
+§ Template Changes Do Not Reach Existing Projects.
 
 ---
 
@@ -579,6 +587,8 @@ top  = (refH / 2 - regionCenterY) / refH * 100
 
 The case that settled it: panel pages with an `<ipage>` onto one wall page. With the sign flipped, the two outer panels rendered each other's artwork; symmetric panel sets hide the error. *`left` verified by render on a test template, 2026-09-27. `top` assumed to follow the same convention, not verified.*
 
+**Panels cut from one wall page (verified 2026-11-01).** A page with `<ipage template="wall" zoom="0" left="L">` whose box aspect differs from the (non-square) wall page covers the box by the wall's height at 1:1, and the `left` formula above selects the region: three panels rendered in the right order. With `zoom` other than 0 the same `left` formula (percent of the unscaled referenced page) still picks the right region. To show only the face of a box whose referenced page carries bleed or wrap: `zoom = (1 / max(faceW / wallW, faceH / wallH) - 1) x 100`. A template with sets in the order editable wall (`fulfillment="false" count="false"`), panels (`editor="false"`, a distinct `output-name` each), then a preview set imported fine with min and max pages 3. *Verified by render on a test template, 2026-11-01.* An uneditable placeholder shape on the wall page **is** drawn inside the `<ipage>` on admin page thumbnails; whether production drops it there is not verified.
+
 ### Image elements: `crop="false"` fits, the default fills
 
 On an image element, `crop="false"` fits the image inside the frame (the setting for
@@ -872,6 +882,7 @@ A template can hold several named layouts (for example `full` and `matted` for t
 
 - **`rotate` is honored on `<shape>`, `<image>` and `<text>` in the production render**, each about its own center. To keep a group of elements aligned while turning it, rotate each element's position about the group's shared center as well as setting `rotate` on each. *Verified by query (production renders of calendar projects), 2026-10-19.*
 - Negative angles work the same way: an image with `rotate="-90"` turns a quarter turn counterclockwise about its frame center, which lets a landscape design reuse a portrait pattern image. *Verified by reading design XML, 2026-10-19.*
+- **Fractional angles work.** `rotate="-4.2702"` on a `<shape>` printed a slanted panel correctly; the parts that ran past the page edge were clipped at the page. *Verified by production render, 2026-11-03.*
 
 ## Element Permission Flags
 
@@ -954,6 +965,17 @@ these.
   its own print render had, as its only unusual parts, two 0.5 mm wide line images; drawing them
   as shapes is the workaround in use. *Not verified that the line images were the cause,
   2026-10-20.*
+- **Overlay-style card designs.** Many lab-made live-preview card designs are one full-page RGBA
+  PNG laid **over** the photo elements, with transparent windows where the photos show. The photos
+  are ordinary image elements (for example `image1`, `backimage1`) targeted by `image_upload`
+  design options and are **not** `placeholder="true"`. A design option can even share its target
+  name with the overlay art itself (the full-page art named `image1` too), so check element names
+  before marking anything a placeholder. Such a design cannot be reflowed to another orientation by
+  moving frames: the art has to be recomposed with new windows. Template-level. *Verified by
+  reading design exports, 2026-10-30.*
+- **A page with no `bgcolor` is white.** A design converted from another source needs an explicit
+  white (or colored) rectangle under its art if the background matters. *Not verified against a
+  Pixfizz render (seen in a prototype renderer that matched 27 designs), 2026-11-02.*
 
 ## Text Elements: `shrink`, `valign` and Font Size
 
@@ -975,10 +997,31 @@ these.
   With `valign="center"` and `shrink="true"`, one line and two wrapped lines both sit
   centered. *Verified by reading source (editor bundle 20261002143509) and by server render
   on baseline.pixfizz.com, 2026-10-06.*
-- **`kerning` uses the page geometry unit too** (millimetres). To match CSS letter-spacing given
-  in em, set `kerning` = letter-spacing (em) x `fontsize`. *Verified by visual comparison
-  against the production PDF, 2026-10-16. An earlier render note (2026-10-14) recorded the
-  unit as points, so the unit is pending confirmation.*
+- **`kerning` is in points, not the page unit.** `kerning="0.1693"` drew 0.71 px of extra letter
+  spacing at 300 dpi in the production PDF, which is 0.1693 pt (0.1693 mm would be 2 px). To
+  match CSS letter-spacing: from px at 300 dpi, `kerning` = px x 72 / 300; from em, `kerning` =
+  em x `fontsize` (mm) x 2.8346. *Verified by production render, letter spacing measured in the
+  PDF, 2026-11-03.* *Corrected 2026-11-09: this line said kerning uses the page unit (mm),
+  from a visual comparison on 2026-10-16, and listed the unit as pending; the measured PDF
+  confirms the 2026-10-14 render note (points).*
+- **Leave headroom in a text box with `shrink="true"`.** `fontsize` and `height` are stored
+  rounded to 4 decimals. In a box exactly 1.2 x `fontsize` tall, sizes where 1.2 x the rounded
+  font size ends above the rounded height (for example 2.1167, 2.3707 and 1.8627 mm) printed one
+  shrink step, about 0.5 pt, smaller; sizes that round down or are exact were untouched. Give
+  text boxes about 5% headroom top and bottom (height 1.3 x `fontsize`, `valign="center"`).
+  *Verified by production render, 2026-11-03.*
+- **Where the baseline lands.** For a font whose ascender is 1000/1000 units, in a box 1.2 x
+  `fontsize` tall with default top alignment, the printed baseline sat at box top + 1.0 x
+  `fontsize`, matching a browser canvas prototype to the pixel. Position text from the font's
+  `hhea` ascender, not a fixed nudge. *Verified by production render, 2026-11-03.* (The display
+  fonts in the bullet below sit lower than a CSS line box; the canvas baseline model is the one
+  that matched.) General form used by a prototype renderer: first baseline at box top +
+  (lineGap / 2 + `hhea` ascent) x `fontsize`, with the metrics in font units over units per em.
+  *Not verified against a Pixfizz render beyond the case above, 2026-11-02.*
+- **Uppercase without a text transform.** There is no text-transform attribute. A renamed copy of
+  an open-licensed font whose cmap maps every lowercase code point to the uppercase glyph prints
+  lowercase input as capitals in the editor and in production. Only for fonts with no Reserved
+  Font Name; rename name IDs 1, 3, 4 and 6. *Verified by production render, 2026-11-03.*
 - **A `<br/>` inside text is not a line break:** one line per element. Text also supports
   leading, `opacity` and `blend_mode`; shapes support `kind` rectangle, ellipse or triangle,
   `radius` (% or mm), `border` plus `bordercolor`, `opacity` and `blend_mode`. *Verified by
@@ -1063,6 +1106,26 @@ The same holds when a design is copied to a new size: its layouts stay at the ol
 
 *Stated by the core developer (#development, 2026-09-25) and on calls, 2026-09-28 and 2026-09-29. Not verified by test.*
 
+**Adding a preview set later makes old projects lose page 1.** On a book template whose sets run
+cover (`count="false"`), a hidden preview set (`editor="false" fulfillment="false" preview="true"`),
+a single first page, then grow pairs, a current project lists its pages as cover, preview, page 1,
+then pairs. A project created before the preview set existed lists cover, page 1, ... with no
+preview page, and the platform treats its page 1 (real content) as the preview: it is hidden in
+the editor and left out of production. Every page moves up by one, so the editor ends on a full
+spread and the production PDF is one page short (an odd count).
+
+- What the lab reports: "missing last page" or "the last page is a double side". New projects are
+  not affected and the template is correct.
+- Diagnose: on the project's admin Pages list, look for a "preview" row in position 2. If it is
+  missing and the template has a preview set, this is the cause.
+- Fix the order, not the template: render page 1 alone from its admin page (Generate PDF, base
+  layer) and put it in front of the production PDF. Put a blank page in front of any separate-layer
+  PDF (for example a foil layer) so the files stay matched.
+
+*Page lists and the production PDF verified by query, 2026-11-06; reported on a support ticket,
+2026-11-06. The cause (preview set added after the project was created) is inferred from the page
+lists, not verified in source.*
+
 **Design pages do not follow a size change either.** Changing a size on a template that
 already has designs leaves every design page and layout at the old geometry, each to be
 edited on its own. Changing the hardcover size on one existing photobook template meant
@@ -1115,6 +1178,9 @@ field `exported_file`).
   XML has CRLF) instead of `data: |`. A parser that reads only `data: |` blocks skips those
   pages silently, and a rewritten import carries them unchanged. Decode the quoted scalar (fold
   line breaks, unescape) and write it back as a literal block. *Verified by query, 2026-10-13.*
+  A page whose XML was written through the admin page form (`PATCH print_pages/<id>`,
+  `page[data]`) comes back in the next export as such a quoted scalar with CRLF (`\"` escapes),
+  so expect it on any page edited in place. *Verified by query, 2026-11-03.*
 
 ### What an import does
 
@@ -1139,6 +1205,14 @@ field `exported_file`).
 - **A layout `name` longer than 32 characters fails the import with HTTP 500.** The design and
   every layout before the long name are created; that layout and all after it are missing. Keep
   layout names to 32 characters or fewer. *Verified by query, 2026-10-14.*
+- **A font name longer than 32 characters fails a template import too.** A `__font_map` entry
+  whose `:name:` is over 32 characters (a 38-character weight name was the trigger) fails the
+  whole `import_print_product` with `ActiveRecord::RecordInvalid` "Validation failed: Name is too
+  long (maximum is 32 characters)". Fonts listed before it are created as site fonts first; the
+  template, product and design are not. A re-import with the name fixed reuses the fonts already
+  created, matched by name. Generators should check that every font, design, option and layout
+  name is 32 characters or fewer before packing. *Verified by query (import error and the site
+  Fonts list read back), 2026-11-03.*
 
 ### Workflow for a generated batch of designs
 
@@ -1192,3 +1266,4 @@ documented above. There is no layer-level `fulfillment` attribute. Do not docume
 - 2026-10-17: `dpi`: print PDFs are downsampled to it, no opt-out. Growing Spine: preview renderers draw only centre-crossing elements on the spine. PDF Layers: a separate-file layer inside an `<ipage>` renders empty (two-`<ipage>` workaround, not yet tested); platform PDFs are RGB only, no spot colors. Greeting Card: top-fold landscape card, shaped photo windows. Page-count rules: layflat counts spreads. Element flags: image placeholder `rotate`, `grayscale`, `radius`. Text Elements: `kerning` in mm (unit pending confirmation), `<br/>` is not a break, text and shape attributes, render validation (6-digit hex, glyphs in font). Template Changes: whole-range resize from one admin tab. Design Import: quoted-scalar page XML, layout names over 32 characters fail. Source: claude-chat, slack-message.
 - 2026-10-22: CORRECTED Element Permission Flags: text elements have `efontsize` and `ecolor` (only shapes lack `ecolor`); `radius` rounds all four corners, the past-the-trim technique. Element Rotation: `rotate` honored on shape, image and text in production, about each element's center; negative angles; group rotation. New § Drawing Order, Groups and Other Elements Seen in Design Exports (negative `z`, `<g>`, `<score>`, masked editable images, placeholder cover frames, `show_on_preview` spelling, `cmyk()` colors, thin line images and a 500, not verified). Text Elements: display text offset against a CSS line box (Playfair Display, Oswald), site font per weight and the Fontsource TTF conversion. `<definition>` Attributes: `output-perfectly-clear-upscale` and `output-perfectly-clear-upscale-dpi`. Source: claude-chat, notion-page.
 - 2026-10-29: CORRECTED Element Permission Flags: `radius="50%"` renders a rounded square; numeric mm radius makes circles and pills. PDF Layers: `pdf_layer` element attribute, renders cannot hide a layer, SVG group order. Drawing Order: masks are white where the photo shows; multi-photo designs need `multi_upload_group`. Text: point-size `fontsize` renders 2.8x too big. Greeting Card: photo bleed stops at the fold, no locked source photos, panel behind words on busy backs, converter hole rule. Design ids list per template; building exports outside the admin, placeholder ids, static font weights. Source: claude-chat.
+- 2026-11-09: `<definition>` Attributes: a definition with no `unit` reads as mm; `unit="mm"` works for cut prints. Set Parameters: read the print size from the first non-preview set. Canvas Wrap Geometry: panels cut from one wall page verified (zoom 0 on a non-square wall, `left` with zoom, face-only zoom, set order). Element Rotation: fractional angles. Drawing Order: overlay-style card designs; page without `bgcolor` is white (not verified). Text Elements: CORRECTED `kerning` to points (measured in the PDF); shrink headroom; baseline position; uppercase via a remapped font. Template Changes Do Not Reach Existing Projects: adding a preview set later makes old projects lose page 1 (diagnosis and fix). Design Import: font names over 32 characters fail an import; page XML edited in place exports as a quoted scalar. Source: claude-chat, support-ticket.

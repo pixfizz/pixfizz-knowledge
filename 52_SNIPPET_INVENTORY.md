@@ -4,7 +4,7 @@
 
 _Source: CMS backup 2026-05-27. Total: 926 snippets across 23 namespaces._
 
-_Last updated: 2026-10-22_
+_Last updated: 2026-11-09_
 
 ---
 
@@ -154,7 +154,7 @@ Components for the customer account area (`/site/account-*` pages).
 | `account/v2/projects` | Account v2 — saved projects |
 | `account/v2/sidebar` | Account v2 — sidebar navigation |
 
-**Version note:** Account v2 snippets are gated by the `admin/checklist/account-v2` flag. Both v1 and v2 coexist on the parent.
+**Version note:** Account v2 snippets are gated by the `admin/checklist/account-v2` flag. Both v1 and v2 coexist on the parent. The parent flag is blank, and a site switching to v2 also needs every `account-v2-*` page flag set to `TRUE` and `account-v2-dashboard-layout`; v1 child overrides stop applying. See `50_SHOPPER_TEMPLATE_REFERENCE.md` § 19, *Switching a site to account v2*. *Verified by query, 2026-11-06.*
 
 ---
 
@@ -767,6 +767,20 @@ Added 2026-10-22.
 | `integrations/google/event/view-item` | Its guard skips only when a `view_item` is already in the dataLayer. A child that removes the `design-now` push must override this snippet empty too. See `50_SHOPPER_TEMPLATE_REFERENCE.md` § 20. |
 | `admin/checklist/disable-user-registration` | Hides only the New Customer column on `/site/login`; registration forms elsewhere still render. Not a gate. See `21_SHOPPER_CHECKOUT_POLICY.md`. |
 | `product/px-option` | Carries the canonical upload dialog class set (`button-class`, `source-button-class`, `local-source-button-class`, `confirm-button-class`, ...) that every custom tool should copy. See `26_CUSTOM_DESIGN_TOOLS.md` § Open the platform upload dialog standalone. |
+
+
+Added 2026-11-09.
+
+| Snippet | Annotation |
+|---|---|
+| `product/breadcrumbs` | Builds Home / top collection / sub-collections / design name. Since 2026-11-05 **every** collection crumb links to `collection.custom.url_path` as its full href when set, else `/site/shop/<path>` (before, only the top crumb did). `product/breadcrumb-schema` mirrors it as JSON-LD. See `50_SHOPPER_TEMPLATE_REFERENCE.md` § 24. *Verified by reading source and by query, 2026-11-03 and 2026-11-05.* |
+| `product/custom-breadcrumb` | An empty hook, but **only `collection/collection-filters` calls it** (after Home). Product pages do not, so a landing crumb on product pages currently needs an override of `product/breadcrumbs`. Candidate parent change: call it from `product/breadcrumbs` too. *Verified by reading source, 2026-11-03.* |
+| `product/filter-controls` | Since 2026-10-31 the radio branch carries `px-filter-radios` on the row (not on `asset_images` filters) with a `--pxf-min` custom property, and `px-filter-opt` on each text option column. Phone-only CSS (max-width 767.98px, not kiosk touchscreen) is inlined in the snippet: a grid, 44 px buttons, 14 px text, 11 px price under the size; column minimum width from the longest option (up to 7 characters 76px, 8 to 12 104px, longer 160px). It deliberately outranks site CSS on `.variant-selector .label-text` for phones. **Child overrides of this snippet do not get it**: six overrides were edited by hand on 2026-11-01, and any new override needs the same edit. Template-level. *Verified by query, 2026-10-31 and 2026-11-01.* |
+| `product/photo-prints` | Passes `design_product_categories` to the photo prints component (one group per sub-collection, then an unlabeled group for the parent's own products) and sets `session_key` to `collection.id`; the component keeps its state in `sessionStorage` under `photo-prints-session-<session_key>`. See `50_SHOPPER_TEMPLATE_REFERENCE.md` § 25. *Verified by reading source and the live CMS bundle, 2026-11-02 and 2026-11-04.* |
+| `product/photo-prints-option` | Renders print options on the Cropping & Options screen: `multiple_choice` only, control from `option.custom.selector`, else image buttons, radios under 5 values, dropdown otherwise; `custom.hidden` is ignored there. See `50_SHOPPER_TEMPLATE_REFERENCE.md` § 25. *Verified by reading source, 2026-11-02.* |
+| `checkout/ncu-assets` | **Not in the 2026-05-27 scan.** The new checkout UI (version 1.0.1 seen 2026-11-03). Hard-codes several light colors outside its `--pxn-*` variables, so dark sites need a scoped override. See `21_SHOPPER_CHECKOUT_POLICY.md` § New checkout UI on dark sites. |
+| `checkout/extra-checkout-code` | Renders once, above `section.checkout-page`, and the live reload never re-injects it, so it can host a checkout engine script (per-line data goes in hidden elements inside `checkout/custom-cart-option`). See `21_SHOPPER_CHECKOUT_POLICY.md` § Switching between pickup and delivery. *Verified live, 2026-11-02.* |
+| `social-media/open-graph` | Takes `og:image` from the asset `og-preview-image.jpg` on the home page and non-product pages; a child without its own copy shows the parent's stock camera photo in every shared link. `og:title` on Pages instances is the site title. See `50_SHOPPER_TEMPLATE_REFERENCE.md` § 9. *Verified by reading source, 2026-11-06.* |
 ---
 
 ## Known Parent Defects
@@ -792,6 +806,9 @@ a live fault, not a description.
 | `checkout/rush-button2` | The checkout always renders the second rush choice, even when this snippet is empty, so a site cannot offer only one rush choice. *Verified by reading source, 2026-09-30.* |
 | `campaign/landing` | Where installed, writes `data-deadlines="{{ b.deadlines \| json \| escape }}"`, but Pixfizz Liquid has no `json` filter, so the countdown is likely broken (`50_LIQUID_REFERENCE.md`). Grep `b2b/landing` and `bundles/landing` for `\| json` before their next edit. *Inferred from a verified live failure of the same pattern, 2026-09-30; the countdown itself is not verified.* |
 | `blog` post page (BlogPosting JSON-LD) | Prints `blog_title` and `blog_description` without `escape_json`. *Verified by reading source, 2026-09-30.* |
+| `checkout/signed-out-summary` | Shows "Shipping and tax are calculated after you sign in." on kiosk checkouts too, where it is wrong. See `21_SHOPPER_CHECKOUT_POLICY.md` § Kiosk mode. *Verified on a client kiosk, 2026-11-04.* |
+| Kiosk UI skin (inline `#checkoutBtn` rule) | Injects `#checkoutBtn {display:block!important}` after the site CSS with higher specificity, so the checkout button text sits at the top of a tall button and a child `display:flex` rule loses. Child workaround in `50_SHOPPER_TEMPLATE_REFERENCE.md` § 16, *Kiosk UI skin*. *Verified live, 2026-11-04.* |
+| `account/v2/dashboard` | The order status pill handled only C, S, M, D and P (others printed the raw letter), and its edit link rule (only `product.custom.add_to_cart`) differs from Saved Projects. *Verified by reading source, 2026-11-06; fix status not checked.* |
 | `film/roll-builder` | **Fix pending on the parent (Corrected 2026-10-06).** Built its product lookup from the undocumented `website.products`, so logged-out visitors get a Liquid error (admin-only object) instead of the film page while admins see it working. The 2026-09-25 fix was applied on one child only. On 2026-10-03 every child without its own override showed `Liquid error: Object CMS::Objects::Admin::Product is only available to admin users` to logged-out visitors (three child sites, including experience.pixfizz.com); still seen on another child 2026-10-05. *Verified by query, 2026-10-03 and 2026-10-05.* Child workaround and launch check below the table. See `50_LIQUID_REFERENCE.md`, Website object. |
 
 **`film/roll-builder` child workaround** (verified on one child since 2026-09-25, and on another 2026-10-05): override `film/roll-builder` and replace the `frb_all` line with
@@ -813,3 +830,4 @@ The film products must sit in the `film-processing` collection. The override for
 - 2026-10-06: Added `kiosk/associate-tip` row and an `email-kit/` namespace section (kit 1.0.0 and 1.1.0). Added a third Annotations block (`show_prices` in filter-controls and dual-mode, unfiltered `sections/dynamic/blog`, hard-coded free shipping bar, `modals/promotions` Custom Type, Klaviyo snippets, `kiosk/style` additions, email-shopper superseded, `website/google-review-link` unread). Known Parent Defects: `navigation/style3` `#cart-link-icon`, `icons/ship.svg` no fill, quickview includes a missing `px-option`, film-builder reads missing keys, bottom promotion bar never included, `style/color-announcement-bar` dead, `checkout/rush-button2` always renders, `campaign/landing` uses the nonexistent `json` filter, blog JSON-LD unescaped. CORRECTED `film/roll-builder` to fix pending on the parent, with the child workaround and logged-out launch check. CORRECTED "As low as" (load-more prints `from_pricing` whenever set; collection-filters only when price is 0). CORRECTED `editor/scripts.js` (loaded only when named in the Design Tool Configuration) and noted how `style/editor.css` is loaded. Source: claude-chat.
 - 2026-10-17: Added a fourth Annotations block: `integrations/google/ga4-bridge` (live since 2026-10-12), `view-item` now a dataLayer push, the seven filter snippets' LF/CRLF split fix (2026-10-14), `checkout/available-payment-methods` strip fix, `integrations/custom-links` for head tags, `product/shipping-available` reads product fields only, Services v2 snippets. Updated the `product-details-prints` and `details-filter-dual-mode` annotations for the `view_item` change. Source: claude-chat.
 - 2026-10-22: `checkout/` table: added `checkout/remove-line-confirm`. Fifth Annotations block: remove-line confirm pair, `checkout/extra-checkout-code` render position and uses, `checkout/stripe-checkout` no appearance, `view-item` override-empty rule, `disable-user-registration` is not a gate, `product/px-option` canonical upload classes. Source: claude-chat.
+- 2026-11-09: Account v2 version note: parent flag blank, every page flag needed. Sixth Annotations block: `product/breadcrumbs` (url_path on every crumb), `product/custom-breadcrumb` (not called on product pages), `product/filter-controls` compact phone radios (overrides need the edit), `product/photo-prints` (groups, `sessionStorage`), `product/photo-prints-option`, `checkout/ncu-assets`, `checkout/extra-checkout-code` renders once, `social-media/open-graph`. Known Parent Defects: `checkout/signed-out-summary` kiosk copy, Kiosk UI skin `#checkoutBtn` rule, `account/v2/dashboard` status pill and edit link. Source: claude-chat.

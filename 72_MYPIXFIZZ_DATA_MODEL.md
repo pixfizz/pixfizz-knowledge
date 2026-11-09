@@ -151,6 +151,8 @@ Payments received, synced from QuickBooks.
 | last_synced_at | timestamptz | |
 | created_at | timestamptz | |
 
+**Card charges taken on the Pixfizz admin billing page carry no invoice reference.** Charges Pixfizz takes from a customer's card on the per-site super admin billing page (`71_MYPIXFIZZ_FEATURES_ROUTES.md` § Finance & Billing) reach Pixfizz's Stripe account with an **empty description and empty metadata**: across every charge since 2026-10-01 in myPixfizz's `stripe_payments`, nothing tied a charge to a QuickBooks invoice number. *Verified by query, 2026-11-07.* So the Stripe-to-QuickBooks payment match works by Stripe customer → organization (a confirmed link) and then by exact open balance plus currency only. If the platform ever writes the invoice number into the charge description or metadata, the match can become exact (a platform change, not yet confirmed with the core developer). Stripe payments are deposited in QuickBooks to one bank account per currency. **QuickBooks `PaymentRefNum` is at most 21 characters** (longer answers error 6000 on `doc_num`), so the payment sync writes the last 21 characters of the Stripe charge id. *Verified by use, 2026-11-08.*
+
 ---
 
 ### billing_run_fx_rates
@@ -1674,3 +1676,4 @@ Adding a **second** foreign key from table A to table B makes every bare embed o
 - 2026-10-06: Added a coverage note, new `brands` columns and rules (archive, merge, billing code, derived platform, storefront type values, identity guards), new `support_cases` columns and support rules (order error fields, urgency, urgent alert clock, awaiting-customer sweep, outbox events), and § Tables Added September to October 2026 (brands and performance, tools, storefront configuration, blog, marketing, launch plans and project requests, support and other), all read from the migrations at commit d6290ee. Source: claude-chat.
 - 2026-10-17: `ga4_event_outbox`: `raw_payload` holds every order webhook payload (created, status changed, updated) for live sales reporting; it is Brand Performance's order history; Brand Performance groups by the database time zone. Source: claude-chat.
 - 2026-10-22: `brands`: `ga4_server_purchases` (`all` / `no_browser`). `ga4_event_outbox`: several rows per order, claim or group by brand + order code. Source: claude-chat.
+- 2026-11-09: `billing_payments`: admin billing page Stripe charges carry no invoice reference (match by customer and open balance), QuickBooks `PaymentRefNum` max 21 characters. Source: claude-chat.

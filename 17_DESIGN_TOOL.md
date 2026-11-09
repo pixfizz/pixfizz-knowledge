@@ -2,7 +2,7 @@
 
 **Authority Scope:** Design Tool Configurations, feature toggles, and customer-facing editor behavior.
 
-_Last updated: 2026-10-22_
+_Last updated: 2026-11-09_
 
 ---
 
@@ -122,6 +122,17 @@ Vintage Film was drafted during development and is **not** in the launch set. Ge
   files", beside Custom CSS). It was visible on one child site's configuration and not shown on
   baseline.pixfizz.com or experience.pixfizz.com, so it is probably staff or super admin gated
   per site. *Not verified why, 2026-10-21.*
+  **Resolved 2026-11-09: the field is gated by a super admin website setting.** Super Admin →
+  Websites → the site (`website_form/<id>`) → settings form (**Apply Settings**):
+  `website_settings[editor_custom_js]` ("Custom JS"). With it on, the Design Tool Configuration
+  shows `editor_configuration[custom_js_files_string]` (comma-separated) beside Custom CSS. A
+  setting `website_settings[editor_custom_css]` also exists; it was off on a site whose Custom CSS
+  field still showed, which is not explained. Staff step. *Verified by query, 2026-11-05.*
+  On a Shopper child, Custom JS `editor-scripts.js` loads the page `/site/editor-scripts.js`,
+  which renders the parent's tracking code plus the `editor/scripts.js` snippet (empty on the
+  Shopper 24 parent, so a site adds its own override). Only configurations that name it load it.
+  Template-level (Shopper). *Verified by query (script tag present in the editor page, snippet
+  served byte for byte), 2026-11-05.*
 - Custom CSS — inject custom styles
 
 > Some Design Tool Configuration settings are only visible to Pixfizz staff. These control platform-level behaviors and are managed during onboarding or through support requests.
@@ -389,6 +400,17 @@ Elements can be assigned to named layers (for example `background`, `artwork`, `
 - **AI photo filters** in the design tool consume AI credits billed to the merchant; the merchant can cap daily uses per customer. *Stated on a client call, 2026-09-24.*
 - **Text labels on the desktop add-element buttons.** The desktop page toolbar (`.px-page-display .px-page-toolbar .px-left`) renders the add buttons with stable `data-tool-id` values: `add-qrcode`, `add-shape`, `add-text`, `add-image` (undo and redo are `undo` and `redo`). Stock width is a fixed 40 px per button. Add a label with `::after { content: "..." }` per `data-tool-id` and `width: auto` on the button; the icons stay 27 x 27 and a click on the label fires the button. Do not use `attr(data-px-tooltip)`: the tooltip text changes when a button is disabled ("Cannot add text to this page") and sites rename it. Switch the labels off by the width of `.px-page-display`, not the viewport width, because opening the inspector shrinks the canvas area (1024 px window: 692 px closed, 427 px open); four labelled buttons need about 662 px. Declaring `.px-editor .px-page-display` a size container did not change its width. The mobile editor's toolbar (`.px-mobile-toolbar`) already has labels. *Verified by reading source and by query, bundle 20261007100426, 2026-10-08.*
 - **Add QR code button.** It renders as `<button data-tool-id="add-qrcode" data-onclick="addQrCodeBox">`. It is hidden when the configuration sets `hideAddQrCodeBoxButton`, and disabled when no template on the project allows QR codes (`eqrcodes`). A placed QR code renders as `g.px-qrcode-element`. To hide the button on one class of device, target `button[data-tool-id="add-qrcode"]` in the site's editor CSS inside a media query. Platform-level. *Verified by reading `editor_bundle.js`, bundle 20261021074014, 2026-10-21.* Phones have no way to add a QR code in the editor (*stated by Alex, 2026-10-21*). Tablet behavior: `82_MOBILE_UX_REFERENCE.md`.
+- **Phone mode forces injected buttons to `display: block`.** In the editor's phone mode
+  (`.px-editor.px-mobile-mode`) a button injected inside `.px-editor` computes to `display: block`
+  even when a single-class rule sets `display: inline-flex`. The overriding rule is in the editor's
+  cross-origin stylesheet, so it cannot be read from the page, but a two-class selector wins: scope
+  display rules for injected buttons as `.px-editor .my-btn { display: inline-flex }`. Do not prefix
+  every rule with `.px-editor`: toasts and dialogs appended to `<body>` sit outside it and would
+  lose their styles. Platform-level. *Verified live at 375 x 812, bundle 20261105153050,
+  2026-11-06.*
+- **A panel opened in `requestAnimationFrame` can open after it was closed** when the page is in a
+  background tab or hidden pane (frames are delayed by about a second). Check the open state inside
+  the callback. *Verified live, 2026-11-06.*
 - **Save and exit hooks.** The editor's buttons carry `data-onclick` names that a GTM click trigger or a script can key on: `saveAndExit` (Save project before exiting modal), `exitEditor` (top bar exit), `saveProjectModal` (save). *Verified by reading `editor_bundle.js`, bundle 20261021074014, 2026-10-21.* Internal names; a bundle update can change them.
 
 ## Driving the Editor From a Script
@@ -429,6 +451,14 @@ a shopper24 child, bundle 20261002143509, 2026-10-03, unless marked.*
 - Page elements expose `name` (the XML `name` attribute, `null` when unset), `placeholder`,
   `replace`, `x`, `y`, `width` and `height`. Layouts are in `store.layouts.layouts`, each a Page
   object with `.elements`. *Verified by query, 2026-10-20.*
+- **`store.layouts.layouts` holds every layout in the design theme, cover layouts included,
+  whatever page is selected.** Each layout has `width` and `height` in mm, the same units as
+  `page.width` and `page.height`. A script that picks layouts for a page must filter by size (for
+  example within 0.5 mm of the page): on one layflat theme the spread pages and the cover layouts
+  differed by tens of millimetres but sat in the same list. *Verified by query, 2026-11-06.*
+- **Layflat page count:** each counted page set is one spread page object, which the editor labels
+  as two pages (Page 1 / Page 2), while `_price_variables.pages` counts sets. Show customers set
+  count x 2 when `set.double_page` is true. *Verified by query, 2026-11-05.*
 
 ### Autofill in a chosen order
 
@@ -486,6 +516,7 @@ Further detail, *verified by query, bundle 20261002143509, 2026-10-04*:
   `pointsize x 25.4 / 72`) and writing `fontsize` throws a MobX invariant error. Keys written
   before the failing key in the same update object still land, so update one key per call.
 - `page.removeElement(el)` removes a text element; the saved page no longer carries it.
+- **Editor store element keys** (read from `editor.store.project.pages[0].elements`): shape and image `x, y, z, rotation, radius, opacity`; shape `color, kind`; image `zoom, left, top, crotation, id` (`"db:<image id>"`), `placeholder`; text `text, font` (font id as a string), `pointsize, color, align, valign, kerning, leading, opacity`. Positions are in mm at trim; `pointsize` is in points (25 pt = font size 8.82 mm). Platform-level (editor). *Verified by query on a test site, 2026-10-30.*
 - Site font ids by name: `GET /v1/fonts.json` (public, `61_PIXFIZZ_API.md`) returns
   `[{id, name, preview, url}]`; names carry the weight and style ("Playfair Display Italic").
 
@@ -499,6 +530,47 @@ Further detail, *verified by query, bundle 20261002143509, 2026-10-04*:
   persist; the saved XML carries `grayscale="true"`.
 - `el.update({x, y, width, height})` moves and resizes an element and saves. *Verified by query,
   2026-10-20.*
+
+**Adding elements a design does not have.** A script can place any number of photo frames
+anywhere on a page: clone an existing element (`el = src.clone()`), add it with
+`page.actions.addElement.call(page, el)`, then set `x`, `y`, `width` and `height` (mm at trim);
+the verified run updated one key per call. `project.autofill(list)` then fills the frames in the
+order they were added. A text element clones the same way. A design meant for this needs at least
+one element of each kind to clone from: a page with no elements gives nothing to add. A locked
+full-page shape (`<shape name="bg" ... z="-1000">`) recolored with `update({color})` prints as the
+page background. *Verified by production render (12 frames on a 16 x 20 in page, 9 on an
+8 x 10), 2026-10-30.* Creating the project and rendering its production file without an order:
+`61_PIXFIZZ_API.md` § 4 and below.
+
+**Production file without an order.** On the admin project page,
+`/site/<site>/admin/print_books/<id>`, POST its `files?kind=production` form with that form's
+`authenticity_token`. The file appears on the project page as File #0 (`/book_files/...pdf`).
+Use it to check a scripted layout in print before anyone orders. Platform-level. *Verified by
+query, 2026-10-30.* Such a file is logged in Money Logs as `production_book_file` against the
+project, even with no order. *Verified by query, 2026-11-01.*
+
+**One undo step for many changes.** `store.undo_redo.beginWithUndo({label, set_id: null})` returns
+a function; call it when the batch of changes is done, and the editor's Undo reverts them as one
+step. The editor's own autofill uses this. *Verified by reading source and by query, bundle
+20261105153050, 2026-11-05.*
+
+**Price for N extra pages without adding them.** The editor's own call is
+`GET /v1/products/<project.product_id>/price_forecast.json` with `$j.param(store._price_variables)`
+and `pages` raised by N (`pages` counts page sets; `uncounted_pages` stays as it is). **Trap:**
+`mobx.toJS(store._price_variables)` returns the cached computed object itself, not a copy;
+changing it corrupts the page count the editor reads. Deep-copy it (JSON round trip) before
+changing anything. *Verified by query, 2026-11-05.* `price_forecast` rules: `30_PRICING_ENGINE.md`.
+
+**Product id, not template id.** `/v1/products/<id>.json` carries `print_product_id` (the
+template); the two are different numbers. The storefront route
+`/site/product/c/<collection>?product=<product id>&theme=<design id>` needs the **product** id:
+with the template id it opened another product and `POST /v1/books` answered 500. *Verified by
+query, 2026-11-05.*
+
+**Room for extra UI under the canvas.** The editor fits the page to `.px-page-display` (its
+`.px-resize-detector` is absolute inside it), and padding on `.px-page-display` does not refit.
+Change `.px-main-area`'s `grid-template-areas` and rows and add a row: the page refits at once.
+*Verified by query, bundle 20261105153050, 2026-11-05.*
 
 **Layouts.** `page.setLayout(layout)` removes only the page's elements marked `layout="true"` and
 inserts the layout's elements (marked `layout="true"`). Elements from the design page
@@ -590,7 +662,7 @@ A substitution targets an element by its name (for example `standoffs`, `placeho
 
 **Name and tags.** In the editor a substitution key has the form `name@[tag1,tag2]`: an element matches when it has that name (if one is given) **and** every listed tag. Tags come from the element's `tags` attribute (a comma list). *Verified by reading source (editor bundle 20261002143509), 2026-10-06. Server-side matching by tags is not verified.*
 
-**Tag-only targeting works in the storefront editor.** A design option value with `shape_color` and `text_color` substitutions, element name blank and element tags set, recolored every element carrying that tag in a new project. *Verified by query, 2026-10-08.* The production render with tag-only targeting is still not verified. Admin route: `GET /element_substitutions/new?owner_type=TemplateOptionValue&owner_id=<value>&substitution_type=shape_color` (or `text_color`), fields element name, element tags and content (a hex color). An option export shows them as `element_tags:` and `content:`.
+**Tag-only targeting works in the storefront editor.** A design option value with `shape_color` and `text_color` substitutions, element name blank and element tags set, recolored every element carrying that tag in a new project. *Verified by query, 2026-10-08.* **Tag-only targeting also works in production** (resolved 2026-11-09): a color design option (`value_type` color) with `shape_color` and `text_color` substitutions, element name blank and element tags `primary` or `secondary`, wrote the customer's colors into the stored page XML at project create (`POST /v1/books.json`) and they printed. *Verified by production render, 2026-11-03.* Admin route: `GET /element_substitutions/new?owner_type=TemplateOptionValue&owner_id=<value>&substitution_type=shape_color` (or `text_color`), fields element name, element tags and content (a hex color). An option export shows them as `element_tags:` and `content:`.
 
 ### Image crop flag (`image_crop_flag`)
 
@@ -632,6 +704,8 @@ Element substitutions do not apply correctly on the newer bulk photo prints inte
 A related symptom is white borders on prints that should be borderless (or the reverse). The cause is the **layout switch resetting the crop** — moving between a bordered and borderless layout re-runs the crop and discards the previous state.
 
 Workaround until this is fixed: organise print products into two separate categories, **with borders** and **without borders**, so the customer never switches layout mid-flow.
+
+**Border applied by the lab's print driver.** When the lab's print driver adds the border, keep the border choice as a template option but give each of its values `element_substitutions: []`. The production file then stays full bleed and the chosen value rides on the order line for the driver to act on. A cut-print definition with `unit="mm"` worked for the same range (`19_XML_TEMPLATE_REFERENCE.md` § `<definition>` Attributes). Platform-level. *Verified by query, 2026-11-04.*
 
 ---
 
@@ -1393,3 +1467,4 @@ Platform event. *Stated by the core developer, 2025-05; not re-tested by query.*
 - 2026-10-09: Tag-only substitution targeting verified in the storefront editor (production still not verified), with the admin route. New § Image crop state (`zoom` is a percent, `left`/`top` are percents of the displayed photo, clamping, persisting from a script). Editor Buttons: text labels on the desktop add-element buttons by `data-tool-id`. New § A tool mounted by `custom_script` lives inside the variant selector (where it renders, label specificity, change events copying options into the URL, never touch browser history, no quantity field, theme class collisions, pointer capture, check the live snippet version). Build rules: one filename per tool asset. Source: claude-chat.
 - 2026-10-17: Editor store: the page list includes `editor="false"` sets (preview, endsheets), so index mapping must skip them. Browser-Side Rules: freeing a loaded image with `src = ''` fires its error handler; clear `onload`/`onerror` first. Source: claude-chat.
 - 2026-10-22: Integrations: Google Tag Manager ID field name (loading GTM in the editor not verified; the bundle pushes nothing to `dataLayer`), `custom_js_files_string` seen on one site only. Editor Buttons: Add QR code button selector, `hideAddQrCodeBoxButton`, `eqrcodes`, `g.px-qrcode-element`; `data-onclick` save and exit names. Locking an Element: text `efontsize` and `ecolor` flags and the admin toggles. Driving the Editor: element properties and `store.layouts`; autofill needs `db:<id>` ids and skips non-editable placeholders; new § Text, image and layout calls (`pointsize` not `fontsize`, `removeElement`, `fillPlaceholder`, `grayscale`, `x/y/width/height`, `setLayout`); new § Tracking hooks (`.px-cart-button`, `editor.store.price`). New § Image border substitutions (`image_border_width` centered on the edge). Source: claude-chat.
+- 2026-11-09: Integrations: RESOLVED the Custom JS gate (super admin `website_settings[editor_custom_js]`) and how a Shopper child loads `editor-scripts.js`. Editor Buttons and Per-Site CSS: phone mode forces injected buttons to `display: block` (scope with `.px-editor`), requestAnimationFrame panel guard. Store paths: `store.layouts.layouts` holds every theme size including covers; layflat set count vs page labels. Text, image and layout calls: adding elements by clone and `addElement`, recolored locked background prints, production file without an order (logged in Money Logs), one undo step with `beginWithUndo`, extra-pages price via `price_forecast` and the `_price_variables` mutation trap, product id vs template id, extra grid row under the canvas. Substitutions bind by element name: tag-only color targeting verified in production. Photo prints: border applied by the print driver (values with no substitutions). Text, image and layout calls: editor store element keys. Source: claude-chat.

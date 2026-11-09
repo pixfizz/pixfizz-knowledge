@@ -2,7 +2,7 @@
 
 **Authority Scope:** Product object relationships and catalog structure only.
 
-_Last updated: 2026-10-22_
+_Last updated: 2026-11-09_
 
 ---
 
@@ -74,7 +74,7 @@ Same mechanism, different objects:
 - **Options** live on Templates or Designs — production-level choices
 
 This split avoids redundancy when multiple Product Attributes share a Template. Common production options live on the Template; product-specific pricing/commercial choices live on each Product Attribute.
-**Template options and design options are one object type.** The same option, with the same fields (value type, custom fields, order, hide flags), attached either to the template (applies to every design on it) or to one design (that design only). An option **code must be unique across both levels**: adding a design option with a code the template already uses fails with "code already used". To move an option between levels, export it, delete it, then create or import it at the new level. *Stated by Alex and verified by reading an export, 2026-09-28.* **A template page that says "There are no options for this template" can still have options on its designs** (design page, section **Design Options**), and the product page then renders them (upload controls included). Before concluding a product has no upload options, open each design at `/site/<site>/admin/print_theme/theme/<id>`; their edit URLs still sit under `/templates/<template id>/options/<option id>/edit`. *Verified by query, 2026-10-16.*
+**Template options and design options are one object type.** The same option, with the same fields (value type, custom fields, order, hide flags), attached either to the template (applies to every design on it) or to one design (that design only). An option **code must be unique across both levels**: adding a design option with a code the template already uses fails with "code already used". To move an option between levels, export it, delete it, then create or import it at the new level. *Stated by Pixfizz staff and verified by reading an export, 2026-09-28.* **A template page that says "There are no options for this template" can still have options on its designs** (design page, section **Design Options**), and the product page then renders them (upload controls included). Before concluding a product has no upload options, open each design at `/site/<site>/admin/print_theme/theme/<id>`; their edit URLs still sit under `/templates/<template id>/options/<option id>/edit`. *Verified by query, 2026-10-16.* The admin options list of a template (`admin/templates/<id>/options`) also lists the design-level options of its designs, even while the template page says "There are no options for this template", so it is a quick way to read every option code a product page can render. A design option's code can differ between templates of one product line (on one lab's range the photo option was `upload-image` on some templates and `photo` on others): read it per template before writing any tool mount that names it. Platform-level. *Verified by query, 2026-11-03.*
 
 **A template option appears on every product that uses the template.** One template often serves several Product Attributes (metal, acrylic, wood and canvas on one wall-decor template), so a template option, including a `custom_script` mount, runs on all of them. Before adding one to a live range, list which product lines share each template (`/v1/themes/<id>` gives the print product for each theme). *Verified by query, 2026-09-27.*
 
@@ -173,7 +173,8 @@ next to the old one gives both the same `url_path`, and the clean product URL th
 whichever the platform picks (`url_path` must be unique on the site, `50_SHOPPER_TEMPLATE_REFERENCE.md`
 § 24). Before or right after importing a replacement set, move the old designs' `url_path` aside
 (for example `<code>-v10`) through the design custom fields form
-(`POST /site/<site>/admin/print_theme/update/<id>`, all fields re-posted). A design with `url_path`
+(`POST /site/<site>/admin/print_theme/update/<id>`, all fields re-posted; a partial post of only the changed design custom field also
+left the other fields untouched on read-back, *verified by query, 2026-11-01*). A design with `url_path`
 set redirects to its clean URL, which 404s while the design is in no collection; to check an
 imported design that is not yet published, open it in the admin editor,
 `/v1/editor?sitename=<site>&theme_templates=<design id>`, and close it without saving.
@@ -199,7 +200,21 @@ full template import, even when the import flash says "No fulfillment transforma
 configured"; the target site still needs that destination in its dropdown. The products'
 `fulfillment_setting_id` and `design_fulfillment_setting_id` are source-site ids: blank them in
 `__print_product.yml` before importing elsewhere, and the products use the site default.
-*Verified by query, 2026-10-10 and 2026-10-13.*
+*Verified by query, 2026-10-10 and 2026-10-13.* The product's own fulfillment **code** is not in
+the export: products in several sites' exports carried no `fulfillment` code, so a product created
+by a template import has none and falls to the site default. Set it on the product page after the
+import (`18_ADMIN_NAVIGATION.md` § Products, `product[fulfillment]`). *Verified by reading several
+site exports, 2026-11-01.*
+
+**Custom field values travel, stale ones included.** A template export with its product carries
+the designs, template options (hidden `custom_script` mounts included), the product attribute with
+its variants and price, and the **product custom field values**. A product custom value that was
+out of date on the source (an expired promotion message) arrived on the target. Check and clear
+product custom values after a cross-site import. **Design custom field values travel in the design
+YAML but are kept only where the target site has a definition for that field** (a design's
+`display_name` and `meta_title` were dropped on a target without those definitions). Create the
+design definitions on the target first. *Verified by query, 2026-11-01.* Template option custom
+keys behave differently (stored as text without a definition): `22_OPTION_VARIANT_RENDERING.md`.
 
 **A template option can ride inside a template export.** Add the option entry (the same block an
 options archive carries, `id` blank) under the top-level `template_options:` of
@@ -224,6 +239,13 @@ Generator-side emission rules are in `01_CODE_GOVERNANCE_UPDATED.md` § Archive 
   before packing. A plain `yaml.safe_load` rejects the `!ruby/` tags; load with a multi-constructor
   for `!` (or Ruby `Psych.unsafe_load` with the classes stubbed). *Verified by query and test,
   2026-10-19 and 2026-10-20.*
+- **Keep `BigDecimal` values numeric.** Number template options export `min` and `max` as
+  `!ruby/object:BigDecimal 9:0.1e1` (1.0) and `9:0.2e4` (2000.0). A loader that turns unknown
+  `!ruby/` tags into plain scalars writes them back as the string `'9:0.1e1'`, and the import
+  fails with `ActiveRecord::RecordInvalid: Min is not a number, Max is not a number`, leaving the
+  template, its products and the first design behind (§ Import Behavior: delete them before
+  retrying). In any rewrite, construct a `BigDecimal` tag as a float (the value after the colon).
+  *Verified by reading exports and a failed import, 2026-10-29.*
 - **`__image_map`, `__font_map` and `__asset_map` sit at the top level** of a template export,
   not per design. *Verified by reading an export, 2026-10-19.*
 - **Repeated Ruby objects are written once with a YAML anchor.** The first design carries, for
@@ -248,6 +270,10 @@ Generator-side emission rules are in `01_CODE_GOVERNANCE_UPDATED.md` § Archive 
   `/site/<site>/admin/assets?search=<name>`): storefront `/fz/` URLs are signed per host
   (`61_PIXFIZZ_API.md` § Assets). *Verified by query (export read, bytes fetched, tar packed and
   read back; import not yet run), 2026-10-19.*
+- **Two kinds of `category:` in `__print_product.yml`.** The top-level `category:` is the
+  **template** category (what groups templates in Publish Products); the indented `category:`
+  lines inside `products:` are **product** categories. They are independent, and either can be
+  rewritten before import. *Verified by query, 2026-11-05.*
 - The keys a hand-written variant type needs, and `image: ''` rather than `null`, are in
   § Import Behavior.
 
@@ -322,6 +348,10 @@ variants**.
 
 Clone a product by exporting a working one, not by CSV. The archive shape, its verified
 behavior and the create-only constraint are in `51_CUSTOM_FIELDS_REFERENCE.md`.
+
+On the same site, the product page's **Copy** button is quicker: the copy (`<name> (clone)`,
+numeric code) keeps template, price, units, custom values and variants, and is in no collection
+(`18_ADMIN_NAVIGATION.md` § Products). *Verified by query, 2026-11-04.*
 
 ---
 
@@ -489,3 +519,4 @@ Beyond the core hierarchy:
 - 2026-10-06: Collections: a top-level collection has no verified unpublish flag and an empty one renders a blank 200 page. Import Behavior: template import is not atomic (delete the partial template first, Error Query reference), design names get `-1` on a name clash, fonts and images get new ids with `font=` remapped. Unpublishing: a never-collected product has no storefront URL. Source: claude-chat, vault-doc.
 - 2026-10-17: Variants vs Options: a template with no options can still carry design options. Import Behavior: design-name suffix counts per name across the whole site, rename via the design form; unpublished designs are skipped silently; a missing site price variable fails the import part way; fulfillment code travels, blank `fulfillment_setting_id` ids; a template option can ride inside a template export. Unpublishing: per-collection Published tick (`publish_theme`). Source: claude-chat.
 - 2026-10-22: Import Behavior: designs-only template export and template-level tars; two more partial-import failures (variant type without the three empty lists, `image: null` on a product or design `preview_img`); the name suffix also hits product names and survives renames; check the target for an older copy first; a design import carries `url_path` (move the old one aside, check unpublished designs in the admin editor). New Template Export and Import Format (Psych folding and TimeWithZone blocks, top-level maps, YAML anchors and `Psych::BadAlias`, ids ignored, design gallery images in the export). Unpublishing: `publish_theme` with `published=1` republishes. New Publishing Another Site's Template (supplier template id travels, no variants or custom fields copied with the export/import and by-hand routes, price prefill, fulfillment locked or pre-filled from the supplier product, `-2` code clashes and the rename rule, swapping old copies). Source: claude-chat.
+- 2026-11-09: Import Behavior: product fulfillment code is not in a template export (set it after import); product custom values travel, stale ones included; design custom values kept only where the target has a definition; partial design custom field post. Template Export and Import Format: `BigDecimal` min/max must stay numeric on a YAML rewrite; template category vs product category in `__print_product.yml`. Cloning a Product: same-site Copy button pointer. Variants vs Options: the template options list shows design options too; design option codes can differ per template. Source: claude-chat.

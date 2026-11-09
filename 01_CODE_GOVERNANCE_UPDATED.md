@@ -3,7 +3,7 @@
 **Authority Scope:** Formatting and delivery rules for all CSS, JS,
 Liquid, and HTML.
 
-*Last updated: 2026-10-22*
+*Last updated: 2026-11-09*
 
 ------------------------------------------------------------------------
 
@@ -346,6 +346,24 @@ changes.
 
 ------------------------------------------------------------------------
 
+## Parent CSS Must Scope Platform Components (MANDATORY)
+
+Template-level (Shopper 24 parent), applies to every child site. Added after a parent CSS block
+with a bare platform class broke photo print cropping on every child, web and kiosk
+(`50_SHOPPER_TEMPLATE_REFERENCE.md` § 21.8). *Reported on a support ticket and fixed, 2026-11-03.*
+
+1. Parent CSS that touches a platform component (any `px-*` class from `cms_bundle.css` or
+   `px-shopper.css`) is always scoped to the one context it is meant for: a wrapper class, the
+   tool root or a page body class. Never the bare component class.
+2. Never `!important` on a platform component class unless the selector is scoped per rule 1.
+3. Before shipping, grep the live `cms_bundle.css`, `px-shopper.css` and `cms_bundle.js` for
+   every class in the block and list every context that uses it. Test every context on that
+   list, not only the one being changed.
+4. **Shopper 24 parent regression set**, run after any parent CSS or JS change: Photo Prints
+   (tiles and cropping overlay, desktop and phone), `px-image-upload` Adjust, cart, checkout,
+   kiosk mode.
+5. Parent changes go to one test child first, get the regression set there, then go to the parent.
+
 ## Liquid String Quoting Rule (MANDATORY)
 
 Pixfizz Liquid does **not support backslash escaping** inside strings.
@@ -503,6 +521,16 @@ gzipped `.tar.gz`, media directories first in the archive, YAML last.
 - Export: Manage Products → Collections → Export All.
 - Import: Manage Products → Collections → Import, `enctype: multipart/form-data`,
   file field `exported_file`, accepts `.gz`.
+- **The import keeps `custom:` values** written in `__theme_categories.yml` when the field has a
+  definition on the target site (`unpublished` and `url_path` came through). Route:
+  `POST /site/<destination>/admin/theme_categories/import`, multipart `exported_file`, no
+  `authenticity_token` needed. Exported collections imported onto another site whose products
+  carried the same product codes. *Verified by query, 2026-11-06.*
+- **A hand-written `__theme_categories.yml` failed with a 500 and created nothing**, even with one
+  row; the cause was not found. Consistent with *Never Hand-Author an Export Archive* below.
+  Fallback that worked: create the collection with the admin collection form, then publish each
+  template into it with the publish form (`18_ADMIN_NAVIGATION.md`). *Verified by query,
+  2026-11-06.*
 
 **Record shapes — the platform's key order, do not reorder.**
 
@@ -551,6 +579,8 @@ between two sites' exports is a definitive inheritance test); how sub-collection
 expressed (all 24 paths were single-segment yet four collections had
 `sub_collections: true`); and whether re-importing an archive whose collection `name`
 already exists updates in place or duplicates.
+
+*Partly resolved 2026-11-09:* a site inheriting Products from another returned byte-identical collections, with the same collection ids and products, as its parent, so identical ids on two sites do mean shared records under Products inheritance (`18_ADMIN_NAVIGATION.md` § Website Management (Super Admin)). *Verified by query, 2026-11-05.* Whether ids are globally unique across unrelated sites is still not verified.
 
 ## Never Hand-Author an Export Archive
 
@@ -748,3 +778,4 @@ second; the alternative is trusting that nobody renamed anything.
 - 2026-10-09: CMS tar rule: two more changed-files-only incidents; the database (products, variants, prices, collections) is untouched by a CMS import; re-check checklist flags after recovery. Source: claude-chat.
 - 2026-10-17: Scoping Rule for `{% dynamic %}`: do not rely on a dynamic block reading snippet parameters or earlier variables (observed live 2026-10-14; a nested snippet call was a second cause, so the dynamic-only cause is not verified). Whether variables set inside are visible after it stays pending. Source: claude-chat.
 - 2026-10-22: Liquid String Quoting Rule: the typographic apostrophe as an alternative to rephrasing. Custom Type Instance Archive: `page_content` also renders `assign`, `split`, `for` and `asset_url` with size and format on a variable, with the parent asset fallback. Source: claude-chat.
+- 2026-11-09: The Collections Export Format: identical collection ids mean shared records under Products inheritance (partly resolves the ids question); the import keeps `custom:` values that have a definition on the target (no token needed); a hand-written collections YAML returned 500, with the form fallback. New section: Parent CSS Must Scope Platform Components (scope every `px-*` selector, no unscoped `!important`, list every context, regression set, one child first). Source: claude-chat, support-ticket.

@@ -2,7 +2,7 @@
 
 **Authority Scope:** Checkout engine logic only.
 
-_Last updated: 2026-10-22_
+_Last updated: 2026-11-09_
 
 ---
 
@@ -15,6 +15,12 @@ Shopper checkout resolves UI/flow by computing derived flags from cart orderline
 - Pay-in-store can be shown only in kiosk mode.
 - Auto-logout after successful checkout.
 - **Carts are per domain.** Changing `admin/checklist/kiosk-mode-domain` to a new host moves kiosk mode to that host only; the old host returns to the normal storefront, terminal launch URLs must move to the new host, and carts do not follow. *Verified live on a client kiosk, 2026-10-02.*
+- **Known issue: the kiosk reset leaves the prints page state behind.** The photo prints page keeps its state in `sessionStorage` (key `photo-prints-session-<collection id>`, `50_SHOPPER_TEMPLATE_REFERENCE.md` § 25), not `localStorage`, and the kiosk app's reset button does not clear `sessionStorage`, so the next customer can see the previous customer's prints after a reload. A reset that clears `sessionStorage` is pending (Nov 2026). *Reported in team Slack, 2026-11-02, and on two client calls; fix pending. Storage key verified by reading the live CMS bundle, 2026-11-02.*
+- **Kiosk UI checkout (`body.kiosk-ui`), template-level, verified on a client kiosk checkout, 2026-11-04:**
+  - Kiosk checkout has a hidden `input[name="cart[location_id]"]` next to the store radio: select store radios with `input[type=radio]`, not by name alone.
+  - The single delivery option `#checkoutPickup` (name `shipping-address`) selects pickup through its `onchange`, which clicks a hidden button in the preceding async form; `.click()` on the radio triggers it.
+  - `body.kiosk-ui` is added after inline body scripts run, so test for it on every pass, not once at load (`50_SHOPPER_TEMPLATE_REFERENCE.md` § 16, *Kiosk UI skin*).
+  - **`checkout/signed-out-summary` says "Shipping and tax are calculated after you sign in."**, which is wrong on any kiosk. One site hides it with CSS. Candidate parent changes (not made): fix that copy for kiosk mode, and move kiosk pickup auto-select and hide-single-delivery logic into a shared kiosk snippet so each Kiosk UI site does not need its own `checkout/extra-checkout-code` override.
 
 ### Kiosk associate tip (`kiosk/associate-tip`)
 
@@ -64,8 +70,10 @@ Template-level (Shopper 24). *Verified live on a demo site, 2026-10-28.*
 
 - The "In-store pickup" and "Deliver to my address" rows are labels whose first labelable descendant is the hidden submit button of a form posting to `/v1/carts/_mine` (`_method=put`, `target=/site/checkout?...`, `data-px-live-reload-selectors=["section.checkout-page"]`). A click anywhere on the row submits that form directly; the radio's own `onchange` never fires from a row click. A script that reacts to the switch must hook the label click, not the radio.
 - The switch is one server round trip: the cart PUT plus a full `/site/checkout` render returned for the live reload. Measured 3.0 to 4.2 s with an 8-line cart (`/site/checkout` alone 1.7 to 1.9 s server time). The delay is server-side, not the browser.
-- The live reload morphs `section.checkout-page` in place (the section node survives), so detect new content by an element you injected disappearing, not by the section being replaced.
+- The live reload morphs `section.checkout-page` in place (the section node survives), so do not detect new content by the section being replaced. Detect it by a marker element your script injected (one the server does not render) disappearing. An element inside a refreshed snippet that the server also renders can survive the morph, so its continued presence proves nothing. *Corrected 2026-11-09: this line said to detect new content by any injected element disappearing; the morph can keep server-rendered elements in place (verified live, 2026-11-02).*
 - `checkout/extra-checkout-code` is empty on the parent and is the clean child hook for checkout scripts, for example an instant "Loading delivery options..." line and locking payment while the switch runs.
+- **It renders once, above `section.checkout-page`, so the live reload never re-injects it.** That makes it a safe host for a checkout engine script: a `MutationObserver` on `body` that re-places the script's injected nodes survived the Rush, Delivery and Color Enhancement reloads. Data the script needs per cart line goes in a **hidden element** inside an AJAX-refreshed hook (`checkout/custom-cart-option`), never a script there. Template-level. *Verified live on a client site, 2026-11-02.*
+- **A site with one shipping method shows no shipping method picker**; the method appears as a fee line. Checkout scripts must not assume method radios exist. *Verified live on a client site, 2026-11-02.*
 - A real speed fix needs the platform (a lighter live-reload target or a faster cart PUT). Pending: core developer.
 
 ## Film processing
@@ -233,6 +241,15 @@ endif
 - **Stripe on dark sites:** `checkout/stripe-checkout` mounts the Stripe Payment Element with no `appearance`, so Stripe draws its light default (dark labels) inside its own iframe, and site CSS cannot reach it. Template-level (Shopper 24). *Verified by reading source (shopper24 backup), 2026-10-02.* Per-site fix with no parent change: override `checkout/extra-checkout-code` with a script that calls `stripeElements.update({ appearance: { theme: 'night', variables: { ... } } })` on the `px-stripe-form` element. Site-specific. *Live on a dark child site, confirmed by Alex, 2026-10-22.* Every dark-themed Shopper site needs it. Candidate parent change (not made): let `checkout/stripe-checkout` read an appearance from a snippet.
 - **Authorize.net and AVS:** Pixfizz passes the order address to Authorize.net, which uses it for the address verification (AVS) check. Platform-level. *Stated by the core developer, Slack #development, 2026-10-22.* Whether that is the shipping or the billing address, and so whether AVS can reject a card because the order ships to an address other than the cardholder's, is not confirmed (support's explanation, not the developer's).
 - **PayU:** the success and failure webhook URLs are set in PayU admin → Developers → Webhooks and must be repointed by hand after any domain change, or order confirmations fail silently. *Stated on a client call, 2026-09-22.*
+
+## New checkout UI on dark sites (`checkout/ncu-assets`)
+
+Template-level (Shopper 24, `checkout/ncu-assets` 1.0.1). *Observed live on a dark client site, 2026-11-03.*
+
+- The new checkout UI hard-codes light colors outside its own variables: `.pxn-store.pxn-on` background `#fff`, `.pxn-store:hover` `#f8f9fa`, `.pxn-pill` background `#fff`, and `--pxn-line` `#dee2e6`. On a dark site that gives a white store row holding dark site inputs, white shipping speed pills with near-invisible text, and an invisible "Shipping speed" heading and unselected store name (they inherit the light `--pxn-fg` `#212529`).
+- **Site fix:** in the site's `style/custom.css`, remap the `.pxn` variables plus those four rules, scoped `html body .pxn...`, which beats the parent's single-class selectors. Walk the whole checkout after the change (`50_SHOPPER_TEMPLATE_REFERENCE.md` § 18.2).
+- Candidate parent change for the next version (not made): put every color behind a `--pxn-*` variable (store-on background, hover, pill background), so a dark site only overrides variables.
+
 ## A Bare Child Site Shows No Delivery or Payment Until Four Things Hold
 
 Template-level (Shopper 24). Read from `pages/checkout` in the parent backup and proved on a test child site, 2026-09-25. After the address step the checkout shows **nothing**, with no delivery options, no payment section and no error, until all four hold:
@@ -256,3 +273,4 @@ On a child site, set the checklist keys with **Override Snippet** on the parent'
 - 2026-10-17: New Pickup contact phone section (pre-filled is not saved, `pickup-phone-not-required` vs `dont-require-pickup-contact-details` vs `autofill-pickup-phone`, `required` gap, `/site/setup/storefront`). Rush: three-way labels and disclaimer, radio style loses the choice (use `checkout-rush-style` = `DROPDOWN`), `pages/confirm` old rush checkbox. Payment: empty method list after a page save (CRLF, fixed 2026-10-13), Invoice offered only to `invoice` users. Source: claude-chat.
 - 2026-10-22: Guest checkout: contact fields are browser-side only (server acceptance stated, not verified), no guest checkout for film orders. New sections: Restricting checkout to approved users on a child site (`disable-user-registration` only hides the New Customer column, gate via `checkout/extra-checkout-code` and `user.category`, where Category is set) and Multi-store pickup (checkout posts the first public address, re-point `cart[location_id]`, no time locks). Payment Gateway Notes: Stripe Payment Element on dark sites. Payment Gateway Notes: Authorize.net receives the order address for AVS (which address not confirmed). Source: claude-chat, slack-message.
 - 2026-10-29: New section: switching between pickup and delivery (label click submits the cart PUT form, 3 to 4 s server round trip, live reload morphs in place, `checkout/extra-checkout-code` hook). Source: claude-chat.
+- 2026-11-09: Kiosk mode: the kiosk reset leaves the prints page `sessionStorage` state behind (fix pending); Kiosk UI checkout (hidden `cart[location_id]`, single pickup option, late `kiosk-ui` class, wrong signed-out summary copy). Switching between pickup and delivery: CORRECTED reload detection (only a script-only marker is a reliable signal); `checkout/extra-checkout-code` renders once and hosts checkout engine scripts; one shipping method shows no picker. New section: New checkout UI on dark sites (`checkout/ncu-assets` hard-coded light colors, scoped override, parent follow-up). Source: claude-chat, slack-message.

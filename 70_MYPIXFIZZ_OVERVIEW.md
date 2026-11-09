@@ -107,6 +107,13 @@ The core execution unit. Tasks can belong to an org, brand, project, or be inter
 - Infrastructure health check dashboard at `/infrastructure` — automated service monitoring with status strip visible in both portals.
 - GA4 Event Log available for debugging the analytics pipeline.
 
+### A branded host for the Pixfizz MCP server
+
+The Pixfizz MCP server (the connector staff and customers sign in to with myPixfizz) is served from a Supabase edge function, which advertises its OAuth protected resource as the `supabase.co` function URL. *Verified by use (the branded host below is live), 2026-11-02.*
+- **A plain proxy on a branded host is not enough:** the MCP client checks the resource address against the host it connected to. The MCP library's handler supports `trustForwardedHost` and `resourcePath` for proxies, but the build plugin that generates the function entry passes only the function name, and editing the generated entry freezes the bundled tools.
+- **Working pattern:** a Cloudflare Worker on the branded host (`mcp.pixfizz.com`) forwards everything and rewrites only the protected-resource metadata `resource` field and the `resource_metadata` value in the `WWW-Authenticate` header. The old URL keeps working.
+- **The authorization server cannot be proxied the same way:** OAuth issuer validation fails. Branding the sign-in host needs a Supabase custom domain.
+
 ---
 
 ## Relationship to Pixfizz Platform
@@ -229,6 +236,9 @@ From 2026-10-08 (verified by query):
 From 2026-10-13 (verified by query):
 - **A self-chaining edge function authenticates the chained call with its own token header** (for example `x-merchant-sync-token`), not by matching the service role key. The chained hop answers 202 at once and does its work inside `EdgeRuntime.waitUntil`; if the caller waits for the whole run (about two minutes), the hand-off dies silently. Log the chained call's HTTP status and write a failure row to the function's log table, so a broken chain is visible. A nightly sync stopped at 250 of 1,016 items with no trace before this was fixed.
 
+From 2026-11-02 (verified by use):
+- **The Lovable agent cannot create or read database vault secrets.** Its migration tool refuses any SQL that touches the vault ("Agent access to secrets is not allowed") and stages the SQL instead. A person runs it in the project's database SQL editor. Plan any build that stores a secret as two steps: the agent builds the tables, UI and functions; staff run the vault SQL.
+
 ---
 
 ## Organization Add-ons
@@ -333,3 +343,4 @@ re-checking against the current route.
 - 2026-10-17: Operational rules from 2026-10-13: a self-chaining edge function authenticates the chained hop with its own token header, answers 202 and works inside `EdgeRuntime.waitUntil`, and logs the hop's status so a broken chain is visible. Source: claude-chat.
 - 2026-10-22: Tech Stack: source control (two-way GitHub sync) and new Images and other binary files (binaries in `public/` via GitHub, row images as shopper24 assets with the full-size URL, one site-wide `og:image` for the SPA). Integrations: GA4 row CORRECTED to the browser-first, server-backfill design. Relationship to Pixfizz Platform: new Single sign-on from the Pixfizz admin (site parameter, `login.pixfizz.com`, start and callback routes, direct sign-in pattern), pointer from Tech Stack Auth. Source: claude-chat, slack-message.
 - 2026-10-29: Tech Stack: a GitHub push syncs code only; edge functions are not redeployed and migrations are not run. Source: claude-chat.
+- 2026-11-09: Infrastructure Notes: new A branded host for the Pixfizz MCP server (Worker rewriting the protected-resource metadata, issuer needs a custom domain). Operational Rules: the Lovable agent cannot run vault SQL; staff run it. Source: claude-chat.

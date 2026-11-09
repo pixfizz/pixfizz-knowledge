@@ -165,6 +165,8 @@ There is no admin task list route and no admin dashboard route any more (Correct
 | (inline) | FX Tracker | Exchange rate monitoring with historical charts (component present in source; where it is shown not re-verified 2026-10-06). |
 | `/private/costs` | Costs & Salaries | Owner-only cost and cash planner. Hidden from every other staff account. |
 
+**Linking a brand to its Pixfizz admin billing page.** The page where staff charge a customer's card for their Pixfizz invoice is `https://admin.pixfizz.com/site/<site slug>/superadmin/billing`. The slug is the brand's **`subdomain`**, not its `website_code` (the order prefix); the two differ on many brands. *Stated by staff and checked on one brand, 2026-11-08.* Those charges carry no invoice reference: `72_MYPIXFIZZ_DATA_MODEL.md` § billing_payments.
+
 ### Infrastructure & Tools
 
 | Route | Feature | Notes |
@@ -585,3 +587,4 @@ When asking Lovable to modify or build features, always specify:
 - 2026-10-17: Brand Connections and Catalog: the POD Catalog nightly sync owns every row of a site-synced supplier (fields it rewrites, fields that survive, hand-loaded rows switched off overnight, family grouping). Catalog Manager: the "no variant write" reason corrected against 61 § 13g. Source: claude-chat.
 - 2026-10-22: Brand Connections and Catalog: how the POD Catalog sync picks a product's category (first collection in API order, `SKIP_COLLECTION` prefixes and suffix, category map, fix at the source, `Test` display-name prefix). Prompt-Writing Notes: Pixfizz admin terms and collapsed variant trees in tool screens, pointer to 26. Source: claude-chat.
 - 2026-10-29: Store health check: `last_full_check` can be stale, and the no-image and no-price counts are not defects as reported. Source: claude-chat.
+- 2026-11-09: Finance & Billing: the Pixfizz admin billing page URL uses the brand's `subdomain`, not `website_code`. Source: claude-chat.

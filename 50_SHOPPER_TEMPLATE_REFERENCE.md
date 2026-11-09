@@ -2,7 +2,7 @@
 
 **Authority Scope:** Structural anatomy of the Shopper parent template — layouts, navigation, snippets, theming, CSS delivery, and admin checklist system. Derived from a full CMS backup scan (2026-03-12).
 
-_Last updated: 2026-10-22_
+_Last updated: 2026-11-09_
 
 ---
 
@@ -286,6 +286,7 @@ The CSS variable `--primary` on `:root` is the Bootstrap default and does not fo
 - `color-button-label-hover` — button text on hover
 - `color-button-outline` — button border color
 - `color-button-outline-hover` — button border on hover
+- These button tokens also color the platform upload window's "This Device" button (`btn-primary`): background `color-button-bkg`, text `color-button-label`, hover `color-button-bkg-hover` / `color-button-label-hover`, border `color-button-outline`; `color-primary` drives the pressed state. Check label on background (and hover on hover) is at least 4.5:1 per site: a stock white label fails on light brand colors. Template-level. *Verified by query on three lab sites, 2026-11-04.* See `26_CUSTOM_DESIGN_TOOLS.md` § Open the platform upload dialog standalone.
 - `color-font` — body text color
 - `color-font-secondary` — secondary body text color
 - `color-font-hover` — body text hover
@@ -562,6 +563,9 @@ Enlargements/large format: `product-enlargements-bleed-1-8`, `product-enlargemen
 | `gallery-image-filename` | `TRUE` = show image filename in gallery |
 | `gallery-order-prints` | `TRUE` = enable order prints from gallery |
 | `custom-registration` | `TRUE` = use custom registration form |
+| `account-v2` | `TRUE` = account v2 pages. Blank on the parent, so a new child starts on v1. Not enough on its own: see § 19 *Switching a site to account v2* |
+| `account-v2-dashboard`, `-projects`, `-carts`, `-orders`, `-galleries`, `-dates`, `-addresses`, `-info` | `TRUE` on every v2 site (one key per account page) |
+| `account-v2-dashboard-layout` | `two-col` on the v2 sites checked (2026-11-06) |
 | `multiple-personal-calendars` | `TRUE` = allow multiple personal calendars |
 
 #### Integrations
@@ -653,7 +657,7 @@ These snippets store site-specific content that varies per client:
 
 - `website/title` — site name
 - `website/description` — meta description
-- `website/brand` — brand name (used in footer copyright)
+- `website/brand` — brand name (used in footer copyright). The parent-rendered Terms and Shipping pages and the services heading print the company name as `{{ website.title }}`, the platform **Website title** setting (Settings > General, `/site/<site>/admin/site/index`, field `website[title]`), not this snippet, so setting `website/brand` alone leaves the old or blank name there. *Verified by reading the Shopper 24 parent backup, 2026-11-02, and by use on client sites, 2026-11-03.* Write route: `61_PIXFIZZ_API.md` § 13h.
 - `website/contact/support-telephone`
 - `website/contact/support-telephone-label`
 - `website/contact/support-email-address`
@@ -724,6 +728,13 @@ Key elements in order:
 
 **The social sharing image is the asset named `og-preview-image.jpg`**, which `setup/seo` uploads. The manage/seo "Social sharing image" control uploaded an asset named `social-media/open-graph`, which the head never reads. Template-level. *Verified by reading source, shopper24 backup 2026-09-28.*
 
+**Every child needs its own `og-preview-image.jpg` (2026-11-06).** Template-level (Shopper 24, `html.head` and `social-media/open-graph`). *Verified by reading source on the Shopper 24 parent and on a child site, 2026-11-06.*
+- Link previews (Slack, iMessage, Facebook, WhatsApp) take `og:image` from the asset `og-preview-image.jpg` on the home page and on every Pages instance and other non-product page. Product pages use the design preview; `/site/shop/` pages use the collection image (below).
+- **A child without its own copy inherits the parent's**, a stock vintage camera photo, so every shared link from that site shows the camera. Assets inherit parent to child (`13_TEMPLATE_BOUNDARIES.md`).
+- **Fix per site, no snippet change:** upload a 1200 x 630 JPG named exactly `og-preview-image.jpg` to the child's Assets; it shadows the parent's. At least the site logo on the brand background; better, logo, site name, one line and a brand photo. Keep it evergreen (no dates or seasonal deadlines). The name must stay `.jpg`, because the snippet asks for that name.
+- Add it to every launch checklist and storefront audit next to `favicon.png`. Social platforms cache previews: re-scrape (for example Facebook's Sharing Debugger) or wait after changing it.
+- **On Pages instances `og:title` is the site title, not the page title** (`page.assigns['pages']` is empty there). Not changed on the parent.
+
 **On a collection page the collection image is also the `og:image`.** The collection's image (`theme_category[asset_name]`) is emitted as the page's `og:image`, so an AVIF collection image becomes an AVIF `og:image`, which most link-preview crawlers do not show. Use JPG or WebP for the image of any collection that will be shared on social media. Template-level. *Verified by reading the live head, 2026-10-10.*
 
 **Sitewide fonts or head tags on a child go in `integrations/custom-links`.** The parent snippet is empty and renders in the head of every page. Override it on the child and put the Google Fonts `<link>` (or any other head tag) there. Do not load fonts inside one page snippet: a font loaded only in `website/homepage` leaves every other page on system fonts. Template-level (Shopper 24). *Verified live on home, about, shop, a Pages instance and contact, 2026-10-12.*
@@ -734,7 +745,9 @@ Key elements in order:
 
 All pages live at `/site/<url>`.
 
-**Account:** `account`, `account-address`, `account-address-edit`, `account-address-new`, `account-carts`, `account-galleries`, `account-galleries/<gallery>`, `account-orders`, `account-orders/details`, `account-personal-calendars`, `account-personal-dates`, `account-personal-info`, `account-saved-projects`
+**Account:** `account`, `account-address`, `account-address-edit`, `account-address-new`, `account-carts`, `account-galleries`, `account-galleries/gallery?gallery=<id>`, `account-orders`, `account-orders/details`, `account-personal-calendars`, `account-personal-dates`, `account-personal-info`, `account-saved-projects`
+
+The account gallery page is `/site/account-galleries/gallery?gallery=<id>` (it redirects to `/site/account/galleries/gallery?gallery=<id>`); `/site/account-galleries/<id>` is 404. *Verified by query on the headline demo site, 2026-11-06.*
 
 **Commerce:** `cart`, `checkout`, `checkout2`, `checkout-order`, `checkout-print`, `confirm`, `thank-you`, `payment_success`, `payment_failed`, `payment-link`, `draft-order/<order_id>`, `group_order_success`, `add-to-cart`
 
@@ -813,6 +826,7 @@ Template-level (Shopper 24). *Verified by reading source, shopper24 backup 2026-
 A Shopper page that displays an image for every top-level collection, giving
 shoppers a single visual entry point to all categories. Addresses the visual
 navigation gap when a store has many top-level collections. Live as of mid 2026.
+**Collection `custom.unpublished` hides the collection's Shop All tile only;** the collection page still opens by direct link. Unpublishing every design in a collection makes `/site/shop/<path>` show "Coming soon". Template-level (Shopper 24). *Verified by query, 2026-11-03.*
 The exact page or snippet name should be confirmed against the live deployment or
 with Matjaz.
 
@@ -853,6 +867,8 @@ with Matjaz.
 Child sites of Shopper cannot create real CMS pages. New pages are
 created by adding instances of the `pages` Custom Type instead.
 
+**Test pages belong on the parent, or behind a snippet switch.** In one test a child site could hold its own CMS Home page, but its other CMS pages returned 404 (Pages Custom Type instances are unaffected). Put test pages on the parent, or put test code behind a snippet switch the child overrides. *Verified by test on a test site, 2026-10-29.*
+
 **Navigation path:** Main Admin → Website tab → Custom Types → Pages
 
 Create a new instance with these field values:
@@ -880,6 +896,7 @@ Constraints:
   same path — always use a path that has no real page equivalent
 - **A collection landing route can already hold the path.** `/site/photo-prints` answered 200 with the prints collection landing page (rendered by `product/product-details-prints`) on a child site that had no Pages instance on that path. So `/site/<path>` can be taken by a collection or built-in page, not only `/site/shop/<path>`. Before choosing a `page_path`, load `/site/<path>` and confirm it returns 404. **Settled for `photo-prints` (2026-10-08):** shopper24 has a real page `pages/photo-prints`, and a real page beats the Pages catch-all, so a Pages instance at `page_path: photo-prints` never renders (verified by reading source, shopper24 backup of 2026-10-07). For other paths, do not find out on a live site. Platform-level routing. *Verified live, 2026-09-25.*
 - **Replacing `/site/photo-prints` on a child.** shopper24 `pages/photo-prints` captures `product/photo-prints-landing` (an empty parent stub, `fallback_content ''`), strips it, and renders it when it is not blank; otherwise it renders the standard `product/product-details-prints`. A child replaces the page by overriding `product/photo-prints-landing` only. Do not fork `product/product-details-prints` on a child: it also renders shop collections that set `collection.custom.print_ux`. Strip a capture before testing `!= blank`, because whitespace-only output is not blank. A paste meant for a child must never go on the parent stub: on 2026-10-08 a child landing pasted into the parent went live on every child for three minutes, so after any parent stub edit, check one other child. A child override edit can take about a minute to reach the cached page; a cache-busted fetch (`?nc=`) shows it first. Template-level (Shopper 24). *Verified by reading source and live, 2026-10-08.*
+- **What the standard `/site/photo-prints` landing reads.** It is the photo prints collection rendered as a landing page, and it reads the collection's `display_name` and `description`, the collection custom fields `starting_at`, `pricing` and `features`, and site assets named `photo-prints*.webp`. With those empty the page is bare: only an ORDER PRINTS button. Fill them as part of any launch. Template-level (Shopper 24). *Verified by live fetch on four child sites, 2026-11-02.*
 - **Nothing stops two instances having the same `page_path`.** Admin accepts a duplicate with no warning, and the storefront renders the **older** instance, so the new content never appears and it looks like caching. To replace a page, edit the existing instance; before pasting, list the instances for that path, and after pasting confirm a marker unique to the new content in the live DOM. *Verified live, 2026-09-22.*
 - Levels 1, 2 and 3 each have their own catch-all page. Each one builds
   `page_path` by joining its own path params with `/`, so a level 3
@@ -895,6 +912,10 @@ Constraints:
   `13_TEMPLATE_BOUNDARIES.md`) and one Service record per page; `service_no_layout`
   renders `service_content` raw, with breadcrumbs still above it. Template-level.
   *Verified by reading source and live, 2026-10-05.*
+  **The services index cards read `service_thumbnail`** (an asset filename) and
+  `service_thumbnail_alt`; a record with no value renders `<img src="">`. The field
+  definitions are per site, so check the site's Service type has both before filling
+  records. *Verified by query on child sites, 2026-11-02.*
 - **`admin_only` on a Pages instance is not access control.** A signed-out fetch of a
   page with `admin_only` on returned 200 and the full `page_content`, including a page that
   loads a custom tool. `admin_only` only adds a `noindex` and keeps the page out of the
@@ -1208,6 +1229,15 @@ The parent `kiosk/style` now carries two blocks for touchscreen checkout, "Kiosk
 
 Template-level (Shopper 24). *Verified live by computed styles and screenshot on a client kiosk, 2026-10-02.*
 
+### Kiosk UI skin: cart and checkout overrides (2026-11-04)
+
+Template-level (Shopper 24 Kiosk UI skin, `body.kiosk-ui`). *Verified on the live URL of a client kiosk, 2026-11-04.*
+
+- **The skin's inline `#checkoutBtn` rule beats `style/custom.css`.** The skin injects `html body.kiosk-ui.kiosk-touchscreen .main.cart #checkoutBtn, html body.kiosk-ui .cart #checkoutBtn {display:block!important}`. It loads after the site CSS with higher specificity, so a child rule such as `.kiosk-touchscreen.kiosk-ui .main.cart #checkoutBtn{display:flex!important}` loses and the button text sits at the top of a tall button. Out-specify it: `html body.kiosk-ui.kiosk-touchscreen .main.cart a#checkoutBtn.btn.btn-primary{display:flex!important;align-items:center!important}`. Candidate parent fix (not made): change the inline skin rule so every Kiosk UI child gets a centered button.
+- **Cart remove link** (`form.px-rm-line > button`, label in `span.d-none.d-md-block`): side padding on the button makes the word overflow past the price column. Use `width:auto;padding:8px 0 8px 12px;white-space:nowrap` so its right edge sits flush with the price.
+- **`body.kiosk-ui` is added by script after inline body scripts run.** A script that checks `document.body.classList.contains('kiosk-ui')` once at load silently does nothing. Check on every pass (a `MutationObserver` on `documentElement`, including the `class` attribute).
+- Kiosk checkout behavior (hidden `cart[location_id]`, single pickup option, signed-out summary copy): `21_SHOPPER_CHECKOUT_POLICY.md` § Kiosk mode.
+
 ---
 
 ## 17. Known Gotchas
@@ -1311,6 +1341,12 @@ if (el.parentNode !== host) { host.appendChild(el); }
 **Cause:** `px-design-preview` draws its image inside a shadow root whose host is `:host { display: contents; }`, and the inner `<img>` has no `part` attribute. A `display: contents` element has no box, so `px-design-preview { filter: ... }` has no visible effect; `px-design-preview::part(img)` matches nothing; `.px-product-gallery img` does not reach into the shadow root.
 **Fix:** put the filter on the parent: `.px-product-gallery .px-item:has(> px-design-preview) { filter: grayscale(1); }`. Scope it to the page with `:has()` (see § 4, `request.path` in `style/custom.css`).
 **Note:** preview only. The print file still goes to production in color, and storefront CSS does not reach the design tool editor (`17_DESIGN_TOOL.md`). *Verified in page on a child site, 2026-10-21* (computed filter on the host with no visual change; the same filter on `.px-item` turned a color test gradient grey).
+**Reading the preview image from script (2026-11-03).** The image is a blob-URL `<img>` inside the shadow root: read it with `el.shadowRoot.querySelector('img')`, not `el.querySelector`. It draws to a canvas without tainting it, so `canvas.toDataURL('image/webp')` works. **Some designs return 403 to a logged-out render**, and their preview stays an empty `<img>` (6 of 19 designs on one client site): capture logged in, or plan stand-ins. Platform-level. *Verified by query, 2026-11-03.*
+
+### Styling the checkout Order Summary rows and thumbnails (2026-11-02)
+Template-level (Shopper 24 checkout). *Verified live on a client site, 2026-11-02.*
+- **Design product thumbnails in the Order Summary are `px-project-preview`, not `<img>`.** The element is `display: contents` with a shadow root, and the inner image carries `part="img"`, so CSS on the element does nothing. Size it with `px-project-preview::part(img){width:48px;height:48px;object-fit:contain}` (the general rule is in `41_IMPLEMENTATION_PATTERNS_UPDATED.md` § `px-project-preview`). Static products use a plain `<img class="img-fluid">`, so style both.
+- **Row structure:** `section.checkout-page .col-md-5 .px-rounded-top > ul.list-group > li.list-group-item`, each a `.row` with `.col-4` (thumbnail) and `.col` holding one `<p class="mb-4 ...">` with the title link, quantity span, `<br>`s and price span. `p{display:contents}` on that paragraph, a flex `.col` and hidden `br` put quantity, price and any appended note on one line without touching the markup. `mb-4` carries `!important` in Bootstrap 4, so margin overrides need `!important` too. On a 9-line cart this cut the list from 1,364 px to 633 px with no sideways scroll at 375 and 1200 px.
 
 ### A theme stylesheet gives `<label>` `display: contents` in page content (2026-10-19)
 **Status:** Confirmed live on experience.pixfizz.com. Template-level.
@@ -1335,6 +1371,8 @@ WebP and JPG product images on collection tiles are served through the CDN thumb
 **The CMS page cache shows in a response header.** `x-cms-cache-hit` reads `false` (miss or cache off) or `partial` (served from cache, about 0.2 s). Two sites returned `false` on every request; another returned `partial` on repeats. Test any site by fetching a page twice and reading `x-cms-cache-hit` and `x-runtime`. Platform-level. *Verified by query, 2026-10-26.* How the cache is enabled per site is not verified (pending confirmation).
 
 **After a snippet write, some pages keep serving the earlier render for a while** (seen minutes after the write). Add a throwaway query string (`?nc=1`) when verifying, and do not report a page as not updated until a cache-busted load has been checked. Platform-level. *Observed live, 2026-10-26.*
+
+**A snippet served as a page can lag on some servers for about two minutes.** After a snippet write was applied and read back, `/site/<snippet>.js` still served the old version from some servers for about 2 minutes, with no HTTP cache involved (`x-cms-cache-hit: false`, `max-age=0`). Before testing, request the served file 10 or more times and wait until every response matches the new version. Platform-level. *Verified by repeated requests, 2026-11-06.*
 
 ### Site search results can link into test or hidden collections (2026-09-30)
 **Status:** Open. Platform-level indexing behavior, mechanism unknown.
@@ -1451,6 +1489,14 @@ reloads, so a bubbling click drives it through its own code path.
 
 Keep external buttons in step with a `MutationObserver` on `data-selected-idx`, which also
 covers the customer swiping or using the arrows.
+
+**`data-selected-idx` changes only after the scroll settles (2026-11-01).** `.px-display` is a
+horizontal strip (`scroll-snap` on x, `scroll-behavior: smooth`). Arrows and thumbnails call
+`scrollTo` on it; `data-selected-idx` and `data-selected-ridx` are set only by an
+`IntersectionObserver` (threshold 0.99) once a slide is fully in view. Anything layered over
+slide 1 must not depend on that observer firing. Site CSS that forces `overflow-x: hidden` on
+`.px-display` (seen on two client sites) also stops customers swiping the strip by touch.
+Template-level. *Verified by reading the live page script, 2026-11-01.*
 
 **The auto-switch pattern (a value carrying a preview-face marker moving the gallery on
 selection) is not verified live** — written and render-tested offline, nothing loaded on a live
@@ -1691,6 +1737,7 @@ Template-level (Shopper 24 parent CSS), so every dark child hits these. The fixe
 | Two-way toggle (`px-toggle`) | Selected label `#191c1d` and a white track, so on dark the selected label vanishes | Restyle the label names, the track and the knob |
 | Photo upload window (`dialog.px-upload-dialog`) | White; its back and close icons are background-image SVGs with a dark fill, so `color` does nothing | `filter: invert(1)` on those icons. The QR code `img` sits in a fixed 180 px box; adding padding needs `box-sizing: border-box` or the bottom is clipped |
 | Image swatches | Two outlines: the parent's ink outline on the hovered `img` plus the selected outline on `span.label-img` | On round swatches use one ring on the span with `border-radius: 50% !important` |
+| New checkout UI (`checkout/ncu-assets` 1.0.1) | Light colors outside its variables: `.pxn-store.pxn-on` background `#fff`, `.pxn-store:hover` `#f8f9fa`, `.pxn-pill` background `#fff`, `--pxn-line` `#dee2e6`; headings inherit the light `--pxn-fg` `#212529` (observed live on a dark client site, 2026-11-03) | Remap the `.pxn` variables and those four rules, scoped `html body .pxn...`. See `21_SHOPPER_CHECKOUT_POLICY.md` § New checkout UI on dark sites |
 | Stripe Payment Element (`checkout/stripe-checkout`) | Mounted with no `appearance`, so Stripe draws its light default (dark labels) inside its own iframe, where site CSS cannot reach (verified by reading source, 2026-10-02) | Not CSS: override `checkout/extra-checkout-code` with a script that calls `stripeElements.update({ appearance: { theme: 'night', ... } })` on the `px-stripe-form` element. See `21_SHOPPER_CHECKOUT_POLICY.md` § Payment Gateway Notes |
 
 **General rule for dark children:** any parent SVG icon whose paths carry no `fill` renders black. When an icon vanishes on dark, check the snippet for `fill="currentColor"` before touching colors.
@@ -1700,6 +1747,16 @@ Template-level (Shopper 24 parent CSS), so every dark child hits these. The fixe
 ## 19. Account v2 (`acv2`) Theming
 
 Applies to any Shopper site running the v2 account area (`admin/checklist/account-v2-*`).
+
+### Switching a site to account v2 (2026-11-06)
+
+Template-level (Shopper 24).
+
+- **The parent `admin/checklist/account-v2` is blank**, so a new child starts on the v1 account pages. *Verified by query on the Shopper 24 parent, 2026-11-06.*
+- **Setting only `account-v2` is not enough.** The sites running v2 set `account-v2` plus every sub-flag (`account-v2-dashboard`, `account-v2-projects`, `account-v2-carts`, `account-v2-orders`, `account-v2-galleries`, `account-v2-dates`, `account-v2-addresses`, `account-v2-info`) to `TRUE`, and `account-v2-dashboard-layout` to `two-col`. Copy that full set when switching a site. *Verified by query on the headline demo site and a client site, 2026-11-06.*
+- **The v1 URLs redirect on a v2 site:** `/site/account-orders` opened `/site/account/orders`. Old menu and email links keep working. *Verified live, 2026-11-06.*
+- **v1 child overrides are not used by v2.** Overrides of `account/navigation`, `account/gallery-*` or `account/personal-info` stop applying once a site is on v2. List the site's overrides before switching and port anything they carried (four client sites had such overrides on 2026-11-06).
+- **Dashboard defects, read 2026-11-06.** The v2 dashboard order status pill handled only the statuses C, S, M, D and P; any other status printed the raw letter (the orders and order-details pages handle all of them). The dashboard and the Saved Projects page used different rules for the edit link (the dashboard tested only `product.custom.add_to_cart`). *Verified by reading source, 2026-11-06.* Whether either has been fixed on the parent since is not verified.
 
 The account area is its own token-driven design system. It does **not** use Bootstrap card or
 list markup; it renders a bespoke `acv2-*` class system from
@@ -2066,6 +2123,12 @@ CRLF and LF values both parse.
   the override. Seen on a child override of `product/details-filter-dual-mode` after the
   client re-saved collections in admin (LF-only): only the first filter line rendered.
   *Verified by query, 2026-10-26.*
+  A second case: a site-level copy of the collection filter snippet, made earlier only to keep
+  filter values in natural rather than alphabetical order, still carried the old line that
+  reads `collection_filters`; it did not split the list, so **no filter showed at all**,
+  including a newly added `design.custom.*` filter. Fix: update that one line from the current
+  parent and keep the custom ordering. **When filters vanish on one site, diff its filter
+  snippet overrides against the parent first.** *Reported on a support ticket, 2026-11-05.*
 - Check from the storefront: view source, find `<!-- FILTERS: ... -->`; or add
   `?<first url_name>=zzzz` (0 cards) and `?<second url_name>=zzzz` (no change means only one
   filter parsed). On a `pdp_layout` page, load it logged out and count the selector blocks.
@@ -2100,6 +2163,17 @@ Anything a script inserted into the filter area does not survive the swap: re-ru
 enhancement afterwards (a `MutationObserver` on `document.body` that looks for an unenhanced
 filter works). Platform-level (CMS bundle). *Verified by reading the live bundle and by query,
 2026-10-15.*
+- **The swap fades the product area for the whole fetch (2026-10-31).** A product page filter
+  radio carries `onchange="Px.CMS.ThemeFilters.updateRadioButton(this, {selectors: ['main', '#product-schema']})"`.
+  While `px-live-fragment-loading` is on, `main` computes to `opacity: 0.5`; where the site also
+  dims `.page-content` inside it, anything in the product area shows at about 25 % until the
+  fetch returns (1.7 to 2.8 s measured on one site). The pathname stays and only the query
+  changes. A custom tool that must stay visible during the swap can set inline
+  `opacity: 1 !important` on its own ancestors up to `main` (inline `!important` beats the class
+  rule) and dim its siblings itself; clean that up on the next mount, because `main` itself is
+  not replaced. A capture-phase `change` listener on `document` runs before the inline
+  `onchange`, so a tool can react to the click before the fetch starts. Platform-level (CMS
+  bundle). *Verified live on a client site, 2026-10-31.* Tool-side detail: `26_CUSTOM_DESIGN_TOOLS.md`.
 - Template-level (`product/details-filter-dual-mode`): the crawler prefetch links
   (`<link rel="prefetch">`) skip each filter's selected value **and** its configured default,
   so they are not a complete list of filter URLs. Build the URL yourself; dropping a child
@@ -2107,7 +2181,53 @@ filter works). Platform-level (CMS bundle). *Verified by reading the live bundle
 
 **The photo prints flow lists one size row per design product**, in collection order
 (`/site/prints?collection=<path>`): a template with a borderless and a bordered design gives
-two rows per size. *Verified by query, 2026-10-14.*
+two rows per size. *Verified by query, 2026-10-14.* More on the prints flow: § 25.
+
+**`collection_pdp_filters` drives the product page filter rows, also without `pdp_layout`
+(2026-10-29 and 2026-10-30).** Template-level (Shopper 24).
+- A collection with `pdp_layout` false still takes its **product page** filter rows from the
+  collection custom field `collection_pdp_filters` (five-field form), while
+  `collection_filters` (three-field) drives the collection page. Designs that share one
+  `url_path` are told apart on the product page by these rows (`?size[]=`). So a choice that is
+  only a collection page filter (for example Orientation) does not appear on the product page
+  until it is added to `collection_pdp_filters`. Example that showed only Size on the product
+  page while the collection page offered Orientation and Size:
+  `Size | size | product.custom.size | | control_type: radio |`.
+  *Verified by query and live page read on a client site, 2026-10-29.*
+- **It is Liquid-rendered on a non-`pdp_layout` collection too.**
+  `{% unless request.params['size'][0] == '4x4' %}Orientation | ... |{% endunless %}` on the
+  second line hid the Orientation row on the 4x4 page and showed it elsewhere. A blank resulting
+  line is harmless.
+- **Rows are dependent.** The second row lists only the values of designs (same `url_path`)
+  that match the first row's choice: Size first, then Orientation, gave Square only on 4x4 and
+  Portrait and Landscape on the others.
+- **Default and fallback.** A row's default applies when the URL has no value; when that
+  default does not exist for the chosen first-row value, the page falls back to the value that
+  does (a landscape-only design opened on Landscape with `Portrait` as the default).
+- Tile order within a row follows the collection's Design Products order (above). To show
+  Portrait first everywhere, order the collection by size, then Portrait before Landscape.
+- Check the product custom fields before filtering on one: on one site every product carried
+  a leftover `orientation` value (an asset filename) while another field held the real
+  Portrait / Landscape / Square.
+  *Liquid, dependency and fallback verified by query on a client site, 2026-10-30.*
+
+**Collection description and features on a `pdp_layout` page (2026-10-29).** Template-level
+(Shopper 24, `product/details-filter-dual-mode`). *Verified live on a client site, 2026-10-29.*
+- The collection description renders as **raw HTML** inside `#description .mb-4`, and a
+  `<script>` in it runs. It sits **above** the variant selectors, so an inline script finds no
+  selectors: run it on `DOMContentLoaded` and again on `px.fragmentsReloaded`.
+- Target `.product-details > .variant-selector` (`:scope >`), not `.variant-selector`: the
+  form below also holds variant-selector blocks (for example edge options on canvas), the last
+  of them below the Add to Cart area.
+- **When the design product has its own description, the product page shows that instead**,
+  so content added to the collection description does not appear. The collection description
+  still feeds the meta description. The collection custom field `features` (the Product
+  Features panel, `#collapseFeatures`) still renders as raw HTML on that page when the product
+  has no `features` of its own, so a script placed there runs with one edit on the collection
+  and none per product. *Verified by reading the live page HTML, 2026-10-29.*
+- Writing the description by script: the admin collection page `/theme_categories/<id>`, the
+  form that contains `theme_category[description]` (`_method` patch); the first form on that
+  page is DELETE (`18_ADMIN_NAVIGATION.md`).
 
 ### 21.2 A free-form arguments string is an opt-in that needs no code and no deploy
 
@@ -2224,6 +2344,10 @@ Template-level (Shopper 24). *Verified by query on a consumer site, 2026-10-26.*
 - Collection `btn_add_to_cart` and `btn_design_tool` off: product pages show Upload photo but no Add to cart.
 - After publishing, load each target collection page logged out and check a product renders; checking the product URL alone misses all three.
 
+### 21.8 Parent CSS must never target a platform component bare (2026-11-03)
+
+Template-level (Shopper 24 parent), so it reaches every child. A crop-screen polish block appended to the parent `custom.css` page used the bare selector `.px-image-adjust-tool` with `!important`. That class is a platform component used in several places: the `px-image-upload` Adjust modal (`.px-image-upload-crop-modal-wrapper .px-image-adjust-tool`), every print tile in the Photo Prints tool (`.px-photo-prints .px-print .px-image-adjust-tool`, sidebar hidden, crop padding 0) and the Photo Prints cropping overlay (`.px-photo-prints .px-cropping-overlay .px-image-adjust-tool`). Tested only in the Adjust modal, it forced the sidebar visible inside every print tile, shrank the crop area from 180 px to 115 px and broke cropping on every child, web and kiosk. Fix: scope every selector to `.px-image-upload-crop-modal-wrapper`. *Reported on a support ticket and fixed, 2026-11-03.* The rules that follow (scope every `px-*` selector, no unscoped `!important`, list every context a class is used in, the parent regression set, one child first) are in `01_CODE_GOVERNANCE_UPDATED.md` § Parent CSS Must Scope Platform Components.
+
 ## 22. SEO Defects Found and Fixed at Parent Level (2026-09)
 
 Recorded as a list because every one of them is **generic** — they were parent-level, so they
@@ -2276,17 +2400,60 @@ Admin > Website Crawls. Template-level, likely on the parent; seen on two child 
 Template-level (Shopper 24) unless marked.
 
 - **Clean product URLs.** The design custom field `url_path` (fallback `url_slug`) makes the collection card link `/site/product/<collection path>/<url_path>`, served by the parent wildcard page `product/:collection-level-1/:url-path`. Works in `collection-filters` and `collection-load-more`. Without it the link is `/site/product/c/<collection>?product=<id>-<slug>&theme=<id>-<slug>`. `url_path` must be unique on the site: clear it on the old design before giving it to a new one. Menu links pointing at the pretty URL then follow without a menu edit. *Verified by query, 2026-10-03 and 2026-10-06.*
-- **Old links follow `url_path`, and the clean URL needs the collection.** Once a design has `url_path`, the old `/site/product/c/<collection>?product=<id>&theme=<id>` link redirects to `/site/product/<collection path>/<url_path>`, so menu and email links keep working, and a `custom_script` tool still mounts and prices there. The clean URL only resolves in a collection the design is published in: the same `url_path` under another collection path, or after the design is unpublished from that collection, returns 404. A tool that opens sibling products by `url_path` needs them published in the same collection as the page. *Verified by query, 2026-10-13 and 2026-10-14.* **The redirect makes an unpublished design hard to check:** a design that is in no collection, reached with `?product=<id>&theme=<id>`, redirects to the clean URL, which 404s. Check it in the admin editor instead (`/v1/editor?sitename=<site>&theme_templates=<design id>`, close without saving). Platform-level. *Verified by query, 2026-10-18.* (`16_PRODUCT_HIERARCHY.md` records the old link still rendering by direct link after a design was unpublished from one collection, 2026-10-13 and 2026-10-14; the two cases differ and are not yet reconciled, pending confirmation.)
+- **Old links follow `url_path`, and the clean URL needs the collection.** Once a design has `url_path`, the old `/site/product/c/<collection>?product=<id>&theme=<id>` link redirects to `/site/product/<collection path>/<url_path>`, so menu and email links keep working, and a `custom_script` tool still mounts and prices there. The clean URL only resolves in a collection the design is published in: the same `url_path` under another collection path, or after the design is unpublished from that collection, returns 404. A tool that opens sibling products by `url_path` needs them published in the same collection as the page. *Verified by query, 2026-10-13 and 2026-10-14.* **The redirect makes an unpublished design hard to check:** a design that is in no collection, reached with `?product=<id>&theme=<id>`, redirects to the clean URL, which 404s. Check it in the admin editor instead (`/v1/editor?sitename=<site>&theme_templates=<design id>`, close without saving). Platform-level. *Verified by query, 2026-10-18.* **The redirect drops every other query parameter.** `/site/product/c/<collection>?product=<id>&theme=<id>&design=...` 302-redirects to the canonical `/site/product/<collection path>/<product code or url_path>` and loses `?design=`, `?start=` and any tool parameter. A deep link that must carry a parameter has to use the canonical path, which keeps the query string. Platform-level. *Verified by query on a client site, 2026-11-02.* (`16_PRODUCT_HIERARCHY.md` records the old link still rendering by direct link after a design was unpublished from one collection, 2026-10-13 and 2026-10-14; the two cases differ and are not yet reconciled, pending confirmation.)
+- **A shared design `url_path` needs the size picker.** One `url_path` can be shared by every size, with `?size[]=<size>` resolved by the site's size picker; on a site without it every size opens the first one, so give each size its own `url_path` there. When setting `url_path` by script, it is not in the static design form's FormData: set it explicitly. *Seen on a lab site, 2026-10-29; not verified by query.*
 - **A blank `url_path` on a design that a menu or landing link targets gives a 404.** The clean URL `/site/product/<collection path>/<slug>` resolves through the design custom field `url_path`; a design with it blank returned 404 where a design with it set returned 200, and setting it fixed the link at once. Install check for any pack or studio: set `url_path` on every design that a link targets and load each URL logged out (200, tool ready). *Verified by query on a child site, 2026-10-22.*
 - **The `theme` parameter is required on the non-clean route.** `/site/product?product=<id>` alone renders no product form (an HTML comment reads "Required parameter missing: design"). A design product page does render under **any** existing collection path, `/site/product/c/<any collection path>?product=<id>-<code>&theme=<design id>`, but without `&theme=` the template options, and any `custom_script` mount, do not render. *Verified by query, 2026-10-14 and 2026-10-16.*
-- **Product page title and H1** come from the design's `meta_title` when set. Without it the wildcard page title is design name + product name (doubled when they match). *Verified by query, 2026-10-03.*
+- **Product page title and H1** come from the design's `meta_title` when set. Without it the wildcard page title is design name + product name (doubled when they match). *Verified by query, 2026-10-03.* Shopper appends the store name to the page title, so a `meta_title` that already ends in `| <store name>` shows the name twice: leave the store name out of `meta_title` (`81_SEO_AND_GEO_REFERENCE.md` Part D). *Verified by query on a client site, 2026-11-03.*
 - **Collection `title_format` / `breadcrumb`** are text fields; `product` makes the breadcrumb's last item the product name. *Verified by query, 2026-10-03.* `title_format` = `both` makes the product page H1 design name + product name on the `/site/product/c/<collection>?product=..&theme=..` route, with no design custom field needed. That suits linked designs whose custom fields live on another site. The document title does not change. *Verified on a live URL, 2026-10-10.*
+- **Product breadcrumb links honor the collection `url_path` (parent changed 2026-11-05).** `product/breadcrumbs` builds Home / top collection / sub-collections / design name, and `product/breadcrumb-schema` mirrors it as JSON-LD. Each collection crumb links to `collection.custom.url_path` as its **full href** when set (for example `/site/stationery`), otherwise to `/site/shop/<path>`. Before 2026-11-05 only the top collection crumb did; since then every sub-collection crumb does too, so set `url_path` on the sub-collections a landing page stands for, or their crumbs fall back to `/site/shop/<path>`. The collection field definition `url_path` (text) must exist on the site (`51_CUSTOM_FIELDS_REFERENCE.md`). **Never set it on a parent collection that holds other products or children**, or every product under it gets a crumb to that one landing page. Verify by reading the crumb hrefs on a live product page. *Verified by reading source and by query on several child sites, 2026-11-03 and 2026-11-05.*
+- **`product/custom-breadcrumb` is not called on product pages.** It is an empty parent hook, but only `collection/collection-filters` calls it (after Home); `product/breadcrumbs` does not. So adding a landing page crumb to product pages today means overriding `product/breadcrumbs`, which forks it from parent changes (two child sites had done so by 2026-11-03). Candidate parent change (not made): call `product/custom-breadcrumb` after Home in `product/breadcrumbs`, as collection pages do, after checking which children already override `product/custom-breadcrumb`. *Verified by reading source on the Shopper 24 parent, 2026-11-03.*
+- **Standard: every multi-page storefront flow keeps a breadcrumb back to the previous page.** A product reached from a landing page shows that landing page in its breadcrumb (Home / Stationery / Notebooks / Botanical). *Standard stated by staff, 2026-11-03.*
 - **Card "from" price.** `collection-load-more` prints "As low as" + product `from_pricing` whenever `from_pricing` is set. `collection-filters` only uses `from_pricing` when `product.price == 0`. Collection `load_more` switches the page to the load-more snippet. `from_pricing` is static: re-check it when the lab changes prices. *Verified by query, 2026-10-03.* (`52_SNIPPET_INVENTORY.md` corrected to match, 2026-10-06.)
 - **Delivery / pickup box** (`product/shipping-available`, "This item can be picked up in our store"): every product page variant (product-details, details-filter, prints, dual-mode) skips it when collection `hide_delivery_options` is ticked. Per collection only; a site with no pickup needs it on every collection. *Verified by query, 2026-10-03.* The snippet reads only `product.custom.shipping_unavailable`, `product.custom.pickup_unavailable` and `product.custom.extra_charge`; it does not look at the site's pickup or delivery settings. The parent callers pass only `product`, so collection fields (for example a collection-level `production_time`) do not reach it unless an override passes them, and an override that calls another snippet (for example a checklist read) must restore `product` afterwards (`50_LIQUID_REFERENCE.md` § snippet). *Verified by reading source, 2026-10-02, and live, 2026-10-14.*
 - **Shop tile image for design products.** `collection/collection-filters` draws a live preview when the design has preview pages, else `design.preview_images`, else `design.image` (the design's preview_img). The product image is not used. Set the design preview image, and give each product its own design when two products share one, or both tiles show the same picture. *Verified by reading source and by query, 2026-10-06.* **Imported designs arrive with neither**, so a design product shows no image anywhere until both are set: the collection tile reads the design's `preview_img` (Admin > design > Choose Asset Image, `print_theme[preview_img]`, an asset name), and the product page gallery renders the design pages ticked **Use as preview** (`set_page_as_preview`, `18_ADMIN_NAVIGATION.md`). Set both before publishing a range. *Verified live on experience.pixfizz.com, 2026-10-19.*
 - **Shop tile image for POD supplier designs.** `collection/collection-filters` skips the live preview when either `design.custom.disable_live_preview_on_shop` or `collection.custom.disable_live_preview_on_shop` is true, then uses `design.preview_images`, then `design.image`. For a POD design the design belongs to the supplier site, so setting `disable_live_preview_on_shop` and `preview_img` on the supplier design fixes the tile on every consumer site at once. An asset uploaded only to the supplier site's Assets resolves as the consumer's tile image (*corrected 2026-10-29:* an earlier note said a same-named asset must also exist in the shopper24 parent's Assets). An empty POD design whose first preview page is set renders as a grey placeholder; fix it at the supplier, not per collection. *Verified by reading source (shopper24) and by query on two consumer sites, 2026-10-28.*
 - **Two products that share one design share one URL:** the page shows the first product and the second is unreachable from the collection card. *Verified by query, 2026-10-05.*
 - **Product `unit_intervals` takes a list:** `100,250,500,1000` gives exactly those quantity choices (custom design tools' quantity chips follow it). Platform-level. *Verified by query, 2026-10-06.*
+
+## 25. Photo Prints Flow (`/site/prints`): Collection Setup Rules
+
+The bulk photo prints flow is `pages/prints`, which renders `product/photo-prints` around the platform component `Px.CMS.PhotoPrintsComponent`. Related entries elsewhere: one size row per design product (§ 21.1), server render cost (§ 17), the collection landing page `/site/photo-prints` (§ 14), the component's script hooks and health check (`41_IMPLEMENTATION_PATTERNS_UPDATED.md` § PhotoPrintsComponent hooks), cart behavior (`20_SHOPPER_CART_RULES.md` § Photo prints).
+
+**Always link `/site/prints?collection=<cut print collection path>`.** `/site/prints` with no `collection` parameter lists nothing. Template-level. *Verified by query on child sites, 2026-11-02.*
+
+**The prints page takes one gallery, not a list of photos.** `product/photo-prints` reads only `request.params.gallery_id` (plus `collection` and `image_sources`); there is no parameter for a list of image ids. *Verified by reading source (Shopper 24 parent snapshot, Aug 2026).* To order prints of a subset: create a gallery, copy the chosen images into it with `POST /upload/image?gallery_id=<new>` (`url` + `name`), open `/site/prints?collection=<path>&gallery_id=<new>`, and delete the gallery afterwards with `DELETE /v1/galleries/<id>.json` (`61_PIXFIZZ_API.md` § 6). *Verified by query on the headline demo site, 2026-11-06.*
+
+**A prints collection takes cut print templates only (2026-11-02).** Never publish a product that is not a cut print (a custom design tool, a custom sized prints tool, a static product, any template without a single image placeholder) into a collection the prints flow uses. The component loads `/v1/themes/<theme id>.json` for every design product in the collection and reads the placeholder image node on the print page (its width and height). A template with no placeholder throws inside the theme load, `loaded` never turns true and the product list stays empty: photos upload, but Popular and All Sizes show no sizes and nothing can be ordered. The customer sees no error. On one client site cut prints could not be ordered for several hours until the stray product was unpublished. Before publishing anything into a collection, check whether it is a prints collection; if it is, stop. Offer custom sizes as a link from the prints page ("Can't find your size?") to the custom size tool, never as a size inside the collection. Health check: `41_IMPLEMENTATION_PATTERNS_UPDATED.md` § PhotoPrintsComponent hooks. Platform-level (photo prints component). *Verified by query on the live page after the fix, 2026-11-02.*
+
+**Sizes are grouped by sub-collection (2026-11-04).** Template-level (`product/photo-prints`) on the platform component. *Verified by reading source (Shopper 24 parent and the live CMS bundle) and live on a client site, 2026-11-04.*
+- `product/photo-prints` passes `design_product_categories`: one entry per sub-collection of the prints collection (`collection.collections`, label `subcollection.name`), then a last entry with label `''` for the design products sitting directly in the parent collection.
+- The component renders each entry as a `<div class="px-category">label</div>` header followed by its `.px-print-size` rows, on the size step and in the bottom bar. A header renders whenever the label is set or there is more than one entry, so with sub-collections the trailing parent entry still emits an empty header. Hide it per site with `.px-photo-prints .px-print-sizes>.px-category:last-child{display:none!important}` (the header holds whitespace, so `:empty` does not match).
+- The heading shows the sub-collection's display name. **Groups come out in alphabetical order of the sub-collection path**, not creation order: name the slugs for the order you want (`photo-prints/35mm-...` before `photo-prints/6x6-...`).
+- **A size published in both a sub-collection and the parent shows twice.** Publish each size into its sub-collection only and remove it from the parent (the collection page's `remove_theme` forms).
+- Each size row shows an info bubble with the design product's `description` when set.
+- Build route: the Publish Products wizard's last step, Create and Tick with `parent_id=<prints collection id>`, creates the sub-collection (display name as typed, path slugged); publish each size into it, then remove the rows from the parent.
+- Use it to group sizes by film format (35mm, half frame, 6x6, 6x7 and so on) or any family, with no code.
+
+**Print options appear per size on Cropping & Options only (2026-11-02).** Platform-level (photo prints component). *Verified by reading the live CMS bundle and the Shopper 24 backup, 2026-11-02.*
+- The flow has two screens: photo selection with the size steppers, then Cropping & Options. A print size product's options (its product variants and template options) render only on Cropping & Options, in the sidebar under "Product Options", one block per size that has prints. Nothing about finish or border can be chosen on the size screen without platform work.
+- Only `multiple_choice` options are listed; a chosen value's triggered children follow. The control is `option.custom.selector` when set, else image buttons when the values have images, radio buttons under 5 values and a dropdown otherwise (`product/photo-prints-option`). Defaults come from `is_default`. **`custom.hidden` is not passed to the component, so a hidden variant still shows here.** Rendering rules for the product page: `22_OPTION_VARIANT_RENDERING.md`.
+- The lab sites checked carry finish (for example lustre / glossy) and border (full bleed / white border) as product variants on each cut print, *Verified by query on two client sites, 2026-11-02.* Order lines carry variant values as `options` key/value pairs (*verified by query on a kiosk order line, 2026-11-02; a cut print line with a border variant not yet checked*). A border can be (a) a variant value that the lab's print driver acts on (page padding), with a borderless print file, or (b) a bordered design per template, which adds a second size row (§ 21.1). Element substitutions for borders are unreliable on this flow (`17_DESIGN_TOOL.md`).
+- Thumbnail size: `.px-thumb-size-selector` with three buttons (`data-size` single, large, small) on both screens, written to `data-thumb-size` on `.px-photo-prints`; defaults from `prints-thumbnails`, `prints-thumbnails-photo` and `prints-thumbnails-crop` (§ 5).
+
+**The flow keeps its state in `sessionStorage`.** Key `photo-prints-session-<session_key>` (`session_key` is `collection.id` in `product/photo-prints`), saved on change and reloaded on page load; removed only by the component's own `removeStateFromSession`. A kiosk reset must clear `sessionStorage`: one that wipes other storage but skips it brings the previous customer's photos back after a reload (`21_SHOPPER_CHECKOUT_POLICY.md` § Kiosk mode). Platform-level. *Verified by reading the live CMS bundle, 2026-11-02.*
+
+**Keep prints orderable only through the flow (2026-11-06).** A prints collection with `print_ux` off renders a normal shop grid at `/site/shop/<collection>`, and every size links to its own product page (`/site/product/c/<collection>?product=...`), so a customer can order a print outside the flow. Standard setup for a prints collection:
+1. Collection custom field `print_ux` = `TRUE`. The shop page then renders `product/product-details-prints`, whose only link is `/site/prints?collection=<path>`.
+2. Website redirects, so direct and old links land in the flow (`50_LIQUID_REFERENCE.md` § Website Redirects):
+   ```
+   [["^/site/product/c/<collection>/?(\\?.*)?$","/site/prints?collection=<collection>"],["^/site/shop/<collection>/?(\\?.*)?$","/site/prints?collection=<collection>"]]
+   ```
+   The `/site/product/c/<collection>` path is per collection, so other collections' product pages are not affected.
+
+Launch check: no `href` to `/site/product/c/<prints collection>` on any storefront page, and that product URL resolves to `/site/prints`. Template-level with site-specific settings. *Verified live on a client site (redirect followed, flow loaded, another collection's product page unaffected), 2026-11-06.*
+
+**Cut print collection cards do not use `product.image`;** they read a template preview or thumbnail value, so setting the product image alone changes nothing. *Not verified (inferred, 2026-11-02; the exact template field is not confirmed).*
 
 ## Changelog
 - 2026-03-14: Added website/homepage snippet pattern and Custom Admin checkbox requirement to Section 13.
@@ -2309,3 +2476,4 @@ Template-level (Shopper 24) unless marked.
 - 2026-10-17: §1 there is no `#modalLogin`; custom modal triggers must target an id the layout renders (launch check). §2 widen the header, not the page, when a child needs a wider frame. §3 hover megamenu needs `data-toggle="dropdown"` on the anchor. §5 new rows `checkout-rush-style`, `pickup-phone-not-required`, `autofill-pickup-phone`; CORRECTED `confirm-with-invoice` (Invoice only for `invoice` users, Pro Portal, Pending unless Auto Confirm). §7 contact page map hooks (`location`, `geo-location`, `geo-map` unread). §9 CORRECTED child `favicon.png` takes over within a minute (inherited-default token check); collection image is the `og:image`; sitewide fonts in `integrations/custom-links`. §14 `page_schema` printed raw; `admin_only` is not access control (noindex, out of sitemap, still renders); new *Page content uses the header's frame* (pattern and 5-width edge check); new Services v2 (gated). §17 strip every item when splitting on a captured newline (checkout payment list fixed 2026-10-13); production time "1 day" prints the collection value. §20 CORRECTED GA4 bridge live on the parent since 2026-10-12 (gtag.js keeps the wrapped push, `ga4-server-side-purchase`, `html.head` overrides excluded); `view-item` is a dataLayer push (no more `gtag is not defined`, duplicate removed). §21.1 three-field facets have no empty state; empty `pdp_layout` filters show no product; asset Description is the tile label; size/orientation product fields for provider products; default size by a second filter; line endings (parent split fixed 2026-10-14, child overrides keep the old split); driving filters from script (`Px.CMS.ThemeFilters`); prints flow one row per design product. §21.2 storefront snippet scope (no caller `collection`, nested call clears params). §24 old links follow `url_path` and the clean URL needs the collection; `theme` parameter required; `title_format` = `both`; delivery box reads product fields only. Source: claude-chat.
 - 2026-10-22: §4 `request.path` in `style/custom.css` is the CSS request (scope with `:has()`). §5 `disable-user-registration` row: hides only the New Customer column, not a gate. §11 old default email bodies print every option, the kit filters them (install check). §14 read a Pages instance back exactly through its export. §17 upload dialog button classes and the proposed (not shipped) `helpers/px-upload-dialog-defaults`; new gotchas: CSS filters on `px-design-preview` go on the parent `.px-item`, `<label>` `display: contents` in page content, CSS radio filters jump to the top. §18.2 Stripe Payment Element row. §20 view-item guard only looks back (override empty when removing the design-now push); `pages/editor-scripts.js` is the dataLayer copy of the CMS add-to-cart trigger and calls `fbq()` unguarded; `ga4-server-side-purchase` works only in gtag mode. §21.1 filter values must match the product custom field values exactly (portrait/landscape vs vertical/horizontal); LF `collection_filters` still seen on a child after the parent fix, Ace keeps the newline mode, CRLF re-post. §24 unpublished design redirect to a 404 clean URL, blank `url_path` 404 install check, imported designs need `preview_img` and Use as preview pages. Source: claude-chat, slack-message.
 - 2026-10-29: §3 mega menu panel rules (nested `.container` is flex, frame padding, lazy images in hidden panels). §4 brand color from `.btn-primary`, not `--primary`. §5 `home-page-login-form` is a whole-site gate (corrected). §10 `add-to-cart` renders in the layout; `project-edit` structure and the `px_mount` full-width rule. §11 email kit logo `email-logo.png` (and § 15 correction). §14 whole-site login gate with the password-page override; product-landing engine (Liquid in config, admin asset URLs 403, frame override, redirects). §17 animated GIF tiles, prints page server cost, `x-cms-cache-hit`, cache after snippet writes. §21.1 child override audit. New §21.7 POD-published products in empty collections. §24 supplier design tile image (corrected). Source: claude-chat.
+- 2026-11-09: §4 button tokens also color the upload window button (contrast check). §5 account v2 checklist rows. §7 Terms and Shipping company name is `website.title`. §10 account gallery URL. §12 collection `unpublished` hides the Shop All tile only. §14 test pages belong on the parent. §17 a snippet served as a page can lag about two minutes. §24 a shared design `url_path` needs the size picker. §25 the prints page takes one `gallery_id`. §9 every child needs its own `og-preview-image.jpg`; `og:title` on Pages is the site title. §14 what the `/site/photo-prints` landing reads; services index cards need `service_thumbnail`. §16 Kiosk UI skin: `#checkoutBtn` specificity, remove link, late `kiosk-ui` class. §17 reading the `px-design-preview` image and logged-out 403s; new *Styling the checkout Order Summary rows and thumbnails*; gallery `data-selected-idx` set by an IntersectionObserver. §18.2 new checkout UI (`ncu-assets`) row. New §19 *Switching a site to account v2* (sub-flags, v1 redirects, v1 overrides ignored, dashboard defects). §21.1 second child-override case (diff filter overrides first); the filter swap fades the product area and how a tool stays visible; `collection_pdp_filters` drives product page rows without `pdp_layout` (Liquid, dependent rows, fallback); collection description and features on a `pdp_layout` page. New §21.8 parent CSS must never target a platform component bare. §24 the `product/c` redirect drops query parameters; breadcrumbs honor collection `url_path` on every crumb, `product/custom-breadcrumb` not called on product pages, breadcrumb standard; store name appended to `meta_title`. New §25 photo prints flow (link with `collection`, cut print templates only, sub-collection groups, options per size on Cropping & Options, `sessionStorage` state, prints only through the flow). Source: claude-chat, support-ticket.

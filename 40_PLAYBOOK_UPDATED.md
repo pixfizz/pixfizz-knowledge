@@ -933,6 +933,22 @@ A homepage section, landing page or tool that looks right on the demo site can l
 
 ---
 
+## Phones Show the Tablet Layout: a `:has()` Rule Outweighs the Later Phone Rule
+
+`:has(...)` adds the specificity of its argument to the selector. A tablet column rule written as `.grid-wrap .grid.grid:has(>:nth-child(2))` beat a later phone rule `.grid-wrap .grid.grid` inside a narrower media query, so phones showed two columns instead of one: source order only decides between equal weights. Template-level (any Shopper page CSS). *Verified live on a client site at 375 px, 2026-10-29.*
+
+**Fix:** give the phone rule at least the same weight (for example `.grid-wrap .grid.grid.grid:has(>*)`) and keep it last. **Check:** after any column rule that uses `:has()`, measure the card widths at 375 px on the live page. Related: *A Component Looks Wrong on One Site Only* above.
+
+---
+
+## A Product Is Missing From Storefront Search: Check the Website Crawl
+
+The storefront search was reimplemented in November 2026 for performance and now reads the product feed that the **daily website crawl** generates (Admin → website crawls, `admin/website_crawls`). A product the crawler did not reach is missing from search, and a new product appears in search only after the next daily crawl. A cause found: product links whose `href` started with whitespace were marked invalid and not crawled, although browsers ignore the whitespace; the crawler now ignores it too (fixed 2026-11-04). Platform-level. *Stated by the core developer on a support ticket, 2026-11-04.*
+
+**Check:** open the latest website crawl and look for the product's URL. Not there → find why the crawler cannot reach it (no link to it from a crawled page, an invalid link) before touching search settings. Just published → wait for the next daily crawl. Admin location: `18_ADMIN_NAVIGATION.md`.
+
+---
+
 ## Before Any Test Order on a Live Site, Check Whether Orders Auto-Confirm
 
 When the website setting `auto_confirm_orders` is on, an order is confirmed at creation and fulfillment is queued at once, so an API fulfillment can send the job to the print partner within seconds. There is no Pending window in which to cancel. Behavior: `32_ORDER_LIFECYCLE.md` § Order Lifecycle Statuses / `auto_confirm_orders`. *Verified by reading an order history on a live site, 2026-10-20* (a test order reached the partner's live production system and had to be cancelled by the partner).
@@ -961,3 +977,4 @@ When the website setting `auto_confirm_orders` is on, an order is confirmed at c
 - 2026-10-06 (later): Added Slow Previews (heavy PNGs in options or uploads, convert to JPEG or WebP) and Template Output Set to JPEG (text cannot print 1c black; regenerate first on a corrupt-image preflight error). Source: gmail.
 - 2026-10-17: `style onload`: an auto-submit inside `section.checkout-page` can fire twice; cap attempts per cart. Production File Regeneration: a production file can be rendered from the admin project page without an order. Stale page cache: a product attribute save does not clear every design page's bare URL; save the design to refresh. Source: claude-chat, fireflies-call.
 - 2026-10-22: Added Stripe: Payment Form Unreadable on a Dark Site (no `appearance` on the Payment Element, per-site fix through `checkout/extra-checkout-code`). Added Edits to a Page Do Nothing (a layout with no `page.content`; rendering rule inferred; audit check). Added A Component Looks Wrong on One Site Only (site `custom.css` leaking into embeds: heading colors and generic classes, high-specificity link colors, `img:hover` transforms; delivery checks). Added the check for `auto_confirm_orders` before any test order on a live site. Source: claude-chat.
+- 2026-11-09: Added Phones Show the Tablet Layout (`:has()` adds its argument's specificity). Added A Product Is Missing From Storefront Search (search reads the daily crawl's product feed; leading-whitespace links fixed 2026-11-04). Source: claude-chat, support-ticket.

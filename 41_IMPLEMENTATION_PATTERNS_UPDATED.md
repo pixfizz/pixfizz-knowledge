@@ -3,7 +3,7 @@
 **Authority Scope:** Reusable architectural patterns for Pixfizz
 storefronts.
 
-*Last updated: 2026-10-22*
+*Last updated: 2026-11-09*
 
 ------------------------------------------------------------------------
 
@@ -253,6 +253,12 @@ font/asset — and nothing else. Worth a pre-handover check.
   upscaled by the browser on retina displays and looks soft. Set
   `canvas.width = cssW * dpr` and `ctx.setTransform(dpr,0,0,dpr,0,0)`;
   resizing a canvas resets its transform, so reapply each frame.
+- **A WebGL canvas needs an explicit CSS size.** `position: fixed; inset: 0`
+  alone does not size a `<canvas>`; give it `width: 100%; height: 100%` (or
+  explicit px), size the drawing buffer from the canvas (`clientWidth` /
+  `clientHeight`), not the window, and resize from a `ResizeObserver`. Test at
+  device scale factor 2. Full text: `27_LIVE_FINISH_AND_3D_PREVIEWS.md` § 6.
+  Browser behavior. *Found on a prototype, 2026-11-08; not verified by query.*
 - **`form.requestSubmit()` vs `form.submit()`.** To add to cart from a custom
   UI, prefer clicking the page's real Add-to-Cart control. As a fallback,
   `form.requestSubmit()` fires the form's own handlers and native validation;
@@ -778,6 +784,27 @@ collection per print size gives each size its own isolated session; a per-collec
 and a total minimum are then the same number. A supported way to model per-size minimums
 without per-size logic.
 
+**More component facts (bundles of 2026-10-29 and 2026-11-04).** *Verified by reading the live
+CMS bundle, 2026-11-02 and 2026-11-04, unless marked.*
+
+- **Health check on a live prints page.** In the console, `window.photo_prints.loaded` must be
+  `true`; iterate `window.photo_prints.state.theme_store`, and any `null` value is a template that
+  failed to load. The component loads `/v1/themes/<theme id>.json` for every design product in
+  the collection and reads the placeholder image node of the print page; a template without one
+  throws inside the theme load, `loaded` stays false and no sizes show. So **only cut print
+  templates go into a prints collection** (`50_SHOPPER_TEMPLATE_REFERENCE.md` § 25). *Verified
+  by query on a live page, 2026-11-02.*
+- **State persistence.** The flow saves its state to `sessionStorage` under
+  `photo-prints-session-<session_key>` on every change and reloads it on page load; only the
+  component's `removeStateFromSession` removes it. On Full Pixfizz `product/photo-prints` sets
+  `session_key` to `collection.id`. A kiosk reset that does not clear `sessionStorage` brings the
+  previous customer's photos back (`21_SHOPPER_CHECKOUT_POLICY.md` § Kiosk mode).
+- **Grouping.** `printProductsByCategory` renders the `design_product_categories` passed by
+  `product/photo-prints` (one entry per sub-collection plus a trailing unlabeled entry) as
+  `.px-category` headers.
+- **Options.** `optionsForDisplay` and `hasOptionsForSize` drive the per-size option blocks on
+  the Cropping & Options screen only; the size screen has no option slot.
+
 # A Closing `</style>` Inside an Inlined CSS Snippet Breaks the Page
 
 Some snippets carry their own CSS in a companion snippet inlined by the markup
@@ -1184,3 +1211,4 @@ A canvas styled `width:100%` with a `max-height` and `object-fit: contain` is le
 - 2026-10-06 (later): Qualified the `px.fragmentsReloaded` note: not enough for checkout re-injection, but the right hook for a product switch on the product form. Source: gmail (core developer, 2025).
 - 2026-10-22: Added Scripted Admin Writes: select an admin form by a field it must contain, require `_method` patch or put, build FormData field by field, keep a restore copy (a Pages instance deleted by an action-URL match), pointing to 18 for the per-page fields. Source: claude-chat.
 - 2026-10-29: Added hit tests on a canvas with `object-fit: contain` (use the drawn rectangle, not the element box). Source: claude-chat.
+- 2026-11-09: Canvas and Form Patterns: a WebGL canvas needs an explicit CSS size (measure the canvas, ResizeObserver). PhotoPrintsComponent hooks: health check (`loaded`, `state.theme_store`) and why a non-cut-print template empties the flow, `sessionStorage` state key, sub-collection grouping, per-size options only on Cropping & Options. Source: claude-chat.

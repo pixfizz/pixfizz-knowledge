@@ -148,6 +148,10 @@ one image** — for example on a selector that only matches when a second item i
 single-image galleries keep the clean look. An unscoped override puts dead arrows on every
 one-image product on the site.
 
+### A preview over the product gallery can drop the thumbnail column on a phone
+
+The Shopper product gallery's thumbnail column (`px-navigation-wrapper`, `data-navigation-position="left"`) takes about a third of the width on a phone. A preview that sits over slide 1 (Live Finish, a 3D tool preview) can hide that column under 768 px and give the stage the full width; keep `.px-arrow` at `opacity: 1`, because a phone has no hover (see the arrows rule above). Template-level (Shopper). *Shipped in a preview tool release, 2026-10-29; not verified by query.*
+
 ### A visually hidden radio must use `opacity: 0`, never `display: none`
 
 **Verified live.** A radio styled away with `display: none` cannot receive focus, so the browser
@@ -300,3 +304,4 @@ Honest list, so the next person does not assume coverage that is not here.
 - 2026-09-29: IPad design tool known issues (move, flip, filters). Source: fireflies-call.
 - 2026-10-17: § 4a draw small icons in fixed-size buttons as inline SVG, not text glyphs (off center on iPhone). Source: claude-chat.
 - 2026-10-22: § 4b iPad QR code known issue marked fixed (real-iPad test 21 Oct; CORRECTED), shapes, flip, filters and image controls still open; phones have no add-QR control. Source: claude-chat.
+- 2026-11-09: § 4a a preview over the product gallery can drop the thumbnail column on a phone. Source: claude-chat.

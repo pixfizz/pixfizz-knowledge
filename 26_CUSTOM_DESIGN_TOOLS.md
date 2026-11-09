@@ -109,6 +109,18 @@ numbers as the website. Decided by Pixfizz, 2026-10-13.
   formulas, which OrderHub cannot evaluate. The three pricing types side by side are in
   `30_PRICING_ENGINE.md`. Shopper standard. *Stated in the tool build, 2026-10-22; OrderHub
   repricing not verified here.*
+  **Engine version 2 (metric cards).** From `pricing-area.js` version 2 (Custom Sized Prints
+  0.5.0) an `area` card can use `sq_cm` or `sq_m`, but only with `"engine": 2`; a version 1
+  copy of the engine (OrderHub, POS) then refuses the card (reason `engine`) instead of reading
+  square-meter rates as square inches, and a metric unit on a card without `"engine": 2` is
+  refused as `bad-engine`. Metric area is measured in mm rounded to the micron, so the website
+  and an order line read back in mm land in the same band. New extra part `lin_m` (per linear
+  meter). Order lines may carry `px_width_mm` / `px_height_mm` instead of `px_width_in` /
+  `px_height_in` (inches win when both are present). An inch card prices exactly as in
+  version 1 (16 cards, 11,600 random selections, 0 differences between the two engine files).
+  The tool side is `cp_size_unit: 'mm'` (28 § Custom Sized Prints). Tool-level. *Not verified
+  (stated in the tool build, 2026-11-03; engine comparison run in the build, not on a live
+  site).*
 
 **One price engine for the tool, OrderHub and the POS: `pricing.js`** (standard agreed with
 OrderHub 2026-10-13 and 2026-10-14; not verified, the first tool on it is still a prototype).
@@ -161,13 +173,13 @@ not exist.
 | Document Uploader | `document-uploader.js` | 1.3.2 on shopper24 (6 Oct) | `du_` | `du_mount` | **Live** on two client sites (go-live 27 Sep; a third site reported, not verified) and on experience.pixfizz.com, test order placed 6 Oct. To be replaced by Uploader 2.0. |
 | Booklet Uploader | `booklet-uploader.js` | 1.5.1 on shopper24 (6 Oct) | `bu_` | `bu_mount` | **Live** on one client site and on experience.pixfizz.com, test order placed 6 Oct. Fork of Document Uploader; to be merged into Uploader 2.0. |
 | Uploader 2.0 (documents, booklets, forms) | one asset replacing the two uploaders | prototype (5 to 6 Oct) | `px_` codes, `tool=uploader` in `px_spec` | reads `du_mount` and `bu_mount` | **Prototype.** Modes `flat`, `booklet`, `forms`. Nothing built on the platform. |
-| Flyer / Brochure (flyer-fold) | `flyer-fold.js` | 0.5.2 on shopper24 (3 Oct); 0.6.0 in progress | `flyer_` / `fld_` args | one mount per template | **Live on one client site** (hidden pages). Not yet proven on a second site (§7). Demo template on experience.pixfizz.com. |
+| Flyer / Brochure (flyer-fold) | `flyer-fold.js` | 0.5.2 on shopper24 (3 Oct); 0.6.0 in progress | `flyer_` / `fld_` args | one mount per template | **Live on one client site** (hidden pages). Not yet proven on a second site (§7). Demo template on experience.pixfizz.com. Successor Flyer / Brochure 1.0.x (`product/flyer-brochure`, `ff_` args, `px_mount`) is documented in 28 § Flyer / Brochure, including the 1.0.x limits (no child variant trees, file carriers not hidden). *Verified by reading source, 2026-11-02.* |
 | Fan Face | `face-fan-designer.js` | delivered 30 Jul 2026 | `facefan_` | `facefan_artwork` | **Not ready.** Head cut needs real AI segmentation to be sellable. Installed on two client sites (29 Sep sweep). |
 | Design Brief (Design Service) | `design-brief.js` | `1.0.0` | `dsn_` | `dsn_mount` | **Unfinished.** Demo install on experience.pixfizz.com. |
 | Film Order Builder | `film-builder.js` | prototype, no version | `pxfb_` | host element `#pxfb` | **In progress** (status of 19 Sep). Rate card in the asset is demo data. |
 | Custom Framing | not recorded | - | - | - | Demo install on experience.pixfizz.com only (29 Sep sweep). |
 | Greeting Card Studio | parent asset on shopper24 | 0.5.x (October 2026) | `gcs_` | Pages page `page_content` block | **Live** on several client sites and experience.pixfizz.com (§7). |
-| Photo Book Studio | parent asset on shopper24 | 3.4.4 (24 Oct) | `pbs-` (`pbs-config`) | not recorded | **Live** on several client sites and experience.pixfizz.com (§7). |
+| Photo Book Studio | parent asset on shopper24 | 3.4.4 (24 Oct); 4.0.1 by 3 Nov (3D hero from the parent mount) | `pbs-` (`pbs-config`) | not recorded | **Live** on several client sites and experience.pixfizz.com (§7). |
 | Wall Design Studio | `wall-design-studio.js` | 0.8.6 on shopper24 (27 Oct) | `wds_` | not recorded | Engine live for a print-on-demand wall tile range (§7). |
 | Wall Designer | not built | prototypes 0.2.1 (metal and acrylic) and 0.3.0 (magnetic wall tiles) | - | - | **Prototype**, 6 Oct. Baseline test template built 26 Sep. Nothing installed. |
 | Board Engraver | not built (`board-engraver`) | prototype 0.0.1 (27 Sep) | `be_` | `be_mount` (proposed) | **Prototype.** Awaiting review. |
@@ -240,24 +252,44 @@ The shared foundation is installed **once** and consumed by every tool: `px-noti
 tool must fall back to a plain banner and log `[<tool>] px-notify.js did not load`
 rather than aborting, and must **never load the shared asset from inside its own boot
 block** — one parse error there takes down the shared layer and points the symptom at
-the wrong file.
+the wrong file. A `px-notify` toast that carries an action ignores `ttl`: it stays until closed, so
+give action toasts a close path and do not rely on `ttl` to clear them. *Seen in a tool build on a
+client site, 2026-11-03; not verified by query.*
 
 `product/px-artwork-place-boot` and the shared px-artwork-place engine are the same
 shape: shared, loaded separately, and every call into them fails open.
 
-**Tool assets: one stem per tool, a new asset per version.** The asset edit screen
+**Tool assets: one fixed-name asset per tool, replaced in place.** The asset edit screen
 (`admin/assets/<id>/edit`) has an Upload field that replaces the file in place, keeps the name
 and gives no warning when the new file is a different tool (`61_PIXFIZZ_API.md` § 13c
 *Assets*). A wrong pick there once replaced one live tool's asset with another tool's file, and
 the product page rendered an empty root with no console error. *Incident verified by query,
-2026-10-14; rules set after it.*
-- Every tool asset name is unique to the tool and versioned (`<tool>-<major>-<minor>-<patch>.js`).
-  Two tools never share a stem.
-- A new version is always a **new** asset, then the mount or page script tag is switched to it.
-  Use Upload on an existing asset only to roll back that same tool.
-- After any asset upload on the parent, load every page that uses a file with that stem and
-  check the served file names the right tool and version, and that the tool root has children
-  (an HTTP 200 is not proof).
+2026-10-14; rules set after it.* *Corrected 2026-11-09: the rule set after that incident was a
+versioned asset name per release (`<tool>-<major>-<minor>-<patch>.js`) and a new asset for
+every version; Pixfizz decided on 2 Nov 2026 to use one fixed-name asset per tool, replaced in
+place, with the checks below kept.* (Matches `17_DESIGN_TOOL.md` on asset replacement.)
+- Every tool has **one** JavaScript asset with a fixed name (`<tool>.js`). A new release
+  replaces that asset in place (Assets, the tool's asset, Upload). No versioned file names and
+  no snippet change to point at a new file. *Decided by Pixfizz, 2026-11-02.*
+- The version lives inside the file (header comment and the tool's version property) and in
+  the changelog; that is how a live check confirms what is running.
+- Two tools never share a name stem.
+- Install steps give the exact asset edit link (`admin/assets/<id>/edit`) read from the admin,
+  plus the asset name, so the right row is replaced.
+- After any asset upload on the parent, fetch the served file and confirm its first line names
+  the right tool and version, then load every page that uses it and check that the tool root
+  has children (an HTTP 200 is not proof).
+- **Upload the new asset before a snippet change that drops an element.** When a release removes
+  an element from the tool's snippet (for example a hidden file input), upload the new asset
+  first: the new asset ignores the missing element, while the old asset breaks on the new
+  snippet. Template-level. *Seen on a tool release, 2026-11-04; not verified by query.*
+- **A designs file format change installs the tool first.** When a new designs (data) file
+  format moves something out of a layer the old tool already draws (a side's fill and
+  background photo moved from `art` to `bg`), the old tool shows the side without it (white
+  text on white). Replace the tool JS first (it reads both formats), then the data file, never
+  the other way round. Check backward compatibility by rendering the new JS with the old data
+  file: it must match the old JS pixel for pixel. Template-level. *Verified by local render on
+  a tool release, 2026-11-03.*
 - Before a demo or webinar, run the link check after the last change, not before it.
 
 ### Open the platform upload dialog standalone
@@ -279,6 +311,23 @@ experience.pixfizz.com, 2026-10-19; Google Photos behavior not verified.*
 
 **A tool opens calm:** at most one sample on load, and only the first step open before the
 customer's first file. *Decided by Pixfizz, 2026-10-19.*
+- **Calm does not hide what the product is.** Before the first upload, step 1 shows one
+  plain-text line naming the key choice that follows, with its range and from-price, read from
+  the site's own products and `price_forecast` and never hard-coded (for example "Sizes 8 x 10
+  to 24 x 36 in, from <price>. You choose yours after you upload."). No controls; hide the line
+  once the customer's files are in. A sample preview says what it shows ("This is a sample at
+  16 x 20 in"). Template-level. *Decided by Pixfizz on a studio review, 2026-11-02.*
+- **A photo studio never requires more than one photo to order.** One photo plus text is a
+  valid product; forcing a second photo sends the customer out of the studio. Layout families
+  that need more photos keep their own minimums, but at least one layout accepts a single
+  photo. Hint copy: "Up to N photos", never "2 to N photos". *Decided by Pixfizz on a studio
+  review, 2026-11-02.*
+- **Every studio ships the designed loader from day one**, at boot (in the server-rendered
+  snippet markup, so it shows before the JS arrives) and on the stage: a product illustration
+  that assembles, a title line, rotating uppercase status lines on a 10 s cycle, and a still
+  frame under reduced motion. Keep the stage loader up at least 1.5 s from page start so it
+  never flashes. Loader class names take the tool's own namespace (the B2B shell already uses
+  `.ff-ld`). *Decided by Pixfizz on a studio review, 2026-11-02.*
 
 - How: `const d = document.createElement('px-upload-dialog'); d.setAttribute('multiple',''); d.setAttribute('sources','local galleries qr'); d.setAttribute('gallery-id', gid); /* button classes and text attributes, below */ document.body.appendChild(d);`
   Listen for `upload-success`, `close` and `cancel`, and remove the element when done.
@@ -332,6 +381,18 @@ customer's first file. *Decided by Pixfizz, 2026-10-19.*
   `integrations/custom-body-scripts`, whose MutationObserver gives any unclassed dialog button
   the Shopper classes and logs a console warning (a safety net only; tested by injection on
   one child site, 2026-10-22).
+- **Contrast in the window is fixed on the site's button tokens.** "This Device" carries
+  `btn-primary`, whose colors are the site snippets `style/color-button-bkg` (background) and
+  `style/color-button-label` (text); hover uses `style/color-button-bkg-hover` and
+  `style/color-button-label-hover`, the border `style/color-button-outline`. A tool must not
+  restyle the window, so a contrast problem there is fixed on these tokens, per site (a child
+  override). Check per site: label on background at least 4.5:1, and hover label on hover
+  background too. A stock white label fails on light brand colors (an orange at 2.05:1 and a
+  green at 3.6:1, with its light hover at 1.7:1, were fixed by a dark label or a darker
+  background). `style/color-primary` drives the pressed state (`.active`) with white text and
+  is not covered by this fix. When bringing a tool onto the upload standard, grep the site's
+  Pages page content for old skins (`gcs-pud`, `cs-pud`, `.px-ud-`) and remove them.
+  Template-level (Shopper 24). *Verified by query on three lab sites, 2026-11-04.*
 - **File types: This Device accepts a fixed list, `SUPPORTED_FILE_TYPES`:** `image/png`,
   `image/jpeg`, `image/webp`, `image/heic`, `image/heif`, `image/tiff`, `application/pdf`
   (`.png .jpg .jpeg .webp .heic .tif .tiff .pdf`). The dialog writes it straight into its file
@@ -367,6 +428,15 @@ customer's first file. *Decided by Pixfizz, 2026-10-19.*
   `upload-progress` and `upload-success` still fire, then the element emits `close` and removes
   itself. A tool can show the photo at once from the File (capture-phase `change`, below) and let
   the upload finish in the background. *Verified by query, 2026-10-14.*
+- **The dialog re-opens itself after a This Device pick.** A tool that closes the window on the
+  capture-phase `change` sees it re-open within about 200 ms: the component calls its own
+  `showModal` to show "Uploading n of m" and closes when the uploads finish (barely visible
+  with one small photo, up until done with several). Do not fight it by closing it again: show
+  the photos at once behind it and **keep the `px-upload-dialog` element in the DOM until every
+  upload has settled**, because the upload continues in that element. With `qr` in `sources`
+  the window also POSTs `/upload/qr_code.json?max_file_size=...` when it opens; count only
+  `/upload/image` requests when testing "one upload per photo". Platform-level. *Verified by
+  query on the headline demo site, cms bundle 20261104082732, 2026-11-04.*
 - **`result.preview` is a 250 px thumbnail** (`.../thumbnail/250/~/<file>`, 250 px on the **long
   edge**); `thumbnails` lists 150, 250, 600, 900 and 1200. Any size works by rewriting the number
   (`/thumbnail/2400/` gave 2400x600 from a 6000x1500 upload). A tool that draws the photo large
@@ -387,7 +457,15 @@ customer's first file. *Decided by Pixfizz, 2026-10-19.*
   while the original PDF stays downloadable at the returned `url`. *Verified by query,
   2026-10-24.*
 - `gallery-id` routes uploads into that gallery; without it, uploads go to a hidden uploads
-  area. Picks from My Galleries return the existing image id and are **not** copied into
+  area. **`gallery-id` is read only when the element connects**, like every other attribute:
+  the component has no `observedAttributes`, so a `gallery-id` set after the window opens is
+  ignored and those uploads land in the shopper's own uploads. Set it before the element is
+  created, or create the project first. *Verified by reading source (cms bundle
+  20261104175503) and by test, 2026-11-05.* **Create the project before the first upload**
+  (at design pick), not in parallel with it: a project made while a guest's first uploads are
+  still running ended up under a different guest once in five runs, and
+  `GET /v1/galleries/<gid>/images.json` then answered 403. Platform-level. *Seen in a studio
+  test build, 2026-11-05; not reproduced on demand.* Picks from My Galleries return the existing image id and are **not** copied into
   `gallery-id`: copy them server-side (`61_PIXFIZZ_API.md`, `POST /upload/image?gallery_id=`).
 - To read EXIF or other local file data, add a capture-phase `change` listener on the dialog
   element; it receives the real File objects.
@@ -409,10 +487,19 @@ customer's first file. *Decided by Pixfizz, 2026-10-19.*
 
 **Upload size limits.** The server accepts up to 150 MB per file on `file_upload` and
 `image_upload` options, and image uploads also stop at 300 megapixels. In the browser
-`px-image-upload` defaults to 50 MB; raise it with `max-size="150mb"`. A tool's own size
+`px-image-upload` defaults to 50 MB; raise it with `max-size="150mb"`. `px-file-upload`
+defaults to `150m` (`DEFAULT_MAX_SIZE`). *Verified by reading source, 2026-11-04.* On a
+standalone `px-upload-dialog`, `max-size` was read in bytes (`52428800` = 50 MB):
+`max-size="50"` rejected every file with "File is too large. Maximum allowed size is 50".
+*Verified on a live tool test, 2026-11-01.* Whether the dialog also accepts a unit suffix
+(`150mb`), as `px-image-upload` passes it on, is pending confirmation. A tool's own size
 setting only governs its storefront check, so it must not exceed the 150 MB server limit, or a
 file passes the tool and then fails the upload. The admin upload is a separate ceiling of
-50 MB (`61_PIXFIZZ_API.md`) that no tool, option or custom field can raise. Platform-level.
+50 MB (`61_PIXFIZZ_API.md` § 13c) that no tool, option or custom field can raise. It is a
+browser-side check in the admin bundle that allows 150 MB when the site's admin config carries
+`large_format`; no admin screen sets that flag. *Verified by reading source (admin bundle
+build 20261029164200), 2026-11-02.* The core developer agreed to raise the admin limit (not
+live, no date; *stated by the core developer on a call, 2026-11-02*). Platform-level.
 *From the core developer (#development, 6 Aug 2026 for the server limits, 16 May 2024 for
 `max-size`); not re-tested by query.*
 
@@ -425,6 +512,24 @@ studio: create the upload project on intent (hover, focus or touch of the add-ph
 and close the dialog under 1 s after the last `upload-success` (the next `upload-start` fires
 in the same tick). To measure a site: time a `no-cors` `fetch` POST of 4 MB from the page
 console to the storefront host and to a CDN speed endpoint. Platform-level (hosting).
+
+**Show local previews at once, decoded off the main thread.** Every tool shows the picked
+photos from the local Files at once and lets the platform window upload in the background;
+only the hand-off waits for the uploads. Measured on the headline demo site with 12 MP JPEGs
+in headless Chromium, 2026-11-04:
+- Decoding every photo at full size on the page at once (`new Image` plus a canvas per photo,
+  all in parallel) took 12.3 s to show 60 photos, and slowed the window's own uploads to
+  18.5 s, because the main thread was busy.
+- `createImageBitmap` (off the main thread), three to six at a time, then a 1600 px JPEG
+  preview: 60 photos showed in 6.6 s and finished uploading in 9.3 s.
+- Waiting for every upload before showing photos ties the tool to the shopper's upload speed:
+  on a 10 Mbit/s upload, 30 photos took 66 to 71 s to appear, against 2.8 s shown from the
+  File at once.
+- Never make the upload window wait for a project to be created (1.8 to 2.4 s of "Getting
+  ready" in one studio).
+
+Template-level (tool code; the shared photo-pick block's `previews()` implements it).
+*Verified by benchmark, 2026-11-04.*
 
 **Upload dialog check before a studio install is done** (decided by Pixfizz, 2026-10-22):
 This Device, My Galleries and the phone QR all show; the buttons carry `btn` classes with
@@ -444,6 +549,16 @@ Platform-level. *Verified by query on experience.pixfizz.com, 2026-10-22.*
 - Fix: remove the host's `file-url` attribute before injecting the file, then wait for it to
   become non-empty. Proven red and green against a content-hash stub (30 s timeout before the
   fix, about 1 s after). Every tool with its own file injection needs the same check.
+- **Scope every part of a selector list to the option.**
+  `document.querySelector('px-option[code="X"] ' + 'px-file-upload, px-image-upload')` is a
+  selector list: only the first part gets the option prefix, and `px-image-upload` alone
+  matches the first one anywhere on the page. A tool that showed its own photo slot (a
+  `px-image-upload` above the file options) pushed the print file into that slot, failed with
+  `inject-failed`, and no photo design could be added to the cart. Build the selector per part:
+  `sel.split(',').map(s => 'px-option[code="' + code + '"] ' + s.trim()).join(', ')`. Any tool
+  that shares the page with a `px-image-upload`, a photo slot or another tool's uploader needs
+  this. Also change the `finish()` step label at every stage, or the error reference names the
+  wrong step. Tool code. *Verified in Chromium on a live lab page, 2026-11-03.*
 - **Edit from cart** (project-edit, § 6): restore from the original file's `file-url` and the
   `px_spec` / notes input values before the first write, then submit with
   `.save-to-cart-button`. *Confirmed in a tool build, 2026-10-22; not verified on a live
@@ -499,6 +614,19 @@ and preview-only extensions are out of scope: they make no production file.
    as `mode`, `fit`, `cover_mode`).
 7. No tool adds a custom field for fulfillment. Everything travels on template options in the
    template export.
+8. **Read the product form before choosing the carrier.** A design product's page posts
+   `form#project_create` to `/v1/books` (hidden `product_id`, `theme_id`, `_cms_form`), so the
+   order is a project of that design and production gets the design render. *Verified by query
+   on a lab site, 2026-11-01.* On a design product, a tool that writes `px_print_file` still
+   creates the project, so the order would also send the design render with an empty photo
+   slot next to the print file, and it needs new file options per template plus a
+   fulfillment template change. The route that keeps production unchanged is the project
+   route used by Pet Studio and Photo Book Studio: create the project on the chosen product's
+   own form (fetched from its product page), upload the photo to the project gallery
+   (`/upload/image?gallery_id=`), place it in the design's photo element in a hidden editor,
+   save (`PUT book[saved]=true`) and `POST /cart/add_print_product`. `px_print_file` stays the
+   route for static products and flat-file tools (Gang Up, Custom Sized Prints, Uploader 2.0).
+   Template-level. *Not verified (decision proposed 2026-11-01, awaiting confirmation).*
 
 **Old codes.** New installs use the `px_` codes from each tool's next release. Sites already
 live keep their old codes (`du_file`, `bu_file`, `sticker_artwork`, `sticker_cutfile`,
@@ -605,6 +733,10 @@ color **and** background of every button and link on the live page and fail any 
 - Drag to turn follows the hand: dragging left turns the object left. With an orbiting camera
   at `eye.x = D*sin(yaw)`, that means `yaw = startYaw - dx * k`. A product with a visible back
   turns all the way round and offers a "See the back" button.
+- **A round product turns like a turntable.** A round product preview (a ball) turns only about
+  the vertical axis: horizontal drag maps to yaw only and the tilt stays fixed. Keep the
+  orientation as one yaw number (Euler pitch and yaw, order `YXZ`) and animate that number,
+  never a free quaternion rotation. See 27 § 3.6. *Decided by Pixfizz, 2026-11-03.*
 - Photo designs always use `px-upload-dialog` (§ Open the platform upload dialog standalone) and
   a real crop with zoom, pan and pinch. A local `<input type=file>` with a single position
   slider is off standard.
@@ -694,6 +826,26 @@ Standing rules for every tool, stated by Alex, 3 and 6 Oct 2026.
   `.product-single:has([data-pxt-takeover]:not([data-pxt-ready]))` with a 4 s `visibility`
   fail-open. Never hide a page whose tool does not set the ready flag. Server response time
   (about 1.8 s on one studio page) still shows the previous page meanwhile; CSS cannot fix that.
+- **Own the page from the first paint: a booting class in the server HTML** (template-level
+  plus tool-level; built and tested, live rollout pending). CSS in a tool's own inline
+  `<style>` sits after the gallery in the body and cannot stop the stock layout's first paint
+  while the tool downloads. Pattern: the product snippet renders the tool root with a booting
+  class (for example `ff-booting`) and the designed loader as its first child; a block at the
+  end of the parent's head-loaded `custom.css` hides the stock product parts with `:has()`
+  while that class is present; the tool (or the snippet's loader script) removes the class
+  once the first proof is drawn; a CSS animation fallback reveals the tool markup after 10 s if
+  no script runs. Hiding rules for stock product parts need `!important`, because Bootstrap
+  utilities such as `.d-flex` carry it. Load a tool's helper libraries in parallel with the
+  tool script and init when both are in, not one after the other. *Verified in a test harness
+  on a live lab product page, 2026-11-02; not yet rolled out.* Complements the `:has` rule in
+  the tool's own style block and the takeover flag standard above.
+- **Show the page's own size first.** A range tool on a product page already has that size's
+  form (`#project_create`); its XML (`/v1/themes/<id>.json`) and price
+  (`/v1/products/<id>/price_forecast.json`) need no collection walk. Walking the range first
+  (`/v1/theme_categories.json` took 2.8 s on one site, each sibling product page about 2 s)
+  cost about 4 s. Read the siblings in the background and show them as waiting tiles (name and
+  outline from the config) so the panel keeps its height. Template-level. *Verified by query
+  and live timing, 2026-11-02: ready 1.7 s after navigation, was 5.7 s.*
 - **Back and Forward repaint the page.** The platform's `cms_bundle.js` (live-fragment filters)
   listens to `popstate`: when the path is unchanged and the query string differs from the one it
   stored at load (or at its own last filter push), it fetches the current URL and morphs the
@@ -707,6 +859,12 @@ Standing rules for every tool, stated by Alex, 3 and 6 Oct 2026.
   by `custom_script`); a tool that must own URL state sets `data-px-no-rerender` on its root,
   its dialogs and any iframes it appends to `body`. Platform-level. *Verified by reading
   `cms_bundle.js` and by query on a live child site, 2026-10-24.*
+- **Two console errors on tool pages that are not tool errors.** When a tool hides the stock
+  gallery, the page's own gallery script throws "Cannot read properties of null (reading
+  'matches')" in `scrollIntoView` (`offsetParent` is null). Some product pages also throw
+  "storeOptionSelectionIntoURL is not defined" on a variant change, with or without the tool.
+  Template-level. *Verified by reading the page source and by test on a live lab page,
+  2026-11-02.*
 - **Where to start is never in doubt.** The first call to action (upload, choose a photo,
   start designing) sits right under the tool heading as the primary button, with one line
   saying exactly what to supply, and is repeated inside the main preview as a card that is
@@ -756,7 +914,11 @@ option validation both apply to everything it renders or leaves behind there.
   of the design with empty placeholders, so a photo-led cover is almost blank white (with and
   without `hide_placeholders=false`). A design-picker tool needs its own tile per design: the
   collection image, or a per-design image map in the mount. Platform-level (storefront API).
-  *Verified by query on 12 designs on a client site, 2026-10-21.*
+  *Verified by query on 12 designs on a client site, 2026-10-21.* On a design that is not
+  photo-led (an ornament or a mug product),
+  `/v1/themes/<design id>/preview.webp?product_id=<product id>&height=600` returned a rendered
+  preview usable as a landing card image; the blank tile comes from the default 150 px size
+  plus empty photo placeholders. *Verified by query, 2026-11-06.*
 - **`/v1/themes/<id>/layouts.json`** returns the design's layouts with the page XML in `data`
   (count `<image` elements for frames) and tags such as "1 Photo" to "6+ Photo". A tool that
   auto-fills a design depends on these; a design with 0 layouts cannot be auto-filled.
@@ -783,9 +945,41 @@ option validation both apply to everything it renders or leaves behind there.
   rendered pages a namespaced class (a short class collided with an existing studio rule and
   squashed every page). Tool-level. *Verified against production PNGs, 2026-10-19.* Calendar
   page rules are in `23_XML_CALENDAR_REFERENCE.md`.
+- **Site fonts come from the products parent.** On a Shopper child, `/v1/fonts.json` lists the
+  fonts of the **products parent**, not the website parent, so a tool's fonts must be installed
+  on the products parent (`61_PIXFIZZ_API.md` § 12). *Verified by query, 2026-11-06.*
+- **A definition with no `unit` attribute is in mm.** A tool that assumes inches misreads such
+  templates by 25.4x. Treat a missing `unit` as mm (`19_XML_TEMPLATE_REFERENCE.md` §
+  `<definition>` Attributes), and read the print size from the first `<set>` that is not
+  `preview="true"` (many lab templates start with a preview set). *Verified by reading live
+  template JSON, 2026-11-03, and site exports, 2026-11-01.*
 - **Design XML can carry `cmyk(c,m,y,k)` colors and placeholder cover photo frames.** A tool
   that renders design XML converts CMYK and does not assume the cover photo is a
   non-placeholder image. *Seen on a client site's designs, 2026-10-21.*
+- **`ctx.filter` does nothing in Safari.** `CanvasRenderingContext2D.filter` (for example
+  `ctx.filter = 'grayscale(100%)'` or `'blur(...)'`) is not supported in Safari on Mac or
+  iPhone. Code guarded with `'filter' in ctx` silently skips it: a Black & White preview stayed
+  in color, and a soft contact shadow drawn with blur showed on iPhone as a hard grey slab that
+  read as a stand. For grayscale or any color effect use the CSS `filter` on the canvas element
+  (works in Safari) or a gray copy made pixel by pixel with `getImageData` (cache it per
+  bitmap); draw soft shapes pixel by pixel or with gradients. Test in Chromium by deleting
+  `CanvasRenderingContext2D.prototype.filter` in an init script before the page loads, and
+  check every canvas or 3D preview on a real iPhone before calling it done. Browser behavior,
+  tool-level. *Reported by a lab on a live tool and fixed in two tool releases, 2026-10-29 and
+  2026-11-03.*
+- **An SVG drawn into a canvas never loads an external URL.** Rasters used by SVG art must be
+  fetched and inlined as `data:` URLs before drawing. One WebP sprite per design, with regions
+  drawn as `<svg viewBox="sx sy sw sh"><use href="#S"/></svg>`, keeps the uploads few (27 files
+  instead of about 240) and the canvas clean for `toBlob`. The same holds for `@font-face`
+  URLs inside such an SVG. Raster art drawn on the canvas as its own layer instead needs
+  `crossOrigin` and a CORS-enabled source, or the canvas taints and the print file export
+  fails (verified by reading a tool's source, 2026-11-02). Tool-level. *Verified by test in
+  Chromium, 2026-11-02; Safari not verified.* Asset URLs themselves are signed per file and per
+  host, so pass a name-to-URL map resolved with `asset_url` in the snippet (`16_PRODUCT_HIERARCHY.md`,
+  `27_LIVE_FINISH_AND_3D_PREVIEWS.md` § 4).
+- **A finished or 3D preview of a die-cut product follows the cut.** Draw shadow, edge and light
+  from the cut outline, not the bounding rectangle, or the cut corners show as dark squares;
+  leaf corners mirror on the back side. Tool-level. *Fixed in a tool release, 2026-11-02.*
 - **pdf.js in a sandboxed page:** set `workerSrc` to a `blob:` URL that `importScripts` the CDN
   worker; a cross-origin worker URL is refused.
 - **Preview customer PDFs with pdf.js 6.2.108 or later.** pdf.js 3.11, 4.10 and 5.4 log
@@ -966,6 +1160,16 @@ Sides, stock, corners and binding stay variants because they carry price, and pr
 is a product-level concern. The mount only says which variant *code* to read, for a
 site that named one differently.
 
+**Per-size defaults live on the variant value Default flag.** A lab's default that differs by
+size (for example mounted on big sizes, print only on small ones) belongs in the variant value
+Default flag on each size product, not in studio config: the design tool path and the studio
+then agree, and nothing new has to travel with the template. In a studio that maps sizes to
+separate products, keep a touched flag per choice: untouched, reset to the new product's
+default on every size change; touched, keep the shopper's value if the new product offers it.
+Without this the first size's default sticks across sizes. The Default flag is set on the
+admin variant value edit page. Template-level (tool code). *Decided by Pixfizz on a client
+call and fixed in a studio build, 2026-11-02 to 2026-11-03.*
+
 ### Every customer choice on a variant: the recall (29 Sep 2026)
 
 Every product that can be sold custom, including through OrderHub and the POS, carries each
@@ -1046,6 +1250,22 @@ has an **Inches | Millimeters** switch. Tool-level. *Stated by Alex, 30 Sep 2026
   live tool reporting `productSeen: "false"` is working only because the fallbacks
   happen to be right.
 - Numbers arrive as strings. `| plus: 0` before any comparison.
+- **An asset URL cannot sit inside a quoted mount argument.** A `{% snippet %}` keyword
+  argument written as a quoted string cannot contain `{{ 'file.pdf' | asset_url }}`: the inner
+  quotes end the string. Capture first and pass the variable:
+  `{%- capture cp_tpl -%}4 x 2 ft={{ 'banner-template-4x2ft.pdf' | asset_url }}{%- endcapture -%}`
+  then `cp_templates: cp_tpl`. Template-level. *Verified by query on a live lab site,
+  2026-11-02 (the tool's data attribute carried the CDN URLs).*
+- **Add a per-site setting by widening an existing argument.** A parent snippet renders one
+  data attribute per known argument (`data-env-flap="{{ gcs_env_flap | escape }}"`), so a
+  brand-new mount argument is invisible to the asset until the shared parent snippet is
+  edited, and that snippet may carry hand edits. When the new setting refines an existing one,
+  widen that argument's values instead (Greeting Card Studio 0.6.14: `gcs_env_flap:
+  'straight:2.25'` beside `'true'` / `'false'`), keep the old values meaning exactly what they
+  did, and log a console error and fall back on anything unknown. The release is then
+  asset-only and configuration still travels in the mount, with no custom field.
+  Template-level. *Verified by reading source (tool build and live parent snippet),
+  2026-11-03.*
 - **A mount that carries a JSON script (a rate card) must be written back with a real
   `</script>`.** The admin edit page embeds an ace-editor field's value as a JS string, and
   only turns `<\/script>` back into `</script>` at runtime. Parsing that string yourself
@@ -1055,6 +1275,10 @@ has an **Inches | Millimeters** switch. Tool-level. *Stated by Alex, 30 Sep 2026
   experience.pixfizz.com).*
 - **Re-read the mount's data attributes when they change, not only when the root node is replaced.** When a Shopper 24 PDP filter swaps to a sibling product whose template also carries a `custom_script` mount, the page keeps the **same root node** and rewrites its `data-*` attributes in place (`root === oldRoot` is true, the values change). A tool that re-initialises only when its root leaves the document keeps the first product's settings until a reload. Keep a signature of the root's `data-*` config attributes and re-run init when it differs. Template-level (Shopper). *Verified by query on a live child PDP, 2026-09-29.* Same mechanism as `50_SHOPPER_TEMPLATE_REFERENCE.md` § 17, *Live `selectors:` re-renders patch the DOM, they do not replace it*.
 - **Filter-switched siblings can share one template, and so one mount.** A Shopper 24 product page can switch between sibling products with a collection filter (a radio such as `name="sport"`, handled by `Px.CMS.ThemeFilters.updateRadioButton`), each value being its own product, all on the same template, plain variant included. The mount runs for every one of them. Anything that must differ per sibling reads the filter field from the page (`[name="<filter>"]:checked`), not `variants[...]`, and falls back to the plain behavior when the field is absent. To see which template page a filter page uses without admin, read the preview request `/v1/themes/<id>/preview.jpg?...&template_name=<page>`. Template-level (Shopper). *Verified by query on a live child product page, 2026-10-16.*
+- **A theme filter that swaps `<main>` needs a clean re-init per new root, and is easy to miss.** A collection size filter (radio `name="size"`, `Px.CMS.ThemeFilters.updateRadioButton` with selectors `['main', '#product-schema']`) swaps `<main>` by AJAX. On one lab page the first switch re-initialised a tool, the second left the new root stuck on its booting class with the new trim in its `data-*` while the tool still held the previous size. Any tool on a theme-filter page must re-init cleanly for every new root, or the size switch must live inside the tool. The filter also renders below the product block (about 5,300 px down on that page), so customers never see it: show the size at the top of the tool or on a landing page before it. Template-level. *Verified by query on a live lab page, 2026-11-02.*
+- **The filter swap fades the product area; a tool can stay visible.** While a filter swap fetches, `px-live-fragment-loading` makes `main` computed `opacity: 0.5` (sites that also dim `.page-content` take it to about 25 %) for the whole fetch, 1.7 to 2.8 s measured on one site. A tool that must stay visible sets inline `opacity: 1 !important` on its own ancestors up to `main` (inline `!important` beats the class rule) and dims its siblings itself; it clears that on its next mount, because `main` is not replaced. A capture-phase `change` listener on `document` runs before the radio's inline `onchange`, so the tool can react before the fetch starts. Platform-level (CMS bundle). *Verified live on a client site, 2026-10-31.* Detail: `50_SHOPPER_TEMPLATE_REFERENCE.md` § 21.1.
+- **A provider template's mount renders on every consumer.** Never hard-code store facts (address, pickup text) in it; read them from the rendering site's snippet inside the mount (`{%- capture x -%}{% snippet 'website/contact/address' %}{%- endcapture -%}`) and pass captured variables as snippet parameters. Detail: `18_ADMIN_NAVIGATION.md` § Template Provider and Template Consumers. *Verified on a provider and a consumer storefront, 2026-11-03.*
+- **A size-picker swap or Back / Forward replaces the page in place and clears the photo option.** No reload: the URL is pushed, the same elements are updated (the tool root keeps its id and gets new `data-*` values), anything a tool inserted is removed, and Shopper clears the photo option. A tool that boots only once ends up dead and the page shows the plain gallery, so every tool remounts on that swap (Live Finish already does). Template-level. *Found in a tool release, 2026-10-29; not verified by query.*
 
 ---
 
@@ -1149,6 +1373,25 @@ title does not print the name twice, set the design `url_path` for the clean pro
 (unique per site: clear it on an old design before giving it to the new one), and take the
 old product out of its collection rather than deleting it.
 
+**An upload product and a design product on one template need a twin template.** Template
+options belong to the template, so a tool mount (`px_mount` `custom_script`) added to a template
+that holds both an "upload your file" product and a "design online" product runs on both, and a
+fulfilled design page goes to production with the upload. Build a separate, non-fulfilled
+upload template instead. Platform-level. *Verified by query (both products share one
+`print_product_id`), 2026-11-02.*
+
+**Tool products from a template provider: Import Template, not Publish Products.** Publishing
+from a template provider copies the basics (name, code, price, description) but no variants
+or custom fields (`16_PRODUCT_HIERARCHY.md` § Publishing Another Site's Template: What the Lab Product Gets), so a tool that prices through product variants (Uploader 2.0
+`px_price`, Flyer / Brochure paper and sides, Business Cards 3.x `bc_*`) arrives unpriceable
+through the wizard. Install it on the consumer site by Import Template from the provider's
+export. Platform-level consequence. *Not re-verified (publish behavior stated 2026-10-14).*
+
+**Names carry no tool version.** Template and product names, codes and descriptions never
+carry a tool version or generation ("Uploader 2", "1.0.3"); versions live in the asset header,
+the release notes and the console ready line. Template name = product name. *Pixfizz
+convention, 2026-11-02.*
+
 ### Self-install from myPixfizz (in progress)
 
 The direction (Alex, 3 and 5 Oct 2026): every Shopper tool is listed in a **Shopper tools**
@@ -1214,6 +1457,15 @@ uploaded file, ahead of `static_preview` and `px-project-preview`. Template-leve
 - **Do not enable Add to cart until the preview file is attached.** A preview rendered on an
   animation frame does not render in a hidden tab, so a customer who switches tab during
   upload reaches the cart with no thumbnail (seen on the uploaders, 6 Oct).
+- **A tool that rotates its art onto the template page needs its own `_preview`.** A
+  project-route tool that turns a horizontal design 90 degrees onto a vertical page gets a
+  sideways `px-project-preview` on cart and order pages, and the cart Edit link opens the
+  editor with the art turned. Store the upright art in a hidden File Upload option
+  `<prefix>_preview` as `db:<id>` (`PUT /v1/books/<id>.json`), and set `hide_edit_in_cart`
+  until the tool can reopen its own line. **`PUT /v1/books/<id>.json` accepts and echoes a
+  template option the design does not have** (the cart ignores it), so the PUT response cannot
+  tell a tool its `_preview` option is missing: check the template's options list. *Verified
+  live on a client site, 2026-11-03.* See `20_SHOPPER_CART_RULES.md`.
 - Guard image properties with `!= blank`, not bare truthiness: an empty string is truthy in
   Liquid, so `{% if design.image %}` on an empty value passes a blank into `asset_url`.
 
@@ -1241,6 +1493,30 @@ file and opens on its summary. Detect project-edit as: no `#project_create` and 
 `form#project_update`. Read the saved values before the first write, then write with exact
 `book[options][<code>]` names first, suffix match second, never `custom[...]`. Custom-tool
 standard. *Verified by query on a live project, 2026-10-13.*
+
+### Hand-off through a project: details
+
+- **Skip the definition's preview page in a hand-off.** A template whose XML definition has a
+  `<page type="preview">` set exposes that preview page first in `editor.store.project.pages`,
+  so a hand-off that takes "the first page with an image element" fills the preview page, not
+  the print page. Pick the page whose name equals the XML page type you print (for example
+  `artboard`), else any page not named `preview`, and set the image on that page's element with
+  `el.update({ id, placeholder: false })`. `project.autofill()` fills the preview page's
+  element too. Template-level (editor store). *Verified by query on a client site, 2026-11-02.*
+  On the same kind of product, an option value priced with `extra_pages` doubles in the cart
+  (`extra_pages` is 1 there): see `30_PRICING_ENGINE.md` § Never use `extra_pages` in an option
+  value price on a single-page product with a preview page.
+
+- **A calendar project keeps its start date and holidays.** A calendar project
+  (`POST /v1/books.json` for a calendar product) keeps the `build_parameters.start_date` and
+  holiday calendars it was created with. `PUT /v1/books/<id>.json` with
+  `book[start_year]` / `[start_month]` / `[start_day]` or `book[calendars][]` answers 200 and
+  changes nothing. A changed start or holiday set needs a new project. Platform-level.
+  *Verified by query, 2026-11-05.*
+- **Add to cart without downloading the cart page.** `fetch('/cart/add_print_product', ...)`
+  follows the redirect to `/site/cart` and downloads the whole cart page for nothing. Pass
+  `redirect: 'manual'` and accept `r.type === 'opaqueredirect'` as success. Tool code. *Found in
+  a studio speed round, 2026-11-05; not verified by query.*
 
 ---
 
@@ -1714,6 +1990,14 @@ asset on shopper24, 3.4.x in October 2026.
   bounds check is not enough).
 - 3.3.0 got stuck on its snippet loader after Back, because of the platform `popstate` morph
   (§ 3 Page layout, Back and Forward repaint the page).
+- **Collections settings live in `#pbs-config` from 3.4.0.** Collections-mode params passed in
+  the snippet call are silently ignored and the studio fails with "The studio could not load".
+  Details and the key list: 28 § Photo Book Studio. *Verified by query on a live client site,
+  2026-11-03.*
+- **One landing hero, the 3D one.** The CSS hero animation is retired; from 4.0.1 the 3D hero's
+  images and three.js come from the parent mount, so no page block is needed. Install check:
+  console `[photo-book-studio] hero {mode: 3d}`. 28 § Photo Book Studio. *Decided by Pixfizz,
+  2026-11-03.*
 
 ### Wall Design Studio: live engine
 
@@ -1753,6 +2037,13 @@ calculated, production gets one platform-rendered file per panel. **Not verified
 import accepts a blank-id product row, that `preview="true"` behaves, and that `<ipage>` with
 zoom 0 on a non-square wall crops as calculated. Open with the core developer: whether a
 custom tool can write the photo and its placement onto the wall page itself.
+- *Resolved 2026-11-09:* `<ipage>` with zoom 0 on a non-square wall page crops as calculated:
+  the wall covers the box by height at 1:1 and the `left` formula selects each panel, in order;
+  set order editable wall (`fulfillment="false" count="false"`), panels (`editor="false"`,
+  distinct `output-name`), preview, imported with min and max pages 3. *Verified by render on a
+  test template, 2026-11-01.* Formulas: `19_XML_TEMPLATE_REFERENCE.md` § `<ipage> zoom` is
+  derived. Still not verified: whether production drops an uneditable placeholder shape inside
+  an `<ipage>`.
 
 Open before platform work: the cart model (one line per piece, or one wall line with several
 print files), print window per piece against the supplier's spec, hanging gap. Nothing
@@ -1882,3 +2173,4 @@ once.
 - 2026-10-22: § 1 books counted in spreads price in system pages; `px_rates` mode `area` with generic `px_` size codes and counter-only products. § 2 and § 7 Custom Sized Prints moved to in build, priced by `px_rates` (CORRECTED: rate per square inch was on variants). § 3 upload dialog CORRECTED to mandatory for every tool taking a customer file, a tool opens calm, `sources` required, no button look of its own, classes read once at connect, canonical Shopper class set and repo check, `SUPPORTED_FILE_TYPES` and no `accept`, print wording for the five photo-worded attributes, `url` same-host and untainted, feeding files in a test, studio install upload dialog check; new § attaching a file (`file-url` is content addressed, edit-from-cart restore); defend against site `custom.css` (link overrides, generic classes, `img:hover` zoom, contrast check); wording and stage standards (resolution only under 100 dpi, quiet drags, no panel scroll jump, admin terms and collapsed variant trees); page layout (CSS-only takeover with `:has()`, measure the first heading inside the tool); new § the product form refuses silently (`step="any"`, `checkValidity`, retired multiple choice options), § tools that show a design gallery (`preview.webp` tiles, `layouts.json`, `template` nil in the mount), § drawing a design in the browser, § design first from the live tool, § testing a tool (host CSS), § generated template art. § 4 `template` is nil in the mount scope; a tool on a Pages page takes a `page_content` JSON block (parent-only asset resolves from a child). § 5 TemplateOptionType definitions check, price gate covers tool prices, `hidden` is not `hide_from_cart`. § 8 dpi from XML by hand, upload dialog check. Source: claude-chat.
 - 2026-10-29: § 2 registry rows for Greeting Card Studio, Photo Book Studio, Wall Design Studio. § 3 upload: `Filedata` field and copy-by-URL on `/upload/image` (also `data`), PDF raster, upload size limits (150 MB and 300 MP server, `px-image-upload` 50 MB default, `max-size`), slow storefront upload throughput and tool-side waits; strings for upload pool ids, shared logo objects; frame with `.container-fluid` and header padding; sticky under `overflow-x: hidden` (use `clip`), `#kiosk-sticky-bar`, takeover flag standard; platform `popstate` morph and `data-px-no-rerender`; muted ink guard and contrast sweep; pdf.js 6.2.108 for customer PDFs and loading it from a style-onload boot. Generated template art: owner decision allows it (A5). § 7 Publication Upload `pu_max_file_mb` default above the server limit; Business Cards 3.0.0 corners label, sides publishing, `update_flags` 500; new Greeting Card Studio, Photo Book Studio and Wall Design Studio entries. Source: claude-chat.
 - 2026-11-03: § 4 pointer to the new 28_TOOL_SETTINGS_REFERENCE.md (customer-facing settings per tool). Source: claude-chat.
+- 2026-11-09: CORRECTED § 3 tool assets: one fixed-name asset per tool, replaced in place (was a versioned asset per release). § 3: upload the new asset before a snippet change that drops an element; designs file format change installs the tool first; fulfillment contract item 8, a tool on a design product hands off through the project (pending confirmation); upload dialog re-opens itself for progress, `gallery-id` read only on connect, create the project before the first upload, button contrast on the site button tokens; local previews off the main thread (benchmark); scope every part of a selector list to the option; calm studios still name the size range and from-price, one-photo minimum, designed loader; booting class from the first paint, show the page's own size first, two page console errors that are not tool errors; round products turn like a turntable; Safari ignores `ctx.filter`, SVG in canvas never loads external URLs, die-cut previews follow the cut. § 1 `pricing-area.js` engine 2 metric cards. § 4 per-size defaults on the variant value Default flag; asset URLs in a mount via capture; widen an existing mount argument; theme filter `<main>` swap re-init; size-picker swap clears the photo option. § 5 twin template for upload and design products, tool products by Import Template, no tool version in names. § 6 calendar project PUT changes nothing, add to cart with `redirect: 'manual'`. § 2 / § 7 Photo Book Studio `#pbs-config` from 3.4.0 and the 3D-only hero from 4.0.1; Flyer / Brochure 1.0.x pointer. Also: filter swap fade and keep-visible pattern; provider mount reads store facts from the rendering site; rotated art needs its own `_preview`, books PUT echoes missing options; skip the definition preview page in a hand-off; `px-file-upload` 150m default, `px-upload-dialog` `max-size` in bytes (unit suffix pending), admin 50 MB is a browser check (`large_format`); `preview.webp` with `height` for non-photo designs; fonts from the products parent; missing `unit` means mm; SVG `@font-face` and canvas taint; action toasts ignore `ttl`; Wall Designer `<ipage>` zoom 0 crop resolved. Source: claude-chat.

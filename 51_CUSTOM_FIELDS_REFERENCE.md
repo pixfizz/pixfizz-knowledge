@@ -1,6 +1,6 @@
 # Pixfizz Shopper v2 Custom Fields Master Reference
 
-**Last Updated:** 2026-10-22
+**Last Updated:** 2026-11-09
 
 ---
 
@@ -113,7 +113,7 @@ This reference documents **30 object access patterns** mapping to approximately 
 
 - **Length limits in one place:** text template option or text variant value 1,024 characters; text-type custom field 256 characters (reconfirmed by Alex, 2026-10-06); snippet-type custom field no per-field cap; all custom field data on one object 65,535 bytes. Product `description` 1,024 characters is a separate limit (see Per-Product Archive notes below).
 
-- **Field type can differ by object for the same field name**: the product tab fields `details`, `features` and `production` render as markup at the Collection level but not at the Product level. Tab content authored as HTML belongs on the Collection, not on the individual product export.
+- **Field type can differ by object for the same field name**: the product tab fields `details`, `features` and `production` render as markup at the Collection level but not at the Product level. Tab content authored as HTML belongs on the Collection, not on the individual product export. On a `pdp_layout` product page the collection `features` renders as raw HTML, and a script in it runs, when the product has no `features` of its own; the collection description does the same but is replaced by the product's own description when it has one (`50_SHOPPER_TEMPLATE_REFERENCE.md` § 21.1). *Verified live on a client site, 2026-10-29.*
 
 - **Settings → Custom Fields is now a site-wide definitions page** (announced 2026-09-16) with
 all-or-subset export and import across object types. Use it instead of per-object exports when
@@ -152,7 +152,7 @@ appear" on a new site. Verified by reading source, 9 September 2026.
 
 - **Product booleans can arrive as the string `"false"` too.** A field with no definition on the site (an imported value only) or a field typed as text comes through as the string `"false"`; a field with a real boolean definition is safe. A product custom field declared boolean read back as `"false"` on the demo site (whether that field had a definition there was not recorded, pending confirmation). When the definition cannot be guaranteed, tool JavaScript must test `value === true || value === 'true'`, never truthiness; Liquid needs the same care (`22_OPTION_VARIANT_RENDERING.md` § Unset Booleans Export as the String `'false'`). *Verified live, 2026-10-21.*
 
-- **A boolean custom field cannot store "No".** Posting `false` or `0` to a boolean Order custom field (for example from a `cart_update` radio) stores nothing: the value stays nil, the same as never answering. A boolean records "Yes" but cannot tell "No" from "not chosen". Any required Yes/No choice that must survive as "No" needs a **text** field. The custom field Type cannot be changed after creation (greyed out in admin), so create a new text field. To keep a parent gate that tests the old boolean for nil satisfied, post `cart[custom][<old field>]=true` from a hidden input in the same form. Platform-level. *Verified live on a child site, 2026-10-23.* Whether other object types (product, template option) behave the same on save is not verified.
+- **A boolean custom field cannot store "No".** Posting `false` or `0` to a boolean Order custom field (for example from a `cart_update` radio) stores nothing: the value stays nil, the same as never answering. A boolean records "Yes" but cannot tell "No" from "not chosen". Any required Yes/No choice that must survive as "No" needs a **text** field. The custom field Type cannot be changed after creation (greyed out in admin), so create a new text field. To keep a parent gate that tests the old boolean for nil satisfied, post `cart[custom][<old field>]=true` from a hidden input in the same form. Platform-level. *Verified live on a child site, 2026-10-23.* Whether other object types (product, template option) behave the same on save is not verified. On a **Collection**, saving the admin custom fields form stores every unticked boolean as `false` (`18_ADMIN_NAVIGATION.md`, verified by query, 2026-11-05), so the stored result differs by object or write route; pending confirmation.
 
 - **Product custom fields and pricing formulas are public.** A signed-out GET to `/v1/products.json` on a storefront domain returns every product's full `custom` object and its `price`, which is the Ruby pricing formula source (endpoint detail in `61_PIXFIZZ_API.md`). **Never store secrets, API keys, costs, margins or internal notes in a product custom field or in a pricing formula comment.** Keep them in myPixfizz or in an admin-only system. Platform-level. *Verified by query on a live storefront, 2026-10-20.* Not verified: whether a login-only storefront setting hides the endpoint.
 
@@ -359,7 +359,7 @@ Reserved for platform-level features, production routing, and future functionali
 | btn_design_tool | boolean | Show 'Design Tool' button on PDP |
 | collection_filters | text | Filter configuration, one per line: "Label \| URL \| Attribute" |
 | collection_footer | snippet | Footer content on collection and product pages |
-| collection_pdp_filters | text | Product page-specific filter configuration |
+| collection_pdp_filters | text | Product page filter rows, five-field form ("Label \| URL \| Attribute \| Default \| Args"). Liquid-rendered; drives the product page rows even when pdp_layout is false; rows are dependent. See 50_SHOPPER_TEMPLATE_REFERENCE.md § 21.1 (verified by query, 2026-10-29 and 2026-10-30) |
 | combine_design_static | boolean | Combine design and static products in same listing |
 | contact_label | string | Label for contact section on design-now page |
 | custom_filters | snippet | Custom filter UI rendered alongside standard filters |
@@ -380,7 +380,7 @@ Reserved for platform-level features, production routing, and future functionali
 | load_more | boolean | Enable infinite scroll pagination |
 | meta_description | string | SEO meta description for collection page |
 | meta_title | string | SEO meta title for collection page |
-| options | snippet | 'Options' tab content on product page |
+| options | snippet | 'Options' tab content on product page. The product page Options text falls back to this collection field when the product has no options text of its own (seen on a client site, 2026-11-02; not verified by reading source) |
 | pdp_layout | boolean | Dual-mode product detail page layout |
 | pricing | snippet | 'Pricing' tab content on product page |
 | print_ux | boolean | Special photo prints product detail layout |
@@ -401,6 +401,7 @@ Reserved for platform-level features, production routing, and future functionali
 | sub_collections_position | text | Subcollection render order relative to products on a collection page: ABOVE = before products, blank or BELOW = after products (default). Only applies when show_sub_collections is also enabled. Created on the parent, overridden per child site/collection. |
 | subtitle | string | Subtitle displayed under collection heading |
 | title_format | string | Title display format: 'design', 'both', 'collection', or blank |
+| url_path | text | Full href of this collection's crumb in product breadcrumbs (for example /site/stationery), for top collections and, since 2026-11-05, sub-collections; blank falls back to /site/shop/<path>. Create the definition per site where missing. Never set it on a parent collection that holds other products. See 50_SHOPPER_TEMPLATE_REFERENCE.md § 24 (verified by query, 2026-11-05) |
 | url_path_parameter | string | URL parameter added to product links |
 | wildcard | boolean | Enable wildcard carousel display |
 | wildcard_filter | boolean | Enable wildcard filtering on product page |
@@ -472,6 +473,8 @@ Post is a single CMS object type with context-dependent field naming. Fields are
 | service_thumbnail_alt | text | Alt text for service thumbnail |
 | service_title | text | Service name/title |
 | service_unpublish | boolean | Hide service from listing |
+
+The services index cards read `service_thumbnail` and `service_thumbnail_alt`; a record with no thumbnail renders `<img src="">`. Definitions are per site. *Verified by query on child sites, 2026-11-02.*
 
 #### FAQ Posts (faq_*)
 
@@ -1139,7 +1142,7 @@ each needs a one-object test before being relied on.**
 
 | Object | Field | Seen | Status |
 |---|---|---|---|
-| Collection | `unpublished` | 2026-08-26, in a live collection's `custom` hash | **Unconfirmed** whether the Shopper `/site/shop` index respects it. Not the same as `blog_unpublished` or `service_unpublish`, both of which are listed above. |
+| Collection | `unpublished` | 2026-08-26, in a live collection's `custom` hash | **Partly answered 2026-11-09:** it hides the collection's Shop All tile only; the collection page still opens by direct link (verified by query, 2026-11-03; `50_SHOPPER_TEMPLATE_REFERENCE.md` § 12). Earlier status: unconfirmed whether the Shopper `/site/shop` index respects it. Not the same as `blog_unpublished` or `service_unpublish`, both of which are listed above. |
 
 This one matters because Shopper generates its shop index from **all** collections,
 so a private or corporate collection is publicly listed by default unless something
@@ -1166,3 +1169,4 @@ hides it. Test on one collection before promising it to a client.
 - 2026-10-17: Collection: `collection_footer` renders full width on the product page (outside `.container`), with the child CSS fix. Product: `hide_edit_in_cart` hides the `/site/project-edit` link; set it on custom tool products with no edit path. Source: claude-chat.
 - 2026-10-22: Key Notes: `custom_script` must be a snippet-type Template Option definition or the mount prints as raw text, with the definitions list to check on a child before any tool import; product flags without a boolean definition (or typed as text) arrive as the string `"false"` (test `=== true || === 'true'` when the definition cannot be guaranteed); product custom fields and pricing formulas are publicly readable through `/v1/products.json`, so never store secrets, costs or internal notes there. CORRECTED Product `spreads_as_pages` row: label = (value - 1) x 2, submitted value and pricing are system pages. Source: claude-chat.
 - 2026-10-29: Key Notes: a boolean custom field drops `false` and `0` on save (nil), so a required Yes/No that must keep "No" needs a text field; Type cannot be changed after creation. Source: claude-chat.
+- 2026-11-09: Fields Seen Live: collection `unpublished` hides only the Shop All tile. Key Notes: collection `features` and description run HTML on a `pdp_layout` product page; boolean save differs on a Collection admin form (stores `false`, pending confirmation). Collection: `collection_pdp_filters` row (five fields, Liquid, drives product page rows without `pdp_layout`), `options` falls back from product to collection (not verified by source), new `url_path` row (breadcrumb href). Service Posts: index cards need `service_thumbnail`. Source: claude-chat.
