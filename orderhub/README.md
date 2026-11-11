@@ -40,7 +40,7 @@ Mirror of the help articles inside OrderHub (orderhub.pixfizz.com). Updated auto
 - [PDF Designer Overview](general/pdf-designer-overview.md) (updated 2026-10-09)
 - [Point of Sale Setup - Categories](general/point-of-sale-setup-categories.md) (updated 2026-10-09)
 - [Printing PDF Tickets](general/printing-pdf-tickets.md) (updated 2026-10-09)
-- [Printnode: Automated printing of PDF Tickets](general/printnode-automated-printing-of-pdf-tickets.md) (updated 2026-10-09)
+- [Printnode: Automated printing of PDF Tickets](general/printnode-automated-printing-of-pdf-tickets.md) (updated 2026-11-10)
 - [Processes](general/processes.md) (updated 2026-10-09)
 - [Production Board](general/production-board.md) (updated 2026-10-09)
 - [Setting Up EasyPost Integration](general/setting-up-easypost-integration.md) (updated 2026-10-09)

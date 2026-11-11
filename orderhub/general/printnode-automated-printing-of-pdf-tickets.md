@@ -2,7 +2,7 @@
 title: "Printnode: Automated printing of PDF Tickets"
 id: "cafed6f7-a91d-4859-a6eb-f30892f0ec5e"
 category: "General"
-updated_at: "2026-10-09T15:54:30.221Z"
+updated_at: "2026-11-10T19:45:41.109Z"
 source_url: "https://orderhub.pixfizz.com/knowledgebase/cafed6f7-a91d-4859-a6eb-f30892f0ec5e"
 ---
 
