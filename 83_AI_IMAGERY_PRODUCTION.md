@@ -506,6 +506,14 @@ Holding an open photo book showing a team portrait, locker room behind, natural 
 
 ---
 
+### Start from the real product, at the real scale (2026-11)
+
+- Before generating any image that shows a lab's product, load the product's live preview, save it and pass it to the image model as an input image; describe the shape from that preview, not from the product name. A planter described by name came out tapered and glossy when the real one is a short straight cylinder on a saucer.
+- Scale is part of accuracy: state real dimensions, place outdoor products where they actually stand, and give a size anchor. A 12 x 18 in garden flag on a 36 in stand was drawn as a tabletop flag.
+- With an input image, Nano Banana nb2 defaults to edit mode and returns about 1376 px; pass mode "generate" for full 2K output.
+
+*Seen on a client page, 2026-11-10.*
+
 ## Part G — Recommending This to Customers
 
 Positioning that is accurate and does not overpromise:
@@ -539,3 +547,4 @@ Suggested delivery: a short setup walkthrough on `help.pixfizz.com` covering sub
 - 2026-10-22: New B12 product plates and preview scenes (edit-mode resolution and re-lighting, scale and straight-on scene prompts, outpainted walls, camera angles, object geometry and bevels, thin paper stacks by one fresh generation (the Blender route was rejected), exact designs placed on a blank plate rather than generated). B8 pointer to B12. Pending: A5 and generated template motif art. A5: pointer to the open conflict with `26_CUSTOM_DESIGN_TOOLS.md` § Generated template art. Source: claude-chat.
 - 2026-10-29: A5 open conflict resolved by owner decision (26 Oct): generated artwork is allowed in Pixfizz-made template designs that reach production; customer-placeable libraries and A1/A6 unchanged; pending item removed. B12: reserving space for a name or photo, moving baked-in lettering, flat products from one top-down photo. Source: claude-chat.
 - 2026-11-09: B12 input count decides edit or generate mode (pass one reference twice for 2K), paper goods register and hero space, library art generated on flat magenta and keyed. Source: claude-chat.
+- 2026-11-13: Part F: start generated product imagery from the real product preview, state real scale, nb2 with an input image defaults to edit mode. Source: claude-chat.

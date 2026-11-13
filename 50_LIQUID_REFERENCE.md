@@ -928,6 +928,7 @@ More behavior (platform-level):
   *Verified by query on a client site, 2026-11-01.* A rule for a collection's product pages,
   `^/site/product/c/<collection>/?(\\?.*)?$`, affects only that collection
   (§ 25 of `50_SHOPPER_TEMPLATE_REFERENCE.md`). *Verified live, 2026-11-06.*
+- **Never let a rule catch a platform route.** The redirect layer runs before the platform, so it wins. A rule `^/(cart|checkout|my-account)/?.*$` meant for old pages caught `/cart/add_print_product`, and Add to Cart in every design tool landed on the redirect target. Never redirect `/cart`, `/checkout`, `/v1/`, `/password/`, `/users/` or platform `/site/` routes, and never end a root rule with `/?.*$`: anchor it (`^/path/?(\?.*)?$`) and use `.*` only after a prefix no platform route can start with. After saving, run one real Add to Cart from a design tool. Read the live config and edit it in place; never paste a saved copy over it. *Verified on a client site, 2026-11-11.*
 - **One rule can catch a collection and all its sub-collections:**
   `^/site/shop/<collection>[^?]*/?(\?.*)?$` (in the JSON, `\\?`) answered 301 for the
   collection, its sub-collections and a sibling path starting with the same name, so check
@@ -1915,6 +1916,12 @@ Two build rules follow, and both exist so the failure is visible:
 tool never saw the product" in one paste, and nothing else does.
 *Verified by reading source (custom tool build specs), 2026-09-08.*
 
+## Two Silent Liquid Failures (2026-11)
+
+**No filters inside a `for` tag.** `{% for ol in cart.orderlines | page_size: 1000 %}` is a syntax error ("Expected end_of_string but found pipe"). Inside a shipping service formula it broke the whole cart page on every add to cart. Use `{% for ol in cart.orderlines %}`, or assign the filtered list first and loop over the variable. Shipping formulas render on the cart page, so test one cart on the live site after every formula save. Platform-level. *Verified on a client site, 2026-11-09.*
+
+**`asset_url` on a missing asset renders `src=""`.** `{{ 'name.avif' | asset_url }}` for an asset not uploaded to the site prints an empty `src` with no error; the browser shows a blank box or the alt text. Before delivering a snippet that references assets, check every `asset_url` name against the site's asset list. Audit check on a live page: images whose `getAttribute('src')` is empty. Platform-level. *Verified live, 2026-11-11.*
+
 ## Changelog
 - 2026-06-01: Noted Shopify IDs live in chosen_variants. Source: claude-chat.
 - 2026-06-15: Added json_parse filter to Pixfizz-extended filters. Added assign_to_user / assign_to_cart optional params to the address_create form. Source: notion-dashboard.
@@ -1932,3 +1939,4 @@ tool never saw the product" in one paste, and nothing else does.
 - 2026-10-17: String Quoting: a literal `{` directly before a tag opens an output tag. Website Redirects: regex matches the path including the query string (end rules in `/?(\?.*)?$`), admin routes. asset_url: resolves the child's asset first, even in a parent snippet. snippet: CORRECTED storefront snippets do not see the caller's `collection`; a nested `{% snippet %}` call clears the caller's params (save and restore). Form Types: `user_update` accepts a partial post. Source: claude-chat.
 - 2026-10-22: String Quoting: the typographic apostrophe (`’`) can sit inside a single-quoted string (not verified by test). asset_url: missing asset seen again in a child's Pages `page_content`, with the check-before-save and assert-after-save steps; a Shopper 24 child falls back to the shopper24 parent's asset in a parent snippet, in Pages `page_content` and on a child page (one parent upload for images every child shares). Orderline: `is_draft` row names the API `draft` field and the admin "(Draft)" label. KNOWN CMS LIQUID QUIRKS: capturing into a global name (`website`) redefines it for the rest of the template. Source: claude-chat, slack-message.
 - 2026-11-09: Pitfalls table: `asset_url` inside a quoted snippet argument (capture first). Website Redirects: rules apply to `/site/` paths, one rule for a collection and its sub-collections, create the target first, rules work within seconds, per-product query-string redirect pending confirmation (retire with `sold_out` and `hide_from_search`). redirect_to: literal and variable targets, real server redirect keeping the query string, top-of-page and parse-error caution. Source: claude-chat.
+- 2026-11-13: Website Redirects: never let a rule catch a platform route (/cart, /checkout, /v1/ ...), anchor root rules, test a real design tool Add to Cart after saving. New section Two Silent Liquid Failures: no filters inside a for tag (broke a cart page via a shipping formula); asset_url on a missing asset renders an empty src. Source: claude-chat.

@@ -2048,6 +2048,126 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 ### "photo prints options, hidden variant shows in prints flow, Cropping & Options"
 → **22_OPTION_VARIANT_RENDERING.md** § 2.1 Options in the photo prints flow
 
+### "add static product to collection, add_products 404, static products picker"
+→ **18_ADMIN_NAVIGATION.md** § Import and publish routes (Add a static product, corrected 2026-11-13)
+
+### "email notification admin URL, email preview abandoned cart, To field on customer emails"
+→ **18_ADMIN_NAVIGATION.md** § More Admin Screens and Form Routes (2026-11)
+
+### "design admin page, rename design, design -1 after import, preview_img"
+→ **18_ADMIN_NAVIGATION.md** § More Admin Screens and Form Routes (2026-11)
+
+### "hidden template option not listed, options.json, edit lf_mount option"
+→ **18_ADMIN_NAVIGATION.md** § More Admin Screens and Form Routes (2026-11)
+
+### "export from consumer site returns HTML, collection export child collections, import 500 missing product"
+→ **18_ADMIN_NAVIGATION.md** § More Admin Screens and Form Routes (2026-11)
+
+### "template import timeout, never re-submit import, layout_id not remapped"
+→ **18_ADMIN_NAVIGATION.md** § More Admin Screens and Form Routes (2026-11)
+
+### "bulk copy template options to many templates"
+→ **18_ADMIN_NAVIGATION.md** § More Admin Screens and Form Routes (2026-11)
+
+### "create variant type by form, child trigger value, reorder variant types, copy product with variants"
+→ **18_ADMIN_NAVIGATION.md** § More Admin Screens and Form Routes (2026-11)
+
+### "collection Ace fields blanked, write collection_filters by form"
+→ **18_ADMIN_NAVIGATION.md** § More Admin Screens and Form Routes (2026-11)
+
+### "asset name already taken, admin /v1 from storefront returns nothing, admin CSP eval"
+→ **18_ADMIN_NAVIGATION.md** § More Admin Screens and Form Routes (2026-11)
+
+### "photo prints group order, sub-collection order, bare /site/prints empty, size panel off screen 1024"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 25. Photo Prints Flow
+
+### "/site/shop/c/ shows all collections, collection URL"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 26. Collection Pages, Product Pages and the Page Frame (2026-11)
+
+### "studio collection on Shop All, kiosk browse all products, url_path studio, unpublished feed collection"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 26 (Shop All)
+
+### "collection_footer prints raw, placeholder product tabs"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 26 (Collection fields that print)
+
+### "canvas range one page, wall art pdp_layout, orientation size link"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 26 (A wall art range is one product page)
+
+### "uploaded photo lost on size change, filter swap morph, script node removed from main"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 26 (A size or orientation swap replaces main)
+
+### "size filter shows dash for $0, show_prices zero"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 26 (Size filter prices at $0)
+
+### "delivery box no ready-by date, shipping-available collection param, Pro Portal link, design-now exit_target"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 26 (Product page fixes on the parent)
+
+### "doubled page title, design meta_title"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 26 (Design meta_title)
+
+### "translate Add to cart label, product namespace translations"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 26 (Product page labels in another language)
+
+### "checklist accepted values, payment-gateway values, prints-thumbnails, header-logo-position CENTER"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 26 (Where checklist values and labels come from)
+
+### "logo offset 16px, navbar padding, page frame container, account dropdown sideways scroll, roll-builder frame"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 26 (The page frame)
+
+### "card-img stretched image"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 26 (.card-img)
+
+### "store audit false positives, empty collection that is a PDP, price 0 priced by options"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 26 (Data shapes that fool automated store checks)
+
+### "redirect broke add to cart, redirect caught /cart"
+→ **50_LIQUID_REFERENCE.md** § Website Redirects (Never let a rule catch a platform route)
+
+### "Expected end_of_string but found pipe, filter in for tag, asset_url empty src"
+→ **50_LIQUID_REFERENCE.md** § Two Silent Liquid Failures (2026-11)
+
+### "pack price per unit, min_units intervals"
+→ **30_PRICING_ENGINE.md** § Pack Prices Are Entered Per Unit
+
+### "px_rates engine refused, product is not set up yet, Flat Prints pricing"
+→ **30_PRICING_ENGINE.md** § Uploader Price Cards (px_rates): Engine Version and Flat Prints
+
+### "template output DPI, bleed on definition, 600 dpi for one lab, first page read as print page, orientation twin transpose"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Output DPI, Bleed and the First <page>
+
+### "design tool close button goes to home page, exit_target"
+→ **17_DESIGN_TOOL.md** § Where the Editor's Close Button Goes
+
+### "px-design-preview option-selector, preview.svg loses images, slow preview slide"
+→ **17_DESIGN_TOOL.md** § px-design-preview Notes (2026-11)
+
+### "variant value custom fields in export, imports append, unpublished variant not on PDP"
+→ **22_OPTION_VARIANT_RENDERING.md** § More export and rendering behavior (2026-11)
+
+### "WebGL context lost blank preview, upload window opens late, project-edit wrong size, product-schema sku, Collage Studio mount, envelope look"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 7 Per-tool reference (Cross-tool rules added 2026-11)
+
+### "Live Finish stays on default look, ornament ribbon, Live Finish labels English, Live Finish on a Pages page"
+→ **27_LIVE_FINISH_AND_3D_PREVIEWS.md** § 6 Known defects and open issues (Findings 2026-11)
+
+### "FTP account missing, fulfillment destination test"
+→ **31_FULFILLMENT_ENGINE.md** § A Destination Record Does Not Prove the FTP Account Exists
+
+### "Shopify addon double billing, addon lines per unit quantity, child page cannot override master"
+→ **60_SHOPIFY_INTEGRATION.md** § Cart handling (addon lines)
+
+### "update large snippet by API, child override by form, create Pages entry, design placeholder image upload, asset URL invalid security key"
+→ **61_PIXFIZZ_API.md** § 13i. Snippets, Pages Entries and Resources From an Admin Session
+
+### "new child shares catalog with old site, missing language or currency, admin slug differs"
+→ **80_ONBOARDING.md** § New Shopper Children: Check Before Writing (2026-11)
+
+### "llms.txt empty 200"
+→ **81_SEO_AND_GEO_REFERENCE.md** § Part H — Findings 2026-11
+
+### "generated product image wrong shape or scale"
+→ **83_AI_IMAGERY_PRODUCTION.md** § Part F (Start from the real product, at the real scale)
+
 ---
 
 ## Changelog
@@ -2085,3 +2205,4 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 - 2026-10-29: Added 48 routes for the 2026-10-29 sync (whole-site login gate, mega menu panels, page cache, POD products in collections, cart line name and extra cart code, pickup and delivery switch, cut print base plus delta, boolean custom fields, studio registry rows, popstate morph and sticky layout, pdf.js, upload size limits and `Filedata`, Live Finish label keys and print borders, Nano Banana fixes, bulk user create, `/upload/file`, cross-site asset library, collection Ace fields, filename tags, Etsy order facts, backups without assets, store health staleness, Versions diff correction, publish positions, snippet override ids, crop value and color controls, file option `db:` values, `pdf_layer`, masks and font size units). Every target file name checked against the repo. Source: kbsync.
 - 2026-11-03: Added 3 routes to the new 28_TOOL_SETTINGS_REFERENCE.md (per-tool mount settings, cut spot names, missing mount settings). Source: claude-chat
 - 2026-11-09: Added 144 routes for the 2026-11-09 sync (tool asset release order, upload dialog behavior and size units, studio standards, Safari canvas limits, round product previews, Photo Book Studio config, account v2 switch, social sharing image, photo prints flow setup, parent CSS scoping, checkout and kiosk fixes, breadcrumbs and redirects, moving a child onto another admin, super user API keys and service users, gallery custom fields, calendar dates, render speed, fulfillment HTTP headers, Shopify collaborator and Personalize window, branded MCP host, Stripe charge references, extra_pages pricing trap, admin import and copy routes, Products inheritance, editor scripting, kerning in points, definition unit default, variant flags in exports). Every target section name checked against the file. Source: kbsync.
+- 2026-11-13: Added 40 routes for the 2026-11-13 sync (admin screens and form routes, photo prints group order correction, collection and product page findings, redirects and silent Liquid failures, uploader price cards, DPI and bleed, editor close button, Live Finish and tool findings, Shopify addon lines, new children). Source: kbsync.
