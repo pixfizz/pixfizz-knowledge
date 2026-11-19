@@ -1,0 +1,17 @@
+{%- comment -%}===== START: email-kit/brand/logo ====={%- endcomment -%}
+{%- assign ek_logo = 'email-logo.png' | asset_url: 600, cdn: false -%}
+{%- if ek_logo == blank -%}
+	{%- assign ek_logo = 'logo.png' | asset_url: 600, cdn: false -%}
+	{%- if ek_logo contains '//shopper24.pixfizz.com/' -%}{%- assign ek_logo = '' -%}{%- endif -%}
+{%- endif -%}
+{%- capture ek_w -%}{% snippet 'email-kit/settings/logo-width' %}{%- endcapture -%}
+{%- assign ek_w = ek_w | strip | plus: 0 -%}
+{%- if ek_w < 60 or ek_w > 300 -%}{%- assign ek_w = 160 -%}{%- endif -%}
+<a href="https://{{ website.hostname }}" target="_blank" style="text-decoration:none;">
+{%- if ek_logo != blank -%}
+<img src="{{ ek_logo }}" width="{{ ek_w }}" alt="{{ store_name }}" style="display:block;margin:0 auto;width:{{ ek_w }}px;max-width:100%;height:auto;border:0;outline:none;font-family:Helvetica,Arial,sans-serif;font-size:20px;font-weight:700;color:#1f2933;">
+{%- else -%}
+<span style="font-family:Helvetica,Arial,sans-serif;font-size:22px;line-height:28px;font-weight:700;color:#1f2933;">{{ store_name }}</span>
+{%- endif -%}
+</a>
+{%- comment -%}===== END: email-kit/brand/logo ====={%- endcomment -%}

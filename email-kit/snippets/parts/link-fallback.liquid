@@ -1,0 +1,8 @@
+{%- comment -%}===== START: email-kit/parts/link-fallback =====
+Args: url. Prints the link as text for mail apps that block buttons.
+{%- endcomment -%}
+{%- if url != blank -%}
+{%- capture ek_bg -%}{% snippet 'email-kit/brand/color' %}{%- endcapture -%}{%- assign ek_bg = ek_bg | strip -%}
+<p class="ek-muted" style="margin:20px 0 0 0;font-family:Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#6b7280;">Button not working? Copy this link into your browser:<br><a href="{{ url | escape }}" target="_blank" style="color:{{ ek_bg }};text-decoration:none;word-break:break-all;">{{ url | escape }}</a></p>
+{%- endif -%}
+{%- comment -%}===== END: email-kit/parts/link-fallback ====={%- endcomment -%}

@@ -1,0 +1,7 @@
+{%- comment -%}===== START: email-kit/subjects/signin-token-renewed =====
+No arguments. Output is one line of plain text for the admin Subject field.
+{%- endcomment -%}
+{%- capture ek_store -%}{% snippet 'email-kit/store/name' %}{%- endcapture -%}{%- assign ek_store = ek_store | strip -%}
+{%- capture ek_s -%}Your new sign-in link for {{ ek_store }}{%- endcapture -%}
+{{- ek_s | strip_newlines | strip -}}
+{%- comment -%}===== END: email-kit/subjects/signin-token-renewed ====={%- endcomment -%}

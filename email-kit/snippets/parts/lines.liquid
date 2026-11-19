@@ -1,0 +1,13 @@
+{%- comment -%}===== START: email-kit/parts/lines =====
+Args: lines (order.orderlines or cart.orderlines), single (one orderline, used instead of lines), show_price (true or false).
+{%- endcomment -%}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="ek-line" style="margin-top:24px;border-top:1px solid #e5e7eb;">
+	{%- if single -%}
+		{% snippet 'email-kit/parts/line', ol: single, show_price: show_price %}
+	{%- else -%}
+		{%- for ek_ol in lines -%}
+			{% snippet 'email-kit/parts/line', ol: ek_ol, show_price: show_price %}
+		{%- endfor -%}
+	{%- endif -%}
+</table>
+{%- comment -%}===== END: email-kit/parts/lines ====={%- endcomment -%}

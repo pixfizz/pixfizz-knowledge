@@ -1,0 +1,70 @@
+{%- comment -%}===== START: email-kit/layout =====
+Args: subject, preheader, body, audience (customer, cart or team), banner (true or false).
+{%- endcomment -%}
+{%- capture ek_store -%}{% snippet 'email-kit/store/name' %}{%- endcapture -%}{%- assign ek_store = ek_store | strip | escape -%}
+{%- capture ek_email -%}{% snippet 'email-kit/store/email' %}{%- endcapture -%}{%- assign ek_email = ek_email | strip -%}
+{%- capture ek_phone -%}{% snippet 'email-kit/store/phone' %}{%- endcapture -%}{%- assign ek_phone = ek_phone | strip -%}
+{%- capture ek_addr -%}{% snippet 'email-kit/store/address' %}{%- endcapture -%}{%- assign ek_addr = ek_addr | strip -%}
+{%- capture ek_hours -%}{% snippet 'email-kit/store/hours' %}{%- endcapture -%}{%- assign ek_hours = ek_hours | strip -%}
+{%- capture ek_brand -%}{% snippet 'email-kit/brand/color' %}{%- endcapture -%}{%- assign ek_brand = ek_brand | strip -%}
+{%- assign ek_subject = subject | strip_html | strip | escape -%}
+{%- assign ek_pre = preheader | strip_html | strip | escape -%}
+{% snippet 'email-kit/head', subject: ek_subject %}
+<body id="body" class="ek-page" style="margin:0;padding:0;width:100%;background-color:#f2f3f5;" bgcolor="#f2f3f5">
+	<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">{{ ek_pre }}&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;</div>
+	<div role="article" aria-roledescription="email" aria-label="{{ ek_subject }}" lang="en">
+		<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="ek-page" bgcolor="#f2f3f5" style="width:100%;background-color:#f2f3f5;">
+			<tr>
+				<td align="center" class="ek-outer" style="padding:28px 12px;">
+					<!--[if mso]><table role="presentation" width="600" align="center" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+					<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" class="ek-card" bgcolor="#ffffff" style="width:600px;max-width:600px;background-color:#ffffff;border-radius:10px;">
+						{%- comment -%} Logo plate stays white in dark mode so dark logos stay visible {%- endcomment -%}
+						<tr>
+							<td align="center" style="padding:26px 36px;background-color:#ffffff;border-bottom:1px solid #e5e7eb;border-radius:10px 10px 0 0;" bgcolor="#ffffff">
+								{% snippet 'email-kit/brand/logo', store_name: ek_store %}
+							</td>
+						</tr>
+						{%- if banner == true and audience != 'team' -%}
+							{% snippet 'email-kit/brand/banner' %}
+						{%- endif -%}
+						<tr>
+							<td class="ek-pad" style="padding:34px 36px 8px 36px;font-family:Helvetica,Arial,sans-serif;">
+								{{ body }}
+							</td>
+						</tr>
+						<tr>
+							<td class="ek-pad ek-muted" style="padding:28px 36px 32px 36px;font-family:Helvetica,Arial,sans-serif;font-size:13px;line-height:21px;color:#6b7280;text-align:center;">
+								<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+									<tr>
+										<td class="ek-line ek-muted" style="border-top:1px solid #e5e7eb;padding-top:22px;font-family:Helvetica,Arial,sans-serif;font-size:13px;line-height:21px;color:#6b7280;text-align:center;">
+											<strong class="ek-text" style="color:#1f2933;">{{ ek_store }}</strong>
+											{%- if ek_addr != blank -%}<br>{{ ek_addr }}{%- endif -%}
+											{%- if ek_hours != blank -%}<br>{{ ek_hours }}{%- endif -%}
+											{%- if ek_phone != blank or ek_email != blank -%}
+												<br>{% if ek_phone != blank %}<a href="tel:{{ ek_phone | remove: ' ' }}" class="ek-muted" style="color:#6b7280;text-decoration:none;">{{ ek_phone }}</a>{% endif %}{% if ek_phone != blank and ek_email != blank %} &middot; {% endif %}{% if ek_email != blank %}<a href="mailto:{{ ek_email }}" style="color:{{ ek_brand }};text-decoration:none;">{{ ek_email }}</a>{% endif %}
+											{%- endif -%}
+										</td>
+									</tr>
+								</table>
+								<p class="ek-muted" style="margin:16px 0 0 0;font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6b7280;">
+									{%- if audience == 'team' -%}
+										Internal notification for {{ ek_store }}. It is not sent to the customer.
+									{%- elsif audience == 'cart' -%}
+										You received this because you started an order at {{ ek_store }}.
+										{% if ek_email != blank %}<a href="mailto:{{ ek_email }}?subject=Stop%20cart%20reminders" class="ek-muted" style="color:#6b7280;text-decoration:underline;">Stop cart reminders</a>{% else %}<a href="https://{{ website.hostname }}/site/contact-us" class="ek-muted" style="color:#6b7280;text-decoration:underline;">Stop cart reminders</a>{% endif %}
+									{%- else -%}
+										You received this because of your account or order at {{ ek_store }}.
+									{%- endif -%}
+									<br>&copy; {{ 'today' | date: '%Y' }} {{ ek_store }}
+								</p>
+							</td>
+						</tr>
+					</table>
+					<!--[if mso]></td></tr></table><![endif]-->
+				</td>
+			</tr>
+		</table>
+	</div>
+</body>
+</html>
+{%- comment -%}===== END: email-kit/layout ====={%- endcomment -%}

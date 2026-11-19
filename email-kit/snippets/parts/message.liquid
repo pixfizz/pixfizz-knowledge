@@ -1,0 +1,24 @@
+{%- comment -%}===== START: email-kit/parts/message =====
+Args: message (plain text from email-kit/messages/*), first_name, order_code, store_name, discount (optional).
+Tokens: {first_name} {order_code} {store_name} {discount}. With no first name, Hi {first_name} becomes Hi there.
+The token strings are captured because a Liquid string containing braces does not save.
+{%- endcomment -%}
+{%- capture ek_tk_first -%}{first_name}{%- endcapture -%}
+{%- capture ek_tk_first_comma -%}, {first_name}{%- endcapture -%}
+{%- capture ek_tk_hi -%}Hi {first_name}{%- endcapture -%}
+{%- capture ek_tk_order -%}{order_code}{%- endcapture -%}
+{%- capture ek_tk_store -%}{store_name}{%- endcapture -%}
+{%- capture ek_tk_disc -%}{discount}{%- endcapture -%}
+{%- assign ek_m = message | strip_html | strip | escape -%}
+{%- assign ek_fn = first_name | strip | escape -%}
+{%- if ek_fn == blank -%}
+	{%- assign ek_m = ek_m | replace: ek_tk_hi, 'Hi there' | replace: ek_tk_first_comma, '' | replace: ek_tk_first, '' -%}
+{%- endif -%}
+{%- assign ek_oc = order_code | escape -%}
+{%- assign ek_sn = store_name | escape -%}
+{%- assign ek_dc = discount | append: '' | strip | escape -%}
+{%- assign ek_m = ek_m | replace: ek_tk_first, ek_fn | replace: ek_tk_order, ek_oc | replace: ek_tk_store, ek_sn | replace: ek_tk_disc, ek_dc | newline_to_br -%}
+{%- if ek_m != blank -%}
+<p class="ek-text" style="margin:18px 0 0 0;font-family:Helvetica,Arial,sans-serif;font-size:16px;line-height:25px;color:#1f2933;">{{ ek_m }}</p>
+{%- endif -%}
+{%- comment -%}===== END: email-kit/parts/message ====={%- endcomment -%}

@@ -1,0 +1,6 @@
+{%- comment -%}===== START: email-kit/subjects/order-shipped =====
+Args: order. Output is one line of plain text for the admin Subject field.
+{%- endcomment -%}
+{%- capture ek_s -%}{% if order.address.is_public %}Your order {{ order.code }} is ready for pickup{% else %}Your order {{ order.code }} has shipped{% endif %}{%- endcapture -%}
+{{- ek_s | strip_newlines | strip -}}
+{%- comment -%}===== END: email-kit/subjects/order-shipped ====={%- endcomment -%}

@@ -1,0 +1,21 @@
+{%- comment -%}===== START: email-kit/brand/banner ====={%- endcomment -%}
+{%- capture ek_on -%}{% snippet 'email-kit/settings/banner-on' %}{%- endcapture -%}
+{%- assign ek_on = ek_on | strip_html | strip | upcase -%}
+{%- if ek_on == 'TRUE' -%}
+	{%- assign ek_img = 'email-banner.jpg' | asset_url: 1200, cdn: false -%}
+	{%- if ek_img == blank -%}{%- assign ek_img = 'email-banner.png' | asset_url: 1200, cdn: false -%}{%- endif -%}
+	{%- if ek_img != blank -%}
+		{%- capture ek_link -%}{% snippet 'email-kit/settings/banner-link' %}{%- endcapture -%}
+		{%- assign ek_link = ek_link | strip_html | strip_newlines | strip -%}
+		{%- assign ek_http = ek_link | slice: 0, 4 -%}
+		{%- if ek_link == blank or ek_http != 'http' -%}{%- assign ek_link = 'https://' | append: website.hostname -%}{%- endif -%}
+		{%- capture ek_alt -%}{% snippet 'email-kit/settings/banner-alt' %}{%- endcapture -%}
+		{%- assign ek_alt = ek_alt | strip_html | strip_newlines | strip -%}
+<tr>
+	<td style="padding:0;font-size:0;line-height:0;">
+		<a href="{{ ek_link | escape }}" target="_blank" style="text-decoration:none;"><img src="{{ ek_img }}" width="600" alt="{{ ek_alt | escape }}" style="display:block;width:100%;max-width:600px;height:auto;border:0;outline:none;font-family:Helvetica,Arial,sans-serif;font-size:16px;line-height:22px;color:#1f2933;"></a>
+	</td>
+</tr>
+	{%- endif -%}
+{%- endif -%}
+{%- comment -%}===== END: email-kit/brand/banner ====={%- endcomment -%}

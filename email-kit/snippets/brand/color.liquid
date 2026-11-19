@@ -1,0 +1,16 @@
+{%- comment -%}===== START: email-kit/brand/color ====={%- endcomment -%}
+{%- capture ek_v -%}{% snippet 'email-kit/settings/brand-color' %}{%- endcapture -%}
+{%- assign ek_v = ek_v | strip_html | strip_newlines | strip | downcase -%}
+{%- if ek_v == blank -%}
+	{%- capture ek_v -%}{% snippet 'style/color-primary' %}{%- endcapture -%}
+	{%- assign ek_v = ek_v | strip_html | strip_newlines | strip | downcase -%}
+{%- endif -%}
+{%- assign ek_hash = ek_v | slice: 0, 1 -%}
+{%- assign ek_len = ek_v | size -%}
+{%- if ek_hash != '#' or ek_len != 7 and ek_len != 4 -%}{%- assign ek_v = '#1f2933' -%}{%- assign ek_len = 7 -%}{%- endif -%}
+{%- if ek_len == 4 -%}
+	{%- assign ek_r = ek_v | slice: 1, 1 -%}{%- assign ek_g = ek_v | slice: 2, 1 -%}{%- assign ek_b = ek_v | slice: 3, 1 -%}
+	{%- assign ek_v = '#' | append: ek_r | append: ek_r | append: ek_g | append: ek_g | append: ek_b | append: ek_b -%}
+{%- endif -%}
+{{- ek_v -}}
+{%- comment -%}===== END: email-kit/brand/color ====={%- endcomment -%}

@@ -1,0 +1,7 @@
+{%- comment -%}===== START: email-kit/store/email ====={%- endcomment -%}
+{%- capture ek_v -%}{% snippet 'website/contact/support-email-address' %}{%- endcapture -%}
+{%- assign ek_v = ek_v | strip_html | strip_newlines | strip -%}
+{%- if ek_v contains 'mybrand.com' or ek_v contains 'yoursite.com' -%}{%- assign ek_v = '' -%}{%- endif -%}
+{%- unless ek_v contains '@' -%}{%- assign ek_v = '' -%}{%- endunless -%}
+{{- ek_v | escape -}}
+{%- comment -%}===== END: email-kit/store/email ====={%- endcomment -%}

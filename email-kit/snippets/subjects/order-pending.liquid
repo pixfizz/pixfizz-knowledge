@@ -1,0 +1,6 @@
+{%- comment -%}===== START: email-kit/subjects/order-pending =====
+Args: order. Output is one line of plain text for the admin Subject field.
+{%- endcomment -%}
+{%- capture ek_s -%}We received your order {{ order.code }}{%- endcapture -%}
+{{- ek_s | strip_newlines | strip -}}
+{%- comment -%}===== END: email-kit/subjects/order-pending ====={%- endcomment -%}

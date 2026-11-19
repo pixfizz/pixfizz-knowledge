@@ -1,0 +1,23 @@
+{%- comment -%}===== START: email-kit/subjects/cart-abandoned =====
+Args: sequence_number (1, 2 or 3). Text from email-kit/cart/subject-1, -2, -3. Token {discount} filled on the send that carries the code.
+Output is one line of plain text for the admin Subject field.
+{%- endcomment -%}
+{%- assign ek_sq = sequence_number | plus: 0 -%}
+{%- if ek_sq < 1 -%}{%- assign ek_sq = 1 -%}{%- endif -%}
+{%- if ek_sq > 3 -%}{%- assign ek_sq = 3 -%}{%- endif -%}
+{%- case ek_sq -%}
+	{%- when 2 -%}{%- capture ek_s -%}{% snippet 'email-kit/cart/subject-2' %}{%- endcapture -%}
+	{%- when 3 -%}{%- capture ek_s -%}{% snippet 'email-kit/cart/subject-3' %}{%- endcapture -%}
+	{%- else -%}{%- capture ek_s -%}{% snippet 'email-kit/cart/subject-1' %}{%- endcapture -%}
+{%- endcase -%}
+{%- capture ek_p -%}{% snippet 'email-kit/settings/cart-discount' %}{%- endcapture -%}
+{%- assign ek_p = ek_p | strip_html | strip | remove: '%' -%}
+{%- capture ek_on -%}{% snippet 'email-kit/settings/cart-discount-reminder' %}{%- endcapture -%}
+{%- assign ek_on = ek_on | strip_html | strip -%}
+{%- if ek_on != '3' -%}{%- assign ek_on = '2' -%}{%- endif -%}
+{%- assign ek_sq_s = ek_sq | append: '' -%}
+{%- if ek_sq_s != ek_on -%}{%- assign ek_p = '' -%}{%- endif -%}
+{%- unless ek_p == '5' or ek_p == '10' or ek_p == '15' or ek_p == '20' -%}{%- assign ek_p = '' -%}{%- endunless -%}
+{%- capture ek_tk -%}{discount}{%- endcapture -%}
+{{- ek_s | strip_html | replace: ek_tk, ek_p | strip_newlines | strip -}}
+{%- comment -%}===== END: email-kit/subjects/cart-abandoned ====={%- endcomment -%}

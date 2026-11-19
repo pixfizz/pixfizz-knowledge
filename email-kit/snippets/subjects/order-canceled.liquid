@@ -1,0 +1,6 @@
+{%- comment -%}===== START: email-kit/subjects/order-canceled =====
+Args: order. Output is one line of plain text for the admin Subject field.
+{%- endcomment -%}
+{%- capture ek_s -%}Your order {{ order.code }} has been canceled{%- endcapture -%}
+{{- ek_s | strip_newlines | strip -}}
+{%- comment -%}===== END: email-kit/subjects/order-canceled ====={%- endcomment -%}

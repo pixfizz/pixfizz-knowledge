@@ -1,0 +1,6 @@
+{%- comment -%}===== START: email-kit/store/phone ====={%- endcomment -%}
+{%- capture ek_v -%}{% snippet 'website/contact/support-telephone' %}{%- endcapture -%}
+{%- assign ek_v = ek_v | strip_html | strip_newlines | strip -%}
+{%- if ek_v == '1-202-555-0107' -%}{%- assign ek_v = '' -%}{%- endif -%}
+{{- ek_v | escape -}}
+{%- comment -%}===== END: email-kit/store/phone ====={%- endcomment -%}

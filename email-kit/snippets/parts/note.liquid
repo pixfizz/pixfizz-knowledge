@@ -1,0 +1,9 @@
+{%- comment -%}===== START: email-kit/parts/note =====
+Args: text (HTML allowed, written by the template), size (small for 13px).
+{%- endcomment -%}
+{%- if size == 'small' -%}
+<p class="ek-muted" style="margin:20px 0 0 0;font-family:Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#6b7280;">{{ text }}</p>
+{%- else -%}
+<p class="ek-text" style="margin:14px 0 0 0;font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:24px;color:#1f2933;">{{ text }}</p>
+{%- endif -%}
+{%- comment -%}===== END: email-kit/parts/note ====={%- endcomment -%}

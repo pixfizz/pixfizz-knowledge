@@ -1,0 +1,17 @@
+{%- comment -%}===== START: email-kit/templates/order-canceled =====
+Admin Body calls this snippet in one line and passes: order, user.
+{%- endcomment -%}
+{%- capture ek_store -%}{% snippet 'email-kit/store/name' %}{%- endcapture -%}{%- assign ek_store = ek_store | strip -%}
+{%- capture ek_subject -%}{% snippet 'email-kit/subjects/order-canceled', order: order %}{%- endcapture -%}
+{%- capture ek_msg -%}{% snippet 'email-kit/messages/order-canceled' %}{%- endcapture -%}
+{%- assign ek_first = user.first_name | default: order.first_name | default: order.address.first_name -%}
+{%- assign ek_shop_url = 'https://' | append: website.hostname -%}
+{%- assign ek_pre = 'Your order ' | append: order.code | append: ' has been canceled.' -%}
+{%- capture ek_body -%}
+{% snippet 'email-kit/parts/heading', title: 'Order canceled', code: order.code, team: false %}
+{% snippet 'email-kit/parts/message', message: ek_msg, first_name: ek_first, order_code: order.code, store_name: ek_store %}
+{% snippet 'email-kit/parts/button', label: 'Visit the store', url: ek_shop_url %}
+{% snippet 'email-kit/parts/lines', lines: order.orderlines, single: nil, show_price: true %}
+{%- endcapture -%}
+{% snippet 'email-kit/layout', subject: ek_subject, preheader: ek_pre, body: ek_body, audience: 'customer', banner: false %}
+{%- comment -%}===== END: email-kit/templates/order-canceled ====={%- endcomment -%}

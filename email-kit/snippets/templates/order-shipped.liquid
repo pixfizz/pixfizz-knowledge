@@ -1,0 +1,41 @@
+{%- comment -%}===== START: email-kit/templates/order-shipped =====
+Admin Body calls this snippet in one line and passes: order, user.
+{%- endcomment -%}
+{%- capture ek_store -%}{% snippet 'email-kit/store/name' %}{%- endcapture -%}{%- assign ek_store = ek_store | strip -%}
+{%- capture ek_subject -%}{% snippet 'email-kit/subjects/order-shipped', order: order %}{%- endcapture -%}
+{%- assign ek_first = user.first_name | default: order.first_name | default: order.address.first_name -%}
+{%- assign ek_order_url = 'https://' | append: website.hostname | append: '/site/account-orders/details?order=' | append: order.code -%}
+{%- if user == blank or user.is_guest -%}{%- assign ek_order_url = '' -%}{%- endif -%}
+{%- if order.address.is_public -%}
+{%- capture ek_msg -%}{% snippet 'email-kit/messages/order-shipped-pickup' %}{%- endcapture -%}
+	{%- assign ek_title = 'Ready for pickup' -%}
+	{%- assign ek_pre = 'Your order ' | append: order.code | append: ' is ready to collect.' -%}
+{%- else -%}
+{%- capture ek_msg -%}{% snippet 'email-kit/messages/order-shipped' %}{%- endcapture -%}
+	{%- assign ek_title = 'On its way' -%}
+	{%- assign ek_pre = 'Your order ' | append: order.code | append: ' is on its way.' -%}
+	{%- capture ek_track_url -%}{% snippet 'email-kit/parts/tracking-url', order: order %}{%- endcapture -%}{%- assign ek_track_url = ek_track_url | strip -%}
+	{%- assign ek_tracking = order.custom.tracking | strip -%}
+	{%- assign ek_track_head = ek_tracking | slice: 0, 4 | downcase -%}
+{%- endif -%}
+{%- capture ek_body -%}
+{% snippet 'email-kit/parts/heading', title: ek_title, code: order.code, team: false %}
+{% snippet 'email-kit/parts/message', message: ek_msg, first_name: ek_first, order_code: order.code, store_name: ek_store %}
+{%- if order.address.is_public -%}
+{% snippet 'email-kit/parts/button', label: 'View pickup details', url: ek_order_url %}
+{% snippet 'email-kit/parts/address', order: order, store_name: ek_store %}
+{%- else -%}
+{%- if ek_tracking != blank and ek_track_head != 'http' -%}
+{%- capture ek_info -%}<span class="ek-muted" style="color:#6b7280;">{{ order.shipping_method | escape }} tracking number</span><br><strong style="font-family:Menlo,Consolas,monospace;letter-spacing:0.5px;">{{ ek_tracking | escape }}</strong>{%- endcapture -%}
+{% snippet 'email-kit/parts/info-box', html: ek_info %}
+{%- endif -%}
+{%- if ek_track_url != blank -%}
+{% snippet 'email-kit/parts/button', label: 'Track your package', url: ek_track_url %}
+{%- else -%}
+{% snippet 'email-kit/parts/button', label: 'View your order', url: ek_order_url %}
+{%- endif -%}
+{%- endif -%}
+{% snippet 'email-kit/parts/lines', lines: order.orderlines, single: nil, show_price: true %}
+{%- endcapture -%}
+{% snippet 'email-kit/layout', subject: ek_subject, preheader: ek_pre, body: ek_body, audience: 'customer', banner: true %}
+{%- comment -%}===== END: email-kit/templates/order-shipped ====={%- endcomment -%}

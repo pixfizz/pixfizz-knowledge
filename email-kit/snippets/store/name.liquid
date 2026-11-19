@@ -1,0 +1,8 @@
+{%- comment -%}===== START: email-kit/store/name ====={%- endcomment -%}
+{%- capture ek_v -%}{% snippet 'website/contact/title' %}{%- endcapture -%}
+{%- assign ek_v = ek_v | strip_html | strip_newlines | strip -%}
+{%- if ek_v == blank or ek_v == 'My Brand' -%}
+	{%- assign ek_v = website.hostname | remove_first: 'www.' -%}
+{%- endif -%}
+{{- ek_v -}}
+{%- comment -%}===== END: email-kit/store/name ====={%- endcomment -%}

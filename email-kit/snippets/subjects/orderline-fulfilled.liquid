@@ -1,0 +1,6 @@
+{%- comment -%}===== START: email-kit/subjects/orderline-fulfilled =====
+Args: order. Output is one line of plain text for the admin Subject field.
+{%- endcomment -%}
+{%- capture ek_s -%}Item fulfilled on order {{ order.code }}{%- endcapture -%}
+{{- ek_s | strip_newlines | strip -}}
+{%- comment -%}===== END: email-kit/subjects/orderline-fulfilled ====={%- endcomment -%}

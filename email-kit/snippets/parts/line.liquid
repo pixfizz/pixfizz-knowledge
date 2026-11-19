@@ -1,0 +1,47 @@
+{%- comment -%}===== START: email-kit/parts/line =====
+Args: ol (an orderline), show_price (true or false).
+Hidden from the customer: upload and text options, options marked hide_from_cart, raw file ids (db:).
+{%- endcomment -%}
+{%- capture ek_opts -%}
+	{%- for ek_o in ol.chosen_template_options -%}
+		{%- assign ek_t = ek_o.template_option -%}
+		{%- unless ek_t == blank or ek_t.type == 'image_upload' or ek_t.type == 'file_upload' or ek_t.type == 'text' or ek_t.custom.hide_from_cart == true or ek_t.custom.hide_from_cart == 'true' -%}
+			{%- assign ek_val = ek_o.template_option_value.name | default: ek_o.value | append: '' | strip -%}
+			{%- assign ek_vp = ek_val | slice: 0, 3 -%}
+			{%- if ek_val != blank and ek_vp != 'db:' -%}{{ ek_t.name | t: ns: 'variants' | escape }}: {{ ek_val | t: ns: 'variants' | escape }}<br>{%- endif -%}
+		{%- endunless -%}
+	{%- endfor -%}
+	{%- for ek_o in ol.chosen_variants -%}
+		{%- assign ek_t = ek_o.variant -%}
+		{%- unless ek_t == blank or ek_t.type == 'image_upload' or ek_t.type == 'file_upload' or ek_t.type == 'text' or ek_t.custom.hide_from_cart == true or ek_t.custom.hide_from_cart == 'true' -%}
+			{%- assign ek_val = ek_o.variant_value.name | default: ek_o.value | append: '' | strip -%}
+			{%- assign ek_vp = ek_val | slice: 0, 3 -%}
+			{%- if ek_val != blank and ek_vp != 'db:' -%}{{ ek_t.name | t: ns: 'variants' | escape }}: {{ ek_val | t: ns: 'variants' | escape }}<br>{%- endif -%}
+		{%- endunless -%}
+	{%- endfor -%}
+	{%- snippet 'checkout/orderline-pieces', orderline: ol -%}
+{%- endcapture -%}
+{%- comment -%} Wall Designer 0.5.0: a custom design tool line has no project; show its flat preview (any option whose code contains _preview). {%- endcomment -%}
+{%- assign ek_pv = '' -%}
+{%- unless ol.project -%}{%- for ek_o in ol.chosen_template_options -%}{%- assign ek_c = ek_o.template_option.code | append: '' -%}{%- if ek_c contains '_preview' and ek_o.uploaded_file.url != blank and ek_o.uploaded_file.url != nil -%}{%- assign ek_pv = ek_o.uploaded_file.url -%}{%- endif -%}{%- endfor -%}{%- endunless -%}
+{%- assign ek_pv2 = ek_pv | slice: 0, 2 -%}{%- assign ek_pv1 = ek_pv | slice: 0, 1 -%}
+{%- if ek_pv2 == '//' -%}{%- assign ek_pv = 'https:' | append: ek_pv -%}{%- elsif ek_pv1 == '/' -%}{%- assign ek_pv = 'https://' | append: website.hostname | append: ek_pv -%}{%- endif -%}
+<tr>
+	<td width="76" valign="top" class="ek-line" style="width:76px;padding:14px 12px 14px 0;vertical-align:top;border-bottom:1px solid #e5e7eb;">
+		{%- if ol.project -%}
+		<img src="https://{{ website.hostname }}{{ ol.project | preview_url: height: 300, share: ol.project.share_code | escape }}" width="64" alt="" style="display:block;width:64px;height:auto;border:1px solid #e5e7eb;border-radius:6px;">
+		{%- elsif ek_pv != blank -%}
+		<img src="{{ ek_pv | escape }}" width="64" alt="" style="display:block;width:64px;height:auto;border:1px solid #e5e7eb;border-radius:6px;">
+		{%- elsif ol.product.image -%}
+		<img src="{{ ol.product.image | asset_url: 200, cdn: false }}" width="64" alt="" style="display:block;width:64px;height:auto;border:1px solid #e5e7eb;border-radius:6px;">
+		{%- endif -%}
+	</td>
+	<td valign="top" class="ek-line ek-text" style="padding:14px 0;vertical-align:top;border-bottom:1px solid #e5e7eb;font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:21px;color:#1f2933;">
+		<strong>{{ ol.product.name | t: ns: 'products' | escape }}</strong><br>
+		<span class="ek-muted" style="color:#6b7280;">{{ ek_opts }}Quantity: {% if ol.is_cut_print %}{{ ol.cut_print_quantity }}{% else %}{{ ol.quantity }}{% endif %}</span>
+	</td>
+	{%- if show_price == true -%}
+	<td valign="top" align="right" class="ek-line ek-text" style="padding:14px 0 14px 12px;vertical-align:top;text-align:right;white-space:nowrap;border-bottom:1px solid #e5e7eb;font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:21px;font-weight:700;color:#1f2933;">{{ ol.price | currency }}</td>
+	{%- endif -%}
+</tr>
+{%- comment -%}===== END: email-kit/parts/line ====={%- endcomment -%}

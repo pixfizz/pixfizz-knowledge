@@ -1,0 +1,22 @@
+{%- comment -%}===== START: email-kit/templates/order-confirmed =====
+Admin Body calls this snippet in one line and passes: order, user.
+{%- endcomment -%}
+{%- capture ek_store -%}{% snippet 'email-kit/store/name' %}{%- endcapture -%}{%- assign ek_store = ek_store | strip -%}
+{%- capture ek_subject -%}{% snippet 'email-kit/subjects/order-confirmed', order: order %}{%- endcapture -%}
+{%- capture ek_msg -%}{% snippet 'email-kit/messages/order-confirmed' %}{%- endcapture -%}
+{%- assign ek_first = user.first_name | default: order.first_name | default: order.address.first_name -%}
+{%- assign ek_order_url = 'https://' | append: website.hostname | append: '/site/account-orders/details?order=' | append: order.code -%}
+{%- if user == blank or user.is_guest -%}{%- assign ek_order_url = '' -%}{%- endif -%}
+{%- assign ek_pre = 'Thanks for your order. Here is your summary for ' | append: order.code | append: '.' -%}
+{%- capture ek_body -%}
+{% snippet 'email-kit/parts/heading', title: 'Order confirmed', code: order.code, team: false %}
+{% snippet 'email-kit/parts/message', message: ek_msg, first_name: ek_first, order_code: order.code, store_name: ek_store %}
+{%- if order.address.is_public -%}{%- assign ek_note = 'We will email you again when it is ready for pickup.' -%}{%- else -%}{%- assign ek_note = 'We will email you again when it ships.' -%}{%- endif -%}
+{% snippet 'email-kit/parts/note', text: ek_note, size: '' %}
+{% snippet 'email-kit/parts/button', label: 'View your order', url: ek_order_url %}
+{% snippet 'email-kit/parts/lines', lines: order.orderlines, single: nil, show_price: true %}
+{% snippet 'email-kit/parts/totals', order: order %}
+{% snippet 'email-kit/parts/address', order: order, store_name: ek_store %}
+{%- endcapture -%}
+{% snippet 'email-kit/layout', subject: ek_subject, preheader: ek_pre, body: ek_body, audience: 'customer', banner: true %}
+{%- comment -%}===== END: email-kit/templates/order-confirmed ====={%- endcomment -%}

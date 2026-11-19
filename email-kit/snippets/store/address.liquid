@@ -1,0 +1,13 @@
+{%- comment -%}===== START: email-kit/store/address ====={%- endcomment -%}
+{%- capture ek_street -%}{% snippet 'website/contact/address' %}{%- endcapture -%}
+{%- capture ek_city -%}{% snippet 'website/contact/city' %}{%- endcapture -%}
+{%- capture ek_state -%}{% snippet 'website/contact/state' %}{%- endcapture -%}
+{%- capture ek_zip -%}{% snippet 'website/contact/zip-code' %}{%- endcapture -%}
+{%- assign ek_street = ek_street | strip_html | strip_newlines | strip | escape -%}
+{%- assign ek_city = ek_city | strip_html | strip_newlines | strip | escape -%}
+{%- assign ek_state = ek_state | strip_html | strip_newlines | strip | escape -%}
+{%- assign ek_zip = ek_zip | strip_html | strip_newlines | strip | escape -%}
+{%- capture ek_line2 -%}{{ ek_city }}{% if ek_city != blank and ek_state != blank %}, {% endif %}{{ ek_state }}{% if ek_zip != blank %} {{ ek_zip }}{% endif %}{%- endcapture -%}
+{%- assign ek_line2 = ek_line2 | strip -%}
+{{- ek_street -}}{%- if ek_street != blank and ek_line2 != blank -%}, {% endif -%}{{- ek_line2 -}}
+{%- comment -%}===== END: email-kit/store/address ====={%- endcomment -%}

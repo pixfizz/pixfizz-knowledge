@@ -1,0 +1,24 @@
+{%- comment -%}===== START: email-kit/templates/order-draft =====
+Admin Body calls this snippet in one line and passes: order, user.
+{%- endcomment -%}
+{%- capture ek_store -%}{% snippet 'email-kit/store/name' %}{%- endcapture -%}{%- assign ek_store = ek_store | strip -%}
+{%- capture ek_subject -%}{% snippet 'email-kit/subjects/order-draft', order: order %}{%- endcapture -%}
+{%- capture ek_msg -%}{% snippet 'email-kit/messages/order-draft' %}{%- endcapture -%}
+{%- assign ek_first = user.first_name | default: order.first_name | default: order.address.first_name -%}
+{%- assign ek_tname = 'Personalize order ' | append: order.code -%}
+{%- assign ek_target = '/site/draft-order/' | append: order.id -%}
+{%- capture ek_token -%}{% signin_token user, ek_tname, target_url: ek_target, expires_in: '3 months' %}{%- endcapture -%}
+{%- assign ek_token = ek_token | strip -%}
+{%- assign ek_draft_url = website.signin_tokens[ek_token].signin_url -%}
+{%- comment -%} In admin Preview the lookup above is blank; the token link format below was read from Sign-in Token Renewed {%- endcomment -%}
+{%- if ek_draft_url == blank and ek_token != blank -%}{%- assign ek_draft_url = 'https://' | append: website.hostname | append: '/v1/session?stok=' | append: ek_token -%}{%- endif -%}
+{%- assign ek_pre = 'Your purchase is saved. Start personalizing when you are ready.' -%}
+{%- capture ek_body -%}
+{% snippet 'email-kit/parts/heading', title: 'Ready to personalize', code: order.code, team: false %}
+{% snippet 'email-kit/parts/message', message: ek_msg, first_name: ek_first, order_code: order.code, store_name: ek_store %}
+{% snippet 'email-kit/parts/button', label: 'Start personalizing', url: ek_draft_url %}
+{% snippet 'email-kit/parts/link-fallback', url: ek_draft_url %}
+{% snippet 'email-kit/parts/lines', lines: order.orderlines, single: nil, show_price: false %}
+{%- endcapture -%}
+{% snippet 'email-kit/layout', subject: ek_subject, preheader: ek_pre, body: ek_body, audience: 'customer', banner: false %}
+{%- comment -%}===== END: email-kit/templates/order-draft ====={%- endcomment -%}

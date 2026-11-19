@@ -1,0 +1,65 @@
+{%- comment -%}===== START: email-kit/templates/cart-abandoned =====
+Admin Body calls this snippet in one line and passes: cart, user, sequence_number.
+Sends 1, 2 and 3. Copy per send from email-kit/cart/* and email-kit/messages/cart-abandoned*.
+Discount code on the send named in email-kit/settings/cart-discount-reminder. Help box on send 2 when email-kit/settings/cart-help is TRUE.
+{%- endcomment -%}
+{%- capture ek_store -%}{% snippet 'email-kit/store/name' %}{%- endcapture -%}{%- assign ek_store = ek_store | strip -%}
+{%- assign ek_seq = sequence_number | plus: 0 -%}
+{%- if ek_seq < 1 -%}{%- assign ek_seq = 1 -%}{%- endif -%}
+{%- if ek_seq > 3 -%}{%- assign ek_seq = 3 -%}{%- endif -%}
+{%- capture ek_subject -%}{% snippet 'email-kit/subjects/cart-abandoned', sequence_number: ek_seq %}{%- endcapture -%}
+{%- assign ek_first = user.first_name -%}
+{%- assign ek_cart_url = 'https://' | append: website.hostname | append: '/site/cart/?recover_cart=' | append: cart.id -%}
+{%- capture ek_pct -%}{% snippet 'email-kit/settings/cart-discount' %}{%- endcapture -%}
+{%- assign ek_pct = ek_pct | strip_html | strip | remove: '%' -%}
+{%- capture ek_on -%}{% snippet 'email-kit/settings/cart-discount-reminder' %}{%- endcapture -%}
+{%- assign ek_on = ek_on | strip_html | strip -%}
+{%- if ek_on != '3' -%}{%- assign ek_on = '2' -%}{%- endif -%}
+{%- assign ek_seq_s = ek_seq | append: '' -%}
+{%- assign ek_code = '' -%}
+{%- if ek_seq_s == ek_on -%}
+	{%- case ek_pct -%}
+		{%- when '5' -%}{%- capture ek_code -%}{% promocode percentage: 5, expires_in: '1 day' %}{%- endcapture -%}
+		{%- when '10' -%}{%- capture ek_code -%}{% promocode percentage: 10, expires_in: '1 day' %}{%- endcapture -%}
+		{%- when '15' -%}{%- capture ek_code -%}{% promocode percentage: 15, expires_in: '1 day' %}{%- endcapture -%}
+		{%- when '20' -%}{%- capture ek_code -%}{% promocode percentage: 20, expires_in: '1 day' %}{%- endcapture -%}
+	{%- endcase -%}
+{%- endif -%}
+{%- assign ek_code = ek_code | strip -%}
+{%- if ek_code == blank -%}{%- assign ek_pct = '' -%}{%- endif -%}
+{%- case ek_seq -%}
+	{%- when 2 -%}
+		{%- capture ek_msg -%}{% snippet 'email-kit/messages/cart-abandoned-2' %}{%- endcapture -%}
+		{%- capture ek_title -%}{% snippet 'email-kit/cart/heading-2' %}{%- endcapture -%}
+		{%- capture ek_pre -%}{% snippet 'email-kit/cart/preheader-2' %}{%- endcapture -%}
+	{%- when 3 -%}
+		{%- capture ek_msg -%}{% snippet 'email-kit/messages/cart-abandoned-3' %}{%- endcapture -%}
+		{%- capture ek_title -%}{% snippet 'email-kit/cart/heading-3' %}{%- endcapture -%}
+		{%- capture ek_pre -%}{% snippet 'email-kit/cart/preheader-3' %}{%- endcapture -%}
+	{%- else -%}
+		{%- capture ek_msg -%}{% snippet 'email-kit/messages/cart-abandoned' %}{%- endcapture -%}
+		{%- capture ek_title -%}{% snippet 'email-kit/cart/heading-1' %}{%- endcapture -%}
+		{%- capture ek_pre -%}{% snippet 'email-kit/cart/preheader-1' %}{%- endcapture -%}
+{%- endcase -%}
+{%- capture ek_tk_disc -%}{discount}{%- endcapture -%}
+{%- assign ek_title = ek_title | strip_html | strip_newlines | strip | replace: ek_tk_disc, ek_pct | escape -%}
+{%- assign ek_pre = ek_pre | strip_html | strip_newlines | strip | replace: ek_tk_disc, ek_pct -%}
+{%- assign ek_help = '' -%}
+{%- if ek_seq == 2 -%}
+	{%- capture ek_help_on -%}{% snippet 'email-kit/settings/cart-help' %}{%- endcapture -%}
+	{%- assign ek_help_on = ek_help_on | strip_html | strip | upcase -%}
+	{%- if ek_help_on == 'TRUE' -%}{%- capture ek_help -%}{% snippet 'email-kit/parts/help' %}{%- endcapture -%}{%- endif -%}
+{%- endif -%}
+{%- capture ek_body -%}
+{% snippet 'email-kit/parts/heading', title: ek_title, code: '', team: false %}
+{% snippet 'email-kit/parts/message', message: ek_msg, first_name: ek_first, order_code: '', store_name: ek_store, discount: ek_pct %}
+{%- if ek_code != blank -%}
+{%- capture ek_info -%}<div style="text-align:center;">{{ ek_pct }}% off your order with code<br><strong style="font-family:Menlo,Consolas,monospace;font-size:20px;line-height:30px;letter-spacing:2px;">{{ ek_code | escape }}</strong><br><span class="ek-muted" style="color:#6b7280;font-size:13px;">Valid for 24 hours</span></div>{%- endcapture -%}
+{% snippet 'email-kit/parts/info-box', html: ek_info %}
+{%- endif -%}
+{% snippet 'email-kit/parts/button', label: 'Finish your order', url: ek_cart_url %}
+{{ ek_help }}
+{% snippet 'email-kit/parts/lines', lines: cart.orderlines, single: nil, show_price: false %}
+{%- endcapture -%}
+{% snippet 'email-kit/layout', subject: ek_subject, preheader: ek_pre, body: ek_body, audience: 'cart', banner: false %}
+{%- comment -%}===== END: email-kit/templates/cart-abandoned ====={%- endcomment -%}

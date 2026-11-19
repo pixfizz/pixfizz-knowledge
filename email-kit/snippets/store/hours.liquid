@@ -1,0 +1,8 @@
+{%- comment -%}===== START: email-kit/store/hours ====={%- endcomment -%}
+{%- capture ek_v -%}{% snippet 'website/contact/support-hours' %}{%- endcapture -%}
+{%- if ek_v contains '9:00am - 5:30pm M-F' -%}{%- assign ek_v = '' -%}{%- endif -%}
+{%- assign ek_v = ek_v | replace: '<br />', ' · ' | replace: '<br/>', ' · ' | replace: '<br>', ' · ' | replace: '<BR>', ' · ' | strip_html | strip_newlines | strip -%}
+{%- assign ek_h1 = ek_v | slice: 0, 15 -%}
+{%- if ek_h1 == 'Store Hours: · ' -%}{%- assign ek_v = ek_v | remove_first: 'Store Hours: · ' -%}{%- endif -%}
+{{- ek_v | escape -}}
+{%- comment -%}===== END: email-kit/store/hours ====={%- endcomment -%}

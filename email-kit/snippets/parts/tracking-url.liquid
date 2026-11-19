@@ -1,0 +1,36 @@
+{%- comment -%}===== START: email-kit/parts/tracking-url =====
+Args: order. Prints a carrier tracking URL for order.custom.tracking, or nothing.
+A full URL in the tracking field is used as it is. Otherwise the carrier comes from the shipping method name, then from the number format (UPS 1Z, USPS 20 to 22 digits starting with 9, FedEx 12 or 15 digits).
+{%- endcomment -%}
+{%- assign ek_t = order.custom.tracking | strip -%}
+{%- assign ek_url = '' -%}
+{%- if ek_t != blank -%}
+	{%- assign ek_head = ek_t | slice: 0, 4 | downcase -%}
+	{%- if ek_head == 'http' -%}
+		{%- assign ek_url = ek_t -%}
+	{%- else -%}
+		{%- assign ek_n = ek_t | remove: ' ' | remove: '-' -%}
+		{%- assign ek_meth = order.shipping_method | append: '' | upcase -%}
+		{%- assign ek_digits = ek_n | remove: '0' | remove: '1' | remove: '2' | remove: '3' | remove: '4' | remove: '5' | remove: '6' | remove: '7' | remove: '8' | remove: '9' -%}
+		{%- assign ek_len = ek_n | size -%}
+		{%- assign ek_1z = ek_n | slice: 0, 2 | upcase -%}
+		{%- assign ek_9 = ek_n | slice: 0, 1 -%}
+		{%- if ek_meth contains 'USPS' or ek_meth contains 'POSTAL' -%}{%- assign ek_c = 'usps' -%}
+		{%- elsif ek_meth contains 'UPS' -%}{%- assign ek_c = 'ups' -%}
+		{%- elsif ek_meth contains 'FEDEX' -%}{%- assign ek_c = 'fedex' -%}
+		{%- elsif ek_meth contains 'DHL' -%}{%- assign ek_c = 'dhl' -%}
+		{%- elsif ek_1z == '1Z' -%}{%- assign ek_c = 'ups' -%}
+		{%- elsif ek_digits == blank and ek_9 == '9' and ek_len >= 20 and ek_len <= 22 -%}{%- assign ek_c = 'usps' -%}
+		{%- elsif ek_digits == blank and ek_len == 12 or ek_digits == blank and ek_len == 15 -%}{%- assign ek_c = 'fedex' -%}
+		{%- else -%}{%- assign ek_c = '' -%}
+		{%- endif -%}
+		{%- case ek_c -%}
+			{%- when 'usps' -%}{%- assign ek_url = 'https://tools.usps.com/go/TrackConfirmAction?tLabels=' | append: ek_n -%}
+			{%- when 'ups' -%}{%- assign ek_url = 'https://www.ups.com/track?tracknum=' | append: ek_n -%}
+			{%- when 'fedex' -%}{%- assign ek_url = 'https://www.fedex.com/fedextrack/?trknbr=' | append: ek_n -%}
+			{%- when 'dhl' -%}{%- assign ek_url = 'https://www.dhl.com/global-en/home/tracking/tracking-express.html?tracking-id=' | append: ek_n -%}
+		{%- endcase -%}
+	{%- endif -%}
+{%- endif -%}
+{{- ek_url -}}
+{%- comment -%}===== END: email-kit/parts/tracking-url ====={%- endcomment -%}

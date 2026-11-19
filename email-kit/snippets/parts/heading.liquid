@@ -1,0 +1,11 @@
+{%- comment -%}===== START: email-kit/parts/heading =====
+Args: title, code (order code, optional), team (true shows the internal badge).
+{%- endcomment -%}
+{%- if team == true -%}
+<div style="margin:0 0 12px 0;"><span style="display:inline-block;font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;background-color:#ecebfa;color:#4b4f9c;padding:6px 8px;border-radius:4px;">Internal &middot; sent to your Orders Email</span></div>
+{%- endif -%}
+<h1 class="ek-h1 ek-text" style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:26px;line-height:32px;font-weight:700;color:#1f2933;">{{ title }}</h1>
+{%- if code != blank -%}
+<p class="ek-muted" style="margin:6px 0 0 0;font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:20px;color:#6b7280;">Order <span class="ek-text" style="color:#1f2933;font-weight:700;">{{ code | escape }}</span></p>
+{%- endif -%}
+{%- comment -%}===== END: email-kit/parts/heading ====={%- endcomment -%}

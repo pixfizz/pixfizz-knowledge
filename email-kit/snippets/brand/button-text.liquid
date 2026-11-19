@@ -1,0 +1,22 @@
+{%- comment -%}===== START: email-kit/brand/button-text ====={%- endcomment -%}
+{%- capture ek_v -%}{% snippet 'email-kit/settings/button-text-color' %}{%- endcapture -%}
+{%- assign ek_v = ek_v | strip_html | strip_newlines | strip | downcase -%}
+{%- assign ek_hash = ek_v | slice: 0, 1 -%}
+{%- if ek_v == blank or ek_hash != '#' -%}
+	{%- comment -%} Auto: dark text on light brand colors, white text on dark ones (YIQ brightness 150) {%- endcomment -%}
+	{%- assign ek_hex = brand | downcase -%}
+	{%- assign ek_sum = 0 -%}
+	{%- for ek_i in (1..6) -%}
+		{%- assign ek_ch = ek_hex | slice: ek_i, 1 -%}
+		{%- capture ek_d -%}{% snippet 'email-kit/brand/hex-value', c: ek_ch %}{%- endcapture -%}
+		{%- assign ek_d = ek_d | strip | plus: 0 -%}
+		{%- assign ek_pos = ek_i | modulo: 2 -%}
+		{%- if ek_pos == 1 -%}{%- assign ek_d = ek_d | times: 16 -%}{%- endif -%}
+		{%- if ek_i <= 2 -%}{%- assign ek_w = 299 -%}{%- elsif ek_i <= 4 -%}{%- assign ek_w = 587 -%}{%- else -%}{%- assign ek_w = 114 -%}{%- endif -%}
+		{%- assign ek_add = ek_d | times: ek_w -%}
+		{%- assign ek_sum = ek_sum | plus: ek_add -%}
+	{%- endfor -%}
+	{%- if ek_sum >= 150000 -%}{%- assign ek_v = '#111111' -%}{%- else -%}{%- assign ek_v = '#ffffff' -%}{%- endif -%}
+{%- endif -%}
+{{- ek_v -}}
+{%- comment -%}===== END: email-kit/brand/button-text ====={%- endcomment -%}

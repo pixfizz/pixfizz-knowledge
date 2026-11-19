@@ -1,0 +1,21 @@
+{%- comment -%}===== START: email-kit/parts/totals =====
+Args: order.
+{%- endcomment -%}
+{%- assign ek_cell = 'padding:3px 0;font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:20px;' -%}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:12px;">
+	<tr><td class="ek-muted" style="{{ ek_cell }}color:#6b7280;">Subtotal</td><td align="right" class="ek-text" style="{{ ek_cell }}text-align:right;color:#1f2933;">{{ order.orderlines_total | currency }}</td></tr>
+	{%- unless order.address.is_public -%}
+	<tr><td class="ek-muted" style="{{ ek_cell }}color:#6b7280;">Shipping</td><td align="right" class="ek-text" style="{{ ek_cell }}text-align:right;color:#1f2933;">{{ order.shipping | currency }}</td></tr>
+	{%- endunless -%}
+	{%- for ek_fee in order.extra_fees -%}
+	<tr><td class="ek-muted" style="{{ ek_cell }}color:#6b7280;">{{ ek_fee.name | escape }}</td><td align="right" class="ek-text" style="{{ ek_cell }}text-align:right;color:#1f2933;">{{ ek_fee.amount | currency }}</td></tr>
+	{%- endfor -%}
+	{%- if order.tax > 0 -%}
+	<tr><td class="ek-muted" style="{{ ek_cell }}color:#6b7280;">Tax</td><td align="right" class="ek-text" style="{{ ek_cell }}text-align:right;color:#1f2933;">{{ order.tax | currency }}</td></tr>
+	{%- endif -%}
+	{%- if order.discount > 0 -%}
+	<tr><td class="ek-muted" style="{{ ek_cell }}color:#6b7280;">Discount</td><td align="right" class="ek-text" style="{{ ek_cell }}text-align:right;color:#1f2933;">&minus;{{ order.discount | currency }}</td></tr>
+	{%- endif -%}
+	<tr><td class="ek-text ek-line" style="padding:10px 0 0 0;border-top:2px solid #e5e7eb;font-family:Helvetica,Arial,sans-serif;font-size:16px;line-height:22px;font-weight:700;color:#1f2933;">Total</td><td align="right" class="ek-text ek-line" style="padding:10px 0 0 0;border-top:2px solid #e5e7eb;text-align:right;font-family:Helvetica,Arial,sans-serif;font-size:16px;line-height:22px;font-weight:700;color:#1f2933;">{{ order.total | currency }}</td></tr>
+</table>
+{%- comment -%}===== END: email-kit/parts/totals ====={%- endcomment -%}

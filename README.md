@@ -8,6 +8,8 @@ engines, Shopify integration, MyPixfizz, and operational playbooks.
 
 **02_RETRIEVAL_MAP.md** routes a question to the right file. Open it first.
 
+The `email-kit/` folder holds the complete Shopper email kit: every notification email template, how to set it up on a site and how to customize it. Start at `email-kit/README.md`.
+
 Files are numbered by topic area and each one ends with a changelog recording what
 changed and when. The knowledge base is updated weekly.
 

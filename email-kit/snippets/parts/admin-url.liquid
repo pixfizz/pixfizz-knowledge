@@ -1,0 +1,15 @@
+{%- comment -%}===== START: email-kit/parts/admin-url =====
+Args: order. Prints the admin order URL. Site key from email-kit/settings/admin-site-key, else the first part of a pixfizz.com host name.
+{%- endcomment -%}
+{%- capture ek_key -%}{% snippet 'email-kit/settings/admin-site-key' %}{%- endcapture -%}
+{%- assign ek_key = ek_key | strip_html | strip_newlines | strip -%}
+{%- if ek_key == blank and website.hostname contains '.pixfizz.com' -%}
+	{%- assign ek_parts = website.hostname | split: '.' -%}
+	{%- assign ek_key = ek_parts.first -%}
+{%- endif -%}
+{%- if ek_key != blank -%}
+https://admin.pixfizz.com/site/{{ ek_key }}/admin/orders/{{ order.code }}
+{%- else -%}
+https://admin.pixfizz.com
+{%- endif -%}
+{%- comment -%}===== END: email-kit/parts/admin-url ====={%- endcomment -%}

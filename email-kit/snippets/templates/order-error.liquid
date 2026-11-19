@@ -1,0 +1,19 @@
+{%- comment -%}===== START: email-kit/templates/order-error =====
+Admin Body calls this snippet in one line and passes: order, user.
+{%- endcomment -%}
+{%- capture ek_store -%}{% snippet 'email-kit/store/name' %}{%- endcapture -%}{%- assign ek_store = ek_store | strip -%}
+{%- capture ek_subject -%}{% snippet 'email-kit/subjects/order-error', order: order %}{%- endcapture -%}
+{%- capture ek_msg -%}{% snippet 'email-kit/messages/order-error' %}{%- endcapture -%}
+{%- assign ek_first = user.first_name | default: order.first_name | default: order.address.first_name -%}
+{%- capture ek_admin_url -%}{% snippet 'email-kit/parts/admin-url', order: order %}{%- endcapture -%}{%- assign ek_admin_url = ek_admin_url | strip -%}
+{%- capture ek_info -%}<strong>{{ order.first_name | escape }} {{ order.last_name | escape }}</strong><br>{{ order.email | escape }}<br>Placed {{ order.created_at | date: '%b %-d, %Y' }} &middot; {{ order.total | currency }}{%- endcapture -%}
+{%- assign ek_pre = 'Order ' | append: order.code | append: ' needs attention.' -%}
+{%- capture ek_body -%}
+{% snippet 'email-kit/parts/heading', title: 'Order needs attention', code: order.code, team: true %}
+{% snippet 'email-kit/parts/message', message: ek_msg, first_name: ek_first, order_code: order.code, store_name: ek_store %}
+{% snippet 'email-kit/parts/info-box', html: ek_info %}
+{% snippet 'email-kit/parts/button', label: 'Open order in admin', url: ek_admin_url %}
+{% snippet 'email-kit/parts/lines', lines: order.orderlines, single: nil, show_price: true %}
+{%- endcapture -%}
+{% snippet 'email-kit/layout', subject: ek_subject, preheader: ek_pre, body: ek_body, audience: 'team', banner: false %}
+{%- comment -%}===== END: email-kit/templates/order-error ====={%- endcomment -%}

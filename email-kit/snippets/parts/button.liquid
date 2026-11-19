@@ -1,0 +1,15 @@
+{%- comment -%}===== START: email-kit/parts/button =====
+Args: label, url. Colors come from email-kit/brand/*.
+{%- endcomment -%}
+{%- if url != blank -%}
+{%- capture ek_bg -%}{% snippet 'email-kit/brand/color' %}{%- endcapture -%}{%- assign ek_bg = ek_bg | strip -%}
+{%- capture ek_fg -%}{% snippet 'email-kit/brand/button-text', brand: ek_bg %}{%- endcapture -%}{%- assign ek_fg = ek_fg | strip -%}
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0 4px 0;">
+	<tr>
+		<td align="center" bgcolor="{{ ek_bg }}" style="background-color:{{ ek_bg }};border-radius:6px;mso-padding-alt:14px 26px;">
+			<a href="{{ url | escape }}" target="_blank" style="display:inline-block;padding:14px 26px;font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:18px;font-weight:700;color:{{ ek_fg }};text-decoration:none;border-radius:6px;">{{ label }}</a>
+		</td>
+	</tr>
+</table>
+{%- endif -%}
+{%- comment -%}===== END: email-kit/parts/button ====={%- endcomment -%}

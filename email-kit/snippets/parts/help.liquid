@@ -1,0 +1,27 @@
+{%- comment -%}===== START: email-kit/parts/help =====
+Help box with call, email and one site link buttons. Phone and email from email-kit/store/*, title and link from email-kit/cart/help-*.
+Prints nothing when there is nothing to link to.
+{%- endcomment -%}
+{%- capture ek_hp -%}{% snippet 'email-kit/store/phone' %}{%- endcapture -%}{%- assign ek_hp = ek_hp | strip -%}
+{%- capture ek_he -%}{% snippet 'email-kit/store/email' %}{%- endcapture -%}{%- assign ek_he = ek_he | strip -%}
+{%- capture ek_ht -%}{% snippet 'email-kit/cart/help-title' %}{%- endcapture -%}{%- assign ek_ht = ek_ht | strip_html | strip_newlines | strip | escape -%}
+{%- capture ek_hl -%}{% snippet 'email-kit/cart/help-link-label' %}{%- endcapture -%}{%- assign ek_hl = ek_hl | strip_html | strip_newlines | strip | escape -%}
+{%- capture ek_hu -%}{% snippet 'email-kit/cart/help-link-url' %}{%- endcapture -%}{%- assign ek_hu = ek_hu | strip_html | strip_newlines | strip -%}
+{%- assign ek_hu1 = ek_hu | slice: 0, 1 -%}
+{%- if ek_hu1 == '/' -%}{%- assign ek_hu = 'https://' | append: website.hostname | append: ek_hu -%}{%- endif -%}
+{%- if ek_hl == blank or ek_hu == blank -%}{%- assign ek_hl = '' -%}{%- assign ek_hu = '' -%}{%- endif -%}
+{%- capture ek_hb -%}{% snippet 'email-kit/brand/color' %}{%- endcapture -%}{%- assign ek_hb = ek_hb | strip -%}
+{%- capture ek_hs -%}display:inline-block;margin:10px 8px 0 0;padding:10px 14px;border:1px solid {{ ek_hb }};border-radius:6px;font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:18px;font-weight:700;color:{{ ek_hb }};text-decoration:none;{%- endcapture -%}
+{%- if ek_hp != blank or ek_he != blank or ek_hu != blank -%}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:22px;">
+	<tr>
+		<td class="ek-soft ek-text" bgcolor="#f6f7f8" style="background-color:#f6f7f8;border-radius:8px;padding:16px 16px 18px 16px;font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;color:#1f2933;">
+			{%- if ek_ht != blank -%}<strong>{{ ek_ht }}</strong><br>{%- endif -%}
+			{%- if ek_hp != blank -%}<a href="tel:{{ ek_hp | remove: ' ' | remove: '(' | remove: ')' }}" style="{{ ek_hs }}">Call {{ ek_hp }}</a>{%- endif -%}
+			{%- if ek_he != blank -%}<a href="mailto:{{ ek_he }}?subject=Question%20about%20my%20order" style="{{ ek_hs }}">Email us</a>{%- endif -%}
+			{%- if ek_hu != blank -%}<a href="{{ ek_hu | escape }}" target="_blank" style="{{ ek_hs }}">{{ ek_hl }}</a>{%- endif -%}
+		</td>
+	</tr>
+</table>
+{%- endif -%}
+{%- comment -%}===== END: email-kit/parts/help ====={%- endcomment -%}

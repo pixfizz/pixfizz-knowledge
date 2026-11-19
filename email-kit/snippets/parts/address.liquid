@@ -1,0 +1,43 @@
+{%- comment -%}===== START: email-kit/parts/address =====
+Args: order, store_name. Shipping orders show the delivery address and method; pickup orders show the pickup location.
+{%- endcomment -%}
+{%- assign ek_a = order.address -%}
+{%- capture ek_lines -%}
+	{%- if ek_a.street != blank -%}{{ ek_a.street | escape }}<br>{%- endif -%}
+	{%- if ek_a.street2 != blank -%}{{ ek_a.street2 | escape }}<br>{%- endif -%}
+	{{- ek_a.city | escape }}{% if ek_a.city != blank and ek_a.region != blank %}, {% endif %}{{ ek_a.region | escape }} {{ ek_a.postcode | escape -}}
+	{%- if ek_a.country.name != blank -%}<br>{{ ek_a.country.name | escape }}{%- endif -%}
+{%- endcapture -%}
+{%- assign ek_label = 'font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:17px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#6b7280;margin:0 0 6px 0;' -%}
+{%- assign ek_val = 'font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:22px;color:#1f2933;margin:0;' -%}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:28px;">
+	<tr>
+		{%- if ek_a.is_public -%}
+		<td class="ek-col" valign="top" width="50%" style="width:50%;padding:0 12px 0 0;vertical-align:top;">
+			<p class="ek-muted" style="{{ ek_label }}">Pickup at</p>
+			<p class="ek-text" style="{{ ek_val }}"><strong>{{ store_name | escape }}</strong><br>{{ ek_lines }}</p>
+			{%- if ek_a.custom.google_maps_link != blank -%}
+			<p style="{{ ek_val }}margin-top:6px;"><a href="{{ ek_a.custom.google_maps_link | strip | escape }}" target="_blank" style="color:#1f2933;text-decoration:underline;">Get directions</a></p>
+			{%- endif -%}
+		</td>
+		{%- capture ek_oh -%}{{ ek_a.custom.opening_hours }}{%- endcapture -%}
+		{%- assign ek_oh = ek_oh | replace: '<br />', '<br>' | replace: '<br/>', '<br>' | strip -%}
+		{%- if ek_oh != blank -%}
+		<td class="ek-col" valign="top" width="50%" style="width:50%;padding:0 12px 0 0;vertical-align:top;">
+			<p class="ek-muted" style="{{ ek_label }}">Opening hours</p>
+			<p class="ek-text" style="{{ ek_val }}">{{ ek_oh }}</p>
+		</td>
+		{%- endif -%}
+		{%- else -%}
+		<td class="ek-col" valign="top" width="50%" style="width:50%;padding:0 12px 0 0;vertical-align:top;">
+			<p class="ek-muted" style="{{ ek_label }}">Shipping to</p>
+			<p class="ek-text" style="{{ ek_val }}">{{ order.first_name | escape }} {{ order.last_name | escape }}<br>{{ ek_lines }}</p>
+		</td>
+		<td class="ek-col" valign="top" width="50%" style="width:50%;padding:0 12px 0 0;vertical-align:top;">
+			<p class="ek-muted" style="{{ ek_label }}">Shipping method</p>
+			<p class="ek-text" style="{{ ek_val }}">{{ order.shipping_method | escape }}</p>
+		</td>
+		{%- endif -%}
+	</tr>
+</table>
+{%- comment -%}===== END: email-kit/parts/address ====={%- endcomment -%}

@@ -1,0 +1,18 @@
+{%- comment -%}===== START: email-kit/templates/signin-token-renewed =====
+Admin Body calls this snippet in one line and passes: signin_token, user.
+{%- endcomment -%}
+{%- capture ek_store -%}{% snippet 'email-kit/store/name' %}{%- endcapture -%}{%- assign ek_store = ek_store | strip -%}
+{%- capture ek_subject -%}{% snippet 'email-kit/subjects/signin-token-renewed' %}{%- endcapture -%}
+{%- capture ek_msg -%}{% snippet 'email-kit/messages/signin-token-renewed' %}{%- endcapture -%}
+{%- assign ek_first = user.first_name -%}
+{%- assign ek_signin_url = signin_token.signin_url -%}
+{%- assign ek_pre = 'Here is your new sign-in link.' -%}
+{%- capture ek_body -%}
+{% snippet 'email-kit/parts/heading', title: 'Your new sign-in link', code: '', team: false %}
+{% snippet 'email-kit/parts/message', message: ek_msg, first_name: ek_first, order_code: '', store_name: ek_store %}
+{% snippet 'email-kit/parts/button', label: 'Sign in', url: ek_signin_url %}
+{% snippet 'email-kit/parts/link-fallback', url: ek_signin_url %}
+{% snippet 'email-kit/parts/note', text: 'If you did not ask for a new link, you can ignore this email.', size: 'small' %}
+{%- endcapture -%}
+{% snippet 'email-kit/layout', subject: ek_subject, preheader: ek_pre, body: ek_body, audience: 'customer', banner: false %}
+{%- comment -%}===== END: email-kit/templates/signin-token-renewed ====={%- endcomment -%}
