@@ -990,6 +990,20 @@ Stated from client calls, not independently verified.
 
 ---
 
+## Pack Prices Are Entered Per Unit
+
+A product attribute price with `min_units` 24 and intervals 24, 48 is a **per-unit** price. A pack price from a client's price sheet (for example 24 units for 30,000) is entered as 30,000 / 24 = 1,250. Platform-level. *Verified 2026-11-10.*
+
+## Shipping Formulas Break the Cart Page on a Liquid Error
+
+A shipping service formula renders on the cart page, so a syntax error in it breaks every add to cart, not just the shipping line. The most common cause is a filter inside a `for` tag (`50_LIQUID_REFERENCE.md` § Two Silent Liquid Failures). Test one cart on the live site after every formula save. *Verified on a client site, 2026-11-09.*
+
+## Uploader Price Cards (`px_rates`): Engine Version and Flat Prints
+
+Template-level (Shopper uploader asset) with a product custom field.
+- The storefront uploader refuses any card whose `"engine"` is higher than the pricing engine bundled in the live `uploader.js`: the page shows "This product is not set up yet" and Add to cart is disabled. **Upgrade the shopper24 `uploader.js` first, then raise cards.** A point-of-sale or production system may run a newer engine than the storefront, but the storefront must never be older than any card. *Verified live, 2026-11-10 (every uploader product on one site broke when cards were raised by hand).*
+- `pricing.js` prices `flat`, `booklet` and `area` cards only. A `"mode": "prints"` card (Flat Prints) is refused whatever its engine; Flat Prints is priced inside `uploader.js` itself. A change to Flat Prints rates or cutting rules is an uploader release, never a pricing engine version. *Verified by test, 2026-11-11.*
+
 ## Changelog
 - 2026-05-19: Added Automatic Discounts section — Liquid-based cart discounts with tiered, user category, and seasonal patterns. Source: Claude chat (webinar prep).
 - 2026-07-03: Added Extra Fees (Liquid-Based Cart Fees) section — fee-side twin of Automatic Discounts (adds instead of subtracts), configured under Shipping → Extra Fees. Includes per-duplicate-orderline surcharge pattern (seen-string + contains idiom); orderline-iteration specifics pending live confirmation. Source: Claude chat.
@@ -1015,3 +1029,4 @@ Stated from client calls, not independently verified.
 - 2026-10-22: New § The Three Ways a Product Is Priced (attribute price, variant prices, `px_rates` card; `px_rates` mode `area`, generic `px_` variant codes, why OrderHub needs type 3). § Platform Price per Quantity: `price_forecast` prices only the variants and template options sent; reading real prices into a prototype; `pages` is SYSTEM pages on `spreads_as_pages` books (system = printed / 2 + 1). New subsection: a flat charge per order line on a variant value is `amount / quantity`. New subsection under Shipping Rate by Cart Content: a per-cart weight estimate by product code (mechanism only, pending a platform test checkout). Source: claude-chat.
 - 2026-10-29: Photo Prints: converting variant-only cut print prices to base price plus per-tier differences (per-tier minimum, not the default); `price_forecast` ignores quantity on cut prints. Source: claude-chat.
 - 2026-11-09: New: never use `extra_pages` in an option value price on a single-page product with a preview page (doubles in the cart). Automatic Discounts: percentage off by number of items pattern (customer-reported, not verified). Round 2: metric `area` cards need engine version 2 (not verified); `* cut_print_quantity` variant prices still apply on a non-cut-print template; Automatic Discounts: saving rounded half up (tools must match), admin routes pointer. Source: claude-chat, support-ticket.
+- 2026-11-13: Pack prices are entered per unit (min_units and intervals). Shipping formulas render on the cart page, so a Liquid error breaks every add to cart. Uploader px_rates cards: upgrade uploader.js before raising a card's engine; Flat Prints (mode prints) is priced in uploader.js, not pricing.js. Source: claude-chat.

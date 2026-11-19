@@ -1121,6 +1121,10 @@ _Verified by reading source, 2026-09-09._
 
 ---
 
+## A Destination Record Does Not Prove the FTP Account Exists
+
+A fulfillment destination (`/site/<site>/superadmin/fulfillment_settings/<id>`) can hold an FTP host, user and password while the FTP account itself was never created on the Pixfizz FTP server. Nothing in admin shows it. At setup, log in with the stored credentials, then prove the route with a test order. Platform-level. *Verified 2026-11-10.*
+
 ## Changelog
 - 2026-04-10: Initial content from platform documentation export.
 - 2026-05-21: Restructured _additional_files.json section — documented three source formats (simple URL, HTTP request object, literal content), added full CraftMyPDF PDF job ticket worked example with capture block and implementation notes, separated file_upload delivery as distinct Pattern 2 with standalone and combined versions, added double-encoding and orderlines scope rules. Source: claude-chat.
@@ -1138,3 +1142,4 @@ _Verified by reading source, 2026-09-09._
 - 2026-10-22: § Fulfillment Code Resolution and Precedence: what the template lock looks like on the product page (disabled text, no `product[fulfillment]` field; editable select with "Website default" when the template has none); products published from another site's template take the provider template's code (locked) or the provider product's code (pre-filled, editable), read from the wizard before publishing. § Asset generation and new § AI Upscaling at Fulfillment (Perfectly Clear): settings, per-template override, limits, usage-based billing (no rates). § Filename Templates: spaces from a customer field stall the transfer, `replace: ' ', '_'`. § Fulfillment Code Resolution: order fulfillment page lists every code; a POD supplier callback can update orders on any site (commit titles only). Source: claude-chat, slack-message, notion-page.
 - 2026-10-29: § Filename Templates: option choices in the file name (`filename_tag` / `filename_code` pattern over `chosen_variants` and `chosen_template_options`, harness-tested only); destination edit path with the site key. Source: claude-chat.
 - 2026-11-09: § 2 Transport + auth: where a destination's auth settings live (Danger Area with HTTP Headers, token auth, Split By Orderline only on the global super admin path; new destination takes Code and Account). § Fulfillment Code Resolution: inherited products without a child product routed to the site default (fix per product, Force Refulfill old orders). § Filename Templates CORRECTED destination path advice (prefer the global path). § One file set per route: Description in Dir hidden-input trap, list label check, reading a template body from `const content` (never `ace.edit`), CRLF, FTP credentials on the destination page. Round 2: § The tool side: a tool on a design product hands off through the project, not `px_print_file` (proposed, not verified). Source: claude-chat, support-ticket.
+- 2026-11-13: A destination record does not prove the FTP account exists: log in with the stored credentials and run a test order. Source: claude-chat.

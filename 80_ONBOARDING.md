@@ -820,6 +820,15 @@ Pixfizz staging and production run **the same database**; only the code differs.
 
 After any domain change, repoint payment-provider webhooks that carry the old domain (`21_SHOPPER_CHECKOUT_POLICY.md` § Payment Gateway Notes). *Stated on client calls, 2026-09-22 and 2026-09-24.*
 
+## New Shopper Children: Check Before Writing (2026-11)
+
+- **A new child can share catalog data with the old site.** A child started from an existing site showed the same product and collection ids, the same custom field definitions and shipping services "inherited from" the old domain. Editing a product there edits the live one. Before importing a custom field kit or editing products, compare definitions and product ids with the old site; if they match, treat every write as live and do not import a field kit on top. Calendars, currency format and snippets are per site. *Verified 2026-11-10.*
+- **A child with no `custom_script` field definition prints tool mounts as text** and ignores hidden and hide_from_cart. Import the shopper24 site kit custom fields, then open each mount option and save it once. The product page can serve the old render for a few minutes; add a throwaway query string to check. *Verified by query, 2026-11-12.* (`51_CUSTOM_FIELDS_REFERENCE.md` § Key Notes, `custom_script`.)
+- **The admin slug can differ from the name the customer uses.** The wrong slug answers 404 everywhere; confirm the slug in admin before using it.
+- **Clear the To field on customer emails** when moving a site to new email templates (`18_ADMIN_NAVIGATION.md` § More Admin Screens).
+- **Test the FTP login** for every fulfillment destination (`31_FULFILLMENT_ENGINE.md`).
+- **Languages and currencies.** The Settings language list has no Serbian, Croatian or Bosnian, and the currency list has no Serbian dinar. Currency format settings (unit, format, precision, separators) can change how prices display, but the base currency code stays wrong for payments: confirm with Pixfizz before a go-live in a missing currency. *Verified in admin, 2026-11-11.*
+
 ## Changelog
 - 2026-03-30: Created from master platform documentation export.
 - 2026-04-23: Added content completeness (descriptions) pre-launch checklist item.
@@ -838,3 +847,4 @@ After any domain change, repoint payment-provider webhooks that carry the old do
 - 2026-10-22: Marketplace Phase 1: Etsy integration is enabled per site by the Pixfizz core developer (observed in a release commit and stated by support, not stated as a rule by the developer); no site-owner setting seen. Source: slack-message.
 - 2026-10-29: Marketplace Phase 3: how the Etsy integration presents orders (SKU format, options, receipt id, cart link signs in as the cart user, abandoned cart statuses, one Cart Abandoned email at creation, option mapping by code; template-option variations pending). New § Site Backups: ask for the one without assets. Source: claude-chat, slack-message.
 - 2026-11-09: Marketplace Phase 3: Etsy variations mapped to template options passed a later test (mapping by name, the rest as orderline options); new `create_order` endpoint payload and numeric-type rule. Post-Import Checks: Website title feeds the legal pages' company name; shipping formula 0 is free. Round 2: Pre-Launch Handoff Checklist: social sharing image, photo prints setup, child moved onto another admin. Marketplace: Etsy orders store the variation value name, not the code. Source: claude-chat.
+- 2026-11-13: New section New Shopper Children: shared catalog data with the old site, custom_script definition missing prints mounts as text, admin slug can differ, clear To on customer emails, test the FTP login, missing languages and currencies. Source: claude-chat.

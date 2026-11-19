@@ -391,6 +391,12 @@ For the storefront tagging standard itself and the server-side revenue path, see
 
 ---
 
+## Part H — Findings 2026-11
+
+- `/llms.txt` answers 200 `text/plain` with an empty body when no file is set. An empty 200 is not a configured file. Platform-level. *Verified live, 2026-11-11.*
+- The product page JSON-LD (`#product-schema`) `sku` and `mpn` are `<design code>:<product code>`. *Verified by query, 2026-11-11.*
+- An empty design `meta_title` can give a doubled page title (`50_SHOPPER_TEMPLATE_REFERENCE.md` § 26).
+
 ## Pending Confirmation (for Matjaz / team)
 
 - Shopper LocalBusiness JSON-LD: are the placeholders populated and emitted by default, and do they include geo-coordinates and `sameAs`? What configuration is required?
@@ -422,3 +428,4 @@ For the storefront tagging standard itself and the server-side revenue path, see
 - 2026-10-17: Part D Crawlable: Schedule Website Crawl regenerates the sitemap within minutes and reports missing LD+JSON descriptions; unpublished designs and `admin_only` pages leave the sitemap; a custom-domain site is still served on the pixfizz host with no redirect; CORRECTED redirect anchors must allow a query string. Trust and local: the Google feed is `/feed/products.xml` and its gaps. Part G: collection image is the `og:image`; product x theme URLs are self-canonical duplicates; canonical keeps tracking parameters. Source: claude-chat.
 - 2026-10-22: Part D Crawlable: sitemap and product feed responses are cached for about a minute (commit titles only). Source: slack-message.
 - 2026-11-09: Part D Structured data: Shopper appends the store name to the page title (keep it out of `meta_title`). Part G: every child needs its own `og-preview-image.jpg`; `og:title` on Pages is the site title. Source: claude-chat.
+- 2026-11-13: Part H: empty /llms.txt answers 200 with no body; product schema sku format; empty design meta_title doubles the title. Source: claude-chat.

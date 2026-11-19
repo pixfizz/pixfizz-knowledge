@@ -957,6 +957,26 @@ When the website setting `auto_confirm_orders` is on, an order is confirmed at c
 
 ---
 
+## Add to Cart in a Design Tool Lands on Another Page: Check the Redirects
+
+A Website Redirect rule that matches `/cart/...` sends the tool's Add to Cart post somewhere else. See `50_LIQUID_REFERENCE.md` § Website Redirects (never let a rule catch a platform route).
+
+## Images Are Blank on a New Page: Check the Assets Exist
+
+`asset_url` on an asset that was never uploaded renders `src=""` with no error (`50_LIQUID_REFERENCE.md` § Two Silent Liquid Failures).
+
+## Every Add to Cart Shows an Error: Check the Shipping Formula
+
+A Liquid syntax error in a shipping service formula breaks the cart page (`30_PRICING_ENGINE.md`).
+
+## A Product Page's First Slide Looks Empty: Check the Preview Size
+
+The design preview may be slow, not broken (`17_DESIGN_TOOL.md` § px-design-preview Notes).
+
+## The Uploaded Photo Disappears When the Customer Changes Size
+
+A collection-filter size swap blanks `px-image-upload` (`50_SHOPPER_TEMPLATE_REFERENCE.md` § 26).
+
 ## Changelog
 - 2026-03-21: Initial content from platform documentation export.
 - 2026-04-23: Added CSS snippet logs diagnostic note, password reset Liquid deprecation pattern, fulfillment template DPI failure, URL reserved parameter 404 gotcha, Stripe pending-without-payment issue, FTP original files intermittent failure.
@@ -978,3 +998,4 @@ When the website setting `auto_confirm_orders` is on, an order is confirmed at c
 - 2026-10-17: `style onload`: an auto-submit inside `section.checkout-page` can fire twice; cap attempts per cart. Production File Regeneration: a production file can be rendered from the admin project page without an order. Stale page cache: a product attribute save does not clear every design page's bare URL; save the design to refresh. Source: claude-chat, fireflies-call.
 - 2026-10-22: Added Stripe: Payment Form Unreadable on a Dark Site (no `appearance` on the Payment Element, per-site fix through `checkout/extra-checkout-code`). Added Edits to a Page Do Nothing (a layout with no `page.content`; rendering rule inferred; audit check). Added A Component Looks Wrong on One Site Only (site `custom.css` leaking into embeds: heading colors and generic classes, high-specificity link colors, `img:hover` transforms; delivery checks). Added the check for `auto_confirm_orders` before any test order on a live site. Source: claude-chat.
 - 2026-11-09: Added Phones Show the Tablet Layout (`:has()` adds its argument's specificity). Added A Product Is Missing From Storefront Search (search reads the daily crawl's product feed; leading-whitespace links fixed 2026-11-04). Source: claude-chat, support-ticket.
+- 2026-11-13: Five symptom pointers: design tool Add to Cart redirected, blank images from missing assets, cart error from a shipping formula, slow first preview slide, uploaded photo lost on a size swap. Source: claude-chat.
