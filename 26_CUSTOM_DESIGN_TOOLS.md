@@ -178,6 +178,7 @@ not exist.
 | Design Brief (Design Service) | `design-brief.js` | `1.0.0` | `dsn_` | `dsn_mount` | **Unfinished.** Demo install on experience.pixfizz.com. |
 | Film Order Builder | `film-builder.js` | prototype, no version | `pxfb_` | host element `#pxfb` | **In progress** (status of 19 Sep). Rate card in the asset is demo data. |
 | Custom Framing | not recorded | - | - | - | Demo install on experience.pixfizz.com only (29 Sep sweep). |
+| Upsell Studio (platform extension) | `upsell-studio.js` | `0.1.0` (unreleased) | `us-` / `us_` args | `upsell-studio/mount` (cart and offer pages) | **Live on one client site** (18 Nov 2026); not on experience.pixfizz.com yet. Rules: § 7. |
 | Greeting Card Studio | parent asset on shopper24 | 0.5.x (October 2026) | `gcs_` | Pages page `page_content` block | **Live** on several client sites and experience.pixfizz.com (§7). |
 | Photo Book Studio | parent asset on shopper24 | 3.4.4 (24 Oct); 4.0.1 by 3 Nov (3D hero from the parent mount) | `pbs-` (`pbs-config`) | not recorded | **Live** on several client sites and experience.pixfizz.com (§7). |
 | Wall Design Studio | `wall-design-studio.js` | 0.8.6 on shopper24 (27 Oct) | `wds_` | not recorded | Engine live for a print-on-demand wall tile range (§7). |
@@ -2121,6 +2122,38 @@ document in the sources; moves to `px_print_file` from its first installed relea
 
 ---
 
+### Upsell Studio: live on one site
+
+Cross-sell offers in the cart and on the offered product's pages: when the cart holds a product
+in a trigger category, an offer card goes under the cart lines and a modal opens once per cart,
+where the customer designs the offered product and adds it without leaving the cart. Platform
+extension on Shopper 24 (template-level); the rules are site-specific. Source of truth:
+`pixfizz-design-tools/platform-extensions/upsell-studio/` (README and `docs/RULES.md`, the full
+rules reference). *Verified by reading the repo docs, 2026-11-20.*
+
+- **On/off and rules are two child snippets.** `admin/checklist/upsell-studio-enabled` = `TRUE`
+  switches it on (blank on the parent = off); `upsell-studio/rules` holds a JSON body (Liquid
+  only for `asset_url` on tile images). Off means byte-identical hook output. `?us_test=1` shows
+  it while the key is blank; `&us_open=1` reopens the modal on the cart.
+- **The trigger is the product category name**, read from `/v1/carts/_mine.json`
+  (`product_category`), spelled exactly as in admin. **The first matching rule wins**: one
+  offer per cart. Put the offered product's own category in `unless_categories` so the offer
+  stops once it is in the cart.
+- **Upsell Studio never changes a price.** `discount_percent` only displays the saving. The real
+  price change is a separate Automatic Discount per rule, with **Combines ticked**, using the
+  same percent and categories (`30_PRICING_ENGINE.md` § Automatic Discounts).
+- **What can be offered in 0.1.0:** a design product whose styles are separate product pages
+  in one collection folder (`page_dir`), sizes from the collection size filter, every style in
+  every size, customer input as template options only (no variants, uploads or crop), at most
+  one picture choice, and a preview template on the design (default `preview-design`). Anything
+  else is a code change, not a rules change.
+- **Add to cart** posts to `/v1/books` with `book[saved]=true` and `editor=add-to-cart` after
+  checking `product_id`, `theme_id` and `_cms_form` on the offered page's `#project_create`.
+- **The modal waits for other pop-ups** (no `.modal.show` for 600 ms), so site proof modals
+  come first. Not shown in kiosk mode.
+- **Side effect when on:** `style/px-tool-theme` hides `#scrollToTopBtn` and the OrderHub chat
+  on pages that load it, so both are hidden on the cart.
+
 ### Cross-tool rules added 2026-11
 
 - **WebGL previews must survive a lost context.** After customer uploads a browser dropped the WebGL context of a live 3D preview: the canvas went blank, no error. Every WebGL canvas listens for `webglcontextlost`, calls `preventDefault`, and rebuilds renderer, scene and textures; helper renderers (thumbnails, snapshots) are disposed and `forceContextLoss`'d after use. Test with `gl.getExtension('WEBGL_lose_context').loseContext()`. *Verified by test, 2026-11-10.*
@@ -2186,3 +2219,4 @@ once.
 - 2026-11-03: § 4 pointer to the new 28_TOOL_SETTINGS_REFERENCE.md (customer-facing settings per tool). Source: claude-chat.
 - 2026-11-09: CORRECTED § 3 tool assets: one fixed-name asset per tool, replaced in place (was a versioned asset per release). § 3: upload the new asset before a snippet change that drops an element; designs file format change installs the tool first; fulfillment contract item 8, a tool on a design product hands off through the project (pending confirmation); upload dialog re-opens itself for progress, `gallery-id` read only on connect, create the project before the first upload, button contrast on the site button tokens; local previews off the main thread (benchmark); scope every part of a selector list to the option; calm studios still name the size range and from-price, one-photo minimum, designed loader; booting class from the first paint, show the page's own size first, two page console errors that are not tool errors; round products turn like a turntable; Safari ignores `ctx.filter`, SVG in canvas never loads external URLs, die-cut previews follow the cut. § 1 `pricing-area.js` engine 2 metric cards. § 4 per-size defaults on the variant value Default flag; asset URLs in a mount via capture; widen an existing mount argument; theme filter `<main>` swap re-init; size-picker swap clears the photo option. § 5 twin template for upload and design products, tool products by Import Template, no tool version in names. § 6 calendar project PUT changes nothing, add to cart with `redirect: 'manual'`. § 2 / § 7 Photo Book Studio `#pbs-config` from 3.4.0 and the 3D-only hero from 4.0.1; Flyer / Brochure 1.0.x pointer. Also: filter swap fade and keep-visible pattern; provider mount reads store facts from the rendering site; rotated art needs its own `_preview`, books PUT echoes missing options; skip the definition preview page in a hand-off; `px-file-upload` 150m default, `px-upload-dialog` `max-size` in bytes (unit suffix pending), admin 50 MB is a browser check (`large_format`); `preview.webp` with `height` for non-photo designs; fonts from the products parent; missing `unit` means mm; SVG `@font-face` and canvas taint; action toasts ignore `ttl`; Wall Designer `<ipage>` zoom 0 crop resolved. Source: claude-chat.
 - 2026-11-13: § 7 cross-tool rules: WebGL context loss, create the upload project when a design opens, project-edit has no size heading, #product-schema sku, upload tools offer only priced sizes (support ticket), Collage Studio first page and flat mount variants, Greeting Card Studio envelope looks and the none code. Source: claude-chat, support-ticket.
+- 2026-11-20: Registry row and new § 7 entry: Upsell Studio 0.1.0 (switch and rules snippets, category trigger, first rule wins, discount only displayed and needs an Automatic Discount with Combines, what can be offered, side effects). Source: pixfizz-design-tools repo docs.

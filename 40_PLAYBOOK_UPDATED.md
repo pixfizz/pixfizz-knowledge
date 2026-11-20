@@ -28,6 +28,8 @@ Explain clearly:
 > Guest checkout does not create a login account.\
 > You can create one using the same email address.
 
+**Closing self-registration has two forms to close.** A site that switched to "request an account" still received an order from a self-created account: the login page was closed but a second create-account form at checkout was still open. When a site stops self-registration, test as a new customer on both the login page and checkout. *From support ticket #1327, 2026-11-17.*
+
 ------------------------------------------------------------------------
 
 ## Rendering Project Images in Email
@@ -66,6 +68,10 @@ Reason:
 This ensures all cart items render correctly in email notifications.
 
 ------------------------------------------------------------------------
+
+## Debug Output on the Live Checkout Shows Only for Debug Accounts
+
+Lines such as "do not require details: FALSE custom logic:" above Shipping Service, and a peach box listing `address` / `shipping_option` / `telephone` / `can_check_out`, appear only for user accounts tagged `debug` (often left on an admin's own login after troubleshooting). Customers do not see them. Before treating it as a template fault, load the checkout signed in as a regular account. *From support ticket #1313, 2026-11-17.*
 
 ## Debugging Principle
 
@@ -999,3 +1005,4 @@ A collection-filter size swap blanks `px-image-upload` (`50_SHOPPER_TEMPLATE_REF
 - 2026-10-22: Added Stripe: Payment Form Unreadable on a Dark Site (no `appearance` on the Payment Element, per-site fix through `checkout/extra-checkout-code`). Added Edits to a Page Do Nothing (a layout with no `page.content`; rendering rule inferred; audit check). Added A Component Looks Wrong on One Site Only (site `custom.css` leaking into embeds: heading colors and generic classes, high-specificity link colors, `img:hover` transforms; delivery checks). Added the check for `auto_confirm_orders` before any test order on a live site. Source: claude-chat.
 - 2026-11-09: Added Phones Show the Tablet Layout (`:has()` adds its argument's specificity). Added A Product Is Missing From Storefront Search (search reads the daily crawl's product feed; leading-whitespace links fixed 2026-11-04). Source: claude-chat, support-ticket.
 - 2026-11-13: Five symptom pointers: design tool Add to Cart redirected, blank images from missing assets, cart error from a shipping formula, slow first preview slide, uploaded photo lost on a size swap. Source: claude-chat.
+- 2026-11-20: Guest Checkout: closing self-registration means closing the checkout create-account form too. New section: debug output on the live checkout shows only for debug-tagged accounts. Source: support-ticket.

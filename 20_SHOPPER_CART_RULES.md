@@ -45,7 +45,17 @@ The product custom field `cart_product_name_format` sets the cart line name: bla
 - The photo prints component has **no minimum-quantity, maximum-quantity or order-threshold property**. A minimum order rule on photo prints is custom code, hooked into the component's client-side methods, and is a client-side guard only: anything that must genuinely hold needs a second check at cart or checkout. Hook surface and mount points: `41_IMPLEMENTATION_PATTERNS_UPDATED.md` (PhotoPrintsComponent hooks) and `52_SNIPPET_INVENTORY.md` annotations. *Verified by test on a live bundle, 2026-09-10.*
 - **Image selection resets after a quantity update (from 2026-10-21).** In the photo prints flow, the image selection process is reset after a quantity update, so selecting images works more like Photo Finale's. Platform-level (photo prints component). *Stated by the core developer, Slack #development, 2026-10-21 (release commit "Reset image selection process after quantity update").* What the customer sees step by step was not described.
 
-## Pricing display
+## Editing a photo prints cart line opens only that line
+
+Edit on a cut print cart line opens that one cart item: the photos in it, at its size. Each print size is its own item, so editing a 4x6 line offers only 4x6, and photos the customer uploaded but did not add are not there. To order other sizes or more photos, start a new order from Photo Prints. Template-level behavior, not a fault. *From support ticket #1310, 2026-11-16.*
+
+## The light cart pop-up (`admin/checklist/cart-performance`)
+
+`admin/checklist/cart-performance` = `TRUE` makes `modals/shopping-cart` load `checkout/cart-popup-light`. It was switched on on the shopper24 parent on 2026-11-10, so every child that does not override the key has it. Template-level (Shopper 24). Two side effects found in the first ten days:
+
+- **Its "Proceed to Checkout" button skipped the minimum order check.** Orders under a site's minimum went through from the slide-out cart. The button is now removed on sites with a minimum. Check this first when an order below the minimum reaches production. *Fixed and tested on a client site, support ticket #1344, 2026-11-20.*
+- **It renders a hidden `<a href="/site/checkout" data-pxcl-checkout hidden>` in every page.** The website crawler follows it and Crawler reports "1 uncacheable page" (`/site/checkout`: Cart, User, Orderline not cacheable). No customer or SEO impact; children with `admin/checklist/checkout-disclaimer` = `TRUE` do not render the button. The proposed parent fix sets the `href` from script only when the cart has items. *Diagnosed from the crawl log and the connector change log, support ticket #1311, 2026-11-16.* Whether the parent fix is applied: not verified.
+
 - Pricing generally visible; tiered pricing may show strikethrough.
 
 ## The free shipping progress bar is display only
@@ -307,3 +317,4 @@ A parent snippet `checkout/cut-print-upright` was delivered as paste blocks on 2
 - 2026-10-22: New section: removing a cart line asks for confirmation (parent snippets `checkout/remove-line-confirm` and `style/remove-line-confirm`, opt-in class `px-rm-line`, child overrides of `pages/cart` or `modals/shopping-cart` keep the instant remove, fails open). Photo prints: image selection resets after a quantity update (live 2026-10-21). Source: claude-chat, slack-message.
 - 2026-10-29: New sections: the cart line name (`cart_product_name_format` values, partial PUT write, `checkout/cart-extra-product-details` hook) and `checkout/extra-cart-code` (left-column placement, finding the summary column, discount progress bar reads `cart.orderlines_total`). Source: claude-chat.
 - 2026-11-09: Cart links: the first view of a new cart reloads once (order source and UTM sync), `/v1/carts/_mine.json` is fast enough for a pop-up. Hiding options and variants from the cart line: set-selling tool lines hide Edit through `px_wall_line` (project name), and a tool's shown discount must round the saving like the Automatic Discount formula. The Cart Fly-Out Preview Block (The method lesson): a tool that rotates its art needs its own `_preview` picture and `hide_edit_in_cart`; the books PUT echoes options the design lacks. Source: claude-chat.
+- 2026-11-20: New sections: editing a photo prints cart line opens only that line; the light cart pop-up (`cart-performance`): minimum order bypass via its Proceed to Checkout (fixed) and the hidden checkout link behind the "1 uncacheable page" crawler warning. Source: support-ticket.

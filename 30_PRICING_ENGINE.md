@@ -612,6 +612,7 @@ surcharges.
 ### Canonical use cases
 
 - **Minimum order fee:** add a flat handling fee when the cart subtotal is below a threshold.
+  - A "top up to the minimum" fee (adds the difference when the order is under $X) keeps the amount **in the Extra Fee formula** (Shipping → Extra Fees, `/site/<site>/admin/extra_fees/<id>/edit`), usually written twice (the test and the difference). Change both. The checklist snippet only switches the fee on and holds the checkout label. *From support ticket #1321, 2026-11-17.* A minimum can be bypassed by a cart button that skips the check: `20_SHOPPER_CART_RULES.md` § The light cart pop-up.
 - **Extra shipping / oversize surcharge:** add a fixed amount when the cart contains an oversized product.
 
 ### Pattern — Per-Duplicate-Orderline Surcharge (count distinct lines)
@@ -1030,3 +1031,4 @@ Template-level (Shopper uploader asset) with a product custom field.
 - 2026-10-29: Photo Prints: converting variant-only cut print prices to base price plus per-tier differences (per-tier minimum, not the default); `price_forecast` ignores quantity on cut prints. Source: claude-chat.
 - 2026-11-09: New: never use `extra_pages` in an option value price on a single-page product with a preview page (doubles in the cart). Automatic Discounts: percentage off by number of items pattern (customer-reported, not verified). Round 2: metric `area` cards need engine version 2 (not verified); `* cut_print_quantity` variant prices still apply on a non-cut-print template; Automatic Discounts: saving rounded half up (tools must match), admin routes pointer. Source: claude-chat, support-ticket.
 - 2026-11-13: Pack prices are entered per unit (min_units and intervals). Shipping formulas render on the cart page, so a Liquid error breaks every add to cart. Uploader px_rates cards: upgrade uploader.js before raising a card's engine; Flat Prints (mode prints) is priced in uploader.js, not pricing.js. Source: claude-chat.
+- 2026-11-20: Extra Fees, minimum order: the amount lives in the fee formula (twice), not the checklist snippet; pointer to the light cart pop-up bypass. Source: support-ticket.

@@ -115,6 +115,11 @@ include tax, no rules are needed and the price shown is the price paid. When
 prices exclude tax, the matched rate is added on top of the orderlines at cart and
 checkout. A customer-facing help article exists ("Setting Up Taxes").
 
+**Tax rates take up to 6 decimals (from 2026-11-17).** Before that the rate was rounded at the
+database level to two decimals, so a state rate of 8.238% was stored as 8.24% and orders drifted
+a cent or more from a production or POS system that uses the exact rate. Enter the exact rate;
+do not round it. Platform-level. *Stated by the core developer, Slack #development, 2026-11-17.*
+
 Flag this to clients during onboarding if they are European and expect tax-inclusive display prices.
 
 ## Guest checkout: configurable fields
@@ -237,6 +242,7 @@ endif
 
 ## Payment Gateway Notes
 
+- **PayFast sends a signature (from 2026-11-18).** Until then the platform sent no signature in the PayFast payment request, so a merchant who turned on PayFast's "Require signature" setting got "Bad request, signature required" (or a 404) on Pay now and could not take payment. The platform now signs each request. A PayFast merchant who disabled the setting as a workaround can turn it back on. Platform-level. *Stated by the core developer on support ticket #1337, 2026-11-18.*
 - **BridgePay:** the TokenPay.js widget's ZIP field (used for AVS) is now enabled for all Shopper 24 sites. *Stated by the core developer, 2026-09-21.*
 - **Stripe on dark sites:** `checkout/stripe-checkout` mounts the Stripe Payment Element with no `appearance`, so Stripe draws its light default (dark labels) inside its own iframe, and site CSS cannot reach it. Template-level (Shopper 24). *Verified by reading source (shopper24 backup), 2026-10-02.* Per-site fix with no parent change: override `checkout/extra-checkout-code` with a script that calls `stripeElements.update({ appearance: { theme: 'night', variables: { ... } } })` on the `px-stripe-form` element. Site-specific. *Live on a dark child site, confirmed by Alex, 2026-10-22.* Every dark-themed Shopper site needs it. Candidate parent change (not made): let `checkout/stripe-checkout` read an appearance from a snippet.
 - **Authorize.net and AVS:** Pixfizz passes the order address to Authorize.net, which uses it for the address verification (AVS) check. Platform-level. *Stated by the core developer, Slack #development, 2026-10-22.* Whether that is the shipping or the billing address, and so whether AVS can reject a card because the order ships to an address other than the cardholder's, is not confirmed (support's explanation, not the developer's).
@@ -274,3 +280,4 @@ On a child site, set the checklist keys with **Override Snippet** on the parent'
 - 2026-10-22: Guest checkout: contact fields are browser-side only (server acceptance stated, not verified), no guest checkout for film orders. New sections: Restricting checkout to approved users on a child site (`disable-user-registration` only hides the New Customer column, gate via `checkout/extra-checkout-code` and `user.category`, where Category is set) and Multi-store pickup (checkout posts the first public address, re-point `cart[location_id]`, no time locks). Payment Gateway Notes: Stripe Payment Element on dark sites. Payment Gateway Notes: Authorize.net receives the order address for AVS (which address not confirmed). Source: claude-chat, slack-message.
 - 2026-10-29: New section: switching between pickup and delivery (label click submits the cart PUT form, 3 to 4 s server round trip, live reload morphs in place, `checkout/extra-checkout-code` hook). Source: claude-chat.
 - 2026-11-09: Kiosk mode: the kiosk reset leaves the prints page `sessionStorage` state behind (fix pending); Kiosk UI checkout (hidden `cart[location_id]`, single pickup option, late `kiosk-ui` class, wrong signed-out summary copy). Switching between pickup and delivery: CORRECTED reload detection (only a script-only marker is a reliable signal); `checkout/extra-checkout-code` renders once and hosts checkout engine scripts; one shipping method shows no picker. New section: New checkout UI on dark sites (`checkout/ncu-assets` hard-coded light colors, scoped override, parent follow-up). Source: claude-chat, slack-message.
+- 2026-11-20: Tax rates take up to 6 decimals (was rounded to 2). Payment gateway notes: PayFast now sends a signature. Source: slack-message, support-ticket.

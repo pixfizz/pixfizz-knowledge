@@ -1943,6 +1943,33 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 ### "product missing from storefront search / website crawl, product missing from storefront search, search reads crawl feed"
 → **40_PLAYBOOK_UPDATED.md** § A Product Is Missing From Storefront Search: Check the Website Crawl; **18_ADMIN_NAVIGATION.md** § Website (CMS)
 
+### "Upsell Studio / cart cross-sell offer / us_test / upsell-studio rules"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 7 Upsell Studio; full reference `pixfizz-design-tools/platform-extensions/upsell-studio/docs/RULES.md`
+
+### "Pixfizz Kiosk app / kiosk PIN / staff menu / kiosk update / USB stick looks empty / kiosk log"
+→ **18_ADMIN_NAVIGATION.md** § Pixfizz Kiosk app 1.x; customer guide `my.pixfizz.com/kiosk/guide`
+
+### "Order under the minimum went through / cart-performance / cart-popup-light / 1 uncacheable page /site/checkout"
+→ **20_SHOPPER_CART_RULES.md** § The light cart pop-up
+
+### "Minimum order amount, where to change it"
+→ **30_PRICING_ENGINE.md** § Extra Fees, Canonical use cases
+
+### "Tax rate decimals / tax rounding / penny difference with LabWorks or POS"
+→ **21_SHOPPER_CHECKOUT_POLICY.md** § Tax model (up to 6 decimals)
+
+### "PayFast signature required / PayFast bad request"
+→ **21_SHOPPER_CHECKOUT_POLICY.md** § Payment Gateway Notes
+
+### "Sign in expired on admin login"
+→ **18_ADMIN_NAVIGATION.md** § Admin Login
+
+### "Debug box on checkout / do not require details FALSE"
+→ **40_PLAYBOOK_UPDATED.md** § Debug Output on the Live Checkout
+
+### "Edit print in cart shows one size only"
+→ **20_SHOPPER_CART_RULES.md** § Editing a photo prints cart line
+
 ### "Etsy create_order payload / Etsy quantity 500 error / Etsy variations template option, Etsy option looks empty / variation value name vs code"
 → **80_ONBOARDING.md** § Phase 3: Order Workflow Setup
 
@@ -2207,3 +2234,4 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 - 2026-11-09: Added 144 routes for the 2026-11-09 sync (tool asset release order, upload dialog behavior and size units, studio standards, Safari canvas limits, round product previews, Photo Book Studio config, account v2 switch, social sharing image, photo prints flow setup, parent CSS scoping, checkout and kiosk fixes, breadcrumbs and redirects, moving a child onto another admin, super user API keys and service users, gallery custom fields, calendar dates, render speed, fulfillment HTTP headers, Shopify collaborator and Personalize window, branded MCP host, Stripe charge references, extra_pages pricing trap, admin import and copy routes, Products inheritance, editor scripting, kerning in points, definition unit default, variant flags in exports). Every target section name checked against the file. Source: kbsync.
 - 2026-11-13: Added 40 routes for the 2026-11-13 sync (admin screens and form routes, photo prints group order correction, collection and product page findings, redirects and silent Liquid failures, uploader price cards, DPI and bleed, editor close button, Live Finish and tool findings, Shopify addon lines, new children). Source: kbsync.
 - 2026-11-19: Email kit route now points to `email-kit/README.md`. Source: claude-chat
+- 2026-11-20: Added 10 routes for the 2026-11-20 sync (Upsell Studio, Pixfizz Kiosk app, light cart pop-up, minimum amount, tax decimals, PayFast, sign in expired, debug checkout, cut print edit). Source: kbsync.
