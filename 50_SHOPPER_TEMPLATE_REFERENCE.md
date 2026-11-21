@@ -117,6 +117,7 @@ Additional styles exist (`style2`, `style4`, `style5`) but are not currently wir
 - Account icon + cart icon on the right
 - Suppresses nav when `admin/checklist/clean-checkout == 'TRUE'`
 - Account dropdown shows: Custom Admin (admins only), Saved Projects, Orders, Galleries, Personal Info, Logout
+- **Check 992 px after adding or renaming a top menu item.** The single row expands at Bootstrap lg (992 px). A ninth item that fitted at 1200 px pushed the account and cart icons 28 px past the viewport at 992 px, so the page scrolled sideways between 992 and about 1020 px. Measure `document.documentElement.scrollWidth` and the menu row count at 992 and 1200 px, not only at 1200 and up. Fix used: tighten link padding between lg and xl only, for example `@media (min-width:992px) and (max-width:1199.98px){ .<site-nav> .nav-link{padding-left:.6rem;padding-right:.6rem} }` (use the site's own nav classes). Template-level. *Verified live on a child site at 375, 992 and 1200 px, 2026-11-18.*
 
 ### style3 — Two-Row Center Logo (default)
 
@@ -269,6 +270,10 @@ Template-level (Shopper 24). *Stated as found during a dark child site build, 20
 - **`.form-control { color: #111 }` is hard-coded in the parent `pages/custom.css`, not a token.** On any dark child, typed text in every form field (checkout included) is invisible until the child adds `html body .form-control { color: <light> !important }`. Candidate parent fix (not done): read it from `style/color-font`.
 - Image-swatch option names carry an inline `style="color:#111111"` in the variant template, so a dark site needs `!important` to recolor them.
 - Shared pxt tools (Live Finish and the custom design tools) take their ink from `--pxt-ink`; see `27_LIVE_FINISH_AND_3D_PREVIEWS.md` § 2.7.
+
+### Sites meant to be cloned: pages read tokens, never hard-coded colors (2026-11-19)
+
+Template-level (Shopper). On one school store audited for cloning to further schools, 13 Pages instances each hard-coded the school colors in their own `<style>` block and the site CSS asset repeated them, so every clone needed a find and replace in 15 places plus the `style/*` snippets. For any site meant to be cloned (school stores, franchise sites), pages read their colors from the `style/*` snippets (or one site CSS asset with `:root` variables) and the store name from `website/title`, so a clone changes a handful of snippet values and nothing else. *Found auditing a client site, 2026-11-19 (a recommendation, not a platform behavior).*
 
 ### Reading the brand color from JavaScript (2026-10-26)
 
@@ -477,7 +482,7 @@ frequently pre-existing rather than introduced.
 | `confirm_start_date_label` | Label for start date field |
 | `confirm-with-invoice` | `TRUE` = offer the Invoice method only to users whose `user.category` is `invoice`; it does not enable invoice for everyone (Corrected 2026-10-17: was "confirm order with invoice"). Pro Portal users (`pro-portal` TRUE and the brand collection has `custom.pro_portal`) get Invoice as their only method. The method posts to `/site/payment_success?manual_order=e` with `cart[custom][pay_in_store] = invoice`. Such orders land in Pending (no production, Order Pending email) unless Auto Confirm Orders is on for the site (Super Admin). *Verified by reading source, 2026-10-14.* |
 | `payment-link` | `TRUE` = enable payment link option |
-| `payment-gateway` | Active gateway: `stripe`, `square`, `authorizedotnet`, `braintree`, `bridgepay`, `paypal`, `other`; default `stripe` (Corrected 2026-10-06: the token is `authorizedotnet`, not `authorize.net`) |
+| `payment-gateway` | Active gateway: `stripe`, `square`, `authorizedotnet`, `braintree`, `bridgepay`, `paypal`, `other`; default `stripe` (Corrected 2026-10-06: the token is `authorizedotnet`, not `authorize.net`). These six have on-page checkout forms; any other gateway is `other` and goes through the platform `cart_payment` redirect (one client site runs `payu_latam` this way; whether every redirect gateway works through `other` is not verified). The gateway the site actually charges through is set in Super Admin, website form, `website[gateway]` (no payment screen in the site admin); the full platform list is in `21_SHOPPER_CHECKOUT_POLICY.md` § Payment Gateway Notes. *Verified by reading the admin page, 2026-11-17.* |
 | `digital-only-delivery` | `TRUE` = enable digital-only delivery mode |
 | `proof-order-checkout` | `TRUE` = enable proof before checkout |
 | `promocode-checkout` | `TRUE` = show promo code at checkout |
@@ -757,7 +762,9 @@ The account gallery page is `/site/account-galleries/gallery?gallery=<id>` (it r
 
 **Content:** `__home` (home page), `blog`, `blog/<post>`, `contact-us`, `contact-thankyou`, `faq`, `shipping-and-returns`, `terms-conditions-privacy`, `our-work`, `sections-gallery`, `services`, `services/<path>`, `business`, `business/<path>`, `gallery-shop`, `gallery-shop/<gallery>`, `sitemap`, `404`
 
-**Special:** `custom.css` (CSS delivery), `editor-scripts.js`, `editor.css`, `robots.txt`, `feed/products.xml`, `feed/products-custom.xml`, `search/index.json`, `search/worker.js`, `order-management`, `setup/*` (admin setup wizard)
+**Special:** `custom.css` (CSS delivery), `editor-scripts.js`, `editor.css`, `robots.txt`, `feed/products.xml`, `feed/products-custom.xml`, `search/index.json`, `search/worker.js`, `order-management`, `setup/*` (admin setup wizard). *Updated 2026-11-21:* the parent page `search/index.json` was renamed `search/index-unused.json` (it still renders on children), `/site/search/index.json` now returns 404, and `search/worker.js` reads the platform route `/feed/products.json` instead (§ 17, *Site search reads the product feed*). *Verified by query, 2026-11-17.*
+
+**Not routes:** `/site/register` and `/site/search` return 404 (also on the demo site). Registration is part of `/site/login`; search is the `#modalSearch` fly-out. *Verified by query, 2026-11-18.*
 
 **Generic catch-alls:** `-page-path-1`, `-page-path-1/-page-path-2`, `-page-path-1/-page-path-2/-page-path-3`
 
@@ -897,6 +904,37 @@ Constraints:
 - **A collection landing route can already hold the path.** `/site/photo-prints` answered 200 with the prints collection landing page (rendered by `product/product-details-prints`) on a child site that had no Pages instance on that path. So `/site/<path>` can be taken by a collection or built-in page, not only `/site/shop/<path>`. Before choosing a `page_path`, load `/site/<path>` and confirm it returns 404. **Settled for `photo-prints` (2026-10-08):** shopper24 has a real page `pages/photo-prints`, and a real page beats the Pages catch-all, so a Pages instance at `page_path: photo-prints` never renders (verified by reading source, shopper24 backup of 2026-10-07). For other paths, do not find out on a live site. Platform-level routing. *Verified live, 2026-09-25.*
 - **Replacing `/site/photo-prints` on a child.** shopper24 `pages/photo-prints` captures `product/photo-prints-landing` (an empty parent stub, `fallback_content ''`), strips it, and renders it when it is not blank; otherwise it renders the standard `product/product-details-prints`. A child replaces the page by overriding `product/photo-prints-landing` only. Do not fork `product/product-details-prints` on a child: it also renders shop collections that set `collection.custom.print_ux`. Strip a capture before testing `!= blank`, because whitespace-only output is not blank. A paste meant for a child must never go on the parent stub: on 2026-10-08 a child landing pasted into the parent went live on every child for three minutes, so after any parent stub edit, check one other child. A child override edit can take about a minute to reach the cached page; a cache-busted fetch (`?nc=`) shows it first. Template-level (Shopper 24). *Verified by reading source and live, 2026-10-08.*
 - **What the standard `/site/photo-prints` landing reads.** It is the photo prints collection rendered as a landing page, and it reads the collection's `display_name` and `description`, the collection custom fields `starting_at`, `pricing` and `features`, and site assets named `photo-prints*.webp`. With those empty the page is bare: only an ORDER PRINTS button. Fill them as part of any launch. Template-level (Shopper 24). *Verified by live fetch on four child sites, 2026-11-02.*
+- **Built-in content pages shadow a Pages instance too (2026-11-18).** A child CMS tar
+  carries snippets and assets only; pages (`faq`, `shipping-and-returns`, `contact-us`,
+  `terms-conditions-privacy`, `cart`, `login`, `404`, account pages) always come from the
+  parent, and a Pages instance whose `page_path` equals one of them is never shown. On two
+  child sites, instances at `shipping-and-returns` and `faq` were dead: the footer links opened
+  the parent pages, with the parent's demo shipping prices, lab hours and phone number, and an
+  English FAQ heading on a Spanish site. No error, so the site shows defaults nobody set.
+  Replace those pages through the parent's own hooks:
+
+  | Page | Hook |
+  |---|---|
+  | FAQ | `admin/checklist/custom-faq-page` = `TRUE` + `website/faq_page` |
+  | Shipping and returns | `website/shipping-returns-policy` |
+  | Terms | `admin/checklist/custom-terms-page` = `TRUE` + `website/terms_page` |
+  | Contact | `admin/checklist/custom-contact-page` = `TRUE` + `website/contact_page` |
+  | 404 | `website/404` |
+  | Thank you | `checkout/payment-success` |
+
+  Or move the instance to an unused path (for example `shipping`) and add a Website Redirect
+  `^/site/shipping-and-returns/?(\?.*)?$` to it. **Launch check, every site:** for each Pages
+  instance load `/site/<page_path>` and assert the instance's own heading is in the DOM; on any
+  non-English or rebranded child, fetch every footer link and assert its H1. Template-level
+  (Shopper 24). *Verified by query and live on two child sites, 2026-11-18.*
+- **Parent page titles and `lang` cannot be changed by a child snippet, except contact.** A
+  parent page's `<title>` is `page.meta_title | default: page.title` of the parent page record
+  (`html.head`); only contact-us has a hook (`website/contact/meta_title`). For other pages a
+  child can only rewrite the title with a script loaded from `website/head-tag-scripts`. The
+  layout hard-codes `<html lang="en">`, which the same script can correct. Candidate parent
+  fix: `meta_title` snippet hooks for cart, login, faq, checkout, 404, account and shipping,
+  with the current English as default. Template-level. *Verified by reading source and live,
+  2026-11-18.*
 - **Nothing stops two instances having the same `page_path`.** Admin accepts a duplicate with no warning, and the storefront renders the **older** instance, so the new content never appears and it looks like caching. To replace a page, edit the existing instance; before pasting, list the instances for that path, and after pasting confirm a marker unique to the new content in the live DOM. *Verified live, 2026-09-22.*
 - Levels 1, 2 and 3 each have their own catch-all page. Each one builds
   `page_path` by joining its own path params with `/`, so a level 3
@@ -1238,6 +1276,15 @@ Template-level (Shopper 24 Kiosk UI skin, `body.kiosk-ui`). *Verified on the liv
 - **`body.kiosk-ui` is added by script after inline body scripts run.** A script that checks `document.body.classList.contains('kiosk-ui')` once at load silently does nothing. Check on every pass (a `MutationObserver` on `documentElement`, including the `class` attribute).
 - Kiosk checkout behavior (hidden `cart[location_id]`, single pickup option, signed-out summary copy): `21_SHOPPER_CHECKOUT_POLICY.md` § Kiosk mode.
 
+### `kiosk/login` hides registration errors (open parent defect, 2026-11-20)
+
+Template-level (Shopper 24 parent `kiosk/login`). Affects every site in kiosk touchscreen mode. *Verified by reading source and a live test on a client kiosk, 2026-11-20 (support ticket #1328).*
+
+- The Sign In tab and panel are hard-coded active; the Create Account panel is a hidden `tab-pane fade`.
+- After a failed registration the platform re-renders `/site/login` with `form.errors`, but the alert sits inside the hidden Create Account panel. The customer lands on Sign In and sees nothing (a POST without captcha returned "Captcha invalid" inside `#kPanelRegister` while `#kPanelSignin` was `show active`).
+- The register fields carry no `value="{{ form.values.user.* }}"`, so everything the customer typed is wiped.
+- **Rule for any tabbed form:** open the tab that holds `form.errors`, and refill fields from `form.values` (`50_LIQUID_REFERENCE.md` § Form).
+
 ---
 
 ## 17. Known Gotchas
@@ -1379,6 +1426,19 @@ WebP and JPG product images on collection tiles are served through the CDN thumb
 **Symptom:** On a child site, a search for a main product word returned nine results, all with URLs inside a `...-test` or `...-old` collection, while the same products also sat in the real, visible collection.
 **Rule until the mechanism is known:** before turning on `admin/checklist/search` for a site, run three searches for its main product words and check that no result URL contains a test, old or hidden collection path. Clean those collections out first. How the index chooses a collection path for a product that sits in several collections is not verified.
 *Verified by query on a live child site, 2026-09-30.*
+
+### Site search reads the product feed (2026-11-17)
+Template-level (Shopper 24 parent `search/worker.js`) on a platform route. Admin side (the daily crawl feeds it): `18_ADMIN_NAVIGATION.md` and `40_PLAYBOOK_UPDATED.md` § *A Product Is Missing From Storefront Search*.
+- `/site/search/worker.js` builds its lunr index from `/feed/products.json` (fetched with `credentials: 'omit'`), not from `search/index.json`. Indexed fields: `custom.collection`, `design_name`, `design_code`, `design_msp_code`, `product_name`, `description`. `custom.hide_from_search = 'true'` drops a product; the result link is `custom.search_link`, else `link`. *Verified by reading source, 2026-11-17.*
+- **An empty feed means empty search.** On one child `/feed/products.json` returned `products: []` (the demo site returned 1,085), and its `/feed/products.xml` (loops `website.collections`) had no entries either. Likely cause: the feeds see none of that site's collections; not verified. **Launch and audit check:** open `/feed/products.json` and confirm the product count is not zero before turning on `admin/checklist/search`. *Verified by query, 2026-11-17.*
+- lunr splits only on spaces, so titles run together (`P1ChallengingMaths(6ED)`) match almost no word search. A split-words field (camelCase, digits, punctuation) took one search from 0 to 28 results. Candidate for the parent worker.
+- **A child cannot fix it with child pages** (pages are parent-only, `13_TEMPLATE_BOUNDARIES.md`): child `search/index.json` and `search/worker.js` were never served. What works: override `modals/search` and start the worker from an inline `<script type="text/plain">` source with `new Worker(URL.createObjectURL(new Blob([...])))`. In a blob worker `self.location.origin` is the page origin, so use absolute URLs. A child built this way on the old parent page `search/index-unused.json` depends on it: do not delete or rename that page without moving such children first. `{{ 'lunr.min.js' | asset_url }}` in the child override resolves to the parent's asset. *Verified live on a client site, 2026-11-17.*
+
+### `.btn { display: inline-flex }` collapses the Add to Cart price gap; tab underline offset (2026-11-18)
+- If site CSS sets `.btn { display: inline-flex }`, the Add to Cart label and `<px-product-price>` become separate flex items and the space between them collapses. Fix: `body .add-to-cart-button { gap: 0.35em; }`.
+- The product page `.nav-tabs` has 1px `padding-bottom` from the parent. A custom 3px active-tab underline over a custom 2px tabs border needs `margin-bottom: -3px` on `.nav-link` (border plus padding), not `-2px`, or a 1px line shows under the active color. Give inactive links `border-bottom: 3px solid transparent` so heights match.
+
+Template-level (Shopper 24). *Verified live at 1280 and 375 px on a client site, 2026-11-18.*
 
 ## The Add to Cart control
 
@@ -1608,6 +1668,10 @@ Template-level (Shopper 24). *Verified by query, 2026-10-13.*
 ### Production time "1 day" prints the collection's value (2026-10-13)
 
 The product page variants that print "Production Time:" (`product-details` and siblings) have a branch for `product.custom.production_time == 1` that prints `{{ collection.custom.production_time }} day`, so a product set to 1 day shows the collection's number, or nothing. Fix in an override: print `product.custom.production_time` in that branch. Separately, `product/production-time` (the dynamic variant) expects string values (`'2 days'`, `'same day'`) while the static branch treats `production_time` as a number: one field, two conventions. Not checked against the live parent after 2026-10-02. Template-level. *Verified by reading source, shopper24 backup 2026-10-02.*
+
+### `delivery-box-style` and `new-checkout-ui` are per-child keys (2026-11-18)
+
+`admin/checklist/delivery-box-style` (`CLASSIC` default, `TIMELINE`, `BAND`) and `admin/checklist/new-checkout-ui` (`FALSE` default) are per-child checklist overrides; a child without an override runs the parent default. `TIMELINE` drops its ready-by header when products have no production time, so collect production days before switching. Template-level. *Seen in a live site audit, 2026-11-18.*
 
 ### `default-delivery-option` values are `public` / `private` (2026-08-24)
 
@@ -1962,6 +2026,13 @@ Template-level (Shopper 24). *Verified by reading source (shopper24 backup 2026-
 - **Added to Cart** is inline in `pages/cart` (identical to `integrations/klaviyo/added-to-cart`) and fires on **every cart page view**, not on add. `AddedItemPrice` reads `itemPrice` (wrong case, always undefined); `ProductCategories`, `ImageURL` and `ProductURL` are never set; `ProductID` is the numeric `product_id`, which does not match Viewed Product.
 - **Escaping.** `product.name` and `user.first_name` are printed unescaped inside JS strings, so a double quote in a name breaks the script.
 - **Email consent.** `user[custom][newsletter]` comes from a pre-ticked registration checkbox that is commented out in both `account/login` and `account/login-form`, so it never renders: **registration collects no marketing consent**. `user[custom][email_opt_in]` and `sms_opt_in` are on the account info pages, gated by `admin/checklist/activate-email-opt-in` and `activate-sms-opt-in`. Neither field syncs to Klaviyo, and the footer newsletter form is a hidden placeholder.
+- **Klaviyo custom catalog from the product feed (2026-11-19).** *Verified by reading the live feed and by query (Klaviyo account and events) on a client site, 2026-11-19.*
+  - Use `/feed/products.xml`, not `/feed/products.json`: the JSON nests Pixfizz fields under a `custom` object and Klaviyo needs items one node deep.
+  - Klaviyo strips namespace prefixes (`g:id` shows as `id`, `px:product_id` as `product_id`) and auto-maps by name, so two feed fields can land on `$id` and the mapping screen says "Cannot have duplicate targets". Keep `id` on `$id` and map the other (here `product_id`) to a custom field.
+  - `g:price` is text (`50.0 USD`) and Klaviyo `$price` must be numeric, so do not map it to `$price`; catalog prices stay empty until the feed carries a plain numeric price field.
+  - Leading CRLF and spaces in `g:id` / `g:mpn` on static items are trimmed by Klaviyo; no feed fix needed.
+  - **Design items will not match events.** The feed's `g:id` for a design item is `design_code:product_code`, while Viewed Product sends `ProductID` = product code only (and `SKU` = `design_code:product_code`). The catalog `$id` must equal the event `ProductID` for recommendations, so design items do not match until tracking sends the SKU value as `ProductID` or the feed changes. Static items match.
+  - That client's feed is RSS with a `px:` namespace, while the shopper24 parent page `feed/products.xml` (backup of 2026-11-02) is Atom with `g:` only; where its feed is served from (platform route or a page override) is not verified.
 
 ---
 
@@ -2006,6 +2077,17 @@ no sizes plus a Size) shows an empty grid with no "no results" message. Only add
 applies to every product in the collection; leave out facets that apply to some types only.
 *Verified live on a child site, 2026-10-12.*
 
+**A product with no value for a filter field drops out.** In a `Label | param | product.custom.<field>`
+(or `design.custom.<field>`) line, a product with no value for that field disappears as soon
+as the customer ticks any value, and its values never appear as choices. A one-value filter on
+`design.custom.num_of_photos` hid every design that lacked the field (older single-design
+products). A field can also hold values on imported products (MSP imports carry `group`) with
+no Product custom field definition on the site; values written later through the API or admin
+need the definition, so filter on a defined field. **Launch check:** for each filter field,
+every product (and design, for `design.custom`) in the collection has a value, and the field is
+defined on the site. Platform-level filtering plus site data. *Verified by query on a client
+site, 2026-11-17.*
+
 **A `pdp_layout` collection with no `collection_filters` shows no product.**
 `product/details-filter-dual-mode` only picks the design product inside the filter loop, so an
 empty field gives a page with the collection description and no product form. And **a
@@ -2018,6 +2100,15 @@ range in its own collection. *Verified by reading source and live, 2026-10-13, a
 shows the design names as size options. Check the collection's `pdp_layout` flag before publishing a
 multi-design product into it; give such a product an ordinary collection. *Observed on a child site,
 2026-10-26 (not re-tested).*
+
+**Separate Width and Height dropdowns read as fake sizes.** With
+`Width | width | product.custom.width | 36 | control_type: dropdown` followed by a Height line,
+the Height list shows only the heights that exist for the current Width (default 36 gave only
+24). Customers read it as "only one height", and a width next to an unrelated height as a size
+that does not exist. For products sold in fixed size pairs use one Size filter on
+`product.custom.size` (`WxH`, `control_type: radio`, `show_prices: true`) behind an Orientation
+radio, and keep `custom.size` in one convention (width x height) across the collection.
+Template-level. *Seen on a client site, 2026-11-18.*
 
 **Scope: wall art style ranges only, never everyday prints** (standard stated by Alex,
 2026-10-04). Five-field `collection_filters` size pickers are for ranges sold one size per
@@ -2228,6 +2319,16 @@ two rows per size. *Verified by query, 2026-10-14.* More on the prints flow: § 
 - Writing the description by script: the admin collection page `/theme_categories/<id>`, the
   form that contains `theme_category[description]` (`_method` patch); the first form on that
   page is DELETE (`18_ADMIN_NAVIGATION.md`).
+- **`help_video` is the one-edit slot for an entry card or banner on every size page.**
+  `product/details-filter-dual-mode` outputs the collection field raw
+  (`{{ collection.custom.help_video }}`) in the right column of every `pdp_layout` size page,
+  above the description and the filter rows. Older children lack the definition: create it on
+  `/admin/custom_field_definitions/new?type=ThemeCategory` (snippet type, Description
+  "Embedded help video on product details page."). *Verified by reading source and live on a
+  client site, 2026-11-17.*
+- A script that saves a `pdp_layout` collection must resend `collection_filters`; the
+  textarea value read from the live admin form is LF, so convert it to CRLF before posting
+  (line endings above). *Verified by query, 2026-11-17.*
 
 ### 21.2 A free-form arguments string is an opt-in that needs no code and no deploy
 
@@ -2411,7 +2512,7 @@ Template-level (Shopper 24) unless marked.
 - **Standard: every multi-page storefront flow keeps a breadcrumb back to the previous page.** A product reached from a landing page shows that landing page in its breadcrumb (Home / Stationery / Notebooks / Botanical). *Standard stated by staff, 2026-11-03.*
 - **Card "from" price.** `collection-load-more` prints "As low as" + product `from_pricing` whenever `from_pricing` is set. `collection-filters` only uses `from_pricing` when `product.price == 0`. Collection `load_more` switches the page to the load-more snippet. `from_pricing` is static: re-check it when the lab changes prices. *Verified by query, 2026-10-03.* (`52_SNIPPET_INVENTORY.md` corrected to match, 2026-10-06.)
 - **Delivery / pickup box** (`product/shipping-available`, "This item can be picked up in our store"): every product page variant (product-details, details-filter, prints, dual-mode) skips it when collection `hide_delivery_options` is ticked. Per collection only; a site with no pickup needs it on every collection. *Verified by query, 2026-10-03.* The snippet reads only `product.custom.shipping_unavailable`, `product.custom.pickup_unavailable` and `product.custom.extra_charge`; it does not look at the site's pickup or delivery settings. The parent callers pass only `product`, so collection fields (for example a collection-level `production_time`) do not reach it unless an override passes them, and an override that calls another snippet (for example a checklist read) must restore `product` afterwards (`50_LIQUID_REFERENCE.md` § snippet). *Verified by reading source, 2026-10-02, and live, 2026-10-14.*
-- **Shop tile image for design products.** `collection/collection-filters` draws a live preview when the design has preview pages, else `design.preview_images`, else `design.image` (the design's preview_img). The product image is not used. Set the design preview image, and give each product its own design when two products share one, or both tiles show the same picture. *Verified by reading source and by query, 2026-10-06.* **Imported designs arrive with neither**, so a design product shows no image anywhere until both are set: the collection tile reads the design's `preview_img` (Admin > design > Choose Asset Image, `print_theme[preview_img]`, an asset name), and the product page gallery renders the design pages ticked **Use as preview** (`set_page_as_preview`, `18_ADMIN_NAVIGATION.md`). Set both before publishing a range. *Verified live on experience.pixfizz.com, 2026-10-19.*
+- **Shop tile image for design products.** `collection/collection-filters` draws a live preview when the design has preview pages, else `design.preview_images`, else `design.image` (the design's preview_img). The live preview is `px-design-preview` of `preview_page_names[0]`, with `[1]` shown on hover. With `disable_live_preview_on_shop` set (design or collection, below) the card uses `design.preview_images`: the first image is the front and the last is the hover back; with one image, front only. `collection/collection-load-more` does the same. *Verified by reading source (shopper24 backup of 2026-11-01), 2026-11-16.* The product image is not used. Set the design preview image, and give each product its own design when two products share one, or both tiles show the same picture. *Verified by reading source and by query, 2026-10-06.* **Imported designs arrive with neither**, so a design product shows no image anywhere until both are set: the collection tile reads the design's `preview_img` (Admin > design > Choose Asset Image, `print_theme[preview_img]`, an asset name), and the product page gallery renders the design pages ticked **Use as preview** (`set_page_as_preview`, `18_ADMIN_NAVIGATION.md`). Set both before publishing a range. *Verified live on experience.pixfizz.com, 2026-10-19.*
 - **Shop tile image for POD supplier designs.** `collection/collection-filters` skips the live preview when either `design.custom.disable_live_preview_on_shop` or `collection.custom.disable_live_preview_on_shop` is true, then uses `design.preview_images`, then `design.image`. For a POD design the design belongs to the supplier site, so setting `disable_live_preview_on_shop` and `preview_img` on the supplier design fixes the tile on every consumer site at once. An asset uploaded only to the supplier site's Assets resolves as the consumer's tile image (*corrected 2026-10-29:* an earlier note said a same-named asset must also exist in the shopper24 parent's Assets). An empty POD design whose first preview page is set renders as a grey placeholder; fix it at the supplier, not per collection. *Verified by reading source (shopper24) and by query on two consumer sites, 2026-10-28.*
 - **Two products that share one design share one URL:** the page shows the first product and the second is unreachable from the collection card. *Verified by query, 2026-10-05.*
 - **Product `unit_intervals` takes a list:** `100,250,500,1000` gives exactly those quantity choices (custom design tools' quantity chips follow it). Platform-level. *Verified by query, 2026-10-06.*
@@ -2424,7 +2525,7 @@ The bulk photo prints flow is `pages/prints`, which renders `product/photo-print
 
 **The prints page takes one gallery, not a list of photos.** `product/photo-prints` reads only `request.params.gallery_id` (plus `collection` and `image_sources`); there is no parameter for a list of image ids. *Verified by reading source (Shopper 24 parent snapshot, Aug 2026).* To order prints of a subset: create a gallery, copy the chosen images into it with `POST /upload/image?gallery_id=<new>` (`url` + `name`), open `/site/prints?collection=<path>&gallery_id=<new>`, and delete the gallery afterwards with `DELETE /v1/galleries/<id>.json` (`61_PIXFIZZ_API.md` § 6). *Verified by query on the headline demo site, 2026-11-06.*
 
-**A prints collection takes cut print templates only (2026-11-02).** Never publish a product that is not a cut print (a custom design tool, a custom sized prints tool, a static product, any template without a single image placeholder) into a collection the prints flow uses. The component loads `/v1/themes/<theme id>.json` for every design product in the collection and reads the placeholder image node on the print page (its width and height). A template with no placeholder throws inside the theme load, `loaded` never turns true and the product list stays empty: photos upload, but Popular and All Sizes show no sizes and nothing can be ordered. The customer sees no error. On one client site cut prints could not be ordered for several hours until the stray product was unpublished. Before publishing anything into a collection, check whether it is a prints collection; if it is, stop. Offer custom sizes as a link from the prints page ("Can't find your size?") to the custom size tool, never as a size inside the collection. Health check: `41_IMPLEMENTATION_PATTERNS_UPDATED.md` § PhotoPrintsComponent hooks. Platform-level (photo prints component). *Verified by query on the live page after the fix, 2026-11-02.*
+**A prints collection takes cut print templates only (2026-11-02).** Never publish a product that is not a cut print (a custom design tool, a custom sized prints tool, a static product, any template without a single image placeholder) into a collection the prints flow uses. The component loads `/v1/themes/<theme id>.json` for every design product in the collection and reads the placeholder image node on the print page (its width and height). A template with no placeholder throws inside the theme load, `loaded` never turns true and the product list stays empty: photos upload, but Popular and All Sizes show no sizes and nothing can be ordered. The customer sees no error. On one client site cut prints could not be ordered for several hours until the stray product was unpublished. Before publishing anything into a collection, check whether it is a prints collection; if it is, stop. Offer custom sizes as a link from the prints page ("Can't find your size?") to the custom size tool, never as a size inside the collection. **A custom size product (the custom sized prints tool, codes `cp-*`) is published only into its own collection** (for example `custom-sizes`), never into a collection that holds fixed-size products, and never into a cut print collection: the prints page lists it as a size for every photo, with a number variant and no fixed size, and the whole collection's print ordering breaks (seen on two sites, 2026-11-17, one of them the demo site's `photo-prints` collection). Size collections link to it with a card or strip pointing at `/site/product/custom-sizes/<url_path>`. Enumerate the target collection before any add: fixed sizes plus a `cp-*` product means stop. Pulling a `cp-*` product out of a size collection 404s any strip that links `/site/product/<size collection>/<url_path>`, so repoint the strip in the same pass. Template-level and site configuration. *Verified by reading source and by query, 2026-11-17.* Health check: `41_IMPLEMENTATION_PATTERNS_UPDATED.md` § PhotoPrintsComponent hooks. Platform-level (photo prints component). *Verified by query on the live page after the fix, 2026-11-02.*
 
 **Sizes are grouped by sub-collection (2026-11-04).** Template-level (`product/photo-prints`) on the platform component. *Verified by reading source (Shopper 24 parent and the live CMS bundle) and live on a client site, 2026-11-04.*
 - `product/photo-prints` passes `design_product_categories`: one entry per sub-collection of the prints collection (`collection.collections`, label `subcollection.name`), then a last entry with label `''` for the design products sitting directly in the parent collection.
@@ -2475,7 +2576,7 @@ Template-level (Shopper 24) unless marked.
 
 **Size filter prices at $0.** `product/details-filter-dual-mode` with `show_prices: true` shows "-" for any matched product priced 0, so a catalog priced at $0 looks broken. A child override that tests the match instead of `price > 0` shows $0.00. Candidate for the parent. *Verified live, 2026-11-10.*
 
-**A size or orientation swap replaces `<main>`.** The filters fetch the new product URL and morph `main` and `#product-schema`. Nodes a script inserted inside `main` disappear on the next swap (insert before `main`). The `px-image-upload` element is kept but its `value` is overwritten with the new page's blank value, so **an uploaded photo is lost on every size change**. Fix pattern: capture `px-image-upload` values on the filter controls' change (capture phase) and restore `image:<id>` (without the crop, which is per aspect ratio) into empty `px-image-upload` elements on `px.fragmentsReloaded`. `data-px-no-rerender` is not the fix: it would also freeze the crop ratio and name from the old size. The parent `product/filter-controls` behaves the same, so every collection-filter product page is affected. *Verified by query, 2026-11-11; the restore pattern was tested in the page but not end to end with a real upload.*
+**A size or orientation swap replaces `<main>`.** The filters fetch the new product URL and morph `main` and `#product-schema`. Nodes a script inserted inside `main` disappear on the next swap (insert before `main`). The `px-image-upload` element is kept but its `value` is overwritten with the new page's blank value, so **an uploaded photo is lost on every size change**. Fix pattern: capture `px-image-upload` values on the filter controls' change (capture phase) and restore `image:<id>` (without the crop, which is per aspect ratio) into empty `px-image-upload` elements on `px.fragmentsReloaded`. `data-px-no-rerender` is not the fix: it would also freeze the crop ratio and name from the old size. The parent `product/filter-controls` behaves the same, so every collection-filter product page is affected. *Verified by query, 2026-11-11; the restore pattern was tested in the page but not end to end with a real upload.* For keeping an uploaded photo across the swap (with its crop when the aspect ratio matches), see `26_CUSTOM_DESIGN_TOOLS.md` § 4 Rules for a mount block.
 
 **Product page fixes on the parent, November 2026.** Child overrides of these snippets do not get the fix:
 - `product/shipping-available` v2.2 reads the collection's production time, but its callers passed only `product`. Since 2026-11-10 the four parent callers (`product/product-details`, `product/product-details-filter`, `product/product-details-prints`, `product/details-filter-dual-mode`) pass `collection: collection`. Without it, a product whose production time is set only on the collection shows no ready-by date. *Verified live, 2026-11-10.*
@@ -2495,6 +2596,8 @@ Template-level (Shopper 24) unless marked.
 - Never put `padding:` shorthand on a section that also carries `.container`: it wipes the side padding.
 - The account dropdown can cause sideways scroll near 1200 px; `right:0; left:auto` fixes it. When the theme centres the menu with `left:50%` plus `translateX(-50%)`, overriding left and right alone moves it 50% sideways: use `right:0` plus `translate: 50% 0`. Check a dropdown fix with the menu open, not by measuring the hidden element.
 - `film/roll-builder` renders outside `.container` with its own max-width; wrap its markup in `.container` and keep only vertical padding.
+- A custom nav built as `<nav class="navbar navbar-expand-lg ..."><div class="container">` hits the same two traps (logo about 16 px inside the content edge at 1200 to 1399 px, about 16 px outside it at 768 px) and lines up above about 1400 px, so a desktop-only check misses it. Same fix, scoped under `body` and the site's own nav class so it beats the parent. *Verified live on another client site, 2026-11-18.*
+- Long URLs in legal text (privacy policies) push a phone page sideways; `overflow-wrap: anywhere` on static-page paragraphs stops it. *Verified live, 2026-11-18.*
 
 *Verified live on client sites at 375 to 2560 px, 2026-11-10 and 2026-11-11.*
 
@@ -2527,3 +2630,4 @@ Template-level (Shopper 24) unless marked.
 - 2026-10-29: §3 mega menu panel rules (nested `.container` is flex, frame padding, lazy images in hidden panels). §4 brand color from `.btn-primary`, not `--primary`. §5 `home-page-login-form` is a whole-site gate (corrected). §10 `add-to-cart` renders in the layout; `project-edit` structure and the `px_mount` full-width rule. §11 email kit logo `email-logo.png` (and § 15 correction). §14 whole-site login gate with the password-page override; product-landing engine (Liquid in config, admin asset URLs 403, frame override, redirects). §17 animated GIF tiles, prints page server cost, `x-cms-cache-hit`, cache after snippet writes. §21.1 child override audit. New §21.7 POD-published products in empty collections. §24 supplier design tile image (corrected). Source: claude-chat.
 - 2026-11-09: §4 button tokens also color the upload window button (contrast check). §5 account v2 checklist rows. §7 Terms and Shipping company name is `website.title`. §10 account gallery URL. §12 collection `unpublished` hides the Shop All tile only. §14 test pages belong on the parent. §17 a snippet served as a page can lag about two minutes. §24 a shared design `url_path` needs the size picker. §25 the prints page takes one `gallery_id`. §9 every child needs its own `og-preview-image.jpg`; `og:title` on Pages is the site title. §14 what the `/site/photo-prints` landing reads; services index cards need `service_thumbnail`. §16 Kiosk UI skin: `#checkoutBtn` specificity, remove link, late `kiosk-ui` class. §17 reading the `px-design-preview` image and logged-out 403s; new *Styling the checkout Order Summary rows and thumbnails*; gallery `data-selected-idx` set by an IntersectionObserver. §18.2 new checkout UI (`ncu-assets`) row. New §19 *Switching a site to account v2* (sub-flags, v1 redirects, v1 overrides ignored, dashboard defects). §21.1 second child-override case (diff filter overrides first); the filter swap fades the product area and how a tool stays visible; `collection_pdp_filters` drives product page rows without `pdp_layout` (Liquid, dependent rows, fallback); collection description and features on a `pdp_layout` page. New §21.8 parent CSS must never target a platform component bare. §24 the `product/c` redirect drops query parameters; breadcrumbs honor collection `url_path` on every crumb, `product/custom-breadcrumb` not called on product pages, breadcrumb standard; store name appended to `meta_title`. New §25 photo prints flow (link with `collection`, cut print templates only, sub-collection groups, options per size on Cropping & Options, `sessionStorage` state, prints only through the flow). Source: claude-chat, support-ticket.
 - 2026-11-13: § 25 CORRECTED sub-collection groups sort by display name, not path; bare /site/prints loads no sizes (link with ?collection= or redirect); size label is the design name (-1 duplicates); size panel overflow at 992 to 1100 px; empty published variant heading. New § 26: collection URLs (/site/shop/c/ is not a collection page), Shop All and studio collections (url_path, unpublished), collection fields that print, a wall art range is one pdp_layout page, size filter $0 prices, a filter swap morphs main and blanks the uploaded photo, parent fixes (delivery box collection param, design-now exit_target, Pro Portal link), design meta_title, product labels via translations, checklist values from the manage/setup pages, header-logo-position default, the page frame and navbar traps, .card-img stretch, collection lightbox error, data shapes that fool store checks. Importer hang: the add_products pointer now names the picker or POST (GET is 404). Source: claude-chat.
+- 2026-11-21: § 2 style1: check 992 px after adding a top menu item (sideways scroll, lg-only padding fix). § 4 new: sites meant to be cloned read colors from tokens. § 5 `payment-gateway` row: `other` uses the `cart_payment` redirect, real gateway set in Super Admin. § 10 `search/index.json` renamed `index-unused`, worker reads `/feed/products.json`; `/site/register` and `/site/search` are not routes. § 14 built-in content pages (faq, shipping-and-returns and others) shadow Pages instances, parent hooks to replace each, launch check; parent page titles and `lang` only changeable by script (contact excepted). § 16 new: `kiosk/login` hides registration errors and wipes fields (open defect). § 17 new: site search reads the product feed (fields, empty feed check, blob-worker child fix, lunr word split); inline-flex Add to Cart gap and tab underline offset. § 20.1 Klaviyo custom catalog from `/feed/products.xml` (namespace stripping, duplicate `$id`, text price, design item ids do not match events). § 21.1 a product with no value for a filter field drops out (launch check); Width and Height dropdowns cascade and read as fake sizes; `help_video` slot on every `pdp_layout` size page; scripted collection saves resend `collection_filters` as CRLF. § 24 shop tile front and hover images. § 25 custom size products only in their own collection. § 26 custom navbar frame traps, `overflow-wrap` for legal text. New: `delivery-box-style` and `new-checkout-ui` per-child keys. Source: claude-chat.

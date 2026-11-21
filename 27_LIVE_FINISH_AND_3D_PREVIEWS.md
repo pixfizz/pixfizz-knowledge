@@ -140,6 +140,19 @@ Every value is a quoted string. Lengths carry their unit (`0.75in`, `6mm`). `lf_
   reads it with `lf_wrap_color_variant: '<child code>'` (the engine also finds
   `template_options[code]`). Platform-level option, tool-level key. *Verified on
   experience.pixfizz.com, 2026-10-20.* Option setup: `22_OPTION_VARIANT_RENDERING.md`.
+- **A color wrap with a fixed hex never follows the customer's color.** In `lf_wraps`, an entry
+  `color:color@#ffffff` pins the sides to white, and `lf_wrap_color_variant: 'none'` stops the
+  engine reading the color choice: the customer picks a color and the canvas sides stay white.
+  Live Finish 0.29.0 reads the picked color only when the wrap entry is a bare `color`
+  (`color:color`) and `lf_wrap_color_variant` names the color variant code (the
+  `variants[<code>]` input). Check on the product page: pick the color wrap and a color, then
+  `LiveFinish.state().wrap` must be `{mode:'color', hex:<picked>}`; in the server HTML `#lf-root`
+  carries `data-lf-wraps="...color:color"` and `data-lf-wrap-color-variant="<code>"`. A mount
+  bulk-copied from one canvas template copies the defect to the whole range, so scan every canvas
+  PDP for `color@#` in `data-lf-wraps` together with a wrap color variant of `none`. In the admin,
+  the template option edit page holds `custom_script` as a JS string for the Ace editor
+  (`const content = "..."`), not in a textarea. Template-level mount, tool-level keys. *Seen on
+  a client site's 40 canvas templates, 2026-11-18.*
 
 ### 2.3 Looks, mountings and rooms
 
@@ -178,6 +191,10 @@ Every value is a quoted string. Lengths carry their unit (`0.75in`, `6mm`). `lf_
   *Stated by Alex, 2026-10-07.*
 - **Metal prints always draw rounded corners** (default 1/8 in radius, at least 3 px on
   screen), in close-up and in the room view. *Stated by Alex, 2026-10-07.*
+- **The surface rooms show no top face.** The desk and shelf rooms (`lf-room-desk.webp`,
+  `lf-room-shelf.webp`) are shot from near surface height, so an object lying flat (a jewelry
+  box lid, a coaster) shows no top face there. A lying-flat product needs a surface photo taken
+  from above. *Verified by a test placement, 2026-11-17.*
 
 ### 2.4 Geometry comes from the template, never from the mount
 
@@ -368,6 +385,22 @@ the photo). Tool-level technique, platform-independent. *From prototype and plat
   continuous tube (a column profile stretched to length) with rounded ends. Matte: the object
   fully opaque, the soft shadow capped at 0.45 alpha and kept only on the cover side of the
   edge. *Decided by review, 2026-10-26.*
+- **Photo slates are coated, not raw stone.** The photo slates labs sell are sublimation slates:
+  the photo sits on a smooth white coated face, raw stone shows only in the chiseled rim, and
+  two separate black plastic feet hold them. The Live Finish Plates `slate` material (UV ink on
+  a cleft face, texture through the ink) does not match them; use material `coated` (Live Finish
+  Plates 0.5.0). The white face makes the plate mask simple (bright, low-saturation, smooth
+  pixels, largest component off the border); then grow it into pale pixels so no unprinted halo
+  shows against the chips. Tool-level. *Stated by Pixfizz, 2026-11-16.*
+- **Printed faux leather (UV with a white underbase):** the design's own alpha must leave the
+  leather bare, so the material reads the design alpha (new in the Live Finish Plates 0.6.0
+  draft), and the platform render must be `preview.png` or `.webp`, never `preview.jpg`, which
+  fills transparency with white. Tool-level for the engine, platform-level for the render
+  format. *Not verified on a live site, 2026-11-17.*
+- **A tool that hands its own design calls `face()` before `init()`.** With Live Finish Plates
+  0.6.0, call `LiveFinishPlate.face(canvas, {sample})` BEFORE `LiveFinishPlate.init(root)`.
+  Called after, the first update looks for `lfp_sample` and logs "no lfp_sample; the preview is
+  not drawn". Tool-level. *Verified locally, 2026-11-18.*
 - **Replacing a plate asset:** uploading a file with the same name does not overwrite an asset;
   upload the replacement on that asset's own edit page (`26_CUSTOM_DESIGN_TOOLS.md` § 3, tool
   assets).
@@ -706,6 +739,12 @@ a row, read the version from the live console (§ 3.5).
 - **Canvas still needs fixes** for finishes, stretched edges and frames (reported).
   Unmatched edge or finish values (for example "Stretched Edge", "Metallic") have no
   look of their own and must be mapped by hand or by a setup-tool question.
+  **A stretched edge previews sides that production does not print.** On the canvas range
+  derived from the experience.pixfizz.com canvas seed, the "Stretched Edge" value (layout
+  stretched) prints the face only and all four sides come out white, while Live Finish shows
+  stretched sides. No layout attribute extends edge pixels, so it cannot be fixed by layout.
+  Hide or unpublish that value before selling (not verified whether a platform option exists).
+  Template-level. *Verified by query, 2026-11-17 and 2026-11-19.*
 - **Picture frame landscape.** Presentation and orientation both need a layout on the same
   print element, so they cannot be two independent options. Plan: orientation top-level,
   presentation as a child option per orientation. Whether an upload crop, Adjust and
@@ -795,11 +834,61 @@ a row, read the version from the live console (§ 3.5).
 
 - **Variant codes in a mount must match the live product exactly.** `lf_finish_variant`, `lf_looks` keys and `lf_curve 'variant:<code>'` were written for a code (`finish`) that differed from the product's (`finish-options`). Live Finish gave no error and silently stayed on the default look. Check on the product page: pick each finish and read `LiveFinish.state().look`. *Verified live, 2026-11-09.*
 - **Ornament ribbons need a page backdrop.** With `lf_backdrop` set to an asset, the ribbon is the drawn CSS one; the lab's photographed ribbon is read only from a page backdrop (`page:<page>` or `page:<page>@<theme>/<product>`) whose preview page has the ribbon image (tall narrow PNG, height at least 3x width). *Verified live, 2026-11-10.*
+- **Borrowing another product's backdrop.** `lf_backdrop 'page:<page>@<theme>/<product>'` with `lf_ribbon_variant` set lets products with no preview pages use another product's background and per-color ribbon photos, as long as the ribbon variant codes match. On a template with no upload option, Live Finish shows only `lf_sample`. *Verified by query, 2026-11-17.*
 - **View labels are English only (known defect, 0.23.0 and later).** The chip and view labels are hard-set in the config reader, so `lf_closeup_label`, `lf_wall_label` and similar mount keys are read and then overwritten; `lf_room_label` is still honored. A non-English site shows English labels until the tool honors the mount labels. *Verified by reading the live script, 2026-11-11.*
 - **Declare `lf_standoff` and `lf_standoff_color`** even with no standoff mounting: leaving them out logs a console error. *Verified 2026-11-11.*
 - **Live Finish on a Pages page (no product).** Give it a `.px-product-gallery > .px-display-wrapper > .px-display > .px-item` stage and a `form#project_create` with a `theme_id`, render `{% snippet 'product/live-finish', ... %}`, and drive it with `LiveFinish.face({url, theme, values})`. For a canvas face, the template page size includes the bleed (trim = page − 2 × bleed). cdn.pixfizz.com assets send `Access-Control-Allow-Origin: *`, so they draw into a canvas without tainting it. *Verified live, 2026-11-10.*
 - **Name on a tag in an existing product photo.** When a lab's photos already show the product with a sample name, match the blank artwork to the photo with a feature-matched homography, warp it in, and replace only the name area, carrying the photo's shading with a smooth gain map; fit a global affine color transform rather than a per-channel ratio (which gave color casts). Draw the live name with an HTML element and CSS `matrix3d`. Skip photos where ribbon or packaging crosses the name. Site fonts are public at `/v1/fonts.json`; check every customer font draws the language's letters (some map ñ but draw n). *Verified by local render, 2026-11-10; not yet live.*
 - **A clean scene from an existing plate.** To show a product at several sizes in a photo that already contains one, an image model can remove the product and its hardware; the result came back pixel-aligned but smaller, so scale the calibration by the width ratio. Calibrate from the removed object: its known size gives pixels per inch at that depth, and its contact point gives the ground line. *Verified by local render, 2026-11-13; not yet live.*
+- **Card replacement on flat art (few feature points).** When SIFT finds under about 80 inliers,
+  start from a rough card quad, refine with `cv2.findTransformECC` (homography, sigma 6 then 2),
+  then snap each side to the strongest straight edge within 30 px (the physical card outline).
+  When the photographed crop differs from the print tile, match color by channel mean and
+  standard deviation, not by pixel least squares. Print tiles come from the imposition PDF: the
+  exact trim of every tag is in the PDF drawings, not the crop marks (PyMuPDF
+  `page.get_drawings()`, rects of the tag size, one per tile; tiles are hand placed, so use each
+  rect, not a fitted grid), and `pdftoppm -r <dpi> -x -y -W -H` rasterizes only that region, fast
+  even on a very large PDF. On a pattern sheet every tag is a different crop: pick the tile that
+  matches the photo (SIFT inliers across all tiles at about 400 px) and use that same tile for the
+  print, the plate and the hand view. Tool-level. *Verified by render, 2026-11-17.*
+- **Name patch on box shots (card under acetate with a satin bow).** Whole-face replacement
+  erases the bow and fogs the face; patch the name zone only. Find the ribbon without a hand mask:
+  after aligning and color-fitting the blank art, the ribbon band is the run of rows where the
+  median residual across the card is high; the bow is the pixels close to the band's Lab color
+  that also differ from the art and connect to the band, within about 0.22 card widths ("differs
+  from the art" stops a pale card being taken for a pale ribbon). Replace the whole sample-name
+  zone minus ribbon and bow, not only the detected strokes: under acetate the letters have soft
+  edges and a stroke-only erase leaves a readable ghost (stroke-only still works on plain
+  backgrounds). Fit both a similarity (`estimateAffinePartial2D`) and a full homography from the
+  same matches and keep the one with the lower color-fit residual; ECC refinement skewed box shots
+  (the acetate edges and the bow pull it). Before shipping a box view, map the design's own text
+  box into the photo: if it lands on the ribbon or bow, the customer's name would be drawn over
+  the satin, so skip that view (8 of 23 box photos on one site). Ceiling: busy plaids, toile and
+  photos whose card crop matches no print tile; the right input is a box photo of the card printed
+  without a name. Removing the ribbon and bow is past the ceiling (the card under the bow reads
+  fogged and the ribbon on the box sides has nothing to rebuild from): a box view needs a photo
+  shot without the ribbon. Tool-level. *Verified by local render, 2026-11-17; not yet live.*
+- **Landing pages and prototypes use the released engines.** A product preview on a landing
+  page, studio or prototype is drawn by the released engine (Keepsake Studio block mode for
+  acrylic blocks and keepsakes, Live Finish and Live Finish Plates for flat pieces), and desk and
+  shelf scenes use the calibrated `lf-room-desk.webp` and `lf-room-shelf.webp`. Never hand-build a
+  stand-in renderer or generate a new scene; if an engine cannot show a product yet, say so and
+  fix the engine. A preview prototype for a lab product mounts the engine on a snapshot of that
+  lab's real product page, not a hand-made one. *Decided by Pixfizz, 2026-11-16.*
+- **Several engines on one page.** Engines can share one Shopper gallery: remove the old
+  `#ks-root` / `#lf-root` / `#lfp-root`, call `KeepsakeStudio.reconcile()`, remove the
+  `.lf-stage` / `.lfp-stage` nodes, then mount the next root and call its init. Comma lists in a
+  mount (`lf_room_image`, `lfp_plate_images`) cannot carry `data:` URLs, because a data URL holds
+  a comma. Tool-level. *Seen on a landing page build, 2026-11-16.*
+- **Engines inside a product-landing page (`.pl`).** A site built on the product-landing
+  structure has `.pl img,.pl video{display:block;max-width:100%}` in its custom CSS. Specificity
+  0,1,1 beats Live Finish's single-class rules: `.lf-room{display:none}` loses (the room photo
+  shows behind the close-up) and `.lf-art` / `.lf-pg-art{max-width:none}` lose (the panel art
+  shrinks and floats). Any page that mounts an engine inside `.pl` adds, scoped to its stage:
+  `.pl <stage> img{max-width:none}`, `.pl <stage> .lf-room,.pl <stage> .lf-room-bg{display:none}`,
+  `.pl <stage> .lf-stage.is-wall .lf-room{display:block}`,
+  `.pl <stage> .lf-stage.is-wall.is-zoom .lf-room-bg{display:block}`. Site CSS, template-level
+  structure. *Seen and fixed on a landing page build, 2026-11-16.*
 
 ## 7. Installing on a site
 
@@ -866,12 +955,30 @@ reading the admin on a client site, 2026-10-29.*
 **Importing a template option archive without hands:** POST the tar as `exported_file`
 (FormData, with the page's `authenticity_token`) to
 `/site/<site>/admin/templates/<template id>/options/import`; the response redirects to the new
-option's edit page. Copying an option to many templates with Template Options Copy: post one
-target per request (`18_ADMIN_NAVIGATION.md`). *Verified 2026-10-26 and 27.*
+option's edit page. Copying an option to many templates with Template Options Copy
+(Admin, Advanced, Bulk Updates, `/admin/bulk_updates/template_options`): one post carries many
+targets and copies the option by code with its custom values (`hidden`, `hide_from_cart`,
+`custom_script`); leave `destroy_existing` off (`18_ADMIN_NAVIGATION.md`). *Verified 2026-10-26
+and 27; many targets per post verified on a client site, 4 seeds to 115 templates, 2026-11-17.*
+(Corrected 2026-11-21: was "post one target per request".)
+
+**Changing the mount on an installed option without hands:** post the option's custom fields
+form (id `custom-fields-form-<option id>`) with `template_option_type[custom][custom_script]` set
+explicitly. The Ace editor builds its own input at runtime, so the field is absent from the
+static form. Platform-level. *Verified on a client site, 2026-11-17.*
+
+**One template shared by two product families with different corners.** When one template
+serves, for example, metal with a finish variant and acrylic without one, point
+`lf_corner_variant` at the variant only one family has (`finish`): that family gets rounded
+corners and the other falls back to `lf_radius`. The family without the variant logs a
+`console.warn`, not an error. Tool-level. *Verified on a client site, 2026-11-17.*
 
 **Test a mount before installing it:** on the live product page, build `#lf-root` or
 `#p3d-root` with the mount's data attributes inside the product form's `px-option-selector`,
 load the parent asset and call its init. Nothing is written to admin. *Verified 2026-10-06.*
+On a page without a mount, pass the root: `LiveFinish.init(document.getElementById('lf-root'))`.
+`LiveFinish.init()` with no argument does nothing and logs nothing. *Verified on a client
+product page, Live Finish 0.29.0 (ready 0.29.0, mask hole found), 2026-11-18.*
 
 The myPixfizz **Live Finish setup tool** (Tools, `/tools/live-finish`) reads an uploaded
 template export, detects the product type (folded card, ornament, card, canvas, metal,
@@ -915,3 +1022,4 @@ A preview is not finished until all of this is true.
 - 2026-10-29: § 2.2 the eight label keys must still be declared (ignored from 0.23.0, still reported missing); ornament base following a material variant. § 2.3 `lf_mountings` depth before edge color. § 2.10 flat products from one top-down photo (white-face mask, `destination-in`, multiply); binding sprites, never tiled strips. § 4 the theme render draws print border variants passed in the query; probe before drawing an effect. § 7 a shared template carries one mount for two ranges; template option import by POST; Template Options Copy one target per request. Source: claude-chat.
 - 2026-11-09: New § 3.6 round products (orthographic print projection, object-space dimple normal map, canvas equirect environment, turntable rotation). § 3.3 a tool's own 3D mug takes the preview-3d look. § 2.10 white fleece mask refined at full resolution, lighter smooth maps. § 6 tool face covered by the page render (fixed in 0.26.1), `px-project-preview` `loading="lazy"`, three.js canvas needs an explicit CSS size on Retina. § 7 gate a mount by design code on a shared template; `lf_finish_variant` `none` false error. Source: claude-chat.
 - 2026-11-13: § 6 findings: mount variant codes must match the live product (silent fallback), ornament ribbons need a page backdrop, view labels English only (known defect), declare lf_standoff keys, Live Finish on a Pages page (stage markup, canvas page includes bleed, CDN CORS), name on a tag in an existing photo, a clean scene from an existing plate. Source: claude-chat.
+- 2026-11-21: § 2.2 a color wrap with a fixed hex (`color:color@#ffffff`) and wrap color variant `none` never follows the customer color, with the check and the admin location of `custom_script`. § 2.3 surface rooms show no top face for lying-flat products. § 2.10 photo slates use material `coated`, faux leather reads the design alpha (png or webp render, never jpg), `LiveFinishPlate.face()` before `init()`. § 6 stretched edge prints white sides while Live Finish shows them; findings: card replacement on flat art and print tiles from imposition PDFs, name patch on box shots and its ceiling, landing pages and prototypes use the released engines, several engines on one page, engines inside `.pl` product-landing pages. § 7 CORRECTED Template Options Copy (many targets per post), changing a mount through the custom fields form, corner variant on a template shared by two families, `LiveFinish.init(root)` needs the root. Borrow another product's page backdrop and ribbon photos. Source: claude-chat.

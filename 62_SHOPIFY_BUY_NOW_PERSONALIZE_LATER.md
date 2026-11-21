@@ -526,7 +526,33 @@ The cart count bubble update targets `.cart-count-bubble [aria-hidden]` and `.ca
 
 ---
 
+## 13. Enabling the Flow on a Site (Setup Checklist)
+
+Platform-level (Pixfizz CMS admin and email sending). *Verified by query on two client sites, 2026-11-16 and 2026-11-17, unless marked.*
+
+1. **Nothing to install on the Pixfizz side.** The `shopify/draft-order` page and the draft branch in `shopify/api.js` are inherited by every Shopify + Pixfizz child. Per-site work is the email and the Shopify theme button (§ 2). A site whose theme wraps `pixfizz-launch-product-handler` in its own launch logic (for example a sign-in prompt that later clicks the normal Personalize button) must let the draft branch bypass that wrapper.
+2. **Email settings.** Admin > Settings > Email Notifications (`/site/<site>/admin/site/email`): set Default Email and Orders Email to the client's address (new sites ship with `info@yoursite.com`), tick HTML Format, then fill the Order Draft subject and body (§ 6). A template is enabled as soon as it has a saved body; there is no separate switch.
+3. **Sender domain authentication.** Pixfizz sends site emails through SendGrid with the site's Default/Orders Email as From. If the client domain publishes DMARC `p=reject` (or `quarantine`) and has no SendGrid domain authentication, every Pixfizz email From that domain is rejected or junked, even though the order log says "Emails::OrderDraft sent to ...". Before enabling a client-domain sender, query `_dmarc.<domain>` TXT and `s1._domainkey.<domain>` CNAME. If DMARC is reject or quarantine and the SendGrid CNAMEs are missing, add domain authentication in SendGrid for that domain and have the client publish the CNAMEs first. A working site has `s1._domainkey` as a CNAME into the Pixfizz SendGrid account. *Verified by DNS query and the order fulfillment log, 2026-11-17.* SendGrid set-up: `32_ORDER_LIFECYCLE.md` § How notification email templates behave.
+4. **Preview, not Send Test Email.** The Preview tab renders against the latest real order and sends nothing; the `signin_token` link renders empty in Preview on every site, which is not a fault. Do not use "Send Test Email" with its pre-filled To: it is a real customer.
+5. **Test orders.** Shop Pay intercepts checkout for any email it recognizes and sends a code to the owner's phone: close the pop-up, never enter the code. Duplicating a Shopify product (`productDuplicate`) copies its manual collection memberships and all sales channels; for a hidden test product, remove it from every collection and unpublish POS and Shop straight after duplicating. *Verified on a client store, 2026-11-17.*
+
+---
+
+## 14. Draft Order Language
+
+Template-level (Shopify master). *Verified on a client site by two test orders and read-back, 2026-11-17.*
+
+- **The locale travels on the draft line.** The `add_to_cart` handler in `shopify/api.js` stamps `_pixfizz_locale` (`Pixfizz.Shopify.locale`, else `Shopify.locale`) on draft lines only (`_pixfizz_draft === true`). It arrives on the Pixfizz orderline as `orderline.chosen_variants['_pixfizz_locale'].value`.
+- **Page language.** `shopify/draft-order/:order_id` uses the `?locale=` parameter, else the draft line's `_pixfizz_locale`, else `request.locale`. All strings go through `| t: ns: 'draft-order', locale: page_locale`; with no translations the literal English shows, so other Shopify sites are unchanged. When `page_locale` differs from the session the page POSTs `/session/set_locale` so the editor opens in the same language.
+- **Language switcher hook.** The master snippet `shopify/draft-order-languages` is empty with Allow Override; a site overrides it with its switcher, which receives `page_locale`.
+- **Why `locale:` is passed explicitly.** `t` without `locale:` uses the session language, and a `?locale=` URL parameter does not change the session; only `POST /session/set_locale?locale=xx` does (as `shopify/token` does with the theme's locale). Platform-level.
+- **The email.** A multilingual Order Draft email can branch its body and subject on `_pixfizz_locale` and append `?locale=` to the magic link. The email template Subject is capped at 512 bytes (Cyrillic and Greek characters count double); a failed save shows "Failed to update email template" and keeps the page, so check the stored value after every save. Platform-level.
+- Site setup: enable the languages in Super Admin (website form, `website_settings[enabled_locales][]`), add the `draft-order` translations per key, and override `shopify/draft-order-languages`.
+
+---
+
 ## Changelog
 - 2026-04-09: Created from CMS backup (2026-04-09), launch handler snippet, and email template review.
 - 2026-04-09: Added § 12 — `skip_draft_redirect` option, CMS changes, and `pixfizz-setup.liquid` reference.
 - 2026-04-15: Rewrote § 12 — added full implementation including `_showDraftToast`, cart bubble update, `.catch()` handler for third-party fetch interceptors, toast positioning (desktop below cart icon / mobile bottom-center), and `draft_toast_message` option. Validated on demo site.
+- 2026-11-21: New § 13 Enabling the Flow on a Site (nothing to install Pixfizz-side, email settings, SendGrid DKIM and DMARC check for a client-domain sender, Preview vs Send Test Email, Shop Pay and productDuplicate test-order traps) and § 14 Draft Order Language (`_pixfizz_locale` on draft lines, page locale order, `shopify/draft-order-languages` hook, explicit `locale:` on `t`, 512-byte subject cap). Source: claude-chat.

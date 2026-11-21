@@ -128,6 +128,13 @@ Vintage Film was drafted during development and is **not** in the launch set. Ge
   shows `editor_configuration[custom_js_files_string]` (comma-separated) beside Custom CSS. A
   setting `website_settings[editor_custom_css]` also exists; it was off on a site whose Custom CSS
   field still showed, which is not explained. Staff step. *Verified by query, 2026-11-05.*
+  **The Custom CSS field is gated the same way.** On a fresh shopper24 child, with
+  `website_settings[editor_custom_js]` and `website_settings[editor_custom_css]` both off, the Design
+  Tool Configuration showed neither Custom JS nor Custom CSS; on experience.pixfizz.com both settings
+  show both fields. On a new site, turn on `editor_custom_css` (and `editor_custom_js` if a script is
+  needed) before planning editor styling. *Verified by query (form fields read in the admin),
+  2026-11-18.* The earlier site with the setting off and the field showing is still unexplained
+  (possibly a legacy value already set).
   On a Shopper child, Custom JS `editor-scripts.js` loads the page `/site/editor-scripts.js`,
   which renders the parent's tracking code plus the `editor/scripts.js` snippet (empty on the
   Shopper 24 parent, so a site adds its own override). Only configurations that name it load it.
@@ -241,6 +248,29 @@ Iterate by editing the override and reloading the editor. Roll back by deleting 
 experience.pixfizz.com (shopper24 child), 2026-10-02. Whether the Shopify
 `shopify/custom-styles` route also needs naming in the field is not verified.*
 
+**A Shopify + Pixfizz site can use the same `style/editor.css` route.** A `shopify_standard` site
+with a `style/editor.css` snippet has `<link rel="stylesheet" href="https://<site>.pixfizz.com/site/editor.css">`
+in its editor shell. Platform-level. *Verified by query, editor bundle 20261116114834, 2026-11-17.*
+The Pixfizz connector's snippet tools refuse `shopify_standard` sites, so that snippet is edited in
+the admin by hand.
+
+**The Shopper 24 parent `style/editor.css` holds one rule** (gallery tab buttons at 12px). A child
+override replaces the whole snippet, so copy that rule into the override. Template-level (Shopper 24).
+*Verified by query, 2026-11-18.*
+
+**Specificity against the stock editor CSS.** Platform-level. *Verified by injection, editor bundle
+20261116114834, 2026-11-17.*
+
+- Stock rules outrank `.px-editor .x` selectors for button **background and color** (Add to Cart
+  `.px-cart-button`, Import images `button[data-onclick="uploadMethodModal"]`). A selector such as
+  `html body .px-editor button.px-cart-button.px-button` wins. `border-radius` and `font-weight` apply
+  with the plain selector.
+- The selected Import / Import PDF tab (`.px-gallery-tabs button[data-selected="true"]`) has its color
+  set with `!important` in the stock CSS; only `!important` overrides it.
+- The phone cart button is `button.px-mobile-cart-button` (outline style by default). A Google Fonts
+  `@import` works inside the editor (checked with `document.fonts`). *Verified by injection on a
+  shopper24 child, bundle 20261117123430, 2026-11-18.*
+
 Reusable techniques confirmed in production:
 
 - Variable aliasing. The editor exposes internal CSS custom properties (for
@@ -298,7 +328,13 @@ unless marked.*
   `--icon-danger-color`, `--editor-background-color`, `--primary-*`, `--secondary-*` and
   `--action-button-*`, `--gallery-sidebar-width` (276px), `--thumb-size` (96px),
   `--caption-height` (24px), `--standard-fonts` (`Satoshi, "Open Sans"`). They join the
-  aliasable set above.
+  aliasable set above. Also worth setting from a site's editor CSS (bundle 20261117123430,
+  *verified by injection, 2026-11-18*): `--brand-color`, `--icon-action-color`,
+  `--action-button-background-color`, `--primary-button-color` / `--primary-button-background-color`
+  and `--border-color`.
+- **Untranslated stock string.** On a Spanish site the phone editor's empty-project text "Select
+  images from available sources and begin editing your project." still showed in English. It needs a
+  translation key; *not verified which key, 2026-11-18.*
 - **Brand color.** The configuration's brand color field (`editor_configuration[brand_color]`)
   emits an inline `:root { --brand-color }` in the editor shell, so CSS built on
   `var(--brand-color)` follows each site's own setting.
@@ -526,6 +562,15 @@ Further detail, *verified by query, bundle 20261002143509, 2026-10-04*:
   empty. Register the image first (`galleries.project._addDbImage(json)` and
   `store.images.register(id, data)`). When the frame is known by name there is no need for
   `project.autofill` and its page-order rule.
+- **`fillPlaceholder` does nothing on a locked image, silently.** An image placeholder with
+  `edit="false"` was not filled during a hidden-editor hand-off: the tool's report counted it as
+  placed and `saveProject()` succeeded, but the saved page still had `placeholder="true"` and the
+  template's sample `src`. With `edit="true"` (and `move`, `resize` set to `false`; the build also set
+  `delete="false"`) the same hand-off filled it, and the fulfillment render showed the generated PNG
+  with its transparency over the photo. Any image element a custom tool fills by name must be
+  `edit="true"`, locked with the other flags. Prove the fill by reading `/v1/books/<id>/pages` (`src`
+  no longer the sample, no `placeholder` attribute), not the tool's own report. Platform-level.
+  *Verified by query on experience.pixfizz.com, 2026-11-19.*
 - `el.update({zoom, left, top})` (crop, § Image crop state) and `el.update({grayscale: true})`
   persist; the saved XML carries `grayscale="true"`.
 - `el.update({x, y, width, height})` moves and resizes an element and saves. *Verified by query,
@@ -578,6 +623,51 @@ inserts the layout's elements (marked `layout="true"`). Elements from the design
 with both the old and the new frames (`19_XML_TEMPLATE_REFERENCE.md` § Layout Content Requires
 `layout="true"`). *Verified by production render on baseline.pixfizz.com, 2026-10-20.* Calendar
 consequence: `23_XML_CALENDAR_REFERENCE.md` § Per-Page Photo Layouts on Calendar Templates.
+
+### Saving, autosave and guest projects
+
+Platform-level (Pixfizz editor). *Verified by reading `editor_bundle.js` (bundle 20261116114834) and
+by query on test projects, 2026-11-17 and 2026-11-18, unless marked.*
+
+- **There is no native autosave.** The only native option is the Design Tool Configuration field
+  **Quicksave Prompt Delay** (minutes): after that long with unsaved changes the editor opens a save
+  prompt. It does not run in share view, with `parent_orderline`, with `cart=t`, or while local images
+  are uploading.
+- **What a save sends.** `editor.store.saveProject()` is `project.save()`: `PUT /v1/books/<id>.json`
+  with `book=` the diff (`project.data_for_save_endpoint`: changed pages, `page_numbers`, `page_meta`
+  for new pages, `deleted_pages`, and options and template options only when dirty). It calls
+  `alert()` if images or PDFs are still uploading.
+- **A native save replaces every page with the server copy** (`setLayoutAndStoreSavedSnapshot`,
+  then `page_sets.replace`). Edits made while the request runs are lost and the selection is cleared
+  (the native Save then reselects set and page).
+- **Saving without replacing pages.** PUT the diff, then set `project.saved_snapshot` to the
+  `layout_snapshot` taken before the request: edits made during the request stay dirty and the
+  selection stays. The server reformats page XML (whitespace, `203` vs `203.0`, drops empty
+  attributes) but keeps the content. *Verified by query (save, reload, value persisted).*
+- **The book PUT is not idempotent for new pages.** Sending the same diff with `page_meta` twice
+  adds the pages twice. Never resend a "pages added" diff.
+- **Any book PUT returns `saved: true`**, so the project joins the customer's saved projects even
+  without `book[saved]`; a guest PUT turned `saved` from false to true.
+- **Saving on page close.** A `fetch` started in `pagehide` without `keepalive` does not reach the
+  server when the page reloads or closes (an edit 300 ms before `location.reload()` was lost). With
+  `keepalive` (body about 1 to 6 KB; the limit is 64 KB) the edit persisted, for a page edit and a
+  page add. Otherwise save on `visibilitychange` to hidden.
+- **The editor redraws its header** when `project.saving` changes and when pages are added; anything
+  a script injected into `.px-header .px-right-content` is removed and must be put back.
+- **Page limits:** `theme_store.min_pages` and `max_pages` are on `editor.store.project`. Organize
+  pages disables Delete at `min_pages` (counted pages = price variables `pages` minus
+  `uncounted_pages`).
+- **Config values in the editor:** `Px.config.currency_format` (`unit`, `format` such as `"%u%n"`,
+  `negative_format`, `precision`, `separator`, `delimiter`), `Px.config.login_modal_enabled` and
+  `Px.config.user.anonymous`.
+- **Creating a test project:** `POST /v1/books.json` with `product_id`, `theme_id` and
+  `book[saved]=false` from the storefront origin works as an anonymous user, and the editor opens it.
+- **Guest projects.** A guest gets a server-set `__Host-session_id` cookie (valid about one year) and
+  an anonymous user on the first `POST /v1/books.json`. With that cookie the guest can GET the book,
+  open `/v1/editor?book=<id>`, PUT name and page XML (persists) and list their books with
+  `GET /v1/books.json`; another guest gets 403. *Not verified:* what happens to those books on sign-in
+  or registration, and how long anonymous users are kept.
+- **`/site/login`** exists on Shopper sites (200) and is 404 on a Shopify + Pixfizz site.
 
 ### Tracking hooks
 
@@ -1479,3 +1569,4 @@ Platform event. *Stated by the core developer, 2025-05; not re-tested by query.*
 - 2026-10-22: Integrations: Google Tag Manager ID field name (loading GTM in the editor not verified; the bundle pushes nothing to `dataLayer`), `custom_js_files_string` seen on one site only. Editor Buttons: Add QR code button selector, `hideAddQrCodeBoxButton`, `eqrcodes`, `g.px-qrcode-element`; `data-onclick` save and exit names. Locking an Element: text `efontsize` and `ecolor` flags and the admin toggles. Driving the Editor: element properties and `store.layouts`; autofill needs `db:<id>` ids and skips non-editable placeholders; new § Text, image and layout calls (`pointsize` not `fontsize`, `removeElement`, `fillPlaceholder`, `grayscale`, `x/y/width/height`, `setLayout`); new § Tracking hooks (`.px-cart-button`, `editor.store.price`). New § Image border substitutions (`image_border_width` centered on the edge). Source: claude-chat.
 - 2026-11-09: Integrations: RESOLVED the Custom JS gate (super admin `website_settings[editor_custom_js]`) and how a Shopper child loads `editor-scripts.js`. Editor Buttons and Per-Site CSS: phone mode forces injected buttons to `display: block` (scope with `.px-editor`), requestAnimationFrame panel guard. Store paths: `store.layouts.layouts` holds every theme size including covers; layflat set count vs page labels. Text, image and layout calls: adding elements by clone and `addElement`, recolored locked background prints, production file without an order (logged in Money Logs), one undo step with `beginWithUndo`, extra-pages price via `price_forecast` and the `_price_variables` mutation trap, product id vs template id, extra grid row under the canvas. Substitutions bind by element name: tag-only color targeting verified in production. Photo prints: border applied by the print driver (values with no substitutions). Text, image and layout calls: editor store element keys. Source: claude-chat.
 - 2026-11-13: New sections: Where the Editor's Close Button Goes (exitTarget order, exit_target passed through /v1/books); px-design-preview notes (listens to every option selector without the attribute, self-fetched SVG loses external images, slow previews from heavy design artwork). Source: claude-chat.
+- 2026-11-21: Integrations: Custom CSS field gated by `editor_custom_css` like Custom JS (both off on a fresh child). Editor CSS Customization: Shopify + Pixfizz sites use the `style/editor.css` route; Shopper 24 parent rule to copy into an override; specificity of stock button rules and the `!important` selected tab; phone cart button; Google Fonts `@import`; more theming variables; an untranslated stock string. Text, image and layout calls: `fillPlaceholder` silently skips `edit="false"` images. New § Saving, autosave and guest projects (no native autosave, Quicksave Prompt Delay, save diff and page replacement, non-idempotent page adds, keepalive on page close, header redraw, page limits, `Px.config` values, test and guest projects, `/site/login`). Source: claude-chat.

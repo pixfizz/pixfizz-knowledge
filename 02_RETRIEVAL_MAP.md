@@ -1943,6 +1943,159 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 ### "product missing from storefront search / website crawl, product missing from storefront search, search reads crawl feed"
 → **40_PLAYBOOK_UPDATED.md** § A Product Is Missing From Storefront Search: Check the Website Crawl; **18_ADMIN_NAVIGATION.md** § Website (CMS)
 
+### "design gallery link, link_tag, share backgrounds clipart masks, image tags"
+→ **16_PRODUCT_HIERARCHY.md** § Designs
+
+### "template import Application error, long product name, import hangs, product attribute -1 suffix, design rename fields, meta_title store name doubled"
+→ **16_PRODUCT_HIERARCHY.md** § Import Behavior
+
+### "Custom CSS field missing, editor_custom_css, Shopify editor.css, editor CSS specificity, px-mobile-cart-button, editor theming variables"
+→ **17_DESIGN_TOOL.md** § Integrations; § Editor CSS Customization; § Theming variables and selectors
+
+### "fillPlaceholder not filling, locked placeholder edit=false"
+→ **17_DESIGN_TOOL.md** § Text, image and layout calls
+
+### "autosave, Quicksave Prompt Delay, saveProject, PUT /v1/books, guest project"
+→ **17_DESIGN_TOOL.md** § Saving, autosave and guest projects
+
+### "page without type, art offset photo card, art not in bleed, cut mask hairline, left top versus x y, background below minimum-dpi"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Page Parameters; § Greeting Card; § Drawing Order; § Page Count and `minimum-dpi`
+
+### "bulk design import script, design code clash, export-design file name, batch from seed design"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Design Import (`__print_theme.yml`)
+
+### "canvas print file standard, full wrap printed, white band canvas proof, stretched prints white"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Canvas Wrap Geometry; **27_LIVE_FINISH_AND_3D_PREVIEWS.md** § 6
+
+### "month-name language, sheet calendar versus spread, lab bleed is safe zone"
+→ **23_XML_CALENDAR_REFERENCE.md** § Calendar Element Tags; § Read the Lab's Production File Before Building a Calendar
+
+### "automatic discount not on product page, sale price strike, auto_discounts _mine.json, px-sale"
+→ **30_PRICING_ENGINE.md** § Automatic Discounts; **52_SNIPPET_INVENTORY.md** § Annotations (2026-11-21)
+
+### "cart tier strike markup, pop-up line markup, per-shopper URL in static HTML"
+→ **20_SHOPPER_CART_RULES.md** § The light cart pop-up
+
+### "do_not_save, book[saved], saved project add to cart"
+→ **20_SHOPPER_CART_RULES.md** § Reorder, order details and emails for a custom tool line; **51_CUSTOM_FIELDS_REFERENCE.md** § Product
+
+### "walk-in checkout, kiosk-guest-email, Captcha invalid, kiosk-remove-captcha, reCAPTCHA"
+→ **21_SHOPPER_CHECKOUT_POLICY.md** § Walk-in kiosk checkout
+
+### "shipping_unavailable string false, delivery greyed out, missing Product definition"
+→ **21_SHOPPER_CHECKOUT_POLICY.md** § Shipping unavailable; **51_CUSTOM_FIELDS_REFERENCE.md** § Key Notes
+
+### "payment gateway list, website[gateway], payment-gateway lowercase, Stripe no card form, other cart_payment, missing payment button"
+→ **21_SHOPPER_CHECKOUT_POLICY.md** § Payment Gateway Notes; **50_SHOPPER_TEMPLATE_REFERENCE.md** § 5
+
+### "cut print layout option, element substitution border, finish border variants channel"
+→ **22_OPTION_VARIANT_RENDERING.md** § 2.1
+
+### "size switch clears photo, pdp_layout orientation upload lost, pxNoRerender children"
+→ **22_OPTION_VARIANT_RENDERING.md** § 5.1; **26_CUSTOM_DESIGN_TOOLS.md** § 4 Rules for a mount block
+
+### "variant import reuses asset, image_upload option target element"
+→ **22_OPTION_VARIANT_RENDERING.md** § Variant Type Exports
+
+### "pricing.js missing mode, OrderHub till custom order no price, px_price fallback"
+→ **30_PRICING_ENGINE.md** § Uploader Price Cards; **45_ORDERHUB.md** § Repricing Custom Tool Lines
+
+### "Ghostscript spot color CMYK, Advertek Phoenix API field limits, customer_item_number 20"
+→ **31_FULFILLMENT_ENGINE.md** § Server-Side PDF Color Conversion: Ghostscript Keeps Spot Colors; § Advertek Phoenix API (v2): Field Limits
+
+### "gift voucher issued, promocode tag, Orderline Fulfilled email, recipient email"
+→ **32_ORDER_LIFECYCLE.md** § Which notification email fires when; **18_ADMIN_NAVIGATION.md** § Marketing; **61_PIXFIZZ_API.md** § 13a. Promocodes and Gift Vouchers
+
+### "Shopify editor.css, enable buy now personalize later, Order Draft email, DMARC SendGrid DKIM, draft order language, _pixfizz_locale"
+→ **60_SHOPIFY_INTEGRATION.md** § 6; **62_SHOPIFY_BUY_NOW_PERSONALIZE_LATER.md** § 13, § 14; **80_ONBOARDING.md** § Email Notification Templates
+
+### "tool version live site, ready version console"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 2 (Checking which version a live site runs)
+
+### "px-image-upload thumbnail uncropped, shrink to fit loop overflow, load fonts by name per site"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 3
+
+### "tool on a Pages page, project_create missing, closest data attribute root, every click opens upload"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 4
+
+### "add to cart from script, /v1/books editor=add-to-cart no cart line"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 6
+
+### "Greeting Card Studio gcs_diy missing, gallery width, gcs-type-price, live front, translation, Cyrillic fonts"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 7 Greeting Card Studio; **28_TOOL_SETTINGS_REFERENCE.md** § Greeting Card Studio
+
+### "Photo Book Studio layflat false, page book, layflat layout library, heroPlate"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 7 Photo Book Studio; **28_TOOL_SETTINGS_REFERENCE.md** § Photo Book Studio
+
+### "price flashes while typing, optional layer is not a function, touch adjustment Android, shared block CSS reverted, setT hook, z-order handles, money format no decimals, calendar_transformations, Sticker loadFile"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 7 Cross-tool rules added 2026-11
+
+### "studio install done check language currency"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § 8 Definition of done
+
+### "uploader size link, ?size= uploader"
+→ **28_TOOL_SETTINGS_REFERENCE.md** § Uploader 2.0
+
+### "color wrap sides white, lf_wraps color, desk room no top face, photo slate coated, faux leather, LiveFinishPlate.face"
+→ **27_LIVE_FINISH_AND_3D_PREVIEWS.md** § 2.2, § 2.3, § 2.10
+
+### "box shot name patch, card replacement flat art, prototype preview engines, .pl img live finish, borrow page backdrop"
+→ **27_LIVE_FINISH_AND_3D_PREVIEWS.md** § 6
+
+### "Template Options Copy many targets, custom_script by post, lf_corner_variant shared template, LiveFinish.init no argument"
+→ **27_LIVE_FINISH_AND_3D_PREVIEWS.md** § 7
+
+### "Nano Banana 4K reference, transparent PNG art matte, recolor plates, AI art border edge check"
+→ **83_AI_IMAGERY_PRODUCTION.md** § B12
+
+### "admin asset upload 250 MB, copy asset to another site"
+→ **61_PIXFIZZ_API.md** § 13c Assets
+
+### "connector plan expired, connector unicode escape, large snippet in parts, Ruby price sets price_formula"
+→ **61_PIXFIZZ_API.md** § 2 Pixfizz MCP connector
+
+### "snippet /v1 put saves nothing"
+→ **61_PIXFIZZ_API.md** § 13i
+
+### "translation forms, model_translations, add translation key, email subject 512 bytes"
+→ **18_ADMIN_NAVIGATION.md** § Translation forms by route; § More Admin Screens and Form Routes
+
+### "rename collection path, variant export rewrite, website redirects json_redirects, CRLF snippet save"
+→ **18_ADMIN_NAVIGATION.md** § Products; § Website Settings Worth Knowing
+
+### "design import from folder, print_themes positions gaps, missing sizes never published, export modal product ids, JSON print_product media maps 500"
+→ **18_ADMIN_NAVIGATION.md** § Import and publish routes
+
+### "admin save not saved read back, template imported with wrong values, design name suffix"
+→ **18_ADMIN_NAVIGATION.md** § More Admin Screens and Form Routes
+
+### "products disappear when filter ticked, width height dropdown cascade, help_video slot"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 21.1; **40_PLAYBOOK_UPDATED.md** § Products Vanish When a Customer Ticks a Collection Filter
+
+### "hardcoded cdn.pixfizz.com /fz/, currency filter format varies, currency switcher shadow root, request.params, slice array"
+→ **50_LIQUID_REFERENCE.md** § asset_url; § currency; § Display Currency Switching; § Request
+
+### "translation import loads nothing, supported languages, set_locale, ?locale= ignored"
+→ **50_LIQUID_REFERENCE.md** § Translation Keys
+
+### "Pages instance not showing, faq shows parent page, page titles, /site/register 404"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 14, § 10
+
+### "site search returns nothing, search worker, inline-flex button gap, nav-tabs underline"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 17
+
+### "menu sideways scroll 992px, custom navbar misaligned, shop card hover image, clone school store colors"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 2, § 26, § 24, § 4
+
+### "Klaviyo custom catalog feed, kiosk create account error hidden, custom size product in cut print collection, delivery-box-style"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 20.1, § 16, § 25, § The Add to Cart control
+
+### "hide_pricing static products As low as"
+→ **52_SNIPPET_INVENTORY.md** § "As low as" pricing on collection cards
+
+### "turn noindex off at launch"
+→ **81_SEO_AND_GEO_REFERENCE.md** § Part D, Crawlable
+
 ### "Upsell Studio / cart cross-sell offer / us_test / upsell-studio rules"
 → **26_CUSTOM_DESIGN_TOOLS.md** § 7 Upsell Studio; full reference `pixfizz-design-tools/platform-extensions/upsell-studio/docs/RULES.md`
 
@@ -2235,3 +2388,4 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 - 2026-11-13: Added 40 routes for the 2026-11-13 sync (admin screens and form routes, photo prints group order correction, collection and product page findings, redirects and silent Liquid failures, uploader price cards, DPI and bleed, editor close button, Live Finish and tool findings, Shopify addon lines, new children). Source: kbsync.
 - 2026-11-19: Email kit route now points to `email-kit/README.md`. Source: claude-chat
 - 2026-11-20: Added 10 routes for the 2026-11-20 sync (Upsell Studio, Pixfizz Kiosk app, light cart pop-up, minimum amount, tax decimals, PayFast, sign in expired, debug checkout, cut print edit). Source: kbsync.
+- 2026-11-21: Added 51 routes for the 2026-11-21 sync (working notes 16 to 20 Nov across 26 files). Source: kbsync.

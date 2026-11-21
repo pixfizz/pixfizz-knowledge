@@ -983,6 +983,10 @@ The design preview may be slow, not broken (`17_DESIGN_TOOL.md` § px-design-pre
 
 A collection-filter size swap blanks `px-image-upload` (`50_SHOPPER_TEMPLATE_REFERENCE.md` § 26).
 
+## Products Vanish When a Customer Ticks a Collection Filter: Check the Field Has a Value
+
+A product (or design, for a `design.custom` filter) with no value for the filtered field drops out as soon as any value is ticked, and its values never show as choices. Imported products can carry values for a field the site never defined; new values need the definition, so filter on a defined field. Before launch, check every product in the collection has a value and the field is defined (`50_SHOPPER_TEMPLATE_REFERENCE.md` § 21.1). Platform-level. *Verified by query, 2026-11-17.*
+
 ## Changelog
 - 2026-03-21: Initial content from platform documentation export.
 - 2026-04-23: Added CSS snippet logs diagnostic note, password reset Liquid deprecation pattern, fulfillment template DPI failure, URL reserved parameter 404 gotcha, Stripe pending-without-payment issue, FTP original files intermittent failure.
@@ -1006,3 +1010,4 @@ A collection-filter size swap blanks `px-image-upload` (`50_SHOPPER_TEMPLATE_REF
 - 2026-11-09: Added Phones Show the Tablet Layout (`:has()` adds its argument's specificity). Added A Product Is Missing From Storefront Search (search reads the daily crawl's product feed; leading-whitespace links fixed 2026-11-04). Source: claude-chat, support-ticket.
 - 2026-11-13: Five symptom pointers: design tool Add to Cart redirected, blank images from missing assets, cart error from a shipping formula, slow first preview slide, uploaded photo lost on a size swap. Source: claude-chat.
 - 2026-11-20: Guest Checkout: closing self-registration means closing the checkout create-account form too. New section: debug output on the live checkout shows only for debug-tagged accounts. Source: support-ticket.
+- 2026-11-21: Symptom pointer: products vanish when a collection filter is ticked (field empty or undefined). Source: claude-chat.

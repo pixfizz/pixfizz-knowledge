@@ -583,6 +583,8 @@ Pixfizz includes 14 email templates mapped to the order lifecycle. Configured in
 
 Review and customize all active templates before launch — default content references generic Pixfizz copy that should be replaced with the customer's brand voice.
 
+**Check the sender domain before using a client address as From.** Pixfizz sends through SendGrid with the site's Default/Orders Email as From. If the client domain publishes DMARC `p=reject` or `quarantine` and has no SendGrid domain authentication (`s1._domainkey.<domain>` CNAME), every email is rejected or junked while the order log still says it was sent. Query `_dmarc.<domain>` TXT and `s1._domainkey.<domain>` CNAME first; if they fail, set up SendGrid domain authentication and have the client publish the CNAMEs before go-live. Platform-level. *Verified by DNS query and the order log on a client site, 2026-11-17.* Detail: `62_SHOPIFY_BUY_NOW_PERSONALIZE_LATER.md` § 13.
+
 ---
 
 ## Site Backups: Ask for the One Without Assets
@@ -764,7 +766,7 @@ is worth setting up. Minimum checklist keys:
 
 **`kiosk-remove-captcha` must be set on the kiosk subdomain specifically. It does not carry
 over** from the main site — this is the one that gets missed, and the symptom is customers
-being handed repeated captcha challenges at a terminal with no keyboard.
+being handed repeated captcha challenges at a terminal with no keyboard. On one client kiosk the key hid the checkout robot check (reCAPTCHA there) but the server still validated it and the guest form returned "Captcha invalid" (not verified why, 2026-11-18): place one real walk-in order on the kiosk host before launch. See `21_SHOPPER_CHECKOUT_POLICY.md` § Walk-in kiosk checkout.
 
 **Terminals are distinguished by `?terminal=N` on a single kiosk domain**, not by a domain per
 terminal. Kiosk mode compares the request host against the single value in `kiosk-mode-domain`,
@@ -848,3 +850,4 @@ After any domain change, repoint payment-provider webhooks that carry the old do
 - 2026-10-29: Marketplace Phase 3: how the Etsy integration presents orders (SKU format, options, receipt id, cart link signs in as the cart user, abandoned cart statuses, one Cart Abandoned email at creation, option mapping by code; template-option variations pending). New § Site Backups: ask for the one without assets. Source: claude-chat, slack-message.
 - 2026-11-09: Marketplace Phase 3: Etsy variations mapped to template options passed a later test (mapping by name, the rest as orderline options); new `create_order` endpoint payload and numeric-type rule. Post-Import Checks: Website title feeds the legal pages' company name; shipping formula 0 is free. Round 2: Pre-Launch Handoff Checklist: social sharing image, photo prints setup, child moved onto another admin. Marketplace: Etsy orders store the variation value name, not the code. Source: claude-chat.
 - 2026-11-13: New section New Shopper Children: shared catalog data with the old site, custom_script definition missing prints mounts as text, admin slug can differ, clear To on customer emails, test the FTP login, missing languages and currencies. Source: claude-chat.
+- 2026-11-21: Email Notification Templates: check DMARC and SendGrid DKIM before using a client domain as From. Kiosk Storefront Prerequisites: `kiosk-remove-captcha` can hide the robot check while the server still validates it, test one real walk-in order. Source: claude-chat.

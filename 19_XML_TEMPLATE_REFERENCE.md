@@ -62,7 +62,7 @@ The root element of every XML template definition.
 
 | Parameter | Description |
 |---|---|
-| `type` | Refers to the name of the Page in the Design. |
+| `type` | Refers to the name of the Page in the Design. Give every page a `type`: on the template create form a page without one fails with "Layout Product Definition undefined method `split' for nil:NilClass" (platform-level, *verified by query, 2026-11-19*). |
 | `position` | `left-right` makes page captions visible on both sides of a single-page spread or cover. |
 | `width` | Pre-trimmed width of the production file. Bleed is **not** added on top of this value. |
 | `height` | Pre-trimmed height of the production file. Bleed is **not** added on top of this value. |
@@ -471,7 +471,10 @@ Common product types with annotated XML definitions.
 - **A converted or generated design must not keep a source photo as a locked image** (`edit="false"`). A studio or preview that shows the customer's photo from its own data hides the mismatch until production. Check every page for `edit="false"` images named like placeholder, photo or main-image. *Found in a design audit, 2026-10-26.*
 - **Words on a busy pattern back** (dots, sparkles, stripes) read badly at card size. Put a locked shape in the paper color behind the words (`edit="false" move="false"`), and draw the same panel in any browser preview so preview and print agree.
 - Converting artwork to XML: a hole cut in an opaque background only becomes a backing shape when it is rectangular; an oval or shaped hole drawn as its bounding box leaves corners in the wrong color.
-- **Shaped photo windows (arch, circle, rounded) need no mask feature.** Put a rectangular image placeholder under a locked full-page artwork PNG with the shape cut out of it. Grow the cut-out a few pixels past the shape, or a faint rectangle edge shows around it. *Verified on design previews, 2026-10-16.*
+- **Shaped photo windows (arch, circle, rounded) need no mask feature.** Put a rectangular image placeholder under a locked full-page artwork PNG with the shape cut out of it. Grow the cut-out a few pixels past the shape, or a faint rectangle edge shows around it. *Verified on design previews, 2026-10-16.* On a full-bleed photo, clip that grown ring to the trim rectangle: a cut mask dilated past the shape (7 px at 320 dpi) otherwise paints a 0.24 mm band of base art just outside the trim, a hairline when the cut drifts. Keep the dilation inside the trim (without it the square photo edge shows around round and arched windows). Template-level. *Verified by rendering the generated page XML, 2026-11-17.*
+- **Generated art layers must be drawn on past the trim into the bleed.** When a design page is built from browser-rendered art layers, every block that touches a trim edge (background, pattern, gradient over a photo, panel) has to be rendered through the bleed. Edge-replicating the trim row into the bleed turns patterns into streaks and leaves a gradient overlay stopping at the trim line over a photo that does run into the bleed. Template-level. *Verified by rendering the generated page XML, 2026-11-17; not verified in a production PDF.*
+- **Bleed-sized art on a no-bleed page needs an explicit offset.** Turning a design with bleed (a flat 5x7 at 133.35 x 184.15 mm) into a no-bleed photo card (127 x 177.8 mm) by moving the live elements by minus the bleed is not enough: full-page art layers without `x`/`y` land at 0,0 (§ Drawing Order), so the art sits one bleed right and down of the photo and text, frames miss the photo and the right and bottom edges are cut off. Write `x="-3.175" y="-3.175"` (minus the bleed) on every bleed-sized art layer. Template-level. *Verified by query (live design renders), 2026-11-17.*
+- **Design exports of cards carry extra pages.** Besides the faces (`front`, `back`, `outside`, `inside`) a card design export has `preview-front`, `preview-back` and `preview-both` pages (not always flagged `preview: true`), and sometimes an empty `backup` page. Only front, back, outside and inside are card faces. *Verified by reading design exports, 2026-11-20.*
 
 ---
 
@@ -558,6 +561,8 @@ material. Ask again.
 **Templates model the fold differently: compare page size less twice the bleed with the nominal size before trusting either.** Two canvas templates in one 10x10 range read: one page 13.25 in with bleed 1.5 in, so page less twice the bleed is 10.25 in and the 0.125 in fold sits inside the trim; the other page 11.75 in with bleed 0.875 in, trim exactly 10 in, fold inside the bleed. Another range put an 8x10 on a 14x16 page with a 2 in bleed, so the trim is 10x12, 1 in a side over the face. A preview or tool that takes the trim as the face must inset by the difference. *Verified by reading source (template exports), 2026-09-27 and 2026-09-29.*
 
 **The platform preview render draws the selected wrap (gallery, mirror, color) into the bleed itself**, so the render's bleed shows what the sides will print. *Verified by reading renders on three sites, 2026-09-27.*
+
+**Canvas print file for a lab that prints the full wrap (no white).** Canvas page = print area + 2 x wrap depth (plus any lean-over the lab asks for), and the photo element always runs from 0,0 to the full page. Mirror layout: one image at x/y 0, width and height the full page, `borderwrap` = the full wrap depth. Full-image layout: the same element without `borderwrap`. Color and stretched layouts: face only at (wrap, wrap), the page background fills the sides. No corner or crop-mark group, no page mask, no low-opacity wrap-guide overlay on the canvas page or its layouts, and no `unit="true"` (the definition sets the units). A range derived from the experience.pixfizz.com canvas seed rendered production with a 20 mm mirror, then 10 mm of white to the page edge and corner marks at the 30 mm line; a lab that prints the full wrap rejects that. Before sending any canvas proof, compare its edge with the lab's own print file: a right page size is not enough. The `stretched` layout prints the face only, with white sides; no layout attribute extends edge pixels. Template-level. *Verified by query and by reading pixels, 2026-11-17 and 2026-11-19.*
 
 ### `<ipage> zoom` is derived, and `crop="true"` means cover, not fit
 
@@ -664,6 +669,11 @@ Press-ready products (business cards, flyers) legitimately sit at 300.
 
 _Stated, not independently verified — the 150 floor is a build decision, not a measured
 platform threshold._
+
+**Generated background images must meet `minimum-dpi` too.** A background image below the
+definition's `minimum-dpi` shows the editor's page warning triangle like a low-resolution customer
+photo. Write generated backgrounds at or above the floor (75 px/in for `minimum-dpi="72"`).
+Platform-level. *Verified in the editor, 2026-11-16.*
 
 ---
 
@@ -941,6 +951,12 @@ these.
   page XML, 2026-10-20.*
 - **`<g>` groups:** children are offset by the group's `x` and `y`. *Verified by reading XML,
   2026-10-20.*
+- **An element's position is `x`/`y`; on an `<image>`, `left` and `top` are the photo's crop offset
+  inside its box** (`17_DESIGN_TOOL.md` § Image crop state), not its position. When `x` or `y` is
+  missing it is 0: an `<image>` with no `x`/`y` is placed at 0,0 of the page whatever its `left`/`top`
+  (a live placeholder carried `y="88.39"` and `top="-16.54"`). A converter or renderer must read `x`/`y`
+  for position. *Verified by reading design exports and by query (live design render on
+  experience.pixfizz.com), 2026-11-17 and 2026-11-20.*
 - **An image `mask` must be WHITE where the photo shows**, with alpha as the keep area. A black
   mask hides the photo completely: the sample disappears from the collection tile and the
   product page, and a customer upload seems to do nothing. Under an opaque frame overlay with a
@@ -1161,12 +1177,20 @@ re-importing the design:
 Design** button (form `POST /site/<site>/admin/print_theme/import_print_theme/<template id>`,
 field `exported_file`).
 
+**Scripted imports from an admin page.** The same POST works from a script in any logged-in admin page
+of the site, one file at a time: a run of 456 design tars imported 456 of 456 at 1.4 to 3 s each with no
+authenticity token (an earlier run sent the template page's token). Success signal: the fetch ends
+redirected to `print_theme/theme/<new design id>`. Keep a per-file-name seen list so a repeated run
+cannot import a file twice, and count designs per template afterwards. *Verified by query on
+pxtemplates, 2026-11-18.*
+
 ### Format
 
 *Verified by reading a real design export, 2026-09-29.*
 
 - A `.tar.gz` holding `./assets/`, `./fonts/`, `./glb_files/`, `./images/` and `./pdfs/`
-  (files named by id), plus `./__print_theme.yml` at the root.
+  (files named by id), plus `./__print_theme.yml` at the root. The downloaded file is named
+  `export-design-<site>-<design code>.tar.gz` (*verified 2026-11-20*).
 - `__print_theme.yml` is **one design mapping** at the root (the same keys as one entry of
   `print_themes` in a template export), followed by `__asset_map`, `__image_map`,
   `__pdf_map` and `__font_map`.
@@ -1201,6 +1225,11 @@ field `exported_file`).
 - `linked_assets` + `__asset_map` become the design's preview images; `preview_img` (an
   asset name) becomes the design preview.
 - `edit="false"` and the `e*` element flags are kept verbatim.
+- **Design options and their values in the tar are created new** on each import; option value ids in
+  the tar are ignored. So a batch can be made from one seed export by rewriting `__print_theme.yml`
+  (name, code, page XML, option values, `linked_assets`, `__asset_map`, `__image_map`), adding the new
+  images, re-packing and importing: 22 designs each came in with a new id and their own options.
+  *Verified by re-export, 2026-11-17.*
 - An import does **not** create Linked Layouts (§ Layouts Travel With a Template Export).
 - **A layout `name` longer than 32 characters fails the import with HTTP 500.** The design and
   every layout before the long name are created; that layout and all after it are missing. Keep
@@ -1227,6 +1256,15 @@ field `exported_file`).
 4. Import the designs and read one back by export.
 5. Link the layouts designs to every new design under Linked Layouts, unlink any deleted or
    superseded source, and read the links back from each design page.
+
+**Check new design codes against the target template, not only within the batch.** A generated batch
+passed its own uniqueness check (798 unique codes) but one new design reused a code already held by a
+design on the same templates. A studio that finds designs by code would then have two designs with one
+code. Before importing into an existing template, list its current codes (the rows on
+`/site/<site>/admin/print_theme/product/<template id>` link `print_theme/theme/<id>` with the code as
+text) and fail the build on any clash. Template-level. *Verified by reading the tars and the template
+pages, 2026-11-17.* Design **names** are different: an import makes them unique across the site with
+`-N` (`16_PRODUCT_HIERARCHY.md` § Import Behavior).
 
 **Building the export outside the admin page.** A generator cannot run inside an admin page that
 needs `eval` (the admin CSP blocks it, `61_PIXFIZZ_API.md`). Build the tar elsewhere (USTAR, the
@@ -1276,3 +1314,4 @@ documented above. There is no layer-level `fulfillment` attribute. Do not docume
 - 2026-10-29: CORRECTED Element Permission Flags: `radius="50%"` renders a rounded square; numeric mm radius makes circles and pills. PDF Layers: `pdf_layer` element attribute, renders cannot hide a layer, SVG group order. Drawing Order: masks are white where the photo shows; multi-photo designs need `multi_upload_group`. Text: point-size `fontsize` renders 2.8x too big. Greeting Card: photo bleed stops at the fold, no locked source photos, panel behind words on busy backs, converter hole rule. Design ids list per template; building exports outside the admin, placeholder ids, static font weights. Source: claude-chat.
 - 2026-11-09: `<definition>` Attributes: a definition with no `unit` reads as mm; `unit="mm"` works for cut prints. Set Parameters: read the print size from the first non-preview set. Canvas Wrap Geometry: panels cut from one wall page verified (zoom 0 on a non-square wall, `left` with zoom, face-only zoom, set order). Element Rotation: fractional angles. Drawing Order: overlay-style card designs; page without `bgcolor` is white (not verified). Text Elements: CORRECTED `kerning` to points (measured in the PDF); shrink headroom; baseline position; uppercase via a remapped font. Template Changes Do Not Reach Existing Projects: adding a preview set later makes old projects lose page 1 (diagnosis and fix). Design Import: font names over 32 characters fail an import; page XML edited in place exports as a quoted scalar. Source: claude-chat, support-ticket.
 - 2026-11-13: Definition unit: when absent, read it from the /v1/themes JSON. New section Output DPI, Bleed and the First page: DPI and bleed live on the definition; a different DPI for one lab means a copied set; tools may read the first page as the print page; a template preview page needs a matching page on every design (support ticket, not verified); orientation twins by transpose. Source: claude-chat, support-ticket.
+- 2026-11-21: Page Parameters: every page needs a `type` (template create form error). Greeting Card: clip the grown cut-out ring to the trim on full-bleed photos; generated art layers drawn through the bleed; bleed-sized art on a no-bleed page needs `x`/`y` = minus the bleed; card exports carry `preview-*` and `backup` pages. Drawing Order: position is `x`/`y` (missing = 0), `left`/`top` on an image are the crop offset. Page Count and `minimum-dpi`: generated backgrounds must meet the floor. Design Import: scripted imports from an admin page and the success signal; export file name; design options and values created new on import (batch from one seed); check new codes against the target template. Canvas Wrap Geometry: canvas print file for a lab that prints the full wrap (page = print area + 2 x wrap, mirror and full-image layouts, no marks or masks, seed range white band, `stretched` prints white sides). Source: claude-chat.

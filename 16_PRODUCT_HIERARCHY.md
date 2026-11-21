@@ -55,6 +55,18 @@ What the end customer starts from when personalizing. Each Design sits under a T
 
 A Template can have one Design (e.g. single full-bleed metal print) or hundreds (e.g. greeting card with designs for every occasion).
 
+**Design galleries (Resources, Backgrounds, Clipart, Masks) have Upload and Link.** Platform-level (Pixfizz CMS).
+- **Upload** posts to `/upload/resource?tag=<gallery tag id>&sitename=<site>` (FormData `code`, `data`).
+- **Link** opens "Link tagged images to <gallery>" with one free-text Tag field (no suggestions) and posts
+  `admin/print_theme/link_tag?name=<gallery>&theme=<design id>` with `tag`. Images are shared across designs by
+  **tag name**, not by linking a source design (unlike Linked Layouts).
+- A brand-new design with empty galleries shows Upload only, no Link button.
+- Named tags are set per image on the design page: forms POST `admin/print_theme/add_image_tag/<design id>` and
+  `remove_image_tag/<design id>`.
+
+*Verified by reading source (design admin page and admin bundle 20261118165408), 2026-11-19; the tag forms
+verified by query. Not verified: how a linked tag shows in the editor.*
+
 ### Collections
 Grouping mechanism for publishing products to the storefront.
 - Name, URL path
@@ -159,7 +171,29 @@ re-posted, only `theme[name]` changed) keeps code, description and editor config
 renamed (*verified by query, 2026-10-18*). Product attribute names count the same way: on a site
 that already held the template and product from an earlier import, a second import gave the
 template code `-1` and the product name `-2`. Rename the product before publishing it.
-*Stated by Alex, 2026-10-22.*
+*Stated by Alex, 2026-10-22.* A product attribute whose code and name already exist on the site comes
+back with `-1` on both (`...-72x36-1`, "... Horizontal-1"). Rename the old holder first, then fix the
+new product on `/admin/products/<id>` with a full form post (`product[code]`, `product[name]`).
+*Verified by query, 2026-11-16.* The design rename form fields are `theme[name]`, `theme[code]`,
+`theme[description]`, `theme[editor_configuration_id]`, `theme[print_product_id]` and
+`authenticity_token`, posted to `/site/<site>/admin/print_theme/theme/<design id>`; send them all and
+change only `theme[name]`. A design name does not have to be unique when set this way: the plain name
+saves while other designs carry it. *Verified by query (read back after every save), 2026-11-16.*
+
+**Long names fail a template import with "Application error", nothing created.** A template/product
+name of 71 characters answered "Sorry, Application error" twice and created no template and no product;
+shortened to 58 characters the same tar imported first time. A 68-character product name also failed
+(500) where 47 worked. The exact limit is not verified (likely 64). Keep template and product names, and
+`meta_title`, at 59 characters or less in every generated export, and have generators assert it. Font,
+design, option and layout names have their own 32-character limit (`19_XML_TEMPLATE_REFERENCE.md`
+§ Design Import). *Verified by test imports on pxtemplates and baseline.pixfizz.com, 2026-11-17 and
+2026-11-19.*
+
+**An import can fail or hang with nothing shown.** One import POST hung for over 5 minutes with nothing
+created; the same file went through on a retry (*observed once, 2026-11-16*). In a run of 25 imports one
+file did not land and showed no error (*verified by query, 2026-11-19*). Put a timeout on scripted
+imports (for example `AbortController`, 150 s), check by query whether the code exists before retrying,
+and count what landed after every few files; re-import only what the query says is missing.
 
 **Check the target site for an older copy before importing.** A site that already holds a copy of
 the template with the same codes would get a full set of `-1` codes from a second import (the
@@ -210,7 +244,13 @@ site exports, 2026-11-01.*
 the designs, template options (hidden `custom_script` mounts included), the product attribute with
 its variants and price, and the **product custom field values**. A product custom value that was
 out of date on the source (an expired promotion message) arrived on the target. Check and clear
-product custom values after a cross-site import. **Design custom field values travel in the design
+product custom values after a cross-site import. A product `meta_title` arrives with the source
+store's name in it when the source wrote it there; Shopper appends the store name itself, so a
+`meta_title` must never carry the store name (it doubles, "... | Store | Store ..."). Template-level
+(Shopper). Product field values were seen to travel with the definitions already present on the target
+(`production_time`, `meta_title`); without a definition on the target, not verified for product fields.
+A product description that was empty at export arrived empty; whether a filled one travels is not
+verified. *Verified by query, 2026-11-19.* **Design custom field values travel in the design
 YAML but are kept only where the target site has a definition for that field** (a design's
 `display_name` and `meta_title` were dropped on a target without those definitions). Create the
 design definitions on the target first. *Verified by query, 2026-11-01.* Template option custom
@@ -520,3 +560,4 @@ Beyond the core hierarchy:
 - 2026-10-17: Variants vs Options: a template with no options can still carry design options. Import Behavior: design-name suffix counts per name across the whole site, rename via the design form; unpublished designs are skipped silently; a missing site price variable fails the import part way; fulfillment code travels, blank `fulfillment_setting_id` ids; a template option can ride inside a template export. Unpublishing: per-collection Published tick (`publish_theme`). Source: claude-chat.
 - 2026-10-22: Import Behavior: designs-only template export and template-level tars; two more partial-import failures (variant type without the three empty lists, `image: null` on a product or design `preview_img`); the name suffix also hits product names and survives renames; check the target for an older copy first; a design import carries `url_path` (move the old one aside, check unpublished designs in the admin editor). New Template Export and Import Format (Psych folding and TimeWithZone blocks, top-level maps, YAML anchors and `Psych::BadAlias`, ids ignored, design gallery images in the export). Unpublishing: `publish_theme` with `published=1` republishes. New Publishing Another Site's Template (supplier template id travels, no variants or custom fields copied with the export/import and by-hand routes, price prefill, fulfillment locked or pre-filled from the supplier product, `-2` code clashes and the rename rule, swapping old copies). Source: claude-chat.
 - 2026-11-09: Import Behavior: product fulfillment code is not in a template export (set it after import); product custom values travel, stale ones included; design custom values kept only where the target has a definition; partial design custom field post. Template Export and Import Format: `BigDecimal` min/max must stay numeric on a YAML rewrite; template category vs product category in `__print_product.yml`. Cloning a Product: same-site Copy button pointer. Variants vs Options: the template options list shows design options too; design option codes can differ per template. Source: claude-chat.
+- 2026-11-21: Designs: gallery Upload and Link (images shared by tag name, link_tag and image tag routes). Import Behavior: product attribute `-1` rename route and design rename form fields; long template/product names fail with "Application error" (keep to 59 characters); imports that hang or silently do not land; product `meta_title` carries the source store name (never put the store name in it), product values travel with definitions present. Source: claude-chat.

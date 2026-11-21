@@ -305,6 +305,10 @@ Platform-level (Shopify + Pixfizz master), with a site-level `px-option` overrid
 
 When the Pixfizz editor loads inside the Shopify integration, it posts a `domready` message once it is ready to receive instructions. Any code that posts messages **into** the editor iframe must wait for `domready` before sending — messages posted before the editor signals `domready` are lost. If a launch/config message appears to be ignored, confirm it is being sent only after `domready` is received. Added 2026-07-05.
 
+### Editor CSS on a Shopify + Pixfizz site
+
+A Shopify + Pixfizz site can use the same `style/editor.css` snippet route as Shopper: on one `shopify_standard` site the snippet `style/editor.css` exists and the editor shell carries `<link rel="stylesheet" href="https://<pixfizz host>/site/editor.css">`. Edit that snippet in admin; the Pixfizz connector's snippet tools refuse Shopify + Pixfizz sites ("doesn't use Shopper snippets"). Selector specificity against the stock editor CSS: `17_DESIGN_TOOL.md` § Editor CSS Customization. Platform-level. *Verified by query, editor bundle 20261116114834, 2026-11-17.*
+
 ---
 
 ## 7. Cart Page — Working Version (Dawn, inline_asset_content)
@@ -1063,3 +1067,4 @@ Variant-value image swatches in the Shopify modal take the image's natural width
 - 2026-10-22: § 9 Shopify orders are created in `P` then moved to `C` or `W`: listen to `order.status_changed`, not `order.created`. § 11 new troubleshooting entries: order missing in Pixfizz from duplicate users (same `external_id` with a different `external_source`, or one order mixing two users' projects; merge, then duplicate and confirm in Shopify; merge direction and `imsure`), and Add to Cart landing on an empty cart when the project lacks `shopify_product_id` / `shopify_variant_id` (one-off, custom site code). Source: slack-message.
 - 2026-11-09: § 2 metafield definitions default to `custom.<name>`; edit to `pixfizz.<key>`. § 5 launch product handler: photo-prints branch, older installs may lack it (ticket); new Installing the snippets as a Shopify collaborator (asset PUT 403, write through the code editor and read back, new product template starts as a copy). § 6 new A custom design tool inside the Personalize window (no `api.js` change, `shopify/px-option` override for `custom_script`, `openModal` full screen needs a `close` message). § 10 publish an imported design to a collection before testing on the Shopify path; a product code alone does not resolve. Source: claude-chat, support-ticket.
 - 2026-11-13: Cart handling: addon lines are separate per unit quantity; cleanup must remove every addon line for a project (double billing fixed 2026-11-09); a child page cannot override a master page at the same URL. Source: claude-chat, support-ticket, slack-message.
+- 2026-11-21: § 6 new subsection: Editor CSS on a Shopify + Pixfizz site (`style/editor.css` route works, edited in admin). Source: claude-chat.

@@ -74,6 +74,8 @@ Page: shop/:collection-level-1
 
 Already built into the parent collection snippets, but the two differ (Corrected 2026-10-06; verified by query, 2026-10-03): `collection/collection-load-more` prints "As low as" + `product.custom.from_pricing` **whenever** `from_pricing` is set, while `collection/collection-filters` uses `from_pricing` **only when `product.price == 0`**. Collection `load_more` switches the page to the load-more snippet. No override needed; populate the `from_pricing` custom field on the product. `from_pricing` is static text: re-check it whenever the lab changes prices.
 
+**Static product cards ignore `hide_pricing`** (template-level, parent `collection/collection-filters`). The design product card wraps its price in `{% unless collection.custom.hide_pricing %}`; the static product card (the `{% else %}` branch that loops `filtered_static_products`, page size 40) has no such check and prints "As low as" + `product.custom.from_pricing` whenever it is set, otherwise `product.price`. So ticking `hide_pricing` does nothing on a collection of static products, and clearing `from_pricing` only swaps in `product.price` (often $0.00). Today: hide it with site CSS on `.collection-filters .card-body .font-weight-bold.text-muted`, or render the cards in a page of your own. Candidate parent fix: wrap the static card price in the same `unless`. The static branch also prints `product.category` above the name, so a category set to the literal word "category" shows on every card. *Verified by reading source (shopper24 parent, through the connector), 2026-11-18; seen live on a client site.*
+
 Pricing display priority on design product cards:
 1. `product.custom.from_pricing` → "As low as {price}"
 2. `product.custom.regular_pricing` → strikethrough + SALE badge + current price
@@ -416,6 +418,7 @@ Not listed individually — 182 SVG icons. Browse the namespace or search by ico
 | `kiosk/associate-tip` | Kiosk checkout panel: the customer picks the staff member who helped and a tip tile; writes `associate_name`, `tip_percent`, `tip_amount`, `tip_other` to the cart for an Extra Fee. Gated by `kiosk-tip-enabled`. See `21_SHOPPER_CHECKOUT_POLICY.md`. *Added 2026-10-06; not in the 2026-05-27 backup scan.* |
 | `kiosk/home` | Kiosk home screen (product tiles) |
 | `kiosk/idle-screen` | Kiosk idle/attractor screen |
+| `kiosk/login` | Tabbed Sign In / Create Account page for touchscreen kiosks. **Open defect:** registration errors render inside the hidden Create Account panel and typed fields are not refilled (`50_SHOPPER_TEMPLATE_REFERENCE.md` § 16). *Not in the 2026-05-27 scan; verified by reading source, 2026-11-20.* |
 | `kiosk/style` | Kiosk CSS, including the `--k-*` design tokens. Tokens are **declared on `.kiosk-touchscreen`**, so kiosk-mode-only features resolve none of them. *Added 2026-09-09; not in the 2026-05-27 backup scan.* |
 | `kiosk/terminal-capture` | Captures `?terminal=N` for per-order terminal attribution. Needs `kiosk-terminal-enabled` / `kiosk-terminal-ids`. *Added 2026-09-09; not in the 2026-05-27 backup scan.* |
 | `kiosk/top-rail` | Kiosk top navigation rail |
@@ -438,7 +441,7 @@ Not listed individually — 182 SVG icons. Browse the namespace or search by ico
 | `modals/product` | Product quickview modal (TBC) |
 | `modals/promotions` | Promotions fly-out sidebar |
 | `modals/proof` | Proof approval modal |
-| `modals/search` | Site search modal |
+| `modals/search` | Site search modal. Starts the parent `search/worker.js`, which indexes `/feed/products.json`; a child can override this snippet to run its own worker from a blob (`50_SHOPPER_TEMPLATE_REFERENCE.md` § 17, *Site search reads the product feed*). |
 | `modals/ship-order` | Ship order admin modal |
 | `modals/shopping-cart` | Shopping cart fly-out sidebar |
 | `modals/skip-proof` | Skip proof confirmation modal |
@@ -781,6 +784,14 @@ Added 2026-11-09.
 | `checkout/ncu-assets` | **Not in the 2026-05-27 scan.** The new checkout UI (version 1.0.1 seen 2026-11-03). Hard-codes several light colors outside its `--pxn-*` variables, so dark sites need a scoped override. See `21_SHOPPER_CHECKOUT_POLICY.md` § New checkout UI on dark sites. |
 | `checkout/extra-checkout-code` | Renders once, above `section.checkout-page`, and the live reload never re-injects it, so it can host a checkout engine script (per-line data goes in hidden elements inside `checkout/custom-cart-option`). See `21_SHOPPER_CHECKOUT_POLICY.md` § Switching between pickup and delivery. *Verified live, 2026-11-02.* |
 | `social-media/open-graph` | Takes `og:image` from the asset `og-preview-image.jpg` on the home page and non-product pages; a child without its own copy shows the parent's stock camera photo in every shared link. `og:title` on Pages instances is the site title. See `50_SHOPPER_TEMPLATE_REFERENCE.md` § 9. *Verified by reading source, 2026-11-06.* |
+
+Added 2026-11-21.
+
+| Snippet | Annotation |
+|---|---|
+| `integrations/custom-body-scripts` | **Empty on the shopper24 parent**, so a child without its own copy can create one (Override Snippet, or through the connector) and loses nothing, though it then stops receiving parent updates of it. It is where the Sale Prices extension (`px-sale`) sits, as a block at the end of the child's copy: a Liquid head mirroring the site's Automatic Discount (product code list and the same `'now' \| date` windows) renders `window.PxSale` only while a window is open, and a script strikes through every price of a product on sale without touching the charge. Needed because an Automatic Discount changes only the cart total (`30_PRICING_ENGINE.md`). Template-level (Shopper 24). *Verified by query, 2026-11-18 and 2026-11-19.* |
+| Large child snippets (any) | Saving through the admin Ace editor turns CRLF line endings into LF: harmless for HTML and Liquid, but a byte diff against an older read shows every line changed. For a one-line change to a large snippet (one child's `integrations/custom-body-scripts` was about 228 KB, another homepage 22 KB), an exact, unique find and replace or append in the Ace editor, then a read-back diffed against the pre-edit copy, is safer than retyping the whole content into a full write. Platform-level. *Verified by query, 2026-11-18 and 2026-11-19.* |
+
 ---
 
 ## Known Parent Defects
@@ -831,3 +842,4 @@ The film products must sit in the `film-processing` collection. The override for
 - 2026-10-17: Added a fourth Annotations block: `integrations/google/ga4-bridge` (live since 2026-10-12), `view-item` now a dataLayer push, the seven filter snippets' LF/CRLF split fix (2026-10-14), `checkout/available-payment-methods` strip fix, `integrations/custom-links` for head tags, `product/shipping-available` reads product fields only, Services v2 snippets. Updated the `product-details-prints` and `details-filter-dual-mode` annotations for the `view_item` change. Source: claude-chat.
 - 2026-10-22: `checkout/` table: added `checkout/remove-line-confirm`. Fifth Annotations block: remove-line confirm pair, `checkout/extra-checkout-code` render position and uses, `checkout/stripe-checkout` no appearance, `view-item` override-empty rule, `disable-user-registration` is not a gate, `product/px-option` canonical upload classes. Source: claude-chat.
 - 2026-11-09: Account v2 version note: parent flag blank, every page flag needed. Sixth Annotations block: `product/breadcrumbs` (url_path on every crumb), `product/custom-breadcrumb` (not called on product pages), `product/filter-controls` compact phone radios (overrides need the edit), `product/photo-prints` (groups, `sessionStorage`), `product/photo-prints-option`, `checkout/ncu-assets`, `checkout/extra-checkout-code` renders once, `social-media/open-graph`. Known Parent Defects: `checkout/signed-out-summary` kiosk copy, Kiosk UI skin `#checkoutBtn` rule, `account/v2/dashboard` status pill and edit link. Source: claude-chat.
+- 2026-11-21: "As low as" section: static product cards ignore collection `hide_pricing` (workarounds, candidate parent fix, stray category word). `modals/search` row: worker reads `/feed/products.json`, child blob-worker override. `kiosk/` table: added `kiosk/login` with its open defect. Seventh Annotations block: `integrations/custom-body-scripts` (empty on the parent, home of the Sale Prices `px-sale` block), Ace editor CRLF to LF and the safe method for large child snippets. Source: claude-chat.

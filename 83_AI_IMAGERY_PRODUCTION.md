@@ -237,7 +237,15 @@ ratio and resolution (2048 x 2048 at 2K, 6336 x 2688 at 4K 21:9). To get a 2K pr
 a single design, pass the same reference twice (inputs 1 and 2): the design is kept as well as
 in edit mode. Pad each reference to a square on white first, and when a reference is a scene
 preview say "use the attached image only for the card itself, ignore its background". Tool
-behavior. *Verified by test, 2026-11-01 and 2026-11-06.*
+behavior. *Verified by test, 2026-11-01 and 2026-11-06.* With the mode set to generate
+explicitly, Pro tier, 4K and an explicit aspect ratio, one or two reference images return native
+4K (3584 x 4800 at 3:4, 5056 x 3392 at 3:2); the low edit-mode size holds only for edit mode
+without an aspect ratio (Corrected 2026-11-21: "one input image puts it in edit mode" and the low
+edit-mode size above hold only when the mode is not set to generate). To remaster a 2K piece, pass it as the only reference with "Recreate
+this exact artwork as a clean high-resolution master, same composition"; the composition held in
+27 of 27. For a style family, pass two pieces of the style with "Use the reference images ONLY
+as a style guide ... completely new composition". *Verified by output size, 111 runs,
+2026-11-17.*
 
 **A register that worked for paper goods:** a premium online print shop hero style, warm oat
 linen, three-quarter view, real paper thickness, one or two props, almost shadowless soft
@@ -254,6 +262,21 @@ color everywhere: enclosed gaps clear too; despill the edges. On magenta the Pro
 rarely draws a sticker border. An automatic "pure white enclosed" clear also removes drawn
 highlights (a teapot, a glass): review every cleared region against the drawing before upload.
 *Found in a test run of 17 drawings, 2026-11-06.*
+
+**Transparent print art: matte a white and black pair.** The model returns no alpha, and a white
+key alone turns pale petals see-through (dark muddy roses on a black product). Generate the art on
+pure white, then edit it with "replace the white background with pure black, keep everything
+identical", and matte the pair: `alpha = 1 - mean(white - black) / 255`, `color = black / alpha`.
+Firm the alpha (`(a - 0.06) / 0.8`, clipped) when the print has a white underbase. A white-only
+matte can keep pale petals opaque: take as background only near-white pixels connected to the
+border plus flat pure-white regions above 0.06% of the image (gaps between stems, the center of a
+wreath), with soft alpha only in a thin edge band. That works for colored flowers; big white
+petals (daisies) still need the white and black pair. *Verified by reading the results on black,
+white and pink, 2026-11-17.*
+
+**Recolor plates from one blank.** Generate one Pro blank per view, then make "recolor only" edits
+per color: the geometry held within 3 px (8 colors, two views), so one green mask and one shade
+map serve every color of a view. *Verified by query (bounding boxes), 2026-11-17.*
 
 **Scene prompts:**
 - Ask for scale in frame terms. With a scale cue alone, scene shots put a 12 x 18 in garden flag
@@ -319,6 +342,33 @@ reference plus "move the lettering lower" barely moved it. What worked: a fresh 
 that states positions as percentages of the height ("top of the first word at 30%, bottom of
 the last at 55%") plus "the area above is plain". On a plain, uniform background a full-width
 row shift, with filler rows taken from a plain band below the text, is clean. *2026-10-26.*
+
+**Wall art library pieces: edge to edge, and sets as separate panels.** From a catalog run of
+wall art, 2026-11-17:
+- The model often adds a paper edge, a white margin or a thin frame line, sometimes on one side
+  only, most often on panels of a drawn set. Every catalog artwork must run to the edge. Trim each
+  side on its own (a flat light band or a thin line ending in a straight edge), never only when
+  all four sides carry a frame.
+- Edge check that catches what a per-side trim misses: for each side, walk inward line by line
+  while the line is flat along its whole length (standard deviation under 9 at quarter scale) and
+  report the depth and the color step after it. A light band 0.2 to 3% deep with a big step after
+  it is a leftover border; a deep band with no step is a ground that belongs to the art.
+- Asking for a "triptych" usually draws three panels with gaps. Either ask for it on purpose ("a
+  matching set of three separate vertical artworks ... separated by narrow plain white gutters")
+  and split on the gutters, or ask for one continuous panorama without the word triptych and cut
+  it in equal parts. Drawn gutter sets come back with framed panels, and equal-part splits can
+  carry a drawn gutter as a dark line on the inner edges; the cleanest route is each panel as its
+  own full-bleed image (9:16, cropped to 1:2) with "the artwork fills the entire canvas edge to
+  edge, no paper margin, no frame lines, no panels".
+- Round shapes ("sun" discs) sometimes come back as ellipses: measure their bounding box before
+  accepting a geometric piece.
+- Op art and any pure geometry: draw it in code, not with an image model. A scalar field per piece
+  (stripes = `frac(f) < 0.5`) with analytic antialiasing (distance to the edge divided by the
+  field's gradient, bands under 2 px faded to their average) renders 4500 x 6000 in seconds, exact
+  at any size. Take the gradient by wrapped differences (`d - round(d)`) so integer jumps never
+  show.
+- Wall views of light artwork: show a plain gallery-wrap canvas, not a white floater frame; the
+  frame and its gap read as a border.
 
 **Flat products from one top-down photo.** For a product that lies flat (notebook, card,
 print, coaster, mouse pad), generate a top-down photo with a plain matte white face, square to
@@ -548,3 +598,4 @@ Suggested delivery: a short setup walkthrough on `help.pixfizz.com` covering sub
 - 2026-10-29: A5 open conflict resolved by owner decision (26 Oct): generated artwork is allowed in Pixfizz-made template designs that reach production; customer-placeable libraries and A1/A6 unchanged; pending item removed. B12: reserving space for a name or photo, moving baked-in lettering, flat products from one top-down photo. Source: claude-chat.
 - 2026-11-09: B12 input count decides edit or generate mode (pass one reference twice for 2K), paper goods register and hero space, library art generated on flat magenta and keyed. Source: claude-chat.
 - 2026-11-13: Part F: start generated product imagery from the real product preview, state real scale, nb2 with an input image defaults to edit mode. Source: claude-chat.
+- 2026-11-21: B12 explicit generate mode with one or two references returns native 4K (corrects the edit-mode size as a general limit), remaster and style-family prompts; transparent print art by matting a white and black pair, white-only matte for colored flowers; recolor plates from one blank; wall art library pieces edge to edge (per-side trim, edge check, sets as separate full-bleed panels, ellipse check, geometry drawn in code, gallery wrap for light art). Source: claude-chat.

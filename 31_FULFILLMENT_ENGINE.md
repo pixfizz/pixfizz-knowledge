@@ -1125,6 +1125,28 @@ _Verified by reading source, 2026-09-09._
 
 A fulfillment destination (`/site/<site>/superadmin/fulfillment_settings/<id>`) can hold an FTP host, user and password while the FTP account itself was never created on the Pixfizz FTP server. Nothing in admin shows it. At setup, log in with the stored credentials, then prove the route with a test order. Platform-level. *Verified 2026-11-10.*
 
+## Server-Side PDF Color Conversion: Ghostscript Keeps Spot Colors
+
+For any server-side PDF color conversion (preflight of a customer's print PDF). *Verified on Ghostscript 10.02.1 with a designer's InDesign PDF carrying two PANTONE spots, 2026-11-20.*
+
+- `-sDEVICE=pdfwrite -sColorConversionStrategy=CMYK` converts RGB and CalRGB to CMYK and converts the spot's alternate space, but the Separation itself survives: the spot plate still prints. `-dPreserveSeparation=false -dPreserveDeviceN=false` did not change that.
+- Routing through `ps2write` removes the spots but rasterizes the whole page (no vector text, Trim and Bleed lost). Do not use it for print.
+- `-sColorConversionStrategy=Gray` works for 4C to 1C: K plate only, text stays vector, Trim and Bleed kept.
+- Check results with `-sDEVICE=tiffsep` (one TIFF per plate) and measure ink inside the trim. `-sDEVICE=inkcov` folds spots into CMYK and hides them.
+- A Photoshop `.csf` color settings file can contain a full ICC profile: find the `acsp` signature; the profile starts 36 bytes earlier and its size is in its first 4 bytes.
+- Real spot-to-process conversion needs a preflight engine (callas pdfToolbox, Enfocus PitStop Server) or the press RIP.
+
+## Advertek Phoenix API (v2): Field Limits
+
+Print-on-demand partner integration (Advertek, Phoenix API v2), the global Advertek destination, site-agnostic. *Verified from a live staging error, 2026-11-20, unless marked.*
+
+- `items[].customer_item_number` has a maximum of 20 characters; a product slug such as `11x85-layflat-photo-cover` (25) is rejected. The field is optional (*stated by the partner, Apr 2025*) and prints on labels and packing lists.
+- `items[].product_code` must exist on the Phoenix environment being called. Staging only has the SKUs the partner added by hand, so "invalid" there means not set up on staging, even when the code matches the partner's price list.
+- `ship_to.company` must be JSON `null` when empty, not the string `"null"`, which would print on the label.
+- Asset types are `page` (singular) and `cover`; leather cover books are sent without a cover file.
+- Endpoints: separate staging and production order endpoints (`/api/v2/orders`); hostnames are in the partner's API documentation. Basic auth; production usernames are per customer account.
+- Price list page ranges: layflat 22 to 40 pages, Classic Image Wrap 22 to 50. Check page count rules before sending.
+
 ## Changelog
 - 2026-04-10: Initial content from platform documentation export.
 - 2026-05-21: Restructured _additional_files.json section — documented three source formats (simple URL, HTTP request object, literal content), added full CraftMyPDF PDF job ticket worked example with capture block and implementation notes, separated file_upload delivery as distinct Pattern 2 with standalone and combined versions, added double-encoding and orderlines scope rules. Source: claude-chat.
@@ -1143,3 +1165,4 @@ A fulfillment destination (`/site/<site>/superadmin/fulfillment_settings/<id>`) 
 - 2026-10-29: § Filename Templates: option choices in the file name (`filename_tag` / `filename_code` pattern over `chosen_variants` and `chosen_template_options`, harness-tested only); destination edit path with the site key. Source: claude-chat.
 - 2026-11-09: § 2 Transport + auth: where a destination's auth settings live (Danger Area with HTTP Headers, token auth, Split By Orderline only on the global super admin path; new destination takes Code and Account). § Fulfillment Code Resolution: inherited products without a child product routed to the site default (fix per product, Force Refulfill old orders). § Filename Templates CORRECTED destination path advice (prefer the global path). § One file set per route: Description in Dir hidden-input trap, list label check, reading a template body from `const content` (never `ace.edit`), CRLF, FTP credentials on the destination page. Round 2: § The tool side: a tool on a design product hands off through the project, not `px_print_file` (proposed, not verified). Source: claude-chat, support-ticket.
 - 2026-11-13: A destination record does not prove the FTP account exists: log in with the stored credentials and run a test order. Source: claude-chat.
+- 2026-11-21: New sections: Server-Side PDF Color Conversion (Ghostscript pdfwrite keeps spot plates when converting to CMYK, Gray strategy works for 1C, check with tiffsep not inkcov, ICC in .csf files, use a preflight engine for spot-to-process) and Advertek Phoenix API (v2) field limits (customer_item_number 20 chars, product_code per environment, null company, asset types, endpoints, page ranges). Source: claude-chat.

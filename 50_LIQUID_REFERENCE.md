@@ -759,6 +759,12 @@ Contains information about the current HTTP request. Available globally as `requ
 | `request.params` | Proxy for query parameters. Access with `request.params.book_id` or `request.params['param-name']` |
 | `request.locale` | Two-letter code of active language |
 
+**`request.params` works in snippets and in page Liquid, and the page is not cached across query strings.** `request.params.<name>` read a URL query parameter inside a snippet rendered on the cart page and on a product page (through `product/custom-scripts`): `request.params.us_test == '1'` was true with `?us_test=1` and false without it, and both pages served the parameter-dependent output on the first request. It is also readable in a page's own Liquid. Platform-level. *Verified by test on a client site, 2026-11-17 and 2026-11-18.*
+
+**`slice` works on arrays, not only strings.** `request.path | split: '/' | slice: 0, n | join: '/'` returns the first `n` path segments (used to match a product page to a folder in a JSON config with `contains`). Platform-level. *Verified by test, 2026-11-18.*
+
+**An empty snippet adds nothing to the page.** A snippet whose tags all use `{%- -%}` trimming, appended to the end of a hook with no surrounding whitespace, leaves the page byte-identical when it renders nothing (cart page compared before and after; only per-request tokens differed). *Verified by test, 2026-11-18.*
+
 > **`preview` is reserved by the platform.** A storefront request carrying `preview` as a query parameter is taken over by the editor preview: `/?preview=new` and `/site/?preview=new` redirect to `/v1/editor?preview=new&target=%2Fsite%2F` and return 404. The CMS page never renders, so a switch such as `{% if request.params.preview == 'new' %}` is never evaluated. Any other name works (`/?v2=1` returns 200 and renders). When gating a new page version behind a query parameter for review, use a site-specific name, never `preview`. Platform-level, every storefront. *Verified by query, 2026-09-30.*
 
 ---
@@ -982,6 +988,16 @@ Renders a URL to a website asset. Input: asset name string or `Asset` object.
 
 So an image shared by every child (for example a landing card used by all labs) is uploaded **once, on the parent**, and a child that needs a different one uploads its own under the same name. The lookup order is always child first, then parent; a name on neither renders an empty string (above).
 
+**Never paste a rendered `cdn.pixfizz.com/fz/...` URL into source.** In any Liquid, HTML or CSS the CMS renders (snippets, Pages `page_content`, layouts, `custom_script` mounts, template option scripts), reference a site asset by name through `asset_url`. Platform-level. Reasons: a hardcoded URL cannot change size or format per placement; it keeps serving the old file after the asset is replaced in place (the hash in the URL changes); it bypasses the child-first, then-parent lookup above, so a child can no longer swap the image by uploading the same name; and `/fz/` URLs are host-signed, so one copied between hosts fails. *Standard stated by staff, 2026-11-19; the hash change and host signing are not verified here.*
+
+```liquid
+<img src="{{ 'hero-poster.webp' | asset_url: 1000, format: 'webp' }}"
+     srcset="{{ 'hero-poster.webp' | asset_url: 600, format: 'webp' }} 600w, {{ 'hero-poster.webp' | asset_url: 1000, format: 'webp' }} 1000w, {{ 'hero-poster.webp' | asset_url: 1600, format: 'webp' }} 1600w"
+     sizes="(max-width: 768px) 100vw, 50vw" alt="A photo wall calendar" loading="lazy" width="1000" height="667">
+```
+
+Exceptions: files the CMS does not render through Liquid (an uploaded `.js` or `.json` asset, an external app) get their URLs passed in from Liquid, for example a `<script type="application/json">` map built with `asset_url`; `cdn: false` for OG, metadata and ld+json URLs, still through `asset_url`; AVIF is uploaded pre-encoded and referenced through `asset_url` without `format:` (the filter does not emit AVIF). Delivery check: search every Liquid, HTML and CSS deliverable for `pixfizz.com/fz/`; any hit in rendered source is a fail.
+
 ---
 
 ## barcode_datauri
@@ -1023,6 +1039,8 @@ Formats a number as a price using website currency settings (configured in Admin
 ```
 
 **Parameters:** `format` (`%u` = unit, `%n` = number), `negative_format`, `unit`, plus all `number` filter parameters.
+
+**The rendered unit is not stable.** On a client store priced in Serbian dinar, `{{ 1234.5 | currency }}` printed `1.235 din.` on some renders and `1.235 rsd` on fresh renders the same day, while product pages showed `2.000 RSD`. Any script that parses or gates on the currency text must accept every variant (here `(?:din\.|rsd\b)`, case-insensitive), and must never hide UI because a format probe lacks an expected unit: a currency picker that returned early when the probe lacked `din` vanished on every page rendered with `rsd`. Seen on one site; likely platform-level, pending confirmation. *Verified live on a client site, 2026-11-19.* See *Display Currency Switching on Shopper 24* below.
 
 ---
 
@@ -1696,8 +1714,13 @@ Confirmed by importing a hand-built file into a live admin.
 - The **namespace comes from the file's top-level key**, not from the namespace
   selected on the Translations screen. So **one file can carry every namespace** —
   there is no need to split per namespace.
-- Empty is written as `''`, and Ruby's Psych parses the file identically to PyYAML,
-  so a PyYAML `safe_dump` is safe to hand to the importer.
+- Empty is written as `''`, and Ruby's Psych parses ordinary keys identically to PyYAML.
+  **But a PyYAML `safe_dump` is not safe for long keys:** it writes any key over 128
+  characters as a complex key (`? key` / `: value`), and an import of such a file loaded
+  nothing at all, with no error shown. Write the file by hand with every key and value
+  double-quoted (for example `json.dumps` per line), then count the filled values per
+  namespace in admin (item 10). *Verified by query on a client site, 2026-11-19.*
+  (Corrected 2026-11-21: was "a PyYAML `safe_dump` is safe to hand to the importer".)
 - Leave `en` blank unless you want an override. With `en` empty the platform falls
   back to the literal in the template, so English rendering is unchanged.
 
@@ -1728,6 +1751,40 @@ imports bad content. On one table, 42 of 228 auto-matched strings were wrong —
 unedited placeholders left in English, and the thousands separator used where the
 sentence comma belongs. **Duplicated translations across two different English keys
 is the fastest tell.**
+
+### 10. Which locales exist, how the session language is set, and checking an import
+
+Platform-level unless marked. *Verified on two client sites, 2026-11-17 and 2026-11-19.*
+
+- **The accepted locales are the "Languages:" checkbox filter** (`locales[]`) on Admin >
+  Translations (`/site/<site>/admin/translations`), with more behind "Show all". Read it
+  before asking for a language to be "added". Seen there: en, af, ar, bs, bg, zh, hr, cz,
+  nl, fi, fr, de, el, he, hu, it, ro, sr, sk, sl, es, sv. The shopper24 translations master
+  only carries columns for locales that had data when it was made; a missing column does not
+  mean the locale is unsupported.
+- **Site default language:** Admin > General (`admin/site/index`), `website[locale]`.
+  **Enabled languages:** Super Admin > Websites > website form,
+  `website_settings[enabled_locales][]` (Apply Settings).
+- **Import and export.** The import form on the same page posts `csv_file` to
+  `admin/translations/import_translations` and accepts a YAML file
+  (namespace > key > locale: value). Export is the "Download" link
+  (`admin/translations/export_translations`). One key at a time: `POST /admin/translations`
+  with `namespace` (free text; a new namespace is created), `tr_key` (the downcased source
+  string) and `text[<locale id>]` per locale. Locale ids differ per site: read them from the
+  form, never assume.
+- **Checking an import.** `admin/translations?namespace=<ns>&locales[]=<xx>` shows the values
+  inside `<textarea name="locale[xx]">`, so the page text looks empty even when the import
+  worked. Read the textarea values, or test the storefront.
+- **`t` without `locale:` uses the session language (`request.locale`).** A `?locale=` URL
+  parameter does **not** change it; the session changes only through
+  `POST /session/set_locale` with `locale=xx`. When the language comes from data (a URL
+  parameter, an order line), pass it explicitly: `| t: ns: '<ns>', locale: page_locale`.
+- **Storefront language switcher** (template-level, Shopper 24): render the active locale into
+  JS with `"{{ request.locale | default: website.locale | escape_json }}"`, and switch with
+  `POST /session/set_locale` then `location.reload()`.
+- **Proving a conversion to `t` keys:** capture the page text, `alt` and `aria` values in the
+  target language before replacing hand-written copy with keys, capture again after; zero
+  differences proves keys and translations match.
 
 ## Display Currency Switching on Shopper 24
 
@@ -1764,7 +1821,30 @@ once in `<span data-price data-base="14.40" data-original="$14.40">`. Everything
 downstream reads the attribute, which is exact and idempotent — reconverting can
 never compound, and switching back to the store currency restores the original
 string byte for byte. Skip `SCRIPT`, `STYLE`, `TEXTAREA`, `INPUT`, `SELECT`,
-`OPTION`, `IFRAME`, `SVG`, and any subtree already wrapped.
+`OPTION`, `IFRAME`, `SVG`, and any subtree already wrapped. Match those tag names
+case-insensitively (`svg` is lowercase in an HTML document).
+
+The probe's unit text can differ between renders on the same store (see the `currency`
+filter above), so accept every variant the store prints, and never make mounting the
+switcher depend on the probe.
+
+### 2b. The headline product price is inside a shadow root
+
+On a Shopper 24 product page the main price is the web component
+`<px-product-price product-id=".." design-id=".." initial="..." formatting-settings="{...}">`,
+and its rendered text lives in an **open shadow root** (`el.shadowRoot.textContent`), not
+in light DOM. A `TreeWalker` on `document.body` never enters shadow roots, so a switcher
+converts the size chips (`span.px-filter-price`, light DOM) and silently leaves the
+headline price alone. Other `px-` elements on a product page: `px-design-preview`,
+`px-option-selector`, `px-option`, `px-image-upload`.
+
+Fix: collect `document.body` plus every open `shadowRoot`, recursively; wrap and paint each
+root; attach the `MutationObserver` to each root (`observe()` accepts a `ShadowRoot`). Add
+timed re-runs (about 500, 1500 and 3000 ms), because a component can fill its shadow root
+without any light-DOM mutation. Anything appended inside a shadow root needs inline styles;
+document CSS does not reach it. When the size or option changes, `px-product-price`
+re-renders its shadow root and the per-root observer catches it. Template-level (Shopper 24).
+*Verified live on a client site by injection, 2026-11-18.*
 
 ### 3. Wrapping is itself a mutation — disconnect the observer during the pass
 
@@ -1940,3 +2020,4 @@ tool never saw the product" in one paste, and nothing else does.
 - 2026-10-22: String Quoting: the typographic apostrophe (`’`) can sit inside a single-quoted string (not verified by test). asset_url: missing asset seen again in a child's Pages `page_content`, with the check-before-save and assert-after-save steps; a Shopper 24 child falls back to the shopper24 parent's asset in a parent snippet, in Pages `page_content` and on a child page (one parent upload for images every child shares). Orderline: `is_draft` row names the API `draft` field and the admin "(Draft)" label. KNOWN CMS LIQUID QUIRKS: capturing into a global name (`website`) redefines it for the rest of the template. Source: claude-chat, slack-message.
 - 2026-11-09: Pitfalls table: `asset_url` inside a quoted snippet argument (capture first). Website Redirects: rules apply to `/site/` paths, one rule for a collection and its sub-collections, create the target first, rules work within seconds, per-product query-string redirect pending confirmation (retire with `sold_out` and `hide_from_search`). redirect_to: literal and variable targets, real server redirect keeping the query string, top-of-page and parse-error caution. Source: claude-chat.
 - 2026-11-13: Website Redirects: never let a rule catch a platform route (/cart, /checkout, /v1/ ...), anchor root rules, test a real design tool Add to Cart after saving. New section Two Silent Liquid Failures: no filters inside a for tag (broke a cart page via a shipping formula); asset_url on a missing asset renders an empty src. Source: claude-chat.
+- 2026-11-21: asset_url: never paste a rendered `/fz/` URL into source (reasons, responsive example, exceptions, delivery check). currency: rendered unit text varies between renders, never gate UI on it. Request: `request.params` works in snippets and page Liquid with no query-string cache; `slice` on arrays; an empty trimmed snippet adds nothing. Translation Keys: CORRECTED item 6 (PyYAML `safe_dump` writes keys over 128 characters as complex keys and the import loads nothing); new item 10 (accepted locales list, default and enabled languages, import, export and per-key routes, textarea check, `t` follows the session not `?locale=`, `POST /session/set_locale`, switcher pattern). Display Currency Switching: new 2b (`px-product-price` renders in a shadow root; walk and observe every open root), case-insensitive skip list, probe variants. Source: claude-chat.

@@ -601,6 +601,7 @@ Platform-level (Pixfizz CMS).
 **Element tags.** Date-bound elements in the page XML (`print_themes[].templates[].data` in a template export) carry a `tags` attribute with two comma-separated parts, in either order:
 - `cal:<series>:idx:<n>`: which date of the named series the element shows. **1-based**: idx 1 to 42 for a 6-week grid; `idx:0` is never filled or deleted.
 - `cal:<series>:fill:<what>`: what to write. Fills available: `day`, `month` (a number, not zero-padded), `month-name`, `year`, `weekday-name`, `week-number`, `any-calendar`, `website-calendar` (the site holiday calendar), `user-calendar` (the customer's personal dates). There is no uppercase or zero-padded fill: use `set-text` per month.
+- **The language of the `month-name` fill is not verified.** For a non-English calendar do not rely on it: name the element and send the month names as `set-text` transformations, so the glyph check also covers accented letters (č ć š ž đ). *Not verified, 2026-11-17.*
 
 **Fills and transformations apply at render.** The text inside a filled element is a placeholder (exports and project XML show stale values such as 2022 or SEPTEMBER) and is replaced at render; it is not a baked year.
 
@@ -686,6 +687,29 @@ existing generated file has to be deleted before a new one can be requested
 step means the lab prints the pre-edit version with nothing to indicate the
 edit was ever made.
 
+## Read the Lab's Production File Before Building a Calendar
+
+Template-level (calendar templates and Calendar Studio). Before building a calendar for a lab, open
+one of the lab's real production files and count its pages and page size. "Wall calendar" covers
+different products:
+
+- **Spread:** photo page and date page are separate pages (cover + 12 x 2 + back, 26 pages). This is
+  the Calendar Studio wall kind.
+- **Sheet:** one page per month with photo and dates on it (cover + 12, 13 pages), for example an A4
+  portrait sheet.
+- **A tall page with photo on top and dates below** (for example 235 x 470 mm) can be either a
+  one-sheet product or just the **file layout** of a normal middle-coil wall calendar (photo page and
+  date page joined in one file). Check the lab's product photos for the coil position before
+  deciding the kind.
+
+A spread template sent to a sheet printer gives the wrong file.
+
+**"Bleed" in a lab spec sheet may be the safe zone.** One lab's bleed guide (a red 5 mm line) was the
+safe zone; the real bleed (3 mm on square, 2 mm on rectangular) was only visible in the TrimBox of
+their print files (`pdfinfo -box`). Read the boxes of a real file rather than the spec drawing.
+
+*From a photo lab onboarding (the lab's print files and spec sheet read), 2026-11-17.*
+
 ## Changelog
 - 2026-04-03: Created from platform documentation and annotated real-world examples provided by AdeB. Covers definition attributes, set parameters, full dates vocabulary, foreachdate, named sequence patterns, and three annotated examples.
 - 2026-06-30: Documented week-number triggering for calendar transformations. Source: notion-dashboard (2026-06-22).
@@ -694,3 +718,4 @@ edit was ever made.
 - 2026-10-17: Corrected `weekday` on `<defdate>` and `<dateshift>` (the weekday inside the Monday-to-Sunday week, not the nearest occurrence; Sunday-start needs `day="-6"`, Monday-start does not). Added Calendar Element Tags, Fills and Transformations: 1-based `idx` tags, the full fill list, `calendar_transformations` fields and actions in an export, transformations reach only date-tagged elements, transformation beats design-option substitution, website-calendar captions need `book[calendars][]`, the cover-year pattern. Source: claude-chat.
 - 2026-10-22: § 6 Named Date Sequence Patterns: week start is in the date rule, a twin template per week start (twin rendering not verified). § Calendar Element Tags, Fills and Transformations: order of operations at render (date fill, Colors design option, transformations) and Colors options on calendar pages. New § Per-Page Photo Layouts on Calendar Templates (`cal:` tags in layouts are not resolved, `setLayout` replaces only `layout="true"` elements, the photo-frames-only pattern, blank layout ids on import). Source: claude-chat.
 - 2026-11-09: Per-Page Photo Layouts: adding an image to a calendar grid page by editor script (prints, transparency kept); no platform fill for a per-day user image. Source: claude-chat.
+- 2026-11-21: Calendar Element Tags, Fills and Transformations: `month-name` language not verified, use `set-text` for non-English months. New § Read the Lab's Production File Before Building a Calendar (spread vs sheet vs joined file layout, spec-sheet bleed may be the safe zone, read the TrimBox). Source: claude-chat.

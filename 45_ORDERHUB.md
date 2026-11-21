@@ -485,6 +485,7 @@ Tools priced by a `px_rates` card (the third pricing type, `30_PRICING_ENGINE.md
 - **OrderHub reprices an order line from those values**, read as codes or as the labels the customer saw, by running the same engine file as the tool and the POS. *Stated by Pixfizz, 2026-10-22; not verified in OrderHub.*
 - **A counter-only product** (not published on the storefront) can carry the same `px_rates` card, so counter staff can price custom sizes (canvas, vinyl on metal, laminate) from width and height in OrderHub. *Stated on a client call, 2026-10-06; not verified in OrderHub.*
 - Neither point is covered by an article in `orderhub/` as of 2026-10-22.
+- **A mode missing from `pricing.js` cannot be priced at the till.** OrderHub copies `px_price` from a website order line as a fallback (2026-11-11), but a custom order keyed in at the till has no `px_price`, so the mode and the product's `px_rates` card must both be in place. Check every uploader mode with a till test (a custom order in OrderHub for the product gets a price). Rule and checklist: `30_PRICING_ENGINE.md` § Uploader Price Cards. *Checked against the delivered package contents, 2026-11-19; not covered by an `orderhub/` article as of 2026-11-21.*
 
 ---
 
@@ -504,3 +505,4 @@ Tools priced by a `px_rates` card (the third pricing type, `30_PRICING_ENGINE.md
 - 2026-10-17: Added Own Amazon S3 Storage: a trailing slash in a bucket CORS allowed origin breaks uploads while the bucket still enables and views. Source: slack-message.
 - 2026-10-22: Added Repricing Custom Tool Lines from Generic `px_` Variant Values (generic variant codes, OrderHub reprices from them, a counter-only product can carry a `px_rates` card; OrderHub side stated, not verified). OHD: print controller hot folder on a NAS picked up late (local second folder), In Production on first job at the controller vs the article (to confirm). EasyPost: tracking every six hours for 21 days. Source: claude-chat, fireflies-call.
 - 2026-11-09: Website Chat: the chat bubble (closed shadow root, fixed bottom left) can cover a tool's sticky bottom bar on phones; fix in the tool or the widget offset. Source: claude-chat.
+- 2026-11-21: Repricing Custom Tool Lines: a mode missing from `pricing.js` cannot be priced at the till (the `px_price` fallback covers website orders only), till test pointer. Source: claude-chat.
