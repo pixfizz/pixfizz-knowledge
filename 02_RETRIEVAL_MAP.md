@@ -601,7 +601,10 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 → **26_CUSTOM_DESIGN_TOOLS.md** § 4 — the mount argument list, and nothing else. Supersedes the settings cascade in every spec written before 11 Sep 2026.
 
 ### "What settings can I change on my studio / design tool / mount? What does `<prefix>_<setting>` do? Which values does it accept? Is it safe to change?"
-→ **28_TOOL_SETTINGS_REFERENCE.md** § 6 — every setting per tool, rated Yes / With care / No. How to edit a mount safely: § 3.
+→ **28_TOOL_SETTINGS_REFERENCE.md** § 6 (index) and **tool-settings/<tool>.md** — every setting per tool, one page each (current version, changes since 3 Nov 2026), rated Yes / With care / No. How to edit a mount safely: § 3.
+
+### "Can my studio use AI (cut out, cartoon, color correction)? How do I turn it on or off?"
+→ **tool-settings/ai-switches.md** — every AI feature is a mount switch, off by default; needs a signed-in shopper and AI tokens.
 
 ### "Cut spot color name / CutContour / CutPath / cut line prints instead of cutting?"
 → **28_TOOL_SETTINGS_REFERENCE.md** § 6.2 (`stk_cut_spot`, `gu_cut_spot`): the name must match the RIP's cut spot letter for letter.
@@ -2389,3 +2392,4 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 - 2026-11-19: Email kit route now points to `email-kit/README.md`. Source: claude-chat
 - 2026-11-20: Added 10 routes for the 2026-11-20 sync (Upsell Studio, Pixfizz Kiosk app, light cart pop-up, minimum amount, tax decimals, PayFast, sign in expired, debug checkout, cut print edit). Source: kbsync.
 - 2026-11-21: Added 51 routes for the 2026-11-21 sync (working notes 16 to 20 Nov across 26 files). Source: kbsync.
+- 2026-11-24: Tool settings route now points to the per-tool pages in `tool-settings/`; added the AI switches route. Source: claude-chat
