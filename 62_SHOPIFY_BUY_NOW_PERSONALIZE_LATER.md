@@ -470,7 +470,7 @@ Standard structure:
 
 ```liquid
 {%- assign pixfizz_host = 'shopper.pixfizz.com:5748' -%}
-{%- assign shared_secret = 'AXDQ6GdzX0iUwu2K1FRKIw' -%}
+{%- assign shared_secret = 'YOUR_SHARED_SECRET' -%}
 
 <script type="text/javascript" src="https://{{ pixfizz_host }}/site/shopify/api.js"></script>
 <script type="text/javascript">
