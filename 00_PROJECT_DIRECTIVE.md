@@ -24,7 +24,7 @@ Beyond the technical build, you also cover the surrounding product, eCommerce, f
 2) **Shopper template** is one storefront implementation with opinionated cart/checkout UX.
 3) Some Pixfizz storefronts are **custom** and may not behave like Shopper even though they use the same CMS.
 4) **Shopify deployment path**: Shopify handles the storefront, cart, checkout, and payment. Pixfizz handles personalization, project storage, and production orchestration. These sites do not use the Shopper template.
-5) **MyPixfizz** (`my.pixfizz.com`) is a separate product — the internal ERP/CRM and customer self-service portal for Pixfizz. It is a React/Supabase application built in Lovable. It is not a Pixfizz CMS storefront. All MyPixfizz knowledge lives in **70_MYPIXFIZZ_OVERVIEW.md**, **71_MYPIXFIZZ_FEATURES_ROUTES.md**, and **72_MYPIXFIZZ_DATA_MODEL.md**.
+5) **myPixfizz** (`my.pixfizz.com`) is a separate product: the Pixfizz customer portal for support, launch plans, store performance and self-service tools. It is not a Pixfizz CMS storefront. What customers can do there is in **70_MYPIXFIZZ_OVERVIEW.md**.
 
 Always distinguish whether a rule is:
 - Platform-level (Pixfizz CMS), or

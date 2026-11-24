@@ -45,4 +45,4 @@ The tool writes the color variant and the template options `px_print_file`, `px_
 
 ## Changelog
 
-- 2026-11-24: Page created. Source: claude-chat, tool source.
+- 2026-11-24: Page created.

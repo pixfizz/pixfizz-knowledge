@@ -68,9 +68,7 @@ uncounted pages from the calculation. Using raw `pages` will overcharge customer
 
 Use `2.0` (not `2`) to force float division and avoid Ruby integer rounding.
 
-RATIONALE: `pages` includes uncounted XML pages (covers, previews). Without subtracting `uncounted_pages`, book pricing formulas overcharge. Confirmed in client support case, May 2026.
-SOURCE: "Pixfizz customer support agent" chat, May 3 2026
-SOURCE TYPE: claude-chat
+Why: `pages` includes uncounted XML pages (covers, previews). Without subtracting `uncounted_pages`, book pricing formulas overcharge. Confirmed in client support case, May 2026.
 
 ### Volume discount lookup (unit price)
 `{1..1=>8.00, 2..5=>6.50, 6..10=>6.00, 11..20=>5.75, 21..30=>5.60, 31..50=>4.80, 51..1000=>4.15}.find { |range,unit_price| range.include?(units)}.last`
@@ -177,9 +175,7 @@ customer actually added, resulting in overcharging.
 This applies to all page-based pricing patterns: base + incremental, threshold +
 blocks, sheet-based, and volume discount + per-page.
 
-RATIONALE: High-impact pricing gotcha. Raw `pages` silently includes uncounted XML pages, causing overcharging on book products. Not previously documented.
-SOURCE: "Pixfizz customer support agent" chat, May 3 2026
-SOURCE TYPE: claude-chat
+Why: High-impact pricing gotcha. Raw `pages` silently includes uncounted XML pages, causing overcharging on book products. Not previously documented.
 
 ### Never use `extra_pages` in an option value price on a single-page product with a preview page
 
@@ -230,8 +226,8 @@ price adjustments **and** quantity breaks under a single base price.
 - One base price per product (e.g. a photo restoration service).
 - "Color correction" is the **default** variant.
 - "No color correction" applies a **negative variant adjustment** (≈30% off base).
-- Quantity break tier discounts apply **only on the non-corrected path** (to protect
-  labour margin on the corrected path).
+- Quantity break tier discounts apply **only on the non-corrected path** (so the
+  corrected path keeps its full price).
 - Customer-facing tier pricing is shown on the product page as a simple HTML table
   with a tooltip — no dynamic formula display.
 
@@ -263,8 +259,7 @@ The variant formula editor does **not** accept a leading minus sign (`-`). Enter
 
 Confirmed on client cut print pricing, April 2026. The `* -1` pattern is logically equivalent and the editor accepts it.
 
-RATIONALE: Platform editor limitation with a non-obvious workaround. Affects any negative variant adjustment using cut print formulas.
-SOURCE: "Claude pricing formula generation" chat, April 23
+Why: Platform editor limitation with a non-obvious workaround. Affects any negative variant adjustment using cut print formulas.
 
 ### Canonical workaround (2026-04-08)
 1. **Lower the base price** of the product to the discounted value.
@@ -466,18 +461,10 @@ canonical formula has not yet been locked in to this reference.
 
 ---
 
-## Test Orders with 100% Voucher — Billing Cap Removed
+## Test Orders with 100% Voucher
 
-**Platform rule change, 2026-03-24.**
-
-Previously, test orders paid with a 100% voucher were still billed at 50% of the
-order value internally (a safety cap on the billing file). That cap has been
-removed. Orders paid with a 100% voucher now report as fully zeroed in the
-billing file.
-
-Impact: any site using voucher codes for internal QA or for comped client orders
-will now see those orders at **$0** in billing reports rather than at 50% of the
-catalogue price. Update any reconciliation logic that assumed the old cap.
+**Platform rule, since 2026-03-24.** Orders paid with a 100% voucher report at **$0** in
+billing reports.
 
 ---
 
@@ -502,7 +489,7 @@ Reference: [https://help.pixfizz.com/triage/automatic-discounts](https://help.pi
 - `cart.promocode_code` — the applied promo code (blank if none)
 - `cart.orderlines` — the orderlines collection
 - `user.category` — user category label (e.g. "VIP", "Wholesale")
-- `user.orders_count` — number of completed orders (if available on the user object — confirm with Matjaz)
+- `user.orders_count` — number of completed orders (if available on the user object — confirm with Pixfizz support)
 - Standard Liquid filters: `date`, math operators, etc.
 
 ### Canonical patterns
@@ -796,7 +783,7 @@ on the platform.*
 
 Price Variables can be exported and imported, including across sites — export to a spreadsheet, edit in bulk, and re-import rather than editing them one at a time in the admin. This is useful for onboarding scoping involving hundreds of price variables, and for replicating a pricing setup from one site to another.
 
-Source: slack-message (#development), commit e954d0b3.
+
 
 ---
 ## Packaging Tab — Do Not Use
@@ -810,9 +797,6 @@ is often an expensive and confusing checkout experience.
 
 **Recommended approach:** Always use **shipping pricing formulas** instead of the Packaging tab.
 If a client asks about Packaging, redirect them to shipping formula configuration.
-
-RATIONALE: Repeat signal — Loom video in #kb-sync + #development question same week.
-SOURCE TYPE: loom-video + slack-message
 ---
 ## Per-Order Charges Must Never Sit on a Variant
 
@@ -1012,30 +996,30 @@ Template-level (Shopper uploader asset) with a product custom field.
 - **Every uploader pricing mode ships in `pricing.js` in the same release.** A price the website can calculate must also be in the `pricing.js` OrderHub runs. A website-only price works for web orders and fails at the OrderHub till, where staff key in a custom order and OrderHub must price it itself. OrderHub's fallback of copying `px_price` from the order line (2026-11-11) covers website orders only; a till order has no `px_price`. On one client site Flat Prints (`prints`) and NCR forms were never added to the `pricing.js` package, and the forms card stayed in the template's `px_mount` option instead of the product's `px_rates`, so OrderHub found no card. Before calling any uploader mode done: (1) the mode is in `pricing.js` and in the package OrderHub runs, (2) the product carries the card in `px_rates`, not only in `px_mount`, (3) a till test: create a custom order in OrderHub for the product and get a price. Tool-level. *Checked against the delivered package contents, 2026-11-19.* See `45_ORDERHUB.md` § Repricing Custom Tool Lines.
 
 ## Changelog
-- 2026-05-19: Added Automatic Discounts section — Liquid-based cart discounts with tiered, user category, and seasonal patterns. Source: Claude chat (webinar prep).
-- 2026-07-03: Added Extra Fees (Liquid-Based Cart Fees) section — fee-side twin of Automatic Discounts (adds instead of subtracts), configured under Shipping → Extra Fees. Includes per-duplicate-orderline surcharge pattern (seen-string + contains idiom); orderline-iteration specifics pending live confirmation. Source: Claude chat.
-- 2026-07-20: Added property-name trap — `cart.promocode` (without `_code`) is nil and silently defeats promo-code guards; always use `cart.promocode_code`. Source: claude-chat.
-- 2026-07-31: Price Variable Bulk Export/Import shipped (2026-07-28) — moved out of Roadmap, now documented as a live feature. Source: slack-message (#development).
-- 2026-08-21: Documented Packaging tab as legacy feature; shipping formulas recommended instead. Source: loom-video + slack-message.
-- 2026-08-29: Added per-order charges must never sit on a variant — a variant adjustment is per orderline and multiplies by orderline quantity, so postage or a flat fee on a variant multiplies by the item count; use a separate orderline or an Extra Fee. Added the custom-tool division of labour for a `number` option priced as `value`: the tool writes a quantity-1 unit figure and the formula owns quantity breaks, since a pre-tiered price double-discounts and a finished total freezes the price at add-to-cart. Source: claude-chat.
-- 2026-09-09: Corrected the Extra Fee context list — `cart.custom.<field>` does resolve inside an Extra Fee formula, confirmed on a live production `rush` fee, and the list is now marked as observed-so-far rather than exhaustive. Added the bare-arithmetic-expression formula shape (`orderlines_total` / `orderlines_discount` unprefixed, same evaluator as Automatic Discounts) with the Liquid interpolation pattern for percentage fees, the rule to charge percentage fees on the post-discount subtotal, the per-fee Taxable checkbox in Main Admin -> Shipping -> Extra Fees with its open question about the Shopper checkout display, and the note that a cart-level minimum-order fee survives a 100%-off promo code. Source: claude-chat.
-- 2026-09-09: Added the variant price formula validator section — the field's validator is narrower than Ruby and rejects with `Error saving: Price isn't valid`, with the accepted/rejected table, the practical grammar rule, and the bisect-from-a-known-good-formula debugging rule. Source: claude-chat.
-- 2026-09-09: Recorded that `value` and `quantity` are both in scope in a variant price formula and can be combined (`range.include?(value * quantity)`), with the working formula shape, the warning that a successful save does not prove the engine prices it, and the note that whole-order stepped ladders are not monotonic. Source: claude-chat.
-- 2026-09-09: Added `pages` behaviour on upload-driven design products — the project keeps the template default page count when the editor is never opened, so a page-count formula prices the default; cross-referenced to the `project.page_count` fulfillment rule. Source: claude-chat.
-- 2026-09-09: Added that a price formula will not save until the price variables it references exist, and that Price Variables are not reachable via the API (confirmed by the core developer, 2026-09-07). Source: slack-message.
-- 2026-09-09: Extended the quantity/units note with the switching cost — a find/replace across every formula on the product, and a commercial decision. Source: claude-chat.
-- 2026-09-09: Added the escape hatch for a tier driver that is a product of two inputs (JS-computed price into a `number` option priced as `value`) with its two costs, and the rule that a per-order charge written by a tool must be divided by the unit count. Source: claude-chat + fireflies-call.
-- 2026-09-09: Added additive pricing via hidden `number` child variants (`value * 0` siblings are deliberate no-ops), the transcribed-price-table drift hazard with the same-sitting mirroring rule and the platform ask to expose a price ladder to Liquid, and the withdrawal of the claim that `product.price` evaluates in a mid tier. Source: claude-chat.
-- 2026-09-09: Added zero-priced catalogue/category pages for variant-driven prices (fix is the product-level starting-price field) and the note that `Custom pricing` is the only product custom field accepting free text for a price label. Source: fireflies-call.
-- 2026-09-16: Replaced 'Price Variables are not reachable via the API' with a pointer to the new experimental Price Variables API in `61_PIXFIZZ_API.md` § 13f. Source: notion-page (Dashboard).
-- 2026-09-19: Confirmed the Automatic Discounts admin location as Marketing → Automatic Discounts, replacing the open "confirm with Matjaz" note. Source: AdeB.
-- 2026-09-24: The API write path skips the formula validator; reserved names for Price Variables (not engine-tested). Source: claude-chat.
-- 2026-10-06: Price Variables: corrected the stale "staging only" API note (read and update confirmed on production 2026-09-23). Photo Prints: a flat variant value price on a cut print is not per copy; use a `<delta> * cut_print_quantity` variant value formula (price forecast multiplies per copy; the Photo Prints component shows the one-copy price), with illustrative numbers. From group B2 spill: a product price formula must cover quantity 1 (use `unit_intervals`); new section Platform Price per Quantity and Cart Rounding (`price_forecast.json`, cart line rounding, unconfirmed formula rounding). Source: claude-chat, vault-doc.
-- 2026-10-09: New § Number Variant Price Formulas: where the formula lives, the result is multiplied by orderline quantity (do not append `* quantity`), decimals and Step, priced number variants add, hidden number variants reprice live, shared range-hash boundaries, graduated area tiers, `px-product-price` shadow root. Linked from the tiered-ladder cart-test note. Source: claude-chat.
-- 2026-10-17: Price Variables resolve in template option value formulas (provider's variables on a consumer); canonical pattern for rounding a book total to .95 with a fixed product price; `price_forecast` float sums need `.round(2)`, page count only from `pages`, wrong option value codes listed at 0, per-page formulas go negative below the base count; Extra Fee `cart.orderlines` loop and bare-number output confirmed live (replaces the pending note), one fee per rush speed; new § Shipping Rate by Cart Content Inside One Shipping Service; hidden Number variant on `/v1/books.json` and project-edit reprices the same line; pointer to the `px_rates` / `pricing.js` tool standard. Source: claude-chat, slack-message.
-- 2026-10-22: New § The Three Ways a Product Is Priced (attribute price, variant prices, `px_rates` card; `px_rates` mode `area`, generic `px_` variant codes, why OrderHub needs type 3). § Platform Price per Quantity: `price_forecast` prices only the variants and template options sent; reading real prices into a prototype; `pages` is SYSTEM pages on `spreads_as_pages` books (system = printed / 2 + 1). New subsection: a flat charge per order line on a variant value is `amount / quantity`. New subsection under Shipping Rate by Cart Content: a per-cart weight estimate by product code (mechanism only, pending a platform test checkout). Source: claude-chat.
-- 2026-10-29: Photo Prints: converting variant-only cut print prices to base price plus per-tier differences (per-tier minimum, not the default); `price_forecast` ignores quantity on cut prints. Source: claude-chat.
-- 2026-11-09: New: never use `extra_pages` in an option value price on a single-page product with a preview page (doubles in the cart). Automatic Discounts: percentage off by number of items pattern (customer-reported, not verified). Round 2: metric `area` cards need engine version 2 (not verified); `* cut_print_quantity` variant prices still apply on a non-cut-print template; Automatic Discounts: saving rounded half up (tools must match), admin routes pointer. Source: claude-chat, support-ticket.
-- 2026-11-13: Pack prices are entered per unit (min_units and intervals). Shipping formulas render on the cart page, so a Liquid error breaks every add to cart. Uploader px_rates cards: upgrade uploader.js before raising a card's engine; Flat Prints (mode prints) is priced in uploader.js, not pricing.js. Source: claude-chat.
-- 2026-11-20: Extra Fees, minimum order: the amount lives in the fee formula (twice), not the checklist snippet; pointer to the light cart pop-up bypass. Source: support-ticket.
-- 2026-11-21: Automatic Discounts, Key rules: acts on the cart total only (line and page prices keep the full price), `auto_discounts` in `/v1/carts/_mine.json` only for applying discounts, formula history on the admin edit page, `regular_pricing` does not cover it, the Sale Prices extension (`px-sale`) and its one-cent rounding difference. Uploader Price Cards: every pricing mode ships in `pricing.js` the same release, with the three-step check including a till test. Source: claude-chat.
+- 2026-05-19: Added Automatic Discounts section — Liquid-based cart discounts with tiered, user category, and seasonal patterns.
+- 2026-07-03: Added Extra Fees (Liquid-Based Cart Fees) section — fee-side twin of Automatic Discounts (adds instead of subtracts), configured under Shipping → Extra Fees. Includes per-duplicate-orderline surcharge pattern (seen-string + contains idiom); orderline-iteration specifics pending live confirmation.
+- 2026-07-20: Added property-name trap — `cart.promocode` (without `_code`) is nil and silently defeats promo-code guards; always use `cart.promocode_code`.
+- 2026-07-31: Price Variable Bulk Export/Import shipped (2026-07-28) — moved out of Roadmap, now documented as a live feature.
+- 2026-08-21: Documented Packaging tab as legacy feature; shipping formulas recommended instead.
+- 2026-08-29: Added per-order charges must never sit on a variant — a variant adjustment is per orderline and multiplies by orderline quantity, so postage or a flat fee on a variant multiplies by the item count; use a separate orderline or an Extra Fee. Added the custom-tool division of labour for a `number` option priced as `value`: the tool writes a quantity-1 unit figure and the formula owns quantity breaks, since a pre-tiered price double-discounts and a finished total freezes the price at add-to-cart.
+- 2026-09-09: Corrected the Extra Fee context list — `cart.custom.<field>` does resolve inside an Extra Fee formula, confirmed on a live production `rush` fee, and the list is now marked as observed-so-far rather than exhaustive. Added the bare-arithmetic-expression formula shape (`orderlines_total` / `orderlines_discount` unprefixed, same evaluator as Automatic Discounts) with the Liquid interpolation pattern for percentage fees, the rule to charge percentage fees on the post-discount subtotal, the per-fee Taxable checkbox in Main Admin -> Shipping -> Extra Fees with its open question about the Shopper checkout display, and the note that a cart-level minimum-order fee survives a 100%-off promo code.
+- 2026-09-09: Added the variant price formula validator section — the field's validator is narrower than Ruby and rejects with `Error saving: Price isn't valid`, with the accepted/rejected table, the practical grammar rule, and the bisect-from-a-known-good-formula debugging rule.
+- 2026-09-09: Recorded that `value` and `quantity` are both in scope in a variant price formula and can be combined (`range.include?(value * quantity)`), with the working formula shape, the warning that a successful save does not prove the engine prices it, and the note that whole-order stepped ladders are not monotonic.
+- 2026-09-09: Added `pages` behaviour on upload-driven design products — the project keeps the template default page count when the editor is never opened, so a page-count formula prices the default; cross-referenced to the `project.page_count` fulfillment rule.
+- 2026-09-09: Added that a price formula will not save until the price variables it references exist, and that Price Variables are not reachable via the API (confirmed by Pixfizz, 2026-09-07).
+- 2026-09-09: Extended the quantity/units note with the switching cost — a find/replace across every formula on the product, and a commercial decision.
+- 2026-09-09: Added the escape hatch for a tier driver that is a product of two inputs (JS-computed price into a `number` option priced as `value`) with its two costs, and the rule that a per-order charge written by a tool must be divided by the unit count.
+- 2026-09-09: Added additive pricing via hidden `number` child variants (`value * 0` siblings are deliberate no-ops), the transcribed-price-table drift hazard with the same-sitting mirroring rule and the platform ask to expose a price ladder to Liquid, and the withdrawal of the claim that `product.price` evaluates in a mid tier.
+- 2026-09-09: Added zero-priced catalogue/category pages for variant-driven prices (fix is the product-level starting-price field) and the note that `Custom pricing` is the only product custom field accepting free text for a price label.
+- 2026-09-16: Replaced 'Price Variables are not reachable via the API' with a pointer to the new experimental Price Variables API in `61_PIXFIZZ_API.md` § 13f.
+- 2026-09-19: Confirmed the Automatic Discounts admin location as Marketing → Automatic Discounts, replacing the open "confirm with Pixfizz support" note.
+- 2026-09-24: The API write path skips the formula validator; reserved names for Price Variables (not engine-tested).
+- 2026-10-06: Price Variables: corrected the stale "staging only" API note (read and update confirmed on production 2026-09-23). Photo Prints: a flat variant value price on a cut print is not per copy; use a `<delta> * cut_print_quantity` variant value formula (price forecast multiplies per copy; the Photo Prints component shows the one-copy price), with illustrative numbers. From group B2 spill: a product price formula must cover quantity 1 (use `unit_intervals`); new section Platform Price per Quantity and Cart Rounding (`price_forecast.json`, cart line rounding, unconfirmed formula rounding).
+- 2026-10-09: New § Number Variant Price Formulas: where the formula lives, the result is multiplied by orderline quantity (do not append `* quantity`), decimals and Step, priced number variants add, hidden number variants reprice live, shared range-hash boundaries, graduated area tiers, `px-product-price` shadow root. Linked from the tiered-ladder cart-test note.
+- 2026-10-17: Price Variables resolve in template option value formulas (provider's variables on a consumer); canonical pattern for rounding a book total to .95 with a fixed product price; `price_forecast` float sums need `.round(2)`, page count only from `pages`, wrong option value codes listed at 0, per-page formulas go negative below the base count; Extra Fee `cart.orderlines` loop and bare-number output confirmed live (replaces the pending note), one fee per rush speed; new § Shipping Rate by Cart Content Inside One Shipping Service; hidden Number variant on `/v1/books.json` and project-edit reprices the same line; pointer to the `px_rates` / `pricing.js` tool standard.
+- 2026-10-22: New § The Three Ways a Product Is Priced (attribute price, variant prices, `px_rates` card; `px_rates` mode `area`, generic `px_` variant codes, why OrderHub needs type 3). § Platform Price per Quantity: `price_forecast` prices only the variants and template options sent; reading real prices into a prototype; `pages` is SYSTEM pages on `spreads_as_pages` books (system = printed / 2 + 1). New subsection: a flat charge per order line on a variant value is `amount / quantity`. New subsection under Shipping Rate by Cart Content: a per-cart weight estimate by product code (mechanism only, pending a platform test checkout).
+- 2026-10-29: Photo Prints: converting variant-only cut print prices to base price plus per-tier differences (per-tier minimum, not the default); `price_forecast` ignores quantity on cut prints.
+- 2026-11-09: New: never use `extra_pages` in an option value price on a single-page product with a preview page (doubles in the cart). Automatic Discounts: percentage off by number of items pattern (customer-reported, not verified). Round 2: metric `area` cards need engine version 2 (not verified); `* cut_print_quantity` variant prices still apply on a non-cut-print template; Automatic Discounts: saving rounded half up (tools must match), admin routes pointer.
+- 2026-11-13: Pack prices are entered per unit (min_units and intervals). Shipping formulas render on the cart page, so a Liquid error breaks every add to cart. Uploader px_rates cards: upgrade uploader.js before raising a card's engine; Flat Prints (mode prints) is priced in uploader.js, not pricing.js.
+- 2026-11-20: Extra Fees, minimum order: the amount lives in the fee formula (twice), not the checklist snippet; pointer to the light cart pop-up bypass.
+- 2026-11-21: Automatic Discounts, Key rules: acts on the cart total only (line and page prices keep the full price), `auto_discounts` in `/v1/carts/_mine.json` only for applying discounts, formula history on the admin edit page, `regular_pricing` does not cover it, the Sale Prices extension (`px-sale`) and its one-cent rounding difference. Uploader Price Cards: every pricing mode ships in `pricing.js` the same release, with the three-step check including a till test.

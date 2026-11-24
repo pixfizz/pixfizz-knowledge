@@ -5,14 +5,14 @@ _Part of the Pixfizz Tool Settings Reference. How the mount works, what Yes / Wi
 _Last updated: 2026-11-24_
 
 ## Current version
-1.3.1 live on Hite Photo only (23 Nov 2026). Older versions on other installs. 2.0.0 built and tested, not released.
+1.3.1 live on one pilot site (23 Nov 2026). Older versions on other installs. 2.0.0 built and tested, not released.
 
 As recorded on 3 Nov 2026: Status: beta, version 1.2.0 (built, being rolled out to sites; older installs still use the pre-1.0 settings page, see below). Snippet: `product/face-fan-designer`. Mount option: `facefan_mount`. Prefix: `facefan_`.
 
 ## Changes since 3 November 2026
 
 - `facefan_noun`, `facefan_noun_plural` (from 1.3.0): the word the tool uses for the product, for example `big head` and `big heads`. **Yes.**
-- `facefan_custom_min`, `facefan_custom_max` (from 1.3.0): the smallest and largest custom sheet size the shopper may type (up to 36 in on CT Print). **With care**: the size must fit your press and pricing. Value format not confirmed: copy it from your installed mount.
+- `facefan_custom_min`, `facefan_custom_max` (from 1.3.0): the smallest and largest custom sheet size the shopper may type (for example up to 36 in). **With care**: the size must fit your press and pricing. Value format not confirmed: copy it from your installed mount.
 - **New in 2.0.0, not released:** cut mode `auto` in `facefan_cut_modes` (for example `head:auto|oval:oval`, where `head` is a value of your cut variant) adds "Cut around the head": the platform AI removes the background round the person the shopper picks, and the cut follows them with a white edge. **AI is a switch, off by default**: it exists only when `auto` is listed, and it hides itself on a site where AI is off. AI tools need a signed-in shopper; the tool signs them in on the page.
 - 2.0.0 settings for the `auto` cut, all optional, defaults shown: `facefan_edges` (`none:0|thin:0.125in|thick:0.25in`), `facefan_edge_default` (`thick`), `facefan_ring_colors` (outline swatches, `#D8272A|#1E4FA8|#F2B705|#1F8A4C|#0F0F0F`, blank = no outline), `facefan_ring_any` (`true` adds an any-color swatch), `facefan_ring_width` (`0.125in`), `facefan_ai_tool` (`remove_background`, **No**), `facefan_ai_max_px` (`3000`, **No**), `facefan_register_url` (`/site/register`), `facefan_forgot_url` (`/site/forgotten-password`). Edges, rings and URLs are **Yes**.
 
@@ -75,4 +75,4 @@ Things that are not set here
 
 ## Changelog
 
-- 2026-11-24: Page created from `28_TOOL_SETTINGS_REFERENCE.md` section 6 (one page per tool). Current version and changes since 3 Nov added from the tool source and CHANGELOG. Source: claude-chat, tool source.
+- 2026-11-24: Page created from `28_TOOL_SETTINGS_REFERENCE.md` section 6 (one page per tool). Current version and changes since 3 Nov added from the tool source and CHANGELOG.

@@ -253,7 +253,7 @@ offers both week starts needs **two templates per size**, identical except for t
 (a twin, for example coded `-sun` and `-mon`), and a storefront tool picks the twin when the
 customer changes the week start. Plan the import set for two templates per size. Build pattern
 (tool-level), resting on the platform date rules above. *Not verified: that a twin's date rule
-renders correctly in the design tool and in production; to be tested on baseline.pixfizz.com.*
+renders correctly in the design tool and in production; to be tested on a Pixfizz test site.*
 
 ### 12-month iteration sequence
 Used with `foreachdate` to repeat a set or block once per month across 12 months.
@@ -589,8 +589,7 @@ transformations at that page's own series.
   background typically drops from 2 to 3 MB as PNG to under 1 MB with no visible loss, and there
   are twelve of them.
 
-*Source: Loom walkthrough shared 2026-09-14 in #cottonbird-products-pixfizz. Stated, not
-independently verified in admin.*
+*From a 2026-09-14 walkthrough; not independently verified in admin.*
 
 ---
 
@@ -634,7 +633,7 @@ modelled in a preview renderer and compared against production PNGs, 2026-10-19.
 ## Per-Page Photo Layouts on Calendar Templates
 
 Platform-level (Pixfizz design tool and calendar rendering). *Verified by production renders on
-baseline.pixfizz.com, 2026-10-20.*
+a Pixfizz test site, 2026-10-20.*
 
 - **A calendar project stores the design's pages with their `cal:` date tags already resolved.**
   Elements that arrive through a layout keep raw `cal:` tags and are **not resolved at render**:
@@ -711,11 +710,11 @@ their print files (`pdfinfo -box`). Read the boxes of a real file rather than th
 *From a photo lab onboarding (the lab's print files and spec sheet read), 2026-11-17.*
 
 ## Changelog
-- 2026-04-03: Created from platform documentation and annotated real-world examples provided by AdeB. Covers definition attributes, set parameters, full dates vocabulary, foreachdate, named sequence patterns, and three annotated examples.
-- 2026-06-30: Documented week-number triggering for calendar transformations. Source: notion-dashboard (2026-06-22).
-- 2026-08-14: Added the layer-visibility technique for reaching calendar elements blocked by an overlapping grid, and the rule that a manual refulfill is required after any such edit before production files reflect it. Source: fireflies-call (2026-08-12).
+- 2026-04-03: Created from platform documentation and annotated real-world examples provided by Pixfizz. Covers definition attributes, set parameters, full dates vocabulary, foreachdate, named sequence patterns, and three annotated examples.
+- 2026-06-30: Documented week-number triggering for calendar transformations.
+- 2026-08-14: Added the layer-visibility technique for reaching calendar elements blocked by an overlapping grid, and the rule that a manual refulfill is required after any such edit before production files reflect it.
 - 2026-09-19: Added per-month backgrounds and colors as calendar transformations rather than XML: element naming, the Dates flag on each element, Set Image and Element Color, the date series name having to match the page exactly (with the "Could not find definition for dates" error it produces on a multi-page calendar), the absence of any odd/even shortcut, and the bulk XML naming and WebP quality 90 tips. Source: loom-video (2026-09-14).
-- 2026-10-17: Corrected `weekday` on `<defdate>` and `<dateshift>` (the weekday inside the Monday-to-Sunday week, not the nearest occurrence; Sunday-start needs `day="-6"`, Monday-start does not). Added Calendar Element Tags, Fills and Transformations: 1-based `idx` tags, the full fill list, `calendar_transformations` fields and actions in an export, transformations reach only date-tagged elements, transformation beats design-option substitution, website-calendar captions need `book[calendars][]`, the cover-year pattern. Source: claude-chat.
-- 2026-10-22: § 6 Named Date Sequence Patterns: week start is in the date rule, a twin template per week start (twin rendering not verified). § Calendar Element Tags, Fills and Transformations: order of operations at render (date fill, Colors design option, transformations) and Colors options on calendar pages. New § Per-Page Photo Layouts on Calendar Templates (`cal:` tags in layouts are not resolved, `setLayout` replaces only `layout="true"` elements, the photo-frames-only pattern, blank layout ids on import). Source: claude-chat.
-- 2026-11-09: Per-Page Photo Layouts: adding an image to a calendar grid page by editor script (prints, transparency kept); no platform fill for a per-day user image. Source: claude-chat.
-- 2026-11-21: Calendar Element Tags, Fills and Transformations: `month-name` language not verified, use `set-text` for non-English months. New § Read the Lab's Production File Before Building a Calendar (spread vs sheet vs joined file layout, spec-sheet bleed may be the safe zone, read the TrimBox). Source: claude-chat.
+- 2026-10-17: Corrected `weekday` on `<defdate>` and `<dateshift>` (the weekday inside the Monday-to-Sunday week, not the nearest occurrence; Sunday-start needs `day="-6"`, Monday-start does not). Added Calendar Element Tags, Fills and Transformations: 1-based `idx` tags, the full fill list, `calendar_transformations` fields and actions in an export, transformations reach only date-tagged elements, transformation beats design-option substitution, website-calendar captions need `book[calendars][]`, the cover-year pattern.
+- 2026-10-22: § 6 Named Date Sequence Patterns: week start is in the date rule, a twin template per week start (twin rendering not verified). § Calendar Element Tags, Fills and Transformations: order of operations at render (date fill, Colors design option, transformations) and Colors options on calendar pages. New § Per-Page Photo Layouts on Calendar Templates (`cal:` tags in layouts are not resolved, `setLayout` replaces only `layout="true"` elements, the photo-frames-only pattern, blank layout ids on import).
+- 2026-11-09: Per-Page Photo Layouts: adding an image to a calendar grid page by editor script (prints, transparency kept); no platform fill for a per-day user image.
+- 2026-11-21: Calendar Element Tags, Fills and Transformations: `month-name` language not verified, use `set-text` for non-English months. New § Read the Lab's Production File Before Building a Calendar (spread vs sheet vs joined file layout, spec-sheet bleed may be the safe zone, read the TrimBox).

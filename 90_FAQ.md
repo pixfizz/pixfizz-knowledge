@@ -138,7 +138,7 @@ Yes. Design Tool Configurations (found in admin under Settings > Design Tool) le
 **Q: I only want image upload available on some templates, not all of them — how do I do that?**
 _Applies to: All_
 
-A single global `editor.css` rule (or Custom CSS field) that hides image upload applies to every template using that configuration, so it can't give you per-template control on its own. Because a Design Tool Configuration is assigned per Template or per Design (not per product or category), the way to get per-template control is to create a separate configuration for the templates that should hide image upload, with its own CSS, and assign only those templates to it — leaving the rest on a configuration where upload stays visible. See "Can I control which features appear in the editor?" above and 17_DESIGN_TOOL.md § Design Tool Configurations / Editor CSS Customization. Source: support ticket #18337.
+A single global `editor.css` rule (or Custom CSS field) that hides image upload applies to every template using that configuration, so it can't give you per-template control on its own. Because a Design Tool Configuration is assigned per Template or per Design (not per product or category), the way to get per-template control is to create a separate configuration for the templates that should hide image upload, with its own CSS, and assign only those templates to it — leaving the rest on a configuration where upload stays visible. See "Can I control which features appear in the editor?" above and 17_DESIGN_TOOL.md § Design Tool Configurations / Editor CSS Customization.
 
 ---
 
@@ -154,7 +154,7 @@ _Applies to: All_
 
 The design tool can display a resolution warning when an uploaded image is below the minimum DPI required for quality output. Whether this warning appears depends on your Design Tool Configuration. Customers can still proceed with a low-resolution image, so it's worth communicating minimum image requirements in your product descriptions or FAQs.
 
-Relatedly, uploading **CMYK JPEGs** (for example to business-card products) can cause print-quality problems, because the design tool and previews are built around RGB/sRGB. Advise customers to upload **sRGB** images and reserve any CMYK conversion for the fulfillment transformation step. Source: Fireflies (2026-07-03).
+Relatedly, uploading **CMYK JPEGs** (for example to business-card products) can cause print-quality problems, because the design tool and previews are built around RGB/sRGB. Advise customers to upload **sRGB** images and reserve any CMYK conversion for the fulfillment transformation step.
 
 ---
 
@@ -519,13 +519,13 @@ Assign elements to layers and switch the layer on top off under View Settings in
 Not by a setting. It may be possible with inline pages but there is no confirmed recipe yet; contact Pixfizz support with an example of the production file you need.
 
 ## Changelog
-- 2026-09-09: Added Section 11 — Silent Failures, a symptom-first consolidation of the failure modes that produce no error on either side, each with a one-line cause and a pointer to the file carrying the detail. Added Section 4 entries for catalogue and category pages showing $0 on variant-driven pricing (with `Custom pricing` as the only product custom field accepting a free-text price label) and for a whole-order stepped tier ladder not being monotonic. Added an update to the Section 1 support entry: from 2026-09-09 inbound support email routes into the myPixfizz support system and the old helpdesk receives nothing new. Source: claude-chat, fireflies-call.
-- 2026-08-14: Added Section 1 entries for the support channel (myPixfizz portal; third-party helpdesk retired 1 September 2026) and the quarterly review webinar. Source: fireflies-call (2026-08-11/12/13, 3x repeat signal).
+- 2026-09-09: Added Section 11 — Silent Failures, a symptom-first consolidation of the failure modes that produce no error on either side, each with a one-line cause and a pointer to the file carrying the detail. Added Section 4 entries for catalogue and category pages showing $0 on variant-driven pricing (with `Custom pricing` as the only product custom field accepting a free-text price label) and for a whole-order stepped tier ladder not being monotonic. Added an update to the Section 1 support entry: from 2026-09-09 inbound support email routes into the myPixfizz support system and the old helpdesk receives nothing new.
+- 2026-08-14: Added Section 1 entries for the support channel (myPixfizz portal; third-party helpdesk retired 1 September 2026) and the quarterly review webinar.
 - 2026-04-06: Initial version. 35 Q&As covering Getting Started, Products, Design Tool, Pricing, Cart/Checkout, Shopify, Orders, Storefront, and Troubleshooting.
-- 2026-05-19: Added inventory tracking Q&A (Section 2), inline price editing Q&A (Section 4), order cancellation and transaction fees Q&A (Section 7), multi-language support Q&A (Section 8), and Batch Film Uploader workflow (new Section 10 — Film Lab Workflows). Source: Notion KB articles.
-- 2026-07-04: Added CMYK-JPEG upload caution to the image-upload Q&A (Section 3) — upload sRGB; reserve CMYK for fulfillment transformation. Source: Fireflies (2026-07-03).
-- 2026-07-31: Added per-template image upload visibility Q&A (Section 3) — use a separate Design Tool Configuration per template rather than a single global editor.css rule. Source: support ticket.
-- 2026-09-24: Added Section 12 Design Templates: unedited placeholders do not print, production-only layers, hiding layers while editing, mirrored output. Source: fireflies-call.
-- 2026-09-29: Two kiosk FAQs: no order because Confirm Order was never pressed; next customer inherits the session. Source: fireflies-call.
-- 2026-10-06: Section 5: tax cannot be set per product. Section 11: five silent failures (imported option hidden by string "false", non-atomic template import, folded scalar in a generated archive, blank empty top-level collection page, Shopify My Projects loader hang). Section 7: CORRECTED the Fulfilled status meaning (internal production status, not delivered). Source: claude-chat, vault-doc.
-- 2026-10-09: Section 3: iPhone and iPad uploads show no progress indicator. Source: slack-message (#development), fireflies-call.
+- 2026-05-19: Added inventory tracking Q&A (Section 2), inline price editing Q&A (Section 4), order cancellation and transaction fees Q&A (Section 7), multi-language support Q&A (Section 8), and Batch Film Uploader workflow (new Section 10 — Film Lab Workflows).
+- 2026-07-04: Added CMYK-JPEG upload caution to the image-upload Q&A (Section 3) — upload sRGB; reserve CMYK for fulfillment transformation.
+- 2026-07-31: Added per-template image upload visibility Q&A (Section 3) — use a separate Design Tool Configuration per template rather than a single global editor.css rule.
+- 2026-09-24: Added Section 12 Design Templates: unedited placeholders do not print, production-only layers, hiding layers while editing, mirrored output.
+- 2026-09-29: Two kiosk FAQs: no order because Confirm Order was never pressed; next customer inherits the session.
+- 2026-10-06: Section 5: tax cannot be set per product. Section 11: five silent failures (imported option hidden by string "false", non-atomic template import, folded scalar in a generated archive, blank empty top-level collection page, Shopify My Projects loader hang). Section 7: CORRECTED the Fulfilled status meaning (internal production status, not delivered).
+- 2026-10-09: Section 3: iPhone and iPad uploads show no progress indicator.

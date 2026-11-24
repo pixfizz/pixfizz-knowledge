@@ -469,7 +469,7 @@ No changes are needed to `shopify/product`, `pixfizz-launch-product-handler`, or
 Standard structure:
 
 ```liquid
-{%- assign pixfizz_host = 'shopper.pixfizz.com:5748' -%}
+{%- assign pixfizz_host = 'yoursite.pixfizz.com' -%}
 {%- assign shared_secret = 'YOUR_SHARED_SECRET' -%}
 
 <script type="text/javascript" src="https://{{ pixfizz_host }}/site/shopify/api.js"></script>
@@ -555,4 +555,4 @@ Template-level (Shopify master). *Verified on a client site by two test orders a
 - 2026-04-09: Created from CMS backup (2026-04-09), launch handler snippet, and email template review.
 - 2026-04-09: Added § 12 — `skip_draft_redirect` option, CMS changes, and `pixfizz-setup.liquid` reference.
 - 2026-04-15: Rewrote § 12 — added full implementation including `_showDraftToast`, cart bubble update, `.catch()` handler for third-party fetch interceptors, toast positioning (desktop below cart icon / mobile bottom-center), and `draft_toast_message` option. Validated on demo site.
-- 2026-11-21: New § 13 Enabling the Flow on a Site (nothing to install Pixfizz-side, email settings, SendGrid DKIM and DMARC check for a client-domain sender, Preview vs Send Test Email, Shop Pay and productDuplicate test-order traps) and § 14 Draft Order Language (`_pixfizz_locale` on draft lines, page locale order, `shopify/draft-order-languages` hook, explicit `locale:` on `t`, 512-byte subject cap). Source: claude-chat.
+- 2026-11-21: New § 13 Enabling the Flow on a Site (nothing to install Pixfizz-side, email settings, SendGrid DKIM and DMARC check for a client-domain sender, Preview vs Send Test Email, Shop Pay and productDuplicate test-order traps) and § 14 Draft Order Language (`_pixfizz_locale` on draft lines, page locale order, `shopify/draft-order-languages` hook, explicit `locale:` on `t`, 512-byte subject cap).

@@ -62,4 +62,4 @@ What the tool writes (do not rename): template options `px_print_file`, `px_prin
 
 ## Changelog
 
-- 2026-11-24: Page created. Source: claude-chat, tool source.
+- 2026-11-24: Page created.

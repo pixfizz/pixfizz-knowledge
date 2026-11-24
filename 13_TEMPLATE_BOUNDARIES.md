@@ -45,8 +45,7 @@ Each site manages its own custom fields independently. If a new layout feature d
 
 This applies to all custom field object types: product, collection, design, user, order, and orderline.
 
-RATIONALE: Confirmed during a client hide_gallery implementation — field created on parent was not present on child.
-SOURCE: "Custom field to hide product gallery" chat, April 24
+Why: Confirmed during a client hide_gallery implementation — field created on parent was not present on child.
 
 ## Site Assets — Inherited Parent→Child
 
@@ -79,7 +78,7 @@ Before sending any install instructions for a child site, run the Install-Step G
 
 ## Pages Are Parent-Only — a Child Cannot Override a Page
 
-A Shopper child site overrides **snippets and assets** only. It cannot override a **page**: `pages/checkout` and every other page always renders from the parent, on every child. A page-level fault on a child is therefore a parent fault, or a fault in a snippet or asset override the page calls, never a page override. *Stated by Alex, 2026-09-22.*
+A Shopper child site overrides **snippets and assets** only. It cannot override a **page**: `pages/checkout` and every other page always renders from the parent, on every child. A page-level fault on a child is therefore a parent fault, or a fault in a snippet or asset override the page calls, never a page override. *Confirmed by Pixfizz, 2026-09-22.*
 
 **Open, needs confirmation:** `50_SHOPPER_TEMPLATE_REFERENCE.md` § 21.5 describes a child overriding `pages/custom.css`. Either `custom.css` is a special case or § 21.5 is describing the `style/custom.css` snippet override. Do not rely on either reading until confirmed.
 
@@ -123,9 +122,9 @@ On a child site, **Website → Snippets lists only the snippets that site has ov
 
 ## Changelog
 - 2026-03-13: Added Shopify deployment path as a distinct boundary layer.
-- 2026-07-25: Added Site Assets — No Parent→Child Inheritance, including the silent-failure mode for JS assets and the version-marker practice for confirming a deployed build past browser cache. Source: claude-chat.
-- 2026-07-28: Corrected Site Assets section — assets ARE inherited parent to child; the silent failure previously attributed to asset inheritance is a child override of `integrations/custom-body-scripts`. Added Parent-First Rule scope note (snippets only, not template options or variants). Source: claude-chat.
-- 2026-09-24: Pointed the Parent-First Rule at the new Install-Step Gate. Added "Pages Are Parent-Only" (with the open § 21.5 question) and "A Child Site's Snippet List Shows Only Its Overrides". Source: claude-chat, fireflies-call.
-- 2026-10-06: Added Custom Types Are Per Site (export and import routes, never child to parent) and Email Notification Templates Are Per Site. Source: claude-chat.
-- 2026-10-22: A Child Site's Snippet List Shows Only Its Overrides: `snippets/edit_by_name` redirects only when the child has its own copy. Source: claude-chat.
-- 2026-11-09: Custom Types Are Per Site: Products inheritance shares records but brings no CMS content; re-pointing the Design parent needs the global super admin form. New section: Moving a Shopper Child Onto Another Admin (the CMS tar carries snippets and assets only; copy custom type definitions, instances, redirects and holiday calendars; check the old admin's default fulfillment and the products parent's shipping services). Source: claude-chat.
+- 2026-07-25: Added Site Assets — No Parent→Child Inheritance, including the silent-failure mode for JS assets and the version-marker practice for confirming a deployed build past browser cache.
+- 2026-07-28: Corrected Site Assets section — assets ARE inherited parent to child; the silent failure previously attributed to asset inheritance is a child override of `integrations/custom-body-scripts`. Added Parent-First Rule scope note (snippets only, not template options or variants).
+- 2026-09-24: Pointed the Parent-First Rule at the new Install-Step Gate. Added "Pages Are Parent-Only" (with the open § 21.5 question) and "A Child Site's Snippet List Shows Only Its Overrides".
+- 2026-10-06: Added Custom Types Are Per Site (export and import routes, never child to parent) and Email Notification Templates Are Per Site.
+- 2026-10-22: A Child Site's Snippet List Shows Only Its Overrides: `snippets/edit_by_name` redirects only when the child has its own copy.
+- 2026-11-09: Custom Types Are Per Site: Products inheritance shares records but brings no CMS content; re-pointing the Design parent needs the global super admin form. New section: Moving a Shopper Child Onto Another Admin (the CMS tar carries snippets and assets only; copy custom type definitions, instances, redirects and holiday calendars; check the old admin's default fulfillment and the products parent's shipping services).

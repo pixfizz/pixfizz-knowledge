@@ -132,7 +132,7 @@ PrintNode connects PDF Layout Studio to the printers on the lab floor through Na
 3. PDF Layout Studio auto-print rules reference Named Printers, not physical printer names
 
 ### Troubleshooting: invoice/document not auto-printing
-Invoice and document auto-print depends on both sides being aligned: the OrderHub Named Printer role must be mapped to a live PrintNode printer for that location, and the PDF Layout Studio auto-print rule must reference that Named Printer. If invoices are not printing, check for gaps between the OrderHub-side mapping and the PrintNode-side printer/agent configuration — a missing or mismatched mapping silently prevents printing. Source: Fireflies (2026-07-02).
+Invoice and document auto-print depends on both sides being aligned: the OrderHub Named Printer role must be mapped to a live PrintNode printer for that location, and the PDF Layout Studio auto-print rule must reference that Named Printer. If invoices are not printing, check for gaps between the OrderHub-side mapping and the PrintNode-side printer/agent configuration — a missing or mismatched mapping silently prevents printing.
 
 ---
 
@@ -182,7 +182,7 @@ OHD runs on a lab's local machine and continuously polls OrderHub for new jobs f
 - Downloads job details and associated print files from OrderHub via API
 - Organises files into structured folders with human-readable naming
 - Applies channel and product routing logic to match jobs to the correct print workflow
-  - **Gotcha:** when updating variants, do not copy old/stale channel IDs from a previous variant into a new one. Carrying over an outdated channel ID causes jobs to route to the wrong workflow (or fail to route) in OrderHub Desktop. Set the channel explicitly per variant, and prefer readable finish/variant values over numeric codes (see the 2026-06-30 variant-value routing note below). Source: Fireflies (2026-07-03).
+  - **Gotcha:** when updating variants, do not copy old/stale channel IDs from a previous variant into a new one. Carrying over an outdated channel ID causes jobs to route to the wrong workflow (or fail to route) in OrderHub Desktop. Set the channel explicitly per variant, and prefer readable finish/variant values over numeric codes (see the 2026-06-30 variant-value routing note below).
 - Generates **DPOF files** for compatible print controllers (Epson, Noritsu, etc.)
 - Provides job review tools: colour correction, quantity management
 - Offers **AI-powered upscaling** for low-resolution images
@@ -198,13 +198,13 @@ OHD auto-update notifications are delivered via OrderHub. Labs always run the la
 
 ### Print controller hot folder on a NAS: files picked up late
 
-OrderHub Desktop hands a job to a hot-folder print controller (for example Darkroom) by writing the job's files and a text file into the folder the controller watches. When that output folder is on a NAS, the controller may not pick the files up promptly. The workaround used: add a second output folder on the local PC and have the controller monitor both. *Stated by OrderHub support (Richard Charnley) on a customer call, 2026-10-22.* Folder and file naming come from tokens (`orderhub/orderhub-desktop/setting-up-a-darkroom-pro-print-controller.md`).
+OrderHub Desktop hands a job to a hot-folder print controller (for example Darkroom) by writing the job's files and a text file into the folder the controller watches. When that output folder is on a NAS, the controller may not pick the files up promptly. The workaround used: add a second output folder on the local PC and have the controller monitor both. *Confirmed by Pixfizz, 2026-10-22.* Folder and file naming come from tokens (`orderhub/orderhub-desktop/setting-up-a-darkroom-pro-print-controller.md`).
 
 **Order status when a job reaches the controller.** On the same call the order was described as moving to **In Production** when its first job reaches the print controller. The OrderHub article says In Production is "typically set manually" (`orderhub/orders/order-status-s.md`). Both kept; listed for the OrderHub owner to confirm.
 
 ### Known issue: film scan folders stuck in the OHD watch folder
 
-Film scan folders have been reported not moving out of the OHD watch folder (distinct from the Film Scans Module's S3 Auto-Sync). This is a repeat issue type across support tickets; root cause and fix are not yet confirmed. If a lab reports scans not progressing, check whether files are stalled in the local OHD watch folder before escalating. Source: support ticket #18341 (pending confirmation from dev).
+Film scan folders have been reported not moving out of the OHD watch folder (distinct from the Film Scans Module's S3 Auto-Sync). This is a repeat issue type across support tickets; root cause and fix are not yet confirmed. If a lab reports scans not progressing, check whether files are stalled in the local OHD watch folder before escalating.
 
 ---
 
@@ -225,7 +225,7 @@ that belongs in the order record or in the lab's own storage.
 
 ## Own Amazon S3 Storage: No Trailing Slash in a CORS Origin
 
-Storage setup (**Settings → My Store → Storage**, Pixfizz storage or My own Amazon S3) is in `orderhub/jobs/uploading-artwork-to-manually-created-jobs.md`. When a lab uses its own bucket, uploads can fail even though the bucket enables and can be viewed. In the case seen, one CORS rule on the bucket had an extra `/` at the end of its allowed origin; removing the trailing slash fixed uploads. Write each allowed origin as scheme plus host only (`https://yoursite.pixfizz.com`, never `https://yoursite.pixfizz.com/`). *Stated by the core developer in #development, 2026-10-15.*
+Storage setup (**Settings → My Store → Storage**, Pixfizz storage or My own Amazon S3) is in `orderhub/jobs/uploading-artwork-to-manually-created-jobs.md`. When a lab uses its own bucket, uploads can fail even though the bucket enables and can be viewed. In the case seen, one CORS rule on the bucket had an extra `/` at the end of its allowed origin; removing the trailing slash fixed uploads. Write each allowed origin as scheme plus host only (`https://yoursite.pixfizz.com`, never `https://yoursite.pixfizz.com/`). *Confirmed by Pixfizz, 2026-10-15.*
 
 ---
 
@@ -233,7 +233,7 @@ Storage setup (**Settings → My Store → Storage**, Pixfizz storage or My own 
 
 Shipping labels inside OrderHub, with test and production modes and auto-print through PrintNode: `orderhub/general/setting-up-easypost-integration.md`, `orderhub/ship-desk/ship-desk-shipping-integrations.md`.
 
-**Automatic tracking after shipping.** Once an order is marked shipped with an EasyPost label, OrderHub tracks the shipment every six hours for 21 days. The articles describe only the manual **Sync Tracking** button. *Stated by OrderHub support (Richard Charnley) on a customer call, 2026-10-22.*
+**Automatic tracking after shipping.** Once an order is marked shipped with an EasyPost label, OrderHub tracks the shipment every six hours for 21 days. The articles describe only the manual **Sync Tracking** button. *Confirmed by Pixfizz, 2026-10-22.*
 
 ---
 
@@ -285,7 +285,7 @@ Pixfizz website orders create categories automatically, and each one must be lin
 
 ## Order Status Sync (OrderHub → Core)
 
-Marking an order as **shipped** in OrderHub also updates it as **shipped** in Pixfizz Core, provided the integration's API user is enabled. This keeps the Core order status in sync without a separate manual update. If a shipped status set in OrderHub is not appearing in Core, confirm the API user is active. Source: #development, Richard (2026-07-01).
+Marking an order as **shipped** in OrderHub also updates it as **shipped** in Pixfizz Core, provided the integration's API user is enabled. This keeps the Core order status in sync without a separate manual update. If a shipped status set in OrderHub is not appearing in Core, confirm the API user is active.
 
 ---
 
@@ -305,7 +305,7 @@ When OrderHub notifications are enabled, OrderHub passes `sendNotifications: fal
 | OrderHub SMS enabled + no phone on order | No SMS sent |
 | Manual status change with "Notify" unchecked | Neither sends |
 
-**Use OrderHub for order-confirmation and download emails; separate emails cannot be merged.** When OrderHub notifications are enabled, route order-confirmation and file-download emails through OrderHub. Combining multiple separate emails (e.g. confirmation + download) into a single message is not technically feasible — each remains its own message. Source: Fireflies (2026-06-29, 2026-07-02).
+**Use OrderHub for order-confirmation and download emails; separate emails cannot be merged.** When OrderHub notifications are enabled, route order-confirmation and file-download emails through OrderHub. Combining multiple separate emails (e.g. confirmation + download) into a single message is not technically feasible — each remains its own message.
 
 ### SMS/RCS Notifications
 
@@ -437,7 +437,7 @@ Two current limits worth knowing before designing a bulk workflow:
 
 - **There is no template import endpoint.** Bulk-generated template tar files are imported
   **one at a time through admin**. Large-file handling and progress tracking are the named
-  blockers on building one. Stated by the core developer, not independently verified.
+  blockers on building one. Confirmed by Pixfizz, not independently verified.
 - **Price variables: superseded.** This line said price variables were not reachable via the
   API. Read and update are now confirmed on production (`GET /v1/admin/price_variables.json`,
   `PUT /v1/admin/price_variables/<id>.json`); see `61_PIXFIZZ_API.md` § 13f. *Verified by
@@ -453,9 +453,9 @@ Anything that needs either of these has to route through admin by hand. See
 - **Pixfizz Core has no locations.** It holds one `current_inventory` per product (`16_PRODUCT_HIERARCHY.md`); OrderHub holds stock per location.
 - **On each sale OrderHub writes its figure back to Core, overwriting the Core count.** A stock edit made in Core in between (Pixfizz admin, the admin API, a bulk tool) is lost at the next sale.
 - **OrderHub can expose either one primary location's stock or the sum of all locations** to Core.
-- **On these sites, edit stock only in OrderHub.** The myPixfizz Catalog Manager locks stock editing when the organization's stock is managed in OrderHub (`71_MYPIXFIZZ_FEATURES_ROUTES.md`). The admin API inventory write is an absolute set with no compare-and-set (`61_PIXFIZZ_API.md` § 13g), so no tool can merge its change with a sale.
+- **On these sites, edit stock only in OrderHub.** The myPixfizz Catalog Manager locks stock editing when the organization's stock is managed in OrderHub (`70_MYPIXFIZZ_OVERVIEW.md` § Tools). The admin API inventory write is an absolute set with no compare-and-set (`61_PIXFIZZ_API.md` § 13g), so no tool can merge its change with a sale.
 
-*Stated by Richard (OrderHub) on a call, 2026-09-25. The Catalog Manager lock is verified by reading source, 2026-09-29. The primary-location or sum choice is set under Settings → Inventory in OrderHub (`orderhub/products/inventory.md`).*
+*Confirmed by Pixfizz (OrderHub) on a call, 2026-09-25. The Catalog Manager lock is verified by reading source, 2026-09-29. The primary-location or sum choice is set under Settings → Inventory in OrderHub (`orderhub/products/inventory.md`).*
 
 ---
 
@@ -491,18 +491,18 @@ Tools priced by a `px_rates` card (the third pricing type, `30_PRICING_ENGINE.md
 
 ## Changelog
 - 2026-05-21: Created. Content sourced from OrderHub help modal articles (orderhub.pixfizz.com). Covers: Jobs, custom statuses, Production Board, Processes, Locations, PDF Layout Studio, PrintNode, Film Scans, OHD, EasyPost, POS category filter, Pixfizz category assignment, Email/SMS/RCS notifications.
-- 2026-06-15: Added pickup-location opening hours and Google Maps link fields (surfaced in the store pickup UI at checkout). Source: slack-kb-sync (client call).
-- 2026-06-30: Documented OrderHub Desktop variant-value routing — Desktop maps on readable finish/variant value + size, not lab/printer-specific numeric codes; prefer readable finish codes. Source: slack-message (#development).
-- 2026-07-04: Added Order Status Sync (OrderHub → Core, shipped requires API user enabled); channel-ID copy gotcha in OHD variant updates; email-consolidation limitation (separate emails cannot be merged); PrintNode invoice auto-print troubleshooting. Source: Fireflies, slack-message (#development).
-- 2026-07-25: Added POS Application Behaviour section (close/reopen required to load a new build; build version shown at bottom of logged-out login screen; 5-minute screensaver is burn-in prevention, not a session timeout; receipt paper size is software config — Epson TM-P20II is 58mm, set in both the Epson utility and the Mac driver). Added automated print job creation from film roll quantities with artwork upload to operator desktop. Source: fireflies-call (3x repeat signal).
-- 2026-07-31: Added known issue — film scan folders reported stuck in the OHD watch folder (repeat issue type, root cause/fix not yet confirmed). Source: support ticket #18341 (pending confirmation).
-- 2026-08-11: Added the custom field naming rule — any new custom field that OrderHub must read has to be lowercase, and whitelisted in OrderHub before it will route. Source: fireflies-call (2026-08-07).
-- 2026-08-14: Corrected the order-level boolean slot count from four to five (`rush`, `urgent`, `option1`, `option2`, `option3`) and documented the no-underscore naming rule, the rush/urgent mutual exclusivity, the unresolved label-ownership question, and the Extra Fee re-point trap when migrating off a single-string rush field. Source: fireflies-call (2026-08-13), slack-message (#development).
-- 2026-09-09: Added that files left on the Pixfizz FTP drop are auto-deleted after a week, so a multi-location workflow can copy and leave rather than retrieve-and-delete. Added Print-on-Demand Routing to a Parent Lab's OrderHub — whole order to the child's own fulfillment, outsourced items only to the parent, price looked up by product and variant code against the parent's site at the parent's wholesale value, a mismatch inserting a zero price into automatic wholesale invoicing, and the product feed carrying nothing from the template. Added the Twilio prerequisite of three prescribed policy pages plus a validation step, marked not verified end to end. Added that there is no template import endpoint and that price variables are not reachable via the API. Noted that a Windows kiosk helper application exists and is not yet released. Source: fireflies-call, slack-message.
-- 2026-08-29: Added Kiosk and Online Are Separate Catalogues — separate products and pricing for kiosk versus web, with location-specific order routing through OrderHub; the kiosk-to-location binding is not yet verified by reading configuration. Source: fireflies-call (2x repeat signal).
-- 2026-09-29: Corrected the kiosk app line: distributed from myPixfizz Tools, not unreleased. Stock on OrderHub sites: OrderHub overwrites Core stock on each sale, primary location or sum, edit stock only in OrderHub. Superseded the stale 'price variables not in the API' line, pointing at 61 § 13f. Website chat on Twilio Conversations: snippet override under Integrations, chats and replies in OrderHub, assignable to a task. OHD batching to an Epson Order Controller (Settings → Routing, Maximum prints per job, Send Batches Automatically). Source: claude-chat, fireflies-call, slack-message.
+- 2026-06-15: Added pickup-location opening hours and Google Maps link fields (surfaced in the store pickup UI at checkout).
+- 2026-06-30: Documented OrderHub Desktop variant-value routing — Desktop maps on readable finish/variant value + size, not lab/printer-specific numeric codes; prefer readable finish codes.
+- 2026-07-04: Added Order Status Sync (OrderHub → Core, shipped requires API user enabled); channel-ID copy gotcha in OHD variant updates; email-consolidation limitation (separate emails cannot be merged); PrintNode invoice auto-print troubleshooting.
+- 2026-07-25: Added POS Application Behaviour section (close/reopen required to load a new build; build version shown at bottom of logged-out login screen; 5-minute screensaver is burn-in prevention, not a session timeout; receipt paper size is software config — Epson TM-P20II is 58mm, set in both the Epson utility and the Mac driver). Added automated print job creation from film roll quantities with artwork upload to operator desktop.
+- 2026-07-31: Added known issue — film scan folders reported stuck in the OHD watch folder (repeat issue type, root cause/fix not yet confirmed).
+- 2026-08-11: Added the custom field naming rule — any new custom field that OrderHub must read has to be lowercase, and whitelisted in OrderHub before it will route.
+- 2026-08-14: Corrected the order-level boolean slot count from four to five (`rush`, `urgent`, `option1`, `option2`, `option3`) and documented the no-underscore naming rule, the rush/urgent mutual exclusivity, the unresolved label-ownership question, and the Extra Fee re-point trap when migrating off a single-string rush field.
+- 2026-09-09: Added that files left on the Pixfizz FTP drop are auto-deleted after a week, so a multi-location workflow can copy and leave rather than retrieve-and-delete. Added Print-on-Demand Routing to a Parent Lab's OrderHub — whole order to the child's own fulfillment, outsourced items only to the parent, price looked up by product and variant code against the parent's site at the parent's wholesale value, a mismatch inserting a zero price into automatic wholesale invoicing, and the product feed carrying nothing from the template. Added the Twilio prerequisite of three prescribed policy pages plus a validation step, marked not verified end to end. Added that there is no template import endpoint and that price variables are not reachable via the API. Noted that a Windows kiosk helper application exists and is not yet released.
+- 2026-08-29: Added Kiosk and Online Are Separate Catalogues — separate products and pricing for kiosk versus web, with location-specific order routing through OrderHub; the kiosk-to-location binding is not yet verified by reading configuration.
+- 2026-09-29: Corrected the kiosk app line: distributed from myPixfizz Tools, not unreleased. Stock on OrderHub sites: OrderHub overwrites Core stock on each sale, primary location or sum, edit stock only in OrderHub. Superseded the stale 'price variables not in the API' line, pointing at 61 § 13f. Website chat on Twilio Conversations: snippet override under Integrations, chats and replies in OrderHub, assignable to a task. OHD batching to an Epson Order Controller (Settings → Routing, Maximum prints per job, Send Batches Automatically).
 - 2026-10-09: First pass under the orderhub/ rule. Added the pointer to the `orderhub/` mirror at the top. Cut to pointers the sections that only repeated an article: job statuses and the status cascade, Production Board intro, Process configuration, PDF Layout Studio document types, PrintNode architecture, cost and EasyPost auto-print, OHD polling, Epson batching (its not-verified note is resolved by the article) and the status API, EasyPost, the till screensaver, assigning categories to processes, and the notification triggers, email pipeline, placeholders, two-way SMS, log and testing. Resolved where the stock primary-or-sum choice is set. Kept unchanged, and listed for the OrderHub owner, the points where this file and an article disagree: custom statuses scope, Lead time and Production days meaning, the PDF Layout Studio path, PrintNode install scope, OHD updates, where OHD gets print files, the POS category filter path, the Production Board filters. Source: orderhub-article.
-- 2026-10-17: Added Own Amazon S3 Storage: a trailing slash in a bucket CORS allowed origin breaks uploads while the bucket still enables and views. Source: slack-message.
-- 2026-10-22: Added Repricing Custom Tool Lines from Generic `px_` Variant Values (generic variant codes, OrderHub reprices from them, a counter-only product can carry a `px_rates` card; OrderHub side stated, not verified). OHD: print controller hot folder on a NAS picked up late (local second folder), In Production on first job at the controller vs the article (to confirm). EasyPost: tracking every six hours for 21 days. Source: claude-chat, fireflies-call.
-- 2026-11-09: Website Chat: the chat bubble (closed shadow root, fixed bottom left) can cover a tool's sticky bottom bar on phones; fix in the tool or the widget offset. Source: claude-chat.
-- 2026-11-21: Repricing Custom Tool Lines: a mode missing from `pricing.js` cannot be priced at the till (the `px_price` fallback covers website orders only), till test pointer. Source: claude-chat.
+- 2026-10-17: Added Own Amazon S3 Storage: a trailing slash in a bucket CORS allowed origin breaks uploads while the bucket still enables and views.
+- 2026-10-22: Added Repricing Custom Tool Lines from Generic `px_` Variant Values (generic variant codes, OrderHub reprices from them, a counter-only product can carry a `px_rates` card; OrderHub side stated, not verified). OHD: print controller hot folder on a NAS picked up late (local second folder), In Production on first job at the controller vs the article (to confirm). EasyPost: tracking every six hours for 21 days.
+- 2026-11-09: Website Chat: the chat bubble (closed shadow root, fixed bottom left) can cover a tool's sticky bottom bar on phones; fix in the tool or the widget offset.
+- 2026-11-21: Repricing Custom Tool Lines: a mode missing from `pricing.js` cannot be priced at the till (the `px_price` fallback covers website orders only), till test pointer.

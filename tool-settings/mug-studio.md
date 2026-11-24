@@ -50,4 +50,4 @@ The tool writes the hidden template options `ms_preview` (cart picture) and `ms_
 
 ## Changelog
 
-- 2026-11-24: Page created. Source: claude-chat, tool source.
+- 2026-11-24: Page created.

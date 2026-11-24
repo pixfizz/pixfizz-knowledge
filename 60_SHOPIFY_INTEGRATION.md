@@ -26,7 +26,6 @@ In the Shopify deployment path:
 > Use Shopify + Pixfizz for existing Shopify stores adding personalisation. For new builds with
 > deep product catalogs (many size/finish variants), recommend Full Pixfizz.
 
-SOURCE: Fireflies call (Harold's Photo, 2026-08-20).
 
 ### Master Shopify CMS: staging vs production
 
@@ -34,7 +33,7 @@ Internally there are two master Shopify CMS sites: a **staging** master used to 
 
 > Internal-infrastructure note: the specific master-site hostnames are internal; keep them out of the public KB and reference them from the private repo if needed.
 
-**A fix on the production master does not reach a Pixfizz site that overrides the same snippet.** A Required variant (dropdown, no default) that did not block add to cart in the personalization modal was a defect in the master's `px-option` snippet. The core developer fixed it on the master on 2026-10-15, and one integration site that carried its own override of `px-option` kept the bug until its override was patched separately. After any master snippet fix, check which integration sites override that snippet and patch each override. *Stated by the core developer in #development, 2026-10-15.*
+**A fix on the production master does not reach a Pixfizz site that overrides the same snippet.** A Required variant (dropdown, no default) that did not block add to cart in the personalization modal was a defect in the master's `px-option` snippet. The core developer fixed it on the master on 2026-10-15, and one integration site that carried its own override of `px-option` kept the bug until its override was patched separately. After any master snippet fix, check which integration sites override that snippet and patch each override. *Confirmed by Pixfizz, 2026-10-15.*
 
 ---
 
@@ -186,7 +185,7 @@ Five snippets must be created in the Shopify theme. All are referenced by `{% re
   Pixfizz.Shopify.launchProduct(...)
 {%- endif -%}
 ```
-Keep the store's existing `launchProduct` arguments in the `else` branch. Template-level for the integration (store theme snippet). *Verified on a support ticket, 2026-11-06 (customer confirmed the fix).*
+Keep the store's existing `launchProduct` arguments in the `else` branch. Template-level for the integration (store theme snippet). *Verified, 2026-11-06 (customer confirmed the fix).*
 
 ---
 
@@ -402,7 +401,7 @@ four ways:
 1. Edit-design handler. On Focal, re-entering an existing project opens the
    project-edit modal via `openModal` with a `?project_id=` query parameter.
    Calling `launchProduct` on this theme starts a NEW project instead of editing
-   the existing one. (Observed on a live Focal site. Confirm with Matjaz whether
+   the existing one. (Observed on a live Focal site. Confirm with Pixfizz support whether
    this should also replace `launchProduct` in the standard edit-orderline
    snippet, or stays Focal-only.)
 2. Preview image CSS. Focal's `.aspect-ratio img` rule uses absolute positioning,
@@ -467,7 +466,7 @@ After creating the webhook in Shopify (Settings → Notifications), copy the sig
 
 **All line item properties captured into orderline options.** Shopify order line item properties are now captured wholesale into the corresponding Pixfizz orderline's `options`, not only the Pixfizz-specific ones. Custom line properties set by the theme or by third-party apps flow through to the Pixfizz order and are available downstream (admin, fulfillment templates). For static-product routing to work, the line item property that carries the static-product code must **exactly match** the name the webhook expects (`_pixfizz_static_product`, see §9a) — a mismatched property name is the usual reason a static line item fails to route. Confirm the exact expected property string with the platform team if routing fails. Added 2026-07-20.
 
-**Shopify orders are created in `P`, then moved: listen to `order.status_changed`.** A Shopify-originated order is always created in status `P` (Pending), so a Pixfizz order webhook consumer listening to `order.created` always sees `P`. Straight after creation the order is moved to `C` or `W` (see the status list in `32_ORDER_LIFECYCLE.md`), which fires `order.status_changed`. An automation that reacts to the order's real state (for example tagging the Shopify order, or skipping one kind of order) must listen to `order.status_changed`, not `order.created`. Platform-level. *Stated by the core developer, Slack #development, 2026-10-21.* Generated production files also appear only on the later events (`61_PIXFIZZ_API.md` § 13d).
+**Shopify orders are created in `P`, then moved: listen to `order.status_changed`.** A Shopify-originated order is always created in status `P` (Pending), so a Pixfizz order webhook consumer listening to `order.created` always sees `P`. Straight after creation the order is moved to `C` or `W` (see the status list in `32_ORDER_LIFECYCLE.md`), which fires `order.status_changed`. An automation that reacts to the order's real state (for example tagging the Shopify order, or skipping one kind of order) must listen to `order.status_changed`, not `order.created`. Platform-level. *Confirmed by Pixfizz, 2026-10-21.* Generated production files also appear only on the later events (`61_PIXFIZZ_API.md` § 13d).
 
 ---
 
@@ -534,19 +533,19 @@ Required metafields:
 - For photo prints: set `pixfizz.adjust_cart_qty` to `false` on the product
 - SKU format: `theme-code:product-code` (no spaces, no typos). A product code alone does not resolve.
 - **Publish an imported design to a collection before testing it on the Shopify path.** The Pixfizz page `/site/shopify/product` resolves the SKU with `website.design_products | where: 'sku', params.sku`, and a freshly imported template's design is not in `design_products` until it is published to a collection (the publish link after an import: `18_ADMIN_NAVIGATION.md`). Unpublished, the window renders an empty options form. Platform-level. *Verified by query on a client integration site, 2026-10-31.*
-- **Edit product/variant ID mapping CSVs in a plain-text editor, not Excel.** When preparing a CSV that maps Shopify product/variant IDs to Pixfizz codes, do not open or save it in Excel — Excel silently reformats long numeric IDs (scientific notation, dropped leading characters) and corrupts the mapping. Use a plain-text/code editor (e.g. VS Code) so the IDs stay intact. Source: fireflies-call (2026-07-10).
+- **Edit product/variant ID mapping CSVs in a plain-text editor, not Excel.** When preparing a CSV that maps Shopify product/variant IDs to Pixfizz codes, do not open or save it in Excel — Excel silently reformats long numeric IDs (scientific notation, dropped leading characters) and corrupts the mapping. Use a plain-text/code editor (e.g. VS Code) so the IDs stay intact.
 
 ---
 
 ## 10a. Third-Party Variant / Option Apps (Globo)
 
-Some Shopify stores use a third-party options app such as **Globo Product Options** to add variant/option choices beyond Shopify's native limits. Globo has its own variant-count limit that can block complex setups (many options × many values). When a setup exceeds that limit, fall back to either **Shopify core variants** (within Shopify's own limits) or move option selection to the **Pixfizz Shopper frontend** instead of the Shopify product page. Source: Fireflies (2026-06-29, 2026-07-03).
+Some Shopify stores use a third-party options app such as **Globo Product Options** to add variant/option choices beyond Shopify's native limits. Globo has its own variant-count limit that can block complex setups (many options × many values). When a setup exceeds that limit, fall back to either **Shopify core variants** (within Shopify's own limits) or move option selection to the **Pixfizz Shopper frontend** instead of the Shopify product page.
 
 ---
 
 ## 10b. Shopify Native Variants Cannot Carry a Pixfizz Option Into the Editor
 
-**Verified by reading source — confirmed by the core developer, 2026-09-09.** This is a
+**Verified by reading source — confirmed by Pixfizz, 2026-09-09.** This is a
 platform-level constraint of the Shopify path, not a configuration mistake and not something a
 snippet can work around.
 
@@ -764,7 +763,7 @@ can reintroduce a quick-add control.
 
 Related: §4 Cart Item Properties, §9 Order Sync.
 
-*Stated in #development, week of 2026-09-12. Not independently verified.*
+*Stated, week of 2026-09-12. Not independently verified.*
 
 ### Order missing in Pixfizz: duplicate users
 
@@ -774,13 +773,13 @@ Related: §4 Cart Item Properties, §9 Order Sync.
 - **Same `external_id`, different `external_source`.** Two Pixfizz users share the customer's details and the same `external_id` but differ in `external_source` (for example an older custom source and `shopify`). Many old accounts on that site had such a duplicate pair.
 - **One order mixing two users' projects.** A customer with two Shopify accounts (different emails) managed to place one Shopify order that combined projects owned by both Pixfizz users. The order failed to come through.
 
-**Fix.** Merge the duplicate user into the one that should stay (the `shopify` user in the first case), then **duplicate and confirm the order in Shopify** so Shopify sends a new order webhook and the order is created in Pixfizz. Merge direction matters: the user being deleted must not be the one holding the projects (the merge answered 403 when it was, *observed by Pixfizz staff, 2026-10-19*; cause not confirmed by the developer), and the API needs `imsure=true` to skip the merge warning (`61_PIXFIZZ_API.md` § 7, Merging users). Platform-level behavior, seen on one site's data. Merge and duplicate-and-confirm fix *stated by the core developer, Slack #development, 2026-10-20 and 2026-10-22.*
+**Fix.** Merge the duplicate user into the one that should stay (the `shopify` user in the first case), then **duplicate and confirm the order in Shopify** so Shopify sends a new order webhook and the order is created in Pixfizz. Merge direction matters: the user being deleted must not be the one holding the projects (the merge answered 403 when it was, *observed by Pixfizz staff, 2026-10-19*; cause not confirmed by Pixfizz), and the API needs `imsure=true` to skip the merge warning (`61_PIXFIZZ_API.md` § 7, Merging users). Platform-level behavior, seen on one site's data. Merge and duplicate-and-confirm fix *confirmed by Pixfizz, 2026-10-20 and 2026-10-22.*
 
 ### Add to Cart lands on an empty Shopify cart
 
 **Symptom.** The customer clicks Add to Cart on a finished project and arrives at an empty Shopify cart.
 
-**Cause seen once.** The project had been created without its `shopify_product_id` and `shopify_variant_id` options, so there was nothing to add. **Fix:** create a fresh project from the same design to read the right ids, then add those two options to the customer's project. The developer had not seen this before and attributed it to custom code on that site, so treat it as a one-off and check the site's own add-to-cart code first. *Stated by the core developer, Slack #development, 2026-10-22.*
+**Cause seen once.** The project had been created without its `shopify_product_id` and `shopify_variant_id` options, so there was nothing to add. **Fix:** create a fresh project from the same design to read the right ids, then add those two options to the customer's project. The developer had not seen this before and attributed it to custom code on that site, so treat it as a one-off and check the site's own add-to-cart code first. *Confirmed by Pixfizz, 2026-10-22.*
 
 ## 12. Retrieval Pointer
 
@@ -919,7 +918,7 @@ var pixfizzUserId = resp.url.match(/users\/(\d+)/)[1];
 
 **If you use the Shopify customer ID in a Pixfizz POST endpoint, the call will fail or create resources under the wrong user.** This applies to any variable page that creates user-scoped resources (galleries, projects), not just reads them.
 
-**UX: drop the customer straight into the new gallery.** After a successful gallery-create call, immediately call the existing `openGallery(gallery)` handler inside the create success callback — place it *after* `addGalleryCard(gallery)` so the new gallery still appears on the index when the customer navigates back. This takes the customer into the upload flow instead of leaving them on the list view. Source: claude-chat, Fireflies (2026-07-01, 2026-07-03).
+**UX: drop the customer straight into the new gallery.** After a successful gallery-create call, immediately call the existing `openGallery(gallery)` handler inside the create success callback — place it *after* `addGalleryCard(gallery)` so the new gallery still appears on the index when the customer navigates back. This takes the customer into the upload flow instead of leaving them on the list view.
 
 ### Gallery API endpoints (authenticated via session cookie)
 
@@ -1048,23 +1047,23 @@ Variant-value image swatches in the Shopify modal take the image's natural width
 - 2026-03-21: Added Dawn button innerHTML overwrite troubleshooting entry (§11).
 - 2026-04-10: Added pickup order webhook address handling (§13) and multi-site product inheritance pattern (§14).
 - 2026-04-12: Updated §13 with specific pickup matching logic (Shopify location Name → Pixfizz address Company field). Added §15 Variable Pages — confirmed Pixfizz.Shopify method list, gallery API endpoints, thumbnail URL path pattern, page template conventions.
-- 2026-05-19: CORRECTED §15 — `_user.uid` is Shopify customer ID, not Pixfizz user ID; added Pixfizz user ID extraction pattern via `_mine.json` redirect. Added §16 Non-Pixfizz Product Passthrough (static products via webhook). Added §17 Classic vs New Customer Accounts terminology and integration implications. Source: Claude chats (gallery create fix, static product linking, Shopify projects page).
-- 2026-06-01: Added Section 7a, Focal/Maestrooo cart differences. Source: claude-chat.
+- 2026-05-19: CORRECTED §15 — `_user.uid` is Shopify customer ID, not Pixfizz user ID; added Pixfizz user ID extraction pattern via `_mine.json` redirect. Added §16 Non-Pixfizz Product Passthrough (static products via webhook). Added §17 Classic vs New Customer Accounts terminology and integration implications.
+- 2026-06-01: Added Section 7a, Focal/Maestrooo cart differences.
 
-- 2026-06-15: Added preview-resolution guidance to the orderline preview handler (pass ~600px; small default causes low-res thumbnails). Added §9 note: update Pixfizz order status from Shopify Flow with PUT, not POST. Added §11 troubleshooting entry for duplicate order emails when running Shopify alongside Pixfizz. Source: slack-kb-sync (LisPhoto calls).
-- 2026-06-29: Added §15 "Theme architecture" subsection — on Horizon and other block-based themes a same-named `page.{name}.json` template takes precedence over `page.{name}.liquid`, which then renders nothing; deliver variable pages via a Custom Liquid block on the template instead. Qualified the existing "Page template pattern" note as Dawn-era. Source: claude-chat (Shopify photo-lab galleries debug).
-- 2026-06-30: Documented static-product ingestion limitation with options/bundle apps (bundle expansion stamps duplicate _pixfizz_static_product; webhook skips grouped shape) and the const-redeclaration JS gotcha in the injection snippet. Source: claude-chat (Shopify static product debugging).
-- 2026-07-04: Added §15 gallery auto-open (`openGallery` after `addGalleryCard` in create callback) and §10a Globo variant-limit fallback (core variants or Shopper frontend). Source: claude-chat, Fireflies.
-- 2026-07-11: Added §1 master-CMS staging-vs-production workflow note (only api.js/product kept in sync; do not copy from staging); §9 project-ownership auto-assignment on order sync (unowned project → ordering user); §6 editor `domready` message (wait before posting into the editor iframe); §10 plain-text-editor gotcha for product/variant ID mapping CSVs (Excel corrupts IDs). Source: slack-message (#development, commits 2026-07-05/07), fireflies-call (2026-07-10).
-- 2026-07-20: Noted all Shopify line item properties are now captured into Pixfizz orderline options, and that static-product routing depends on the exact expected property name. Source: #development (commit 2026-07-13), Weekly Tech call.
-- 2026-08-21: Added Shopify max variant limitation note in §1. Source: fireflies-call (Harold's Photo, Aug 20).
-- 2026-08-29: Added §2 guidance on setting variant metafields in bulk (native product CSV carries product metafields only; use the variant bulk editor or Matrixify, with the `Variant Metafield: ns.key [type]` header and Handle + Option matching). Added §11 troubleshooting entry for `414 Request-URI Too Large` on `photo-prints` launches, with the measured URL breakdown, the empty-addons-map cause, and the four fixes in order. Added §18 add-to-cart vs direct checkout recommendation. Source: claude-chat (Shopify photo-prints launch diagnosis, canvas variant SKU linking), fireflies-call.
-- 2026-09-09: Added §10b — Shopify native variants cannot carry a Pixfizz option through to the editor (editor opens on the Pixfizz default, cart line shows two contradictory values, Shopify charges the right price while the wrong attribute reaches production), with the core developer's three-way decision rule: no design influence means remove the options from Pixfizz; design influence means either options-to-editor with the options modeled as separate Shopify products rather than variants, or one design per value mapped to each Shopify variant — options removed from Pixfizz either way. Added two §11 troubleshooting entries: a stale CMS page cache presents as an editor "Not Found" and the tell is empty product/theme ids in the POST that opens the editor (underlying core bug fixed 2026-09-08), and the open, unresolved intermittent theme "not found" symptom with the triage rule that intermittency means a bug rather than a missing link or SKU. Source: slack-message (#development), fireflies-call.
-- 2026-09-19: Added §11 troubleshooting entry for an order that reaches Shopify with no Pixfizz project, caused by any add-to-cart path that skips the Pixfizz product page and therefore the `_pixfizz_project_id` injection; the webhook then finds no project and fails silently. Source: slack-message (#development).
-- 2026-09-24: Added § 19 image swatch sizing in the personalization modal. Source: claude-chat.
-- 2026-10-06: § 15: Troubleshooting My Projects and My Galleries (missing `pixfizz-product-api` Shopify page hangs the project loader, gallery create needs the Pixfizz user id, `customer.css` 404 on any theme without it, logged-out empty states, `options-to-cart` creates no saved projects, the "Theme file is invalid" red herring). Source: claude-chat.
-- 2026-10-17: § 1 a master snippet fix does not reach an integration site that overrides the snippet (`px-option` Required variant case). § 6 photo-prints products: hide the Shopify variant picker on a duplicated product template (the Personalize button reads the whole sku map, not the selected variant). § 11 `photo-prints` Add to Cart hangs at 0% when a design product sku has no exact match among the `pixfizz.product_sku` values. Source: claude-chat, slack-message.
-- 2026-10-22: § 9 Shopify orders are created in `P` then moved to `C` or `W`: listen to `order.status_changed`, not `order.created`. § 11 new troubleshooting entries: order missing in Pixfizz from duplicate users (same `external_id` with a different `external_source`, or one order mixing two users' projects; merge, then duplicate and confirm in Shopify; merge direction and `imsure`), and Add to Cart landing on an empty cart when the project lacks `shopify_product_id` / `shopify_variant_id` (one-off, custom site code). Source: slack-message.
-- 2026-11-09: § 2 metafield definitions default to `custom.<name>`; edit to `pixfizz.<key>`. § 5 launch product handler: photo-prints branch, older installs may lack it (ticket); new Installing the snippets as a Shopify collaborator (asset PUT 403, write through the code editor and read back, new product template starts as a copy). § 6 new A custom design tool inside the Personalize window (no `api.js` change, `shopify/px-option` override for `custom_script`, `openModal` full screen needs a `close` message). § 10 publish an imported design to a collection before testing on the Shopify path; a product code alone does not resolve. Source: claude-chat, support-ticket.
-- 2026-11-13: Cart handling: addon lines are separate per unit quantity; cleanup must remove every addon line for a project (double billing fixed 2026-11-09); a child page cannot override a master page at the same URL. Source: claude-chat, support-ticket, slack-message.
-- 2026-11-21: § 6 new subsection: Editor CSS on a Shopify + Pixfizz site (`style/editor.css` route works, edited in admin). Source: claude-chat.
+- 2026-06-15: Added preview-resolution guidance to the orderline preview handler (pass ~600px; small default causes low-res thumbnails). Added §9 note: update Pixfizz order status from Shopify Flow with PUT, not POST. Added §11 troubleshooting entry for duplicate order emails when running Shopify alongside Pixfizz.
+- 2026-06-29: Added §15 "Theme architecture" subsection — on Horizon and other block-based themes a same-named `page.{name}.json` template takes precedence over `page.{name}.liquid`, which then renders nothing; deliver variable pages via a Custom Liquid block on the template instead. Qualified the existing "Page template pattern" note as Dawn-era.
+- 2026-06-30: Documented static-product ingestion limitation with options/bundle apps (bundle expansion stamps duplicate _pixfizz_static_product; webhook skips grouped shape) and the const-redeclaration JS gotcha in the injection snippet.
+- 2026-07-04: Added §15 gallery auto-open (`openGallery` after `addGalleryCard` in create callback) and §10a Globo variant-limit fallback (core variants or Shopper frontend).
+- 2026-07-11: Added §1 master-CMS staging-vs-production workflow note (only api.js/product kept in sync; do not copy from staging); §9 project-ownership auto-assignment on order sync (unowned project → ordering user); §6 editor `domready` message (wait before posting into the editor iframe); §10 plain-text-editor gotcha for product/variant ID mapping CSVs (Excel corrupts IDs).
+- 2026-07-20: Noted all Shopify line item properties are now captured into Pixfizz orderline options, and that static-product routing depends on the exact expected property name.
+- 2026-08-21: Added Shopify max variant limitation note in §1.
+- 2026-08-29: Added §2 guidance on setting variant metafields in bulk (native product CSV carries product metafields only; use the variant bulk editor or Matrixify, with the `Variant Metafield: ns.key [type]` header and Handle + Option matching). Added §11 troubleshooting entry for `414 Request-URI Too Large` on `photo-prints` launches, with the measured URL breakdown, the empty-addons-map cause, and the four fixes in order. Added §18 add-to-cart vs direct checkout recommendation.
+- 2026-09-09: Added §10b — Shopify native variants cannot carry a Pixfizz option through to the editor (editor opens on the Pixfizz default, cart line shows two contradictory values, Shopify charges the right price while the wrong attribute reaches production), with the core developer's three-way decision rule: no design influence means remove the options from Pixfizz; design influence means either options-to-editor with the options modeled as separate Shopify products rather than variants, or one design per value mapped to each Shopify variant — options removed from Pixfizz either way. Added two §11 troubleshooting entries: a stale CMS page cache presents as an editor "Not Found" and the tell is empty product/theme ids in the POST that opens the editor (underlying core bug fixed 2026-09-08), and the open, unresolved intermittent theme "not found" symptom with the triage rule that intermittency means a bug rather than a missing link or SKU.
+- 2026-09-19: Added §11 troubleshooting entry for an order that reaches Shopify with no Pixfizz project, caused by any add-to-cart path that skips the Pixfizz product page and therefore the `_pixfizz_project_id` injection; the webhook then finds no project and fails silently.
+- 2026-09-24: Added § 19 image swatch sizing in the personalization modal.
+- 2026-10-06: § 15: Troubleshooting My Projects and My Galleries (missing `pixfizz-product-api` Shopify page hangs the project loader, gallery create needs the Pixfizz user id, `customer.css` 404 on any theme without it, logged-out empty states, `options-to-cart` creates no saved projects, the "Theme file is invalid" red herring).
+- 2026-10-17: § 1 a master snippet fix does not reach an integration site that overrides the snippet (`px-option` Required variant case). § 6 photo-prints products: hide the Shopify variant picker on a duplicated product template (the Personalize button reads the whole sku map, not the selected variant). § 11 `photo-prints` Add to Cart hangs at 0% when a design product sku has no exact match among the `pixfizz.product_sku` values.
+- 2026-10-22: § 9 Shopify orders are created in `P` then moved to `C` or `W`: listen to `order.status_changed`, not `order.created`. § 11 new troubleshooting entries: order missing in Pixfizz from duplicate users (same `external_id` with a different `external_source`, or one order mixing two users' projects; merge, then duplicate and confirm in Shopify; merge direction and `imsure`), and Add to Cart landing on an empty cart when the project lacks `shopify_product_id` / `shopify_variant_id` (one-off, custom site code).
+- 2026-11-09: § 2 metafield definitions default to `custom.<name>`; edit to `pixfizz.<key>`. § 5 launch product handler: photo-prints branch, older installs may lack it (ticket); new Installing the snippets as a Shopify collaborator (asset PUT 403, write through the code editor and read back, new product template starts as a copy). § 6 new A custom design tool inside the Personalize window (no `api.js` change, `shopify/px-option` override for `custom_script`, `openModal` full screen needs a `close` message). § 10 publish an imported design to a collection before testing on the Shopify path; a product code alone does not resolve.
+- 2026-11-13: Cart handling: addon lines are separate per unit quantity; cleanup must remove every addon line for a project (double billing fixed 2026-11-09); a child page cannot override a master page at the same URL.
+- 2026-11-21: § 6 new subsection: Editor CSS on a Shopify + Pixfizz site (`style/editor.css` route works, edited in admin).

@@ -35,11 +35,11 @@ Roles/permissions on user accounts.
 - **Super admin** (Pixfizz staff) adds what a site admin does not have, such as super accounts, fulfillment settings, billing and page XML access (`18_ADMIN_NAVIGATION.md` § Super Admin). *Stated, not verified.*
 
 ## Service user
-- A **service user** is a user marked with the Service user checkbox on the user page (admin and super admin). It exists for automation: it accesses only with API keys and cannot log in with username and password. Mark every user that exists only for API access this way. A super user can also hold API keys assigned in the super admin, which reach every site that super user can access (`18_ADMIN_NAVIGATION.md` § Users, `61_PIXFIZZ_API.md` § 2). Platform-level. *Stated by the core developer, Notion Dashboard, November 2026.*
+- A **service user** is a user marked with the Service user checkbox on the user page (admin and super admin). It exists for automation: it accesses only with API keys and cannot log in with username and password. Mark every user that exists only for API access this way. A super user can also hold API keys assigned in the super admin, which reach every site that super user can access (`18_ADMIN_NAVIGATION.md` § Users, `61_PIXFIZZ_API.md` § 2). Platform-level. *Confirmed by Pixfizz, November 2026.*
 
 ## Same email on two sites
-- A user is per site. The same email on a different site is a completely separate user. myPixfizz, by contrast, treats an email as globally unique, so single sign-on from the Pixfizz admin into myPixfizz carries the site subdomain (`70_MYPIXFIZZ_OVERVIEW.md` § Single sign-on from the Pixfizz admin). Platform-level. *Stated by the core developer, Slack #development, 2026-10-20.*
+- A user is per site. The same email on a different site is a completely separate user. myPixfizz, by contrast, treats an email as globally unique, so single sign-on from the Pixfizz admin into myPixfizz carries the site subdomain (`70_MYPIXFIZZ_OVERVIEW.md` § Single sign-on from the Pixfizz admin). Platform-level. *Confirmed by Pixfizz, 2026-10-20.*
 
 ## Changelog
-- 2026-10-22: Admin / Super Admin: site admin access is all-or-nothing (single Admin checkbox, no roles) and what super admin adds. New Same email on two sites (per-site users, myPixfizz SSO pointer). Source: claude-chat, slack-message.
-- 2026-11-09: New Service user section (API-key-only users, super user keys pointer). Source: notion-page.
+- 2026-10-22: Admin / Super Admin: site admin access is all-or-nothing (single Admin checkbox, no roles) and what super admin adds. New Same email on two sites (per-site users, myPixfizz SSO pointer).
+- 2026-11-09: New Service user section (API-key-only users, super user keys pointer).

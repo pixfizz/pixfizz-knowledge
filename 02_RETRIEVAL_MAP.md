@@ -326,21 +326,15 @@ Under "If a site is using the Shopify deployment path" add:
 
 ## MyPixfizz (my.pixfizz.com)
 
-MyPixfizz is a separate product from the Pixfizz CMS platform — it is the internal ERP/CRM and customer self-service portal for Pixfizz. Use the 70-series files for all MyPixfizz questions.
+MyPixfizz is a separate product from the Pixfizz CMS platform — it is the Pixfizz customer portal. Use the 70-series files for all MyPixfizz questions.
 
 ### "What is MyPixfizz / what does it do / who uses it?"
 → **70_MYPIXFIZZ_OVERVIEW.md**
 
 ### "What routes/pages exist / what does a specific feature do?"
-→ **71_MYPIXFIZZ_FEATURES_ROUTES.md**
+→ **70_MYPIXFIZZ_OVERVIEW.md**
 
-### "What database tables exist / what columns does a table have / how are tables related?"
-→ **72_MYPIXFIZZ_DATA_MODEL.md**
-
-### "Help me write a Lovable prompt for MyPixfizz"
-→ **71_MYPIXFIZZ_FEATURES_ROUTES.md** § Prompt-Writing Notes, then **72_MYPIXFIZZ_DATA_MODEL.md** for table/column accuracy
-
-> **Scope note:** MyPixfizz files (70–72) are entirely separate from Pixfizz CMS files (10–61). Do not apply Shopper, Liquid, or pricing rules to MyPixfizz questions.
+> **Scope note:** The MyPixfizz file (70) is entirely separate from Pixfizz CMS files (10–61). Do not apply Shopper, Liquid, or pricing rules to MyPixfizz questions.
 
 ---
 
@@ -576,14 +570,11 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 ### "Can an AI-generated scene go in a preview page?"
 → **83_AI_IMAGERY_PRODUCTION.md** § A5, and **19_XML_TEMPLATE_REFERENCE.md** § Preview Sets
 
-### "A next-number trigger collides only for customers / duplicate key on submit?"
-→ **70_MYPIXFIZZ_OVERVIEW.md** § RLS and Aggregates in Triggers
-
 ### "Can I read or write Price Variables through the API / is there a template import endpoint?"
 → **61_PIXFIZZ_API.md** § 13e. What Is Not Possible Today
 
 ### "Where do support tickets go now?"
-→ **70_MYPIXFIZZ_OVERVIEW.md** § Support Intake, **80_ONBOARDING.md**, and **90_FAQ.md** § Section 1
+→ **70_MYPIXFIZZ_OVERVIEW.md** § Support, **80_ONBOARDING.md**, and **90_FAQ.md** § Section 1
 
 ### "It fails silently and there is nothing in the console — what class of fault is this?"
 → **90_FAQ.md** § Section 11 — Silent Failures (symptom first)
@@ -700,7 +691,7 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 → **26_CUSTOM_DESIGN_TOOLS.md** (PDP swap keeps the `custom_script` root and rewrites its attributes)
 
 ### "myPixfizz Google Reviews / brand connections / Catalog Manager?"
-→ **71_MYPIXFIZZ_FEATURES_ROUTES.md** § Brand Connections and Catalog
+→ **70_MYPIXFIZZ_OVERVIEW.md** § Storefront Pages, § Tools
 
 ## Routes added 2026-10-06
 
@@ -737,17 +728,11 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 ### "Open the upload dialog from a tool / photo prints intercept hooks (goToCropOptions)?"
 → **26_CUSTOM_DESIGN_TOOLS.md** § 3 Open the platform upload dialog standalone; **41_IMPLEMENTATION_PATTERNS_UPDATED.md** § PhotoPrintsComponent hooks
 
-### "myPixfizz routes / sidebar / which page does X / portal preview?"
-→ **71_MYPIXFIZZ_FEATURES_ROUTES.md** (rewritten 2026-10-06 from the app source): § Routing Basics, § Admin Portal Navigation
-
 ### "myPixfizz Marketing / Campaign Manager / Shopper Configure / kiosk staff / Shopify Style / Launch Plan / Blog / Shopper tools and upgrades?"
-→ **71_MYPIXFIZZ_FEATURES_ROUTES.md** § Marketing, § Shopper Configure, § Shopify Style, § Launch Plan, § Tools; tables in **72_MYPIXFIZZ_DATA_MODEL.md** § Tables Added September to October 2026
+→ **70_MYPIXFIZZ_OVERVIEW.md** § Marketing, § Storefront Pages, § Tools
 
 ### "myPixfizz support: urgent ticket / order error form / awaiting customer auto-resolve?"
-→ **71_MYPIXFIZZ_FEATURES_ROUTES.md** § Support
-
-### "Safe changes to myPixfizz / migrations hit live / publishing ships the whole queue / organization add-ons?"
-→ **70_MYPIXFIZZ_OVERVIEW.md** § Operational Rules for Changing myPixfizz, § Organization Add-ons
+→ **70_MYPIXFIZZ_OVERVIEW.md** § Support
 
 ### "Spine insertion into a cover / design import (__print_theme.yml) / linked layouts / edit page XML in place?"
 → **19_XML_TEMPLATE_REFERENCE.md** § Growing Spine, § Design Import, § Linked Layouts drive the layout picker, § Editing Design Pages and Layouts in Place
@@ -862,9 +847,6 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 
 ### "Design preview cards blank in a collection grid / Live Finish wall view too big / MSP template mount reaches other sites?"
 → **27_LIVE_FINISH_AND_3D_PREVIEWS.md** § 6 Known defects, § 7 Installing on a site
-
-### "myPixfizz retention rule deleted data / procedure cannot commit / is this table unused?"
-→ **70_MYPIXFIZZ_OVERVIEW.md** § Operational Rules for Changing myPixfizz
 
 ## Routes added 2026-10-17
 
@@ -1104,15 +1086,6 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 
 ### "master snippet fix not on override, px-option required variant"
 → **60_SHOPIFY_INTEGRATION.md** § 1 Master Shopify CMS
-
-### "self-chaining edge function, EdgeRuntime.waitUntil, chained sync stops silently"
-→ **70_MYPIXFIZZ_OVERVIEW.md** § Operational Rules for Changing myPixfizz
-
-### "POD catalog sync, site_subdomain, hand-loaded POD rows disappear"
-→ **71_MYPIXFIZZ_FEATURES_ROUTES.md** § Brand Connections and Catalog
-
-### "ga4_event_outbox raw_payload, live sales reporting from webhook"
-→ **72_MYPIXFIZZ_DATA_MODEL.md** § ga4_event_outbox
 
 ### "own S3 bucket CORS, uploads fail, trailing slash origin"
 → **45_ORDERHUB.md** § Own Amazon S3 Storage: No Trailing Slash in a CORS Origin
@@ -1395,12 +1368,6 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 ### "GA4 order source, transactionId sessionSourceMedium, GA4 revenue lower than Pixfizz"
 → **85_GA4_SERVER_SIDE_PURCHASE.md** § 10. Order Source and Revenue: Joining Pixfizz Orders to GA4
 
-### "POD catalog wrong category, SKIP_COLLECTION, category edit does not stick"
-→ **71_MYPIXFIZZ_FEATURES_ROUTES.md** § Brand Connections and Catalog
-
-### "myPixfizz images, binary files in public, og:image share preview"
-→ **70_MYPIXFIZZ_OVERVIEW.md** § Images and other binary files
-
 ### "OrderHub reprice px_ variants, counter-only product px_rates"
 → **45_ORDERHUB.md** § Repricing Custom Tool Lines from Generic `px_` Variant Values
 
@@ -1411,7 +1378,7 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 → **19_XML_TEMPLATE_REFERENCE.md** § `<definition>` Attributes
 
 ### "myPixfizz SSO, login.pixfizz.com, sso/start site parameter, same email on two sites"
-→ **70_MYPIXFIZZ_OVERVIEW.md** § Single sign-on from the Pixfizz admin
+→ **70_MYPIXFIZZ_OVERVIEW.md** § Sign-in
 
 ### "webhook deactivated, 20 consecutive failures, WebhookDeactivated email, webhook stopped firing"
 → **61_PIXFIZZ_API.md** § 13d. Order Webhook
@@ -1922,18 +1889,6 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 ### "Shopify window empty options form after template import"
 → **60_SHOPIFY_INTEGRATION.md** § General rules
 
-### "MCP custom domain / branded MCP host / Cloudflare Worker resource metadata"
-→ **70_MYPIXFIZZ_OVERVIEW.md** § A branded host for the Pixfizz MCP server
-
-### "Lovable agent refused vault secrets, vault SQL run by staff"
-→ **70_MYPIXFIZZ_OVERVIEW.md** § Operational Rules for Changing myPixfizz
-
-### "admin billing page URL for a brand"
-→ **71_MYPIXFIZZ_FEATURES_ROUTES.md** § Finance & Billing
-
-### "Stripe charge has no invoice number / PaymentRefNum length"
-→ **72_MYPIXFIZZ_DATA_MODEL.md** § billing_payments
-
 ### "option price doubled in cart / extra_pages preview page"
 → **30_PRICING_ENGINE.md** § Never use `extra_pages` in an option value price on a single-page product with a preview page
 
@@ -2368,28 +2323,28 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 - 2026-05-21: Added 45_ORDERHUB.md — comprehensive OrderHub reference (Jobs, Production Board, Processes, Locations, PDF Layout Studio, PrintNode, Film Scans, OHD, EasyPost, POS, category assignment, Email/SMS/RCS notifications). Added retrieval entries for all OrderHub topics. Source: OrderHub help modal articles.
 - 2026-05-21: Added routing entries for automatic discounts, static product importer, inventory tracking, login modal, myPixfizz hub, gift vouchers, infrastructure versions, customer training, communication preferences. Source: Q1 2026 webinar KB sync.
 - 2026-07-26: Added 83_AI_IMAGERY_PRODUCTION.md — AI marketing imagery and video production with Higgsfield. Added routing entries for AI imagery and the product-representation rule.
-- 2026-08-14: Audited the 2026-05-21 routing entries against the files they point at. Two pointed at sections that did not exist: Gift Vouchers (now written into 18_ADMIN_NAVIGATION.md § Marketing) and Customer Training and Support Resources (re-pointed to 90_FAQ.md § Section 1). Source: kbsync audit.
-- 2026-08-29: Added 16 routing entries for the 2026-08-29 sync — editor gallery folder theming, generated-CSS specificity, acv2 theming, GA4 defects, the trailing-newline flag failure, `default-delivery-option`, Shopify bulk variant metafields, the photo-prints 414, canvas wrap geometry and ipage zoom, the template-import price validation, translations, the currency switcher, single-value variants, per-order charges on variants, the collections export format, and spin GIF optimisation. Every target section was written in the same sync. Source: kbsync.
-- 2026-08-29: Removed a duplicated SEO/GEO block and three leaked kbsync scaffolding lines (RATIONALE / SOURCE / SOURCE TYPE) that had been pasted verbatim into the published file. Replaced the two dangling mobile UX routes with an honest statement of the gap: `82_MOBILE_UX_REFERENCE.md` and `83_MOBILE_UX_AUDIT.md` have never existed in this repo. Source: kbsync audit.
-- 2026-08-29: `82_MOBILE_UX_REFERENCE.md` now exists, so the mobile routes point at a real file. Added routes for the three-mobile-surfaces distinction, the mobile editor CSS section in 17, and the two mobile-specific checklist keys. Recorded that the audit checklist lives in 82 § 6 rather than in an 83 file. Source: kbsync.
-- 2026-08-29: Audited every filename this map points at against the repo. Corrected `40_PLAYBOOK.md` (3 routes) and `01_CODE_GOVERNANCE.md` (1 route) to their real `_UPDATED` filenames. Added the two files the map had never routed to at all, `41_IMPLEMENTATION_PATTERNS_UPDATED.md` and `52_SNIPPET_INVENTORY.md`. Every route now resolves. Source: kbsync audit.
-- 2026-09-09: Added 85_GA4_SERVER_SIDE_PURCHASE.md and 40 routing entries for the 2026-09-09 sync — server-side GA4, the GTM-only standard, Google account ownership, the dead Add to Cart / stale page cache / lexicographic sort / formula validator diagnostics, the Extra Fee corrections, unpublished products staying orderable, archive re-import duplication, parent-safe snippet changes and the parent-first snippet rule, collection_filters, root-relative nav hrefs, the reparented modal, kiosk keys, print-on-demand zero-price routing, FTP retention, the _additional_files.json trailing comma, alphabetical export attribute order, the AI preview-scene narrowing, the RLS-in-triggers rule, and the silent-failure index. Every target section was written in the same sync. Source: kbsync.
-- 2026-09-09: Route check run as the mandatory closing step now recorded in 01_CODE_GOVERNANCE_UPDATED.md. Every route resolves. Note for whoever runs the naive one-liner next: it also matches filenames quoted inside this file's own prose and changelog, so `01_CODE_GOVERNANCE.md`, `40_PLAYBOOK.md` and `83_MOBILE_UX_AUDIT.md` are reported as missing. All three are historical references, not live routes: the first two appear only in the 2026-08-29 changelog entries describing corrections already made, and the third only in the note above § 82 recording that it never existed. Excluding the changelog leaves one known false positive. Source: kbsync audit.
-- 2026-09-16: Added routing for the experimental Admin API, the `/admin` endpoint retirement, site-wide custom field / custom type definition export, and upload dialog login. Source: notion-page (Dashboard).
-- 2026-09-19: Added `26_CUSTOM_DESIGN_TOOLS.md` and 8 routing entries for it. Corrected the "tool does not appear" route, which pointed at a four-step install order that no longer exists. Source: kbsync (custom tool estate).
-- 2026-09-24: Added 14 routes for the 2026-09-24 sync, led by the Install-Step Gate and PDF layers. Every target section was written in the same sync. Source: kbsync.
-- 2026-09-24: Route check run as the mandatory closing step. Only the three known historical false positives are reported (01_CODE_GOVERNANCE.md, 40_PLAYBOOK.md, 83_MOBILE_UX_AUDIT.md). Source: kbsync audit.
-- 2026-09-29: Added 9 routes for the 2026-09-29 sync (Bulk Update Tools, API keys, admin login, notification emails, OrderHub stock, template changes vs existing projects, element rotation, PDP swap and custom_script, myPixfizz connections). Every target section was written in the same sync. Source: kbsync.
-- 2026-10-06: Added 40 routes for the 2026-10-06 sync, led by the new 27_LIVE_FINISH_AND_3D_PREVIEWS.md, the refreshed custom design tool registry, the rebuilt myPixfizz route map, and the Admin Form Writes API section. Source: kbsync.
-- 2026-10-09: Added the route to `orderhub/`, the nightly mirror of the OrderHub help articles (72 at first sync), generated by `scripts/orderhub_kb_sync.py` from the OrderHub kb-export endpoint. Never edit files in `orderhub/` by hand: edit the article in OrderHub. Source: claude-chat.
-- 2026-10-09: Added 14 routes for the 2026-10-09 sync (number variant formulas, experimental variant API writes, scripted add to cart, project previews, SiteFlow callbacks, snippet saves and admin sessions, editor crop and toolbar, tools inside the variant selector, photo-prints landing, tool lines on reorder and email, one line to many supplier items, design copy, preview defects and MSP mounts, myPixfizz retention). Every target section was written in the same sync. Source: kbsync.
-- 2026-10-17: Added 84 routes for the 2026-10-17 sync (Shopper frame and header, GA4 bridge live, collection filters and line endings, redirects and query strings, publish routes and the add_themes.json 404, template provider and consumer, 2FA, XML foil and DPI and text attributes, calendar tags and transformations, px_rates and pricing.js, upload dialog and crop tool, fulfillment codes, Live Finish install ids, admin users and calendars API, POD catalog sync). Every target section was written in the same sync. Source: kbsync.
-- 2026-10-22: Added 116 routes for the 2026-10-22 sync (publish wizard positions and Create and Tick, POD publish without variants, template export YAML and import failures, saved vs ordered books, content addressed uploads, preview parameters and layouts, the three ways a product is priced and `px_rates` area mode, editor text and QR controls, calendar layouts and week start, the upload dialog standard for tools, Live Finish plates and room scenes, cart remove confirm, approved-user checkout and multi-store pickup, GA4 browser first, Perfectly Clear upscaling at fulfillment, myPixfizz SSO, webhook auto-deactivation, Shopify order status and duplicate users, OrderHub hot folders on a NAS). Every target section name checked against the file; section names are shortened before an em dash. Source: kbsync.
-- 2026-10-29: Added 48 routes for the 2026-10-29 sync (whole-site login gate, mega menu panels, page cache, POD products in collections, cart line name and extra cart code, pickup and delivery switch, cut print base plus delta, boolean custom fields, studio registry rows, popstate morph and sticky layout, pdf.js, upload size limits and `Filedata`, Live Finish label keys and print borders, Nano Banana fixes, bulk user create, `/upload/file`, cross-site asset library, collection Ace fields, filename tags, Etsy order facts, backups without assets, store health staleness, Versions diff correction, publish positions, snippet override ids, crop value and color controls, file option `db:` values, `pdf_layer`, masks and font size units). Every target file name checked against the repo. Source: kbsync.
-- 2026-11-03: Added 3 routes to the new 28_TOOL_SETTINGS_REFERENCE.md (per-tool mount settings, cut spot names, missing mount settings). Source: claude-chat
-- 2026-11-09: Added 144 routes for the 2026-11-09 sync (tool asset release order, upload dialog behavior and size units, studio standards, Safari canvas limits, round product previews, Photo Book Studio config, account v2 switch, social sharing image, photo prints flow setup, parent CSS scoping, checkout and kiosk fixes, breadcrumbs and redirects, moving a child onto another admin, super user API keys and service users, gallery custom fields, calendar dates, render speed, fulfillment HTTP headers, Shopify collaborator and Personalize window, branded MCP host, Stripe charge references, extra_pages pricing trap, admin import and copy routes, Products inheritance, editor scripting, kerning in points, definition unit default, variant flags in exports). Every target section name checked against the file. Source: kbsync.
-- 2026-11-13: Added 40 routes for the 2026-11-13 sync (admin screens and form routes, photo prints group order correction, collection and product page findings, redirects and silent Liquid failures, uploader price cards, DPI and bleed, editor close button, Live Finish and tool findings, Shopify addon lines, new children). Source: kbsync.
-- 2026-11-19: Email kit route now points to `email-kit/README.md`. Source: claude-chat
-- 2026-11-20: Added 10 routes for the 2026-11-20 sync (Upsell Studio, Pixfizz Kiosk app, light cart pop-up, minimum amount, tax decimals, PayFast, sign in expired, debug checkout, cut print edit). Source: kbsync.
-- 2026-11-21: Added 51 routes for the 2026-11-21 sync (working notes 16 to 20 Nov across 26 files). Source: kbsync.
-- 2026-11-24: Tool settings route now points to the per-tool pages in `tool-settings/`; added the AI switches route. Source: claude-chat
+- 2026-08-14: Audited the 2026-05-21 routing entries against the files they point at. Two pointed at sections that did not exist: Gift Vouchers (now written into 18_ADMIN_NAVIGATION.md § Marketing) and Customer Training and Support Resources (re-pointed to 90_FAQ.md § Section 1).
+- 2026-08-29: Added 16 routing entries for the 2026-08-29 sync — editor gallery folder theming, generated-CSS specificity, acv2 theming, GA4 defects, the trailing-newline flag failure, `default-delivery-option`, Shopify bulk variant metafields, the photo-prints 414, canvas wrap geometry and ipage zoom, the template-import price validation, translations, the currency switcher, single-value variants, per-order charges on variants, the collections export format, and spin GIF optimisation. Every target section was written in the same sync.
+- 2026-08-29: Removed a duplicated SEO/GEO block and three leaked kbsync scaffolding lines (RATIONALE / SOURCE / SOURCE TYPE) that had been pasted verbatim into the published file. Replaced the two dangling mobile UX routes with an honest statement of the gap: `82_MOBILE_UX_REFERENCE.md` and `83_MOBILE_UX_AUDIT.md` have never existed in this repo.
+- 2026-08-29: `82_MOBILE_UX_REFERENCE.md` now exists, so the mobile routes point at a real file. Added routes for the three-mobile-surfaces distinction, the mobile editor CSS section in 17, and the two mobile-specific checklist keys. Recorded that the audit checklist lives in 82 § 6 rather than in an 83 file.
+- 2026-08-29: Audited every filename this map points at against the repo. Corrected `40_PLAYBOOK.md` (3 routes) and `01_CODE_GOVERNANCE.md` (1 route) to their real `_UPDATED` filenames. Added the two files the map had never routed to at all, `41_IMPLEMENTATION_PATTERNS_UPDATED.md` and `52_SNIPPET_INVENTORY.md`. Every route now resolves.
+- 2026-09-09: Added 85_GA4_SERVER_SIDE_PURCHASE.md and 40 routing entries for the 2026-09-09 sync — server-side GA4, the GTM-only standard, Google account ownership, the dead Add to Cart / stale page cache / lexicographic sort / formula validator diagnostics, the Extra Fee corrections, unpublished products staying orderable, archive re-import duplication, parent-safe snippet changes and the parent-first snippet rule, collection_filters, root-relative nav hrefs, the reparented modal, kiosk keys, print-on-demand zero-price routing, FTP retention, the _additional_files.json trailing comma, alphabetical export attribute order, the AI preview-scene narrowing, the RLS-in-triggers rule, and the silent-failure index. Every target section was written in the same sync.
+- 2026-09-09: Route check run as the mandatory closing step now recorded in 01_CODE_GOVERNANCE_UPDATED.md. Every route resolves. Note for whoever runs the naive one-liner next: it also matches filenames quoted inside this file's own prose and changelog, so `01_CODE_GOVERNANCE.md`, `40_PLAYBOOK.md` and `83_MOBILE_UX_AUDIT.md` are reported as missing. All three are historical references, not live routes: the first two appear only in the 2026-08-29 changelog entries describing corrections already made, and the third only in the note above § 82 recording that it never existed. Excluding the changelog leaves one known false positive.
+- 2026-09-16: Added routing for the experimental Admin API, the `/admin` endpoint retirement, site-wide custom field / custom type definition export, and upload dialog login.
+- 2026-09-19: Added `26_CUSTOM_DESIGN_TOOLS.md` and 8 routing entries for it. Corrected the "tool does not appear" route, which pointed at a four-step install order that no longer exists.
+- 2026-09-24: Added 14 routes for the 2026-09-24 sync, led by the Install-Step Gate and PDF layers. Every target section was written in the same sync.
+- 2026-09-24: Route check run as the mandatory closing step. Only the three known historical false positives are reported (01_CODE_GOVERNANCE.md, 40_PLAYBOOK.md, 83_MOBILE_UX_AUDIT.md).
+- 2026-09-29: Added 9 routes for the 2026-09-29 sync (Bulk Update Tools, API keys, admin login, notification emails, OrderHub stock, template changes vs existing projects, element rotation, PDP swap and custom_script, myPixfizz connections). Every target section was written in the same sync.
+- 2026-10-06: Added 40 routes for the 2026-10-06 sync, led by the new 27_LIVE_FINISH_AND_3D_PREVIEWS.md, the refreshed custom design tool registry, the rebuilt myPixfizz route map, and the Admin Form Writes API section.
+- 2026-10-09: Added the route to `orderhub/`, the nightly mirror of the OrderHub help articles (72 at first sync), generated by `scripts/orderhub_kb_sync.py` from the OrderHub kb-export endpoint. Never edit files in `orderhub/` by hand: edit the article in OrderHub.
+- 2026-10-09: Added 14 routes for the 2026-10-09 sync (number variant formulas, experimental variant API writes, scripted add to cart, project previews, SiteFlow callbacks, snippet saves and admin sessions, editor crop and toolbar, tools inside the variant selector, photo-prints landing, tool lines on reorder and email, one line to many supplier items, design copy, preview defects and MSP mounts, myPixfizz retention). Every target section was written in the same sync.
+- 2026-10-17: Added 84 routes for the 2026-10-17 sync (Shopper frame and header, GA4 bridge live, collection filters and line endings, redirects and query strings, publish routes and the add_themes.json 404, template provider and consumer, 2FA, XML foil and DPI and text attributes, calendar tags and transformations, px_rates and pricing.js, upload dialog and crop tool, fulfillment codes, Live Finish install ids, admin users and calendars API, POD catalog sync). Every target section was written in the same sync.
+- 2026-10-22: Added 116 routes for the 2026-10-22 sync (publish wizard positions and Create and Tick, POD publish without variants, template export YAML and import failures, saved vs ordered books, content addressed uploads, preview parameters and layouts, the three ways a product is priced and `px_rates` area mode, editor text and QR controls, calendar layouts and week start, the upload dialog standard for tools, Live Finish plates and room scenes, cart remove confirm, approved-user checkout and multi-store pickup, GA4 browser first, Perfectly Clear upscaling at fulfillment, myPixfizz SSO, webhook auto-deactivation, Shopify order status and duplicate users, OrderHub hot folders on a NAS). Every target section name checked against the file; section names are shortened before an em dash.
+- 2026-10-29: Added 48 routes for the 2026-10-29 sync (whole-site login gate, mega menu panels, page cache, POD products in collections, cart line name and extra cart code, pickup and delivery switch, cut print base plus delta, boolean custom fields, studio registry rows, popstate morph and sticky layout, pdf.js, upload size limits and `Filedata`, Live Finish label keys and print borders, Nano Banana fixes, bulk user create, `/upload/file`, cross-site asset library, collection Ace fields, filename tags, Etsy order facts, backups without assets, store health staleness, Versions diff correction, publish positions, snippet override ids, crop value and color controls, file option `db:` values, `pdf_layer`, masks and font size units). Every target file name checked against the repo.
+- 2026-11-03: Added 3 routes to the new 28_TOOL_SETTINGS_REFERENCE.md (per-tool mount settings, cut spot names, missing mount settings).
+- 2026-11-09: Added 144 routes for the 2026-11-09 sync (tool asset release order, upload dialog behavior and size units, studio standards, Safari canvas limits, round product previews, Photo Book Studio config, account v2 switch, social sharing image, photo prints flow setup, parent CSS scoping, checkout and kiosk fixes, breadcrumbs and redirects, moving a child onto another admin, super user API keys and service users, gallery custom fields, calendar dates, render speed, fulfillment HTTP headers, Shopify collaborator and Personalize window, branded MCP host, Stripe charge references, extra_pages pricing trap, admin import and copy routes, Products inheritance, editor scripting, kerning in points, definition unit default, variant flags in exports). Every target section name checked against the file.
+- 2026-11-13: Added 40 routes for the 2026-11-13 sync (admin screens and form routes, photo prints group order correction, collection and product page findings, redirects and silent Liquid failures, uploader price cards, DPI and bleed, editor close button, Live Finish and tool findings, Shopify addon lines, new children).
+- 2026-11-19: Email kit route now points to `email-kit/README.md`.
+- 2026-11-20: Added 10 routes for the 2026-11-20 sync (Upsell Studio, Pixfizz Kiosk app, light cart pop-up, minimum amount, tax decimals, PayFast, sign in expired, debug checkout, cut print edit).
+- 2026-11-21: Added 51 routes for the 2026-11-21 sync (working notes 16 to 20 Nov across 26 files).
+- 2026-11-24: Tool settings route now points to the per-tool pages in `tool-settings/`; added the AI switches route.

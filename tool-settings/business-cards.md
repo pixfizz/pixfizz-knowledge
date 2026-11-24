@@ -5,7 +5,7 @@ _Part of the Pixfizz Tool Settings Reference. How the mount works, what Yes / Wi
 _Last updated: 2026-11-24_
 
 ## Current version
-3.7.2 is the newest release (Playpoint name cards, Nov 2026). Which version each site runs is not checked here: the console start-up line shows it.
+3.7.2 is the newest release (name cards, Nov 2026). Which version each site runs is not checked here: the console start-up line shows it.
 
 As recorded on 3 Nov 2026: Status: live, version 3.6.0 (latest built, per the CHANGELOG; 3.x is the current tool). Snippet: `product/business-cards`. Mount option: `px_mount`. Prefix: `bc_`.
 
@@ -78,4 +78,4 @@ Things that are not set here
 
 ## Changelog
 
-- 2026-11-24: Page created from `28_TOOL_SETTINGS_REFERENCE.md` section 6 (one page per tool). Current version and changes since 3 Nov added from the tool source and CHANGELOG. Source: claude-chat, tool source.
+- 2026-11-24: Page created from `28_TOOL_SETTINGS_REFERENCE.md` section 6 (one page per tool). Current version and changes since 3 Nov added from the tool source and CHANGELOG.

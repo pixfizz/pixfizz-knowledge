@@ -64,7 +64,7 @@ Signature:
 address_create(*assign_to_user:, *assign_to_cart:)
 ```
 
-SOURCE: Notion Dashboard 🆕 Update (2026-08-21). Help article: https://help.pixfizz.com/ecommerce/pixfizz-ecommerce/pixfizz-cms/liquid/forms/address_create-form-options
+*Announced 2026-08-21.* Help article: https://help.pixfizz.com/ecommerce/pixfizz-ecommerce/pixfizz-cms/liquid/forms/address_create-form-options
 
 ## Overview
 
@@ -541,7 +541,7 @@ Represents an orderline in a cart or order. Atomic commerce unit in Pixfizz.
 | `orderline.quantity` | Quantity |
 | `orderline.units` | Sum of quantities of all orderlines for the same product |
 | `orderline.page_count` | Page count |
-| `orderline.is_draft` | `true` if draft status. The same flag is `draft` (boolean) in the API orderline, and the admin shows "(Draft)" next to the line, which is easy to miss (`61_PIXFIZZ_API.md` § Draft orderlines). *Stated by the core developer, Slack #development, 2026-10-22.* |
+| `orderline.is_draft` | `true` if draft status. The same flag is `draft` (boolean) in the API orderline, and the admin shows "(Draft)" next to the line, which is easy to miss (`61_PIXFIZZ_API.md` § Draft orderlines). *Confirmed by Pixfizz, 2026-10-22.* |
 | `orderline.is_cut_print` | `true` if cut print product |
 | `orderline.cut_print_quantity` | Quantity of cut prints (for non-cut-print projects, equals page count — not `0`) |
 | `orderline.unit_price` | Unit price. Use `currency` filter. |
@@ -926,7 +926,7 @@ tail to each in practice):
 
 Worth recording because a malformed set has previously taken a site down. Targets are
 root-relative paths, same rule as navigation hrefs below.
-*Config shape stated by the core developer; query-string matching verified live, 2026-10-10 and 2026-10-11.*
+*Config shape confirmed by Pixfizz; query-string matching verified live, 2026-10-10 and 2026-10-11.*
 
 More behavior (platform-level):
 - **Rules apply to `/site/...` storefront paths**, not only legacy root paths:
@@ -1318,7 +1318,7 @@ Three conditions apply:
 - The definition must exist on the Projects (PrintBook) object and be ticked **Public**. A non-public field is saved for admins only, so it works while you test logged in as admin and silently stores nothing for shoppers.
 - All custom field data on one project is capped at 65,535 bytes in total (`51_CUSTOM_FIELDS_REFERENCE.md`).
 
-*Stated by the core developer, 2025-05; not re-tested by query.* Platform form, template-level placement (Shopper `product/design-now`).
+*Confirmed by Pixfizz, 2025-05; not re-tested by query.* Platform form, template-level placement (Shopper `product/design-now`).
 
 **Addresses**
 
@@ -1452,14 +1452,14 @@ These behaviours differ from standard Liquid or Shopify Liquid. Confirmed throug
 | `\| money` in an email template | Prints a bare number (`127.8`). Use `\| currency` (verified by query in email Preview, 2026-10-03) |
 | A filter inside a `{% snippet %}` argument, such as `subject: 'Welcome to ' \| append: website.title` | The filter does not run. `{% assign %}` the value first, then pass the variable (verified by query in email templates, 2026-10-03) |
 | A string literal containing `{` or `}` in an email template body | The body save fails silently. Build such strings with `{% capture %}` (verified by query, 2026-10-03) |
-| `{% capture website %}...{% endcapture %}` using the name of a global object | **Redefines the global for the rest of the template.** In an order confirmation email, `{% capture website %}{% snippet 'website/brand' %}{% endcapture %}` replaced `website` with the snippet's output, so a later `{{ website.hostname }}` rendered empty. Never capture into `website`, `order`, `user`, `product` or another global name: use a distinct name such as `brand_html` (an `assign` to a global name is expected to do the same; not verified). Platform-level. *Stated by the core developer, Slack #development, 2026-10-16* |
+| `{% capture website %}...{% endcapture %}` using the name of a global object | **Redefines the global for the rest of the template.** In an order confirmation email, `{% capture website %}{% snippet 'website/brand' %}{% endcapture %}` replaced `website` with the snippet's output, so a later `{{ website.hostname }}` rendered empty. Never capture into `website`, `order`, `user`, `product` or another global name: use a distinct name such as `brand_html` (an `assign` to a global name is expected to do the same; not verified). Platform-level. *Confirmed by Pixfizz, 2026-10-16* |
 
 ---
 
 # RECENT PLATFORM ADDITIONS
 
 These are Liquid-related capabilities added to the platform recently. They are not yet
-documented on the master Notion reference and may still be evolving — confirm against
+documented on the master reference and may still be evolving — confirm against
 a live site before depending on specific syntax.
 
 ---
@@ -1620,7 +1620,7 @@ snippet level on the product page.
 
 **Canonical deduplication pattern for Shopper checkout (2026-01-26).**
 
-Matjaz's refactor of the checkout-page columns removed duplicated markup between
+A refactor of the checkout-page columns removed duplicated markup between
 the left and right columns by wrapping the shared regions in `{% capture %}` blocks
 and rendering the captured content in both places.
 
@@ -1978,7 +1978,7 @@ by hand alongside groups that were generated correctly.
   front-end page can lag behind on cache.
 
 *Verified by reading source (a live Custom Type render loop) for the sort pattern; the
-lexicographic-ordering symptom is stated by the core developer, not independently verified.*
+lexicographic-ordering symptom is confirmed by Pixfizz, not independently verified.*
 
 ### 7. A `custom_script`-mounted tool may have no `product` in Liquid scope
 
@@ -2003,21 +2003,21 @@ tool never saw the product" in one paste, and nothing else does.
 **`asset_url` on a missing asset renders `src=""`.** `{{ 'name.avif' | asset_url }}` for an asset not uploaded to the site prints an empty `src` with no error; the browser shows a blank box or the alt text. Before delivering a snippet that references assets, check every `asset_url` name against the site's asset list. Audit check on a live page: images whose `getAttribute('src')` is empty. Platform-level. *Verified live, 2026-11-11.*
 
 ## Changelog
-- 2026-06-01: Noted Shopify IDs live in chosen_variants. Source: claude-chat.
-- 2026-06-15: Added json_parse filter to Pixfizz-extended filters. Added assign_to_user / assign_to_cart optional params to the address_create form. Source: notion-dashboard.
-- 2026-07-07: Documented cart_clear, cart_unset and cart_delete forms in the Cart forms table, plus a clear/unset/delete comparison note. Source: notion-page, slack-message.
-- 2026-07-28: Added file_upload accessor note on ChosenOption (`uploaded_file.url` / `.filename`; `value`, `asset.url`, `thumbnail_url` and the `preview_url` filter do not work), the `thumbnail/{n}` path segment on UploadedFile, and the `cart[custom][field]` write pattern for `cart_update`. Source: claude-chat.
-- 2026-08-21: Added FORMS section with address_create form options (assign_to_user, assign_to_cart). Source: notion-page (Dashboard 🆕 Update).
-- 2026-08-29: Added Translation Keys — the `t` filter key is the source string downcased (so case-only variants collide and a capitalised key file matches nothing), `en` is an optional override, an export is not the full key set (346 exported vs 578 in code, union 856), keys absent from Liquid are not dead, `products`/`variants` are catalogue-driven, the importer takes the namespace from the file's top-level key so one file can carry all of them, `request.locale` is the language test, plus the bidi logical-order trap and the auto-match audit. Added Display Currency Switching — there is no class hook on prices, so find them by rendered format and wrap once into a data attribute; disconnect the MutationObserver during its own pass; read the base from `website.currency_code` and refuse to convert on an unknown base; conversion is display-only. Source: claude-chat.
-- 2026-09-09: Added Authoring Traps in Parent Snippets — a filter inside an `{% if %}` condition is a syntax error not a no-op; a checklist `{% capture %}` must be appended to an existing line or it shifts every option's leading whitespace; checklist bodies carry no trailing newline and `capture` does not trim; `| plus: 0` before any numeric comparison because `value.price` exports blank rather than zero; navigation hrefs must be root-relative and the failure signature is first-link-works-siblings-fail; sorting a Custom Type by a numeric field (required field, high sentinel, sort once, skip with `unless`, and text fields sort lexicographically); and a `custom_script`-mounted tool may have no `product` in scope, so it must emit `data-product-seen` and an init diagnostic. Added the two matching rows to KNOWN CMS LIQUID QUIRKS. Added a note that one `OptionType` covers both product variant types and template option types, so the two cannot be told apart from the template tree. Added the Website Redirects config shape (anchored `[regex, target]` pairs with an optional trailing slash). Added the 2026-09-02 platform change stopping Liquid objects being constructed when a project's design or product is missing, marked not verified. Source: claude-chat, slack-message, fireflies-call.
-- 2026-09-19: Corrected the `address_create` form options. Only one of `assign_to_user` and `assign_to_cart` may be `false`; the previous text said the two were independent and described setting both to `false`, which the platform does not accept. Corrected in both the FORMS section and the Form Types table, and added the signature. Source: AdeB (platform signature).
-- 2026-09-24: Recorded that `order.user` does not exist and that the `user` global carries the order's user inside order and orderline custom fields scripts. Source: claude-chat.
-- 2026-09-29: Website object: never use the undocumented website.products (admin-only objects, error hidden from admins). Source: claude-chat.
-- 2026-10-06: KNOWN CMS LIQUID QUIRKS: no `json` filter (unknown filters pass input through silently), `money` prints a bare number in emails, filters inside snippet arguments do not run, `{`/`}` in an email string literal fails the save silently. escape_json: build JSON by hand. snippet tag: scope note (email snippets get only named arguments plus `website`; Pages `page_content` case). Notes on Contexts: CORRECTED email context (Cart Abandoned gets `cart`), per-email variable table, other email-context behavior. Writing cart custom fields: no Cart object type, definitions live on Orders, test with a placed order. Request: `preview` query parameter is reserved and redirects to the editor. Website object: CORRECTED the parent `film/roll-builder` fix to pending. Paginate: every `website.*` list defaults to 20, exhaustive loops must set `page_size`, truncated-list symptom and `.size` diagnostic. Source: claude-chat.
-- 2026-10-06 (later): Projects forms: writing project custom fields with `book[custom][<field>]` hidden inputs in `project_create`, with the Public requirement and the 65,535-byte total. Source: gmail (core developer, 2025).
-- 2026-10-09: asset_url: a missing asset renders an empty string with no error. Source: claude-chat.
-- 2026-10-17: String Quoting: a literal `{` directly before a tag opens an output tag. Website Redirects: regex matches the path including the query string (end rules in `/?(\?.*)?$`), admin routes. asset_url: resolves the child's asset first, even in a parent snippet. snippet: CORRECTED storefront snippets do not see the caller's `collection`; a nested `{% snippet %}` call clears the caller's params (save and restore). Form Types: `user_update` accepts a partial post. Source: claude-chat.
-- 2026-10-22: String Quoting: the typographic apostrophe (`’`) can sit inside a single-quoted string (not verified by test). asset_url: missing asset seen again in a child's Pages `page_content`, with the check-before-save and assert-after-save steps; a Shopper 24 child falls back to the shopper24 parent's asset in a parent snippet, in Pages `page_content` and on a child page (one parent upload for images every child shares). Orderline: `is_draft` row names the API `draft` field and the admin "(Draft)" label. KNOWN CMS LIQUID QUIRKS: capturing into a global name (`website`) redefines it for the rest of the template. Source: claude-chat, slack-message.
-- 2026-11-09: Pitfalls table: `asset_url` inside a quoted snippet argument (capture first). Website Redirects: rules apply to `/site/` paths, one rule for a collection and its sub-collections, create the target first, rules work within seconds, per-product query-string redirect pending confirmation (retire with `sold_out` and `hide_from_search`). redirect_to: literal and variable targets, real server redirect keeping the query string, top-of-page and parse-error caution. Source: claude-chat.
-- 2026-11-13: Website Redirects: never let a rule catch a platform route (/cart, /checkout, /v1/ ...), anchor root rules, test a real design tool Add to Cart after saving. New section Two Silent Liquid Failures: no filters inside a for tag (broke a cart page via a shipping formula); asset_url on a missing asset renders an empty src. Source: claude-chat.
-- 2026-11-21: asset_url: never paste a rendered `/fz/` URL into source (reasons, responsive example, exceptions, delivery check). currency: rendered unit text varies between renders, never gate UI on it. Request: `request.params` works in snippets and page Liquid with no query-string cache; `slice` on arrays; an empty trimmed snippet adds nothing. Translation Keys: CORRECTED item 6 (PyYAML `safe_dump` writes keys over 128 characters as complex keys and the import loads nothing); new item 10 (accepted locales list, default and enabled languages, import, export and per-key routes, textarea check, `t` follows the session not `?locale=`, `POST /session/set_locale`, switcher pattern). Display Currency Switching: new 2b (`px-product-price` renders in a shadow root; walk and observe every open root), case-insensitive skip list, probe variants. Source: claude-chat.
+- 2026-06-01: Noted Shopify IDs live in chosen_variants.
+- 2026-06-15: Added json_parse filter to Pixfizz-extended filters. Added assign_to_user / assign_to_cart optional params to the address_create form.
+- 2026-07-07: Documented cart_clear, cart_unset and cart_delete forms in the Cart forms table, plus a clear/unset/delete comparison note.
+- 2026-07-28: Added file_upload accessor note on ChosenOption (`uploaded_file.url` / `.filename`; `value`, `asset.url`, `thumbnail_url` and the `preview_url` filter do not work), the `thumbnail/{n}` path segment on UploadedFile, and the `cart[custom][field]` write pattern for `cart_update`.
+- 2026-08-21: Added FORMS section with address_create form options (assign_to_user, assign_to_cart).
+- 2026-08-29: Added Translation Keys — the `t` filter key is the source string downcased (so case-only variants collide and a capitalised key file matches nothing), `en` is an optional override, an export is not the full key set (346 exported vs 578 in code, union 856), keys absent from Liquid are not dead, `products`/`variants` are catalogue-driven, the importer takes the namespace from the file's top-level key so one file can carry all of them, `request.locale` is the language test, plus the bidi logical-order trap and the auto-match audit. Added Display Currency Switching — there is no class hook on prices, so find them by rendered format and wrap once into a data attribute; disconnect the MutationObserver during its own pass; read the base from `website.currency_code` and refuse to convert on an unknown base; conversion is display-only.
+- 2026-09-09: Added Authoring Traps in Parent Snippets — a filter inside an `{% if %}` condition is a syntax error not a no-op; a checklist `{% capture %}` must be appended to an existing line or it shifts every option's leading whitespace; checklist bodies carry no trailing newline and `capture` does not trim; `| plus: 0` before any numeric comparison because `value.price` exports blank rather than zero; navigation hrefs must be root-relative and the failure signature is first-link-works-siblings-fail; sorting a Custom Type by a numeric field (required field, high sentinel, sort once, skip with `unless`, and text fields sort lexicographically); and a `custom_script`-mounted tool may have no `product` in scope, so it must emit `data-product-seen` and an init diagnostic. Added the two matching rows to KNOWN CMS LIQUID QUIRKS. Added a note that one `OptionType` covers both product variant types and template option types, so the two cannot be told apart from the template tree. Added the Website Redirects config shape (anchored `[regex, target]` pairs with an optional trailing slash). Added the 2026-09-02 platform change stopping Liquid objects being constructed when a project's design or product is missing, marked not verified.
+- 2026-09-19: Corrected the `address_create` form options. Only one of `assign_to_user` and `assign_to_cart` may be `false`; the previous text said the two were independent and described setting both to `false`, which the platform does not accept. Corrected in both the FORMS section and the Form Types table, and added the signature.
+- 2026-09-24: Recorded that `order.user` does not exist and that the `user` global carries the order's user inside order and orderline custom fields scripts.
+- 2026-09-29: Website object: never use the undocumented website.products (admin-only objects, error hidden from admins).
+- 2026-10-06: KNOWN CMS LIQUID QUIRKS: no `json` filter (unknown filters pass input through silently), `money` prints a bare number in emails, filters inside snippet arguments do not run, `{`/`}` in an email string literal fails the save silently. escape_json: build JSON by hand. snippet tag: scope note (email snippets get only named arguments plus `website`; Pages `page_content` case). Notes on Contexts: CORRECTED email context (Cart Abandoned gets `cart`), per-email variable table, other email-context behavior. Writing cart custom fields: no Cart object type, definitions live on Orders, test with a placed order. Request: `preview` query parameter is reserved and redirects to the editor. Website object: CORRECTED the parent `film/roll-builder` fix to pending. Paginate: every `website.*` list defaults to 20, exhaustive loops must set `page_size`, truncated-list symptom and `.size` diagnostic.
+- 2026-10-06 (later): Projects forms: writing project custom fields with `book[custom][<field>]` hidden inputs in `project_create`, with the Public requirement and the 65,535-byte total.
+- 2026-10-09: asset_url: a missing asset renders an empty string with no error.
+- 2026-10-17: String Quoting: a literal `{` directly before a tag opens an output tag. Website Redirects: regex matches the path including the query string (end rules in `/?(\?.*)?$`), admin routes. asset_url: resolves the child's asset first, even in a parent snippet. snippet: CORRECTED storefront snippets do not see the caller's `collection`; a nested `{% snippet %}` call clears the caller's params (save and restore). Form Types: `user_update` accepts a partial post.
+- 2026-10-22: String Quoting: the typographic apostrophe (`’`) can sit inside a single-quoted string (not verified by test). asset_url: missing asset seen again in a child's Pages `page_content`, with the check-before-save and assert-after-save steps; a Shopper 24 child falls back to the shopper24 parent's asset in a parent snippet, in Pages `page_content` and on a child page (one parent upload for images every child shares). Orderline: `is_draft` row names the API `draft` field and the admin "(Draft)" label. KNOWN CMS LIQUID QUIRKS: capturing into a global name (`website`) redefines it for the rest of the template.
+- 2026-11-09: Pitfalls table: `asset_url` inside a quoted snippet argument (capture first). Website Redirects: rules apply to `/site/` paths, one rule for a collection and its sub-collections, create the target first, rules work within seconds, per-product query-string redirect pending confirmation (retire with `sold_out` and `hide_from_search`). redirect_to: literal and variable targets, real server redirect keeping the query string, top-of-page and parse-error caution.
+- 2026-11-13: Website Redirects: never let a rule catch a platform route (/cart, /checkout, /v1/ ...), anchor root rules, test a real design tool Add to Cart after saving. New section Two Silent Liquid Failures: no filters inside a for tag (broke a cart page via a shipping formula); asset_url on a missing asset renders an empty src.
+- 2026-11-21: asset_url: never paste a rendered `/fz/` URL into source (reasons, responsive example, exceptions, delivery check). currency: rendered unit text varies between renders, never gate UI on it. Request: `request.params` works in snippets and page Liquid with no query-string cache; `slice` on arrays; an empty trimmed snippet adds nothing. Translation Keys: CORRECTED item 6 (PyYAML `safe_dump` writes keys over 128 characters as complex keys and the import loads nothing); new item 10 (accepted locales list, default and enabled languages, import, export and per-key routes, textarea check, `t` follows the session not `?locale=`, `POST /session/set_locale`, switcher pattern). Display Currency Switching: new 2b (`px-product-price` renders in a shadow root; walk and observe every open root), case-insensitive skip list, probe variants.

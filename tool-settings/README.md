@@ -10,7 +10,7 @@ Each page gives the current version, what changed since 3 Nov 2026, an example m
 
 | Tool | Page | Status |
 |---|---|---|
-| Business Cards | `business-cards.md` | 3.7.2 is the newest release (Playpoint name cards, Nov 2026). Which version each site runs is not checked here: the console start-up line shows it. |
+| Business Cards | `business-cards.md` | 3.7.2 is the newest release (name cards, Nov 2026). Which version each site runs is not checked here: the console start-up line shows it. |
 | Greeting Card Studio | `greeting-card-studio.md` | 0.7.3 on the Shopper parent; 0.7.9 on My Picture Perfect; 0.7.11 and 0.7.12 built, not live (24 Nov 2026). |
 | Calendar Studio | `calendar-studio.md` | 0.5.2 live on the Shopper parent since 20 Nov 2026. |
 | Collage Studio | `collage-studio.md` | beta, version 1.1.0 built 3 Nov 2026 (as of the release notes; the repo marks every release folder unreleased, so live status is not verified). Snippet: `product/collage-st |
@@ -23,7 +23,7 @@ Each page gives the current version, what changed since 3 Nov 2026, an example m
 | Custom Sized Prints | `custom-sized-prints.md` | live, version 0.4.1 on the shopper24 parent; 0.5.0 (metric) built, not yet released. Snippet: `product/custom-print`. Mount option: `px_mount` (hidden Text template option, |
 | TilePix Wall Studio (Wall Designer) | `tilepix-wall-studio.md` | 0.6.12 live on the Shopper parent since 9 Nov 2026. Asset-only releases: mounts unchanged. |
 | Wall Design Studio (metal and acrylic walls) | `wall-design-studio.md` | 0.8.9 live on the Shopper parent since 9 Nov 2026. |
-| Fan Face (face fan designer) | `fan-face.md` | 1.3.1 live on Hite Photo only (23 Nov 2026). Older versions on other installs. 2.0.0 built and tested, not released. |
+| Fan Face (face fan designer) | `fan-face.md` | 1.3.1 live on one pilot site (23 Nov 2026). Older versions on other installs. 2.0.0 built and tested, not released. |
 | Custom Framing | `custom-framing.md` | built, version 0.4.0; not yet moved to the mount standard. Snippet: `product/framing`. |
 
 ## Print and cut tools
@@ -75,4 +75,4 @@ Each page gives the current version, what changed since 3 Nov 2026, an example m
 
 ## Changelog
 
-- 2026-11-24: Folder created from `28_TOOL_SETTINGS_REFERENCE.md` section 6. Source: claude-chat, tool source.
+- 2026-11-24: Folder created from `28_TOOL_SETTINGS_REFERENCE.md` section 6.

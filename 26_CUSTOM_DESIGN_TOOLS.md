@@ -156,7 +156,7 @@ selection must match to the cent. Tool-level. *Verified by test, 5 Oct 2026.*
 
 ## 2. The estate — registry
 
-Every tool currently in existence. **Status was recorded by Alex on 19 September 2026
+Every tool currently in existence. **Status was recorded by Pixfizz on 19 September 2026
 and brought up to date on 6 October 2026** from the tool build documents, the 29 September
 install sweep (below) and live queries on shopper24 and experience.pixfizz.com between 3 and
 6 October. Versions marked "on shopper24" were read from the parent asset (verified by query);
@@ -237,7 +237,7 @@ are not counted as installs.
 - **Photo Prints review modal (`prints-review.js`, prefix `prv-`)**: a parent asset
   that adds a review step to the platform's own photo prints flow. It mounts from
   `product/prints-review` and is gated on `admin/checklist/prv-enabled`, not on a
-  `custom_script` template option. See `claude/PRINTS_REVIEW_MODAL_REFERENCE.md`.
+  `custom_script` template option.
 - **1 Hour Frame (framing)**: shipped as eight templates and products with baked-in
   custom fields, not as a browser tool. The `framing_*` product fields in
   `51_CUSTOM_FIELDS_REFERENCE.md` are from the earlier framing-tool spec.
@@ -412,7 +412,7 @@ customer's first file. *Decided by Pixfizz, 2026-10-19.*
   `px-image-upload` and `px-file-upload`). The phone QR page (`/upload/qr_uploader`) and
   Dropbox use the same list. A 2-page PDF uploaded through the dialog gave an id, page 1's
   size at 300 dpi as `width` / `height`, the original PDF as `url` and WebP thumbnails.
-  Platform-level. *Verified by reading source and by query on baseline.pixfizz.com, bundle
+  Platform-level. *Verified by reading source and by query on a Pixfizz test site, bundle
   20261019115227, 2026-10-19; a PDF sent from a real phone through the QR code, and how an
   uploaded PDF shows in My Galleries, not verified.*
 - **The default wording says photos.** `main-panel-title` "Upload Photos",
@@ -511,8 +511,8 @@ file passes the tool and then fails the upload. The admin upload is a separate c
 browser-side check in the admin bundle that allows 150 MB when the site's admin config carries
 `large_format`; no admin screen sets that flag. *Verified by reading source (admin bundle
 build 20261029164200), 2026-11-02.* The core developer agreed to raise the admin limit (not
-live, no date; *stated by the core developer on a call, 2026-11-02*). Platform-level.
-*From the core developer (#development, 6 Aug 2026 for the server limits, 16 May 2024 for
+live, no date; *confirmed by Pixfizz on a call, 2026-11-02*). Platform-level.
+*From Pixfizz (6 Aug 2026 for the server limits, 16 May 2024 for
 `max-size`); not re-tested by query.*
 
 **Uploads are slow on storefront hosts.** Measured 2026-10-27 (a 4 MB POST from Europe): two
@@ -609,7 +609,7 @@ reading source, cms_bundle 20261007100426.*
 Every custom design tool hands its production files to fulfillment the same way, so an order
 that mixes a sticker, a brochure and business cards goes out correctly on any site, whatever
 its fulfillment route. Every tool writes the **same generic codes**, so a new tool never
-needs a change to any site's fulfillment files. Decided by Alex, 3 and 4 Oct 2026. Live Finish
+needs a change to any site's fulfillment files. Decided by Pixfizz, 3 and 4 Oct 2026. Live Finish
 and preview-only extensions are out of scope: they make no production file.
 
 | What | Where the tool writes it | Code |
@@ -789,7 +789,7 @@ color **and** background of every button and link on the live page and fail any 
 
 ### Page layout: an inline tool owns its page
 
-Standing rules for every tool, stated by Alex, 3 and 6 Oct 2026.
+Standing rules for every tool, confirmed by Pixfizz, 3 and 6 Oct 2026.
 
 - **Inline, not a modal**, for almost every tool. A modal feels like a separate application.
 - **The tool is the main feature of its product page.** Nothing above it except the site
@@ -1135,9 +1135,7 @@ configuration, and is the one product custom field a tool reads.)
 Decided 11 September 2026 and **built for Business Cards the same day. This
 supersedes the settings cascade** ("product custom field → site checklist → built-in
 default") described in every tool spec written before that date, and the four-step
-install order previously carried in this knowledge base. See
-`claude/CUSTOM_TOOL_CONFIG_ONE_SOURCE.md` and
-`claude/CUSTOM_TOOL_CONFIG_MUST_TRAVEL.md`.
+install order previously carried in this knowledge base.
 
 ### Why
 
@@ -1193,15 +1191,15 @@ carrying a value for it can be imported. Nothing else works until it does.
 
 ### The mount gets its own hidden option (standard from 2026-09-20)
 
-A tool's mount block no longer sits on its artwork upload option. It gets a **dedicated option**: type Text, hidden, hide from cart, code **`px_mount`** for every tool, name "`<Tool>` Mount" (Corrected 2026-10-14: the code was `<prefix>_mount`, for example `bc_mount`; tools already live keep their codes until their next planned update). Tool-specific template options and variants follow the same `px_` pattern (`px_spec`, `px_print_file`, `px_preview`, `px_price`, `px_pages`...), with no tool prefix. Snippet keyword arguments keep a tool prefix (`up_mode`, `ps_size`), because they become Liquid variables in the snippet scope and the prefix prevents collisions. *Decided by Pixfizz, 2026-10-14.* Its `custom_script` holds only the `{% snippet 'product/<tool>', … %}` mount block. Reasons: the artwork option has its own required flag and upload behavior, and a tool with no artwork option has nowhere else to mount. The "Mount option" column in § 2 lists where each tool mounts today; tools move to the dedicated option as they are rebuilt. *Decided by Alex, 2026-09-20.*
-**Rolling a mount onto a range that is already live:** copy the mount option from one configured template to the rest with **Admin → Advanced → Bulk Update Tools** (Template Options; super admin only). Never delete and re-import a live range to add or change a mount. The mount's `custom_script` is stored and exported with CRLF line ends, so compare mounts after folding CRLF to LF. See `18_ADMIN_NAVIGATION.md` § Bulk Update Tools. *Stated by Alex, 2026-09-26 and 2026-09-29; CRLF verified by query, 2026-09-26.*
+A tool's mount block no longer sits on its artwork upload option. It gets a **dedicated option**: type Text, hidden, hide from cart, code **`px_mount`** for every tool, name "`<Tool>` Mount" (Corrected 2026-10-14: the code was `<prefix>_mount`, for example `bc_mount`; tools already live keep their codes until their next planned update). Tool-specific template options and variants follow the same `px_` pattern (`px_spec`, `px_print_file`, `px_preview`, `px_price`, `px_pages`...), with no tool prefix. Snippet keyword arguments keep a tool prefix (`up_mode`, `ps_size`), because they become Liquid variables in the snippet scope and the prefix prevents collisions. *Decided by Pixfizz, 2026-10-14.* Its `custom_script` holds only the `{% snippet 'product/<tool>', … %}` mount block. Reasons: the artwork option has its own required flag and upload behavior, and a tool with no artwork option has nowhere else to mount. The "Mount option" column in § 2 lists where each tool mounts today; tools move to the dedicated option as they are rebuilt. *Decided by Pixfizz, 2026-09-20.*
+**Rolling a mount onto a range that is already live:** copy the mount option from one configured template to the rest with **Admin → Advanced → Bulk Update Tools** (Template Options; super admin only). Never delete and re-import a live range to add or change a mount. The mount's `custom_script` is stored and exported with CRLF line ends, so compare mounts after folding CRLF to LF. See `18_ADMIN_NAVIGATION.md` § Bulk Update Tools. *Confirmed by Pixfizz, 2026-09-26 and 2026-09-29; CRLF verified by query, 2026-09-26.*
 
 A mount on a template runs on every product that uses that template, so list the product lines sharing it before adding one (`16_PRODUCT_HIERARCHY.md`).
 
 
 ### The counter test
 
-A custom tool is not finished until someone at the counter, with the customer's file in hand, can build the same order from the Product Attribute's variants alone, with no template, no design and no browser tool. Artwork and anything derived from it are exempt. Tools whose price is computed in the browser from a rate card and written to a number variant (the booklet and document uploaders) do not pass yet; that is open. *Decided by Alex, 2026-09-20.* See `22_OPTION_VARIANT_RENDERING.md` § Pricing and POS-Relevant Choices Belong on Variants.
+A custom tool is not finished until someone at the counter, with the customer's file in hand, can build the same order from the Product Attribute's variants alone, with no template, no design and no browser tool. Artwork and anything derived from it are exempt. Tools whose price is computed in the browser from a rate card and written to a number variant (the booklet and document uploaders) do not pass yet; that is open. *Decided by Pixfizz, 2026-09-20.* See `22_OPTION_VARIANT_RENDERING.md` § Pricing and POS-Relevant Choices Belong on Variants.
 
 ### Configuration is not choice
 
@@ -1228,10 +1226,10 @@ call and fixed in a studio build, 2026-11-02 to 2026-11-03.*
 
 Every product that can be sold custom, including through OrderHub and the POS, carries each
 customer choice and everything price-related on **product variants**. Tools installed before
-the standard are recalled, rebuilt on it and re-added. *Decided by Alex, 29 Sep 2026.*
+the standard are recalled, rebuilt on it and re-added. *Decided by Pixfizz, 29 Sep 2026.*
 
 - **`pos_hidden`**, a boolean custom field on the VariantType, is the standard way to hide a
-  variant in the POS (agreed by Alex, 26 Sep). Every **choice** variant has `pos_hidden`
+  variant in the POS (agreed by Pixfizz, 26 Sep). Every **choice** variant has `pos_hidden`
   unchecked; tool-written values (`<tl>_price`, `<tl>_pages`, `<tl>_spec`, the mount) have it
   checked.
 - **Before a site can take a recalled product** it needs these custom field definitions
@@ -1278,7 +1276,7 @@ store that already prices that way.
 ### Lengths accept inches and millimeters
 
 Any length a lab types or is asked for, in a tool, a setup page or a configuration question,
-has an **Inches | Millimeters** switch. Tool-level. *Stated by Alex, 30 Sep 2026.*
+has an **Inches | Millimeters** switch. Tool-level. *Confirmed by Pixfizz, 30 Sep 2026.*
 
 - Start in the unit the site's templates use (`<definition unit="...">`); inches when the
   definition does not say.
@@ -1459,7 +1457,7 @@ convention, 2026-11-02.*
 
 ### Self-install from myPixfizz (in progress)
 
-The direction (Alex, 3 and 5 Oct 2026): every Shopper tool is listed in a **Shopper tools**
+The direction (3 and 5 Oct 2026): every Shopper tool is listed in a **Shopper tools**
 catalog in myPixfizz, filterable by business type, and installs from a tool page with the
 same steps for every tool: **Sizes** (formats in mm or inches), **Options** (point at the
 lab's own variants from an uploaded export; no prices created), **Look** (match the store or
@@ -1495,7 +1493,7 @@ day the next tool ships.
 
 **Where a surface is long-lived, move it to `checkout/orderline-preview`, which
 carries no list.** Where a list stays, adding the tool's preview code to it is part
-of that tool's definition of done. See `claude/ORDERLINE_PREVIEW_SURFACES.md` and
+of that tool's definition of done. See
 `20_SHOPPER_CART_RULES.md`.
 
 Two live defects to know about: `modals/shopping-cart` assigns the list with an
@@ -1757,7 +1755,7 @@ moved verbatim and standardising arguments is a separate step.
 **Known defects:**
 - The print file embeds the original bytes, which pdf-lib places without the EXIF
   Orientation tag, so a tagged phone photo reaches the press turned a quarter turn from the
-  proof. See `claude/BC_EXIF_ORIENTATION.md`.
+  proof.
 - 1.0.1 (verified by query on experience.pixfizz.com, 6 Oct): "Review & Continue" opens a
   review **modal** even inline; the review omits Paper and Quantity; inline on a phone it is a
   100dvh panel with its own scroll inside the page scroll. When the page's own Paper and
@@ -1933,7 +1931,7 @@ add-on, a `#####` placeholder found in the PDF text layer and previewed as the s
 and a book or loose-set preview. The tool writes the job total to the one price variant with
 cart quantity locked at 1. **Request a quote** is a zero-price line flagged `quote=yes` in `px_spec`,
 which needs an exception to the all-zero rule for that line only; zero-total orders can check out
-(stated by Alex, 6 Oct). Whether staff can price a placed order in admin afterwards is not
+(confirmed by Pixfizz, 6 Oct). Whether staff can price a placed order in admin afterwards is not
 verified.
 
 Pricing method: where a lab supplies its own Ruby pricing formulas, they go into the rate
@@ -2214,7 +2212,7 @@ fits itself to width and blocks below a minimum capital height; up to four extra
 elements; a review of the board or the 1:1 laser file; a spelling acknowledgement before Add
 to cart.
 
-Proposed, awaiting Alex: **one product per blank, designs chosen inside the tool** (instead of
+Proposed, awaiting a decision: **one product per blank, designs chosen inside the tool** (instead of
 one product per design); board (wood and size) as the variant and price carrier; template
 options `be_mount`, laser file, preview and design state JSON; production file SVG or PDF at
 1:1 with fonts converted to outlines in the browser, black engrave, board outline on a named
@@ -2231,7 +2229,7 @@ margins, laser software and file format must come from the lab.
 
 The customer uploads an image, sees a preview, then chooses the exact print size; the tool
 detects the photo's ratio and suggests size groups. The preview shows the print at its
-relative size against standard objects on a wall. Scope decisions (Alex, 27 to 28 Sep):
+relative size against standard objects on a wall. Scope decisions (27 to 28 Sep):
 inline, not a modal; **never mixes paper, metal and acrylic in one tool**: one product per
 material family, each with its own configuration (for example 1 in steps for canvas, 1/4 in
 for prints); size range, increment and bleed configurable per product (plain prints need no
@@ -2379,20 +2377,17 @@ once.
 - 2026-09-19: File created. The custom design tool estate had no home in this
   knowledge base: no list of which tools exist, no per-tool reference, and the
   install order in three other files still taught the retired product-custom-field
-  cascade. Registry status supplied by Alex; versions verified by reading asset
-  source. Sources: `claude/CUSTOM_TOOL_CONFIG_ONE_SOURCE.md`,
-  `claude/CUSTOM_TOOL_CONFIG_MUST_TRAVEL.md`, `claude/CUSTOM_TOOL_DOC_SET_SPEC.md`,
-  `claude/ORDERLINE_PREVIEW_SURFACES.md`, the per-tool build specs, and the tool
-  assets themselves.
-- 2026-09-24: Added the dedicated hidden mount option standard (`<prefix>_mount`) and the counter test; widened "Shopper choice" to every customer selection and commercial value. Source: claude-chat, fireflies-call.
-- 2026-09-29: Pointer: roll a mount across a live range with Bulk Update Tools; custom_script stored with CRLF. §4 a PDP swap keeps the custom_script root and rewrites its attributes; tools must re-read config on attribute change. Install step 1 must include boolean option flag definitions. Source: claude-chat.
-- 2026-10-06: §2 registry and §7 per-tool reference brought up to current state (versions read on shopper24 3 to 6 Oct, install footprint from the 29 Sep sweep, new rows for Uploader 2.0 with forms mode, Wall Designer, Board Engraver, Custom Framing; Gang Up 1.2.0 auto-trim, cut path and planned preview background; Business Cards 2.0.0 in-place recall; uploader and sticker known defects; Flyer / Brochure install gaps; Custom Sized Prints scope); §2 how the install list is found, pointer to 27 for Live Finish and 3D previews. §1 price ladders read price_forecast; tool-computed prices with a Ruby formula oracle and 9-decimal rounding. §3 the px_ fulfillment code contract, the shared px-tool-theme look and dark-site ink, page layout rules (inline, owns the page, obvious first action, one set of controls). §4 the variant recall standard with pos_hidden, stores that price with template options, inches and millimeters, writing back a mount with a JSON script. §5 first price range starts at 1, installing from another site's live template, myPixfizz self-install direction. §6 the tool chooses its own cart image. §8 new done items. Applied spills: Product Previews pointer (B1); §5 px-option override check and strip-false-keys rule (D1); §3 open the platform upload dialog standalone, with events, gallery routing and sign-in behavior (C). Source: claude-chat, fireflies-call, vault-doc.
-- 2026-10-09: § 3 the shared look: `.pxt-step` and `.pxt-shell` are contract names a tool must not reuse; pointer to the variant-selector rules in 17. Source: claude-chat.
-- 2026-10-17: § 1 the rate card moves from the mount to the snippet-type product custom field `px_rates` (printed by `product/design-now` as a JSON script tag), and the agreed `pricing.js` engine contract shared with OrderHub (versioned, `px_price` plus text choice variants); § 4 pointer that `px_rates` is pricing data. § 3 tool assets one stem per tool and a new asset per version; upload dialog button classes and text attributes, `upload-success` storage, progress detail, closing the dialog mid-upload, `preview` is a 250 px long-edge thumbnail; new § Using the platform crop tool standalone (`px-image-adjust-tool`); shared look: text outside tool surfaces on dark sites and full dark mode by tokens, `:where()` element resets, wording and stage standards. CORRECTED § 3 page layout: description and delivery box stay in the tool's right column. CORRECTED § 4 mount option code is `px_mount` for every tool, `px_` codes without tool prefix; filter-switched siblings share one mount. § 6 the project edit page has no price; a tool can reopen its saved state on project-edit. § 7 Sticker Designer `inline` is not full width (site CSS pattern); Gang Up canvas resolution ceiling on long sheets. Source: claude-chat, slack-message.
-- 2026-10-22: § 1 books counted in spreads price in system pages; `px_rates` mode `area` with generic `px_` size codes and counter-only products. § 2 and § 7 Custom Sized Prints moved to in build, priced by `px_rates` (CORRECTED: rate per square inch was on variants). § 3 upload dialog CORRECTED to mandatory for every tool taking a customer file, a tool opens calm, `sources` required, no button look of its own, classes read once at connect, canonical Shopper class set and repo check, `SUPPORTED_FILE_TYPES` and no `accept`, print wording for the five photo-worded attributes, `url` same-host and untainted, feeding files in a test, studio install upload dialog check; new § attaching a file (`file-url` is content addressed, edit-from-cart restore); defend against site `custom.css` (link overrides, generic classes, `img:hover` zoom, contrast check); wording and stage standards (resolution only under 100 dpi, quiet drags, no panel scroll jump, admin terms and collapsed variant trees); page layout (CSS-only takeover with `:has()`, measure the first heading inside the tool); new § the product form refuses silently (`step="any"`, `checkValidity`, retired multiple choice options), § tools that show a design gallery (`preview.webp` tiles, `layouts.json`, `template` nil in the mount), § drawing a design in the browser, § design first from the live tool, § testing a tool (host CSS), § generated template art. § 4 `template` is nil in the mount scope; a tool on a Pages page takes a `page_content` JSON block (parent-only asset resolves from a child). § 5 TemplateOptionType definitions check, price gate covers tool prices, `hidden` is not `hide_from_cart`. § 8 dpi from XML by hand, upload dialog check. Source: claude-chat.
-- 2026-10-29: § 2 registry rows for Greeting Card Studio, Photo Book Studio, Wall Design Studio. § 3 upload: `Filedata` field and copy-by-URL on `/upload/image` (also `data`), PDF raster, upload size limits (150 MB and 300 MP server, `px-image-upload` 50 MB default, `max-size`), slow storefront upload throughput and tool-side waits; strings for upload pool ids, shared logo objects; frame with `.container-fluid` and header padding; sticky under `overflow-x: hidden` (use `clip`), `#kiosk-sticky-bar`, takeover flag standard; platform `popstate` morph and `data-px-no-rerender`; muted ink guard and contrast sweep; pdf.js 6.2.108 for customer PDFs and loading it from a style-onload boot. Generated template art: owner decision allows it (A5). § 7 Publication Upload `pu_max_file_mb` default above the server limit; Business Cards 3.0.0 corners label, sides publishing, `update_flags` 500; new Greeting Card Studio, Photo Book Studio and Wall Design Studio entries. Source: claude-chat.
-- 2026-11-03: § 4 pointer to the new 28_TOOL_SETTINGS_REFERENCE.md (customer-facing settings per tool). Source: claude-chat.
-- 2026-11-09: CORRECTED § 3 tool assets: one fixed-name asset per tool, replaced in place (was a versioned asset per release). § 3: upload the new asset before a snippet change that drops an element; designs file format change installs the tool first; fulfillment contract item 8, a tool on a design product hands off through the project (pending confirmation); upload dialog re-opens itself for progress, `gallery-id` read only on connect, create the project before the first upload, button contrast on the site button tokens; local previews off the main thread (benchmark); scope every part of a selector list to the option; calm studios still name the size range and from-price, one-photo minimum, designed loader; booting class from the first paint, show the page's own size first, two page console errors that are not tool errors; round products turn like a turntable; Safari ignores `ctx.filter`, SVG in canvas never loads external URLs, die-cut previews follow the cut. § 1 `pricing-area.js` engine 2 metric cards. § 4 per-size defaults on the variant value Default flag; asset URLs in a mount via capture; widen an existing mount argument; theme filter `<main>` swap re-init; size-picker swap clears the photo option. § 5 twin template for upload and design products, tool products by Import Template, no tool version in names. § 6 calendar project PUT changes nothing, add to cart with `redirect: 'manual'`. § 2 / § 7 Photo Book Studio `#pbs-config` from 3.4.0 and the 3D-only hero from 4.0.1; Flyer / Brochure 1.0.x pointer. Also: filter swap fade and keep-visible pattern; provider mount reads store facts from the rendering site; rotated art needs its own `_preview`, books PUT echoes missing options; skip the definition preview page in a hand-off; `px-file-upload` 150m default, `px-upload-dialog` `max-size` in bytes (unit suffix pending), admin 50 MB is a browser check (`large_format`); `preview.webp` with `height` for non-photo designs; fonts from the products parent; missing `unit` means mm; SVG `@font-face` and canvas taint; action toasts ignore `ttl`; Wall Designer `<ipage>` zoom 0 crop resolved. Source: claude-chat.
-- 2026-11-13: § 7 cross-tool rules: WebGL context loss, create the upload project when a design opens, project-edit has no size heading, #product-schema sku, upload tools offer only priced sizes (support ticket), Collage Studio first page and flat mount variants, Greeting Card Studio envelope looks and the none code. Source: claude-chat, support-ticket.
+  cascade. Registry status supplied by Pixfizz; versions verified by reading asset
+  source.
+- 2026-09-24: Added the dedicated hidden mount option standard (`<prefix>_mount`) and the counter test; widened "Shopper choice" to every customer selection and commercial value.
+- 2026-09-29: Pointer: roll a mount across a live range with Bulk Update Tools; custom_script stored with CRLF. §4 a PDP swap keeps the custom_script root and rewrites its attributes; tools must re-read config on attribute change. Install step 1 must include boolean option flag definitions.
+- 2026-10-06: §2 registry and §7 per-tool reference brought up to current state (versions read on shopper24 3 to 6 Oct, install footprint from the 29 Sep sweep, new rows for Uploader 2.0 with forms mode, Wall Designer, Board Engraver, Custom Framing; Gang Up 1.2.0 auto-trim, cut path and planned preview background; Business Cards 2.0.0 in-place recall; uploader and sticker known defects; Flyer / Brochure install gaps; Custom Sized Prints scope); §2 how the install list is found, pointer to 27 for Live Finish and 3D previews. §1 price ladders read price_forecast; tool-computed prices with a Ruby formula oracle and 9-decimal rounding. §3 the px_ fulfillment code contract, the shared px-tool-theme look and dark-site ink, page layout rules (inline, owns the page, obvious first action, one set of controls). §4 the variant recall standard with pos_hidden, stores that price with template options, inches and millimeters, writing back a mount with a JSON script. §5 first price range starts at 1, installing from another site's live template, myPixfizz self-install direction. §6 the tool chooses its own cart image. §8 new done items. Applied spills: Product Previews pointer (B1); §5 px-option override check and strip-false-keys rule (D1); §3 open the platform upload dialog standalone, with events, gallery routing and sign-in behavior (C).
+- 2026-10-09: § 3 the shared look: `.pxt-step` and `.pxt-shell` are contract names a tool must not reuse; pointer to the variant-selector rules in 17.
+- 2026-10-17: § 1 the rate card moves from the mount to the snippet-type product custom field `px_rates` (printed by `product/design-now` as a JSON script tag), and the agreed `pricing.js` engine contract shared with OrderHub (versioned, `px_price` plus text choice variants); § 4 pointer that `px_rates` is pricing data. § 3 tool assets one stem per tool and a new asset per version; upload dialog button classes and text attributes, `upload-success` storage, progress detail, closing the dialog mid-upload, `preview` is a 250 px long-edge thumbnail; new § Using the platform crop tool standalone (`px-image-adjust-tool`); shared look: text outside tool surfaces on dark sites and full dark mode by tokens, `:where()` element resets, wording and stage standards. CORRECTED § 3 page layout: description and delivery box stay in the tool's right column. CORRECTED § 4 mount option code is `px_mount` for every tool, `px_` codes without tool prefix; filter-switched siblings share one mount. § 6 the project edit page has no price; a tool can reopen its saved state on project-edit. § 7 Sticker Designer `inline` is not full width (site CSS pattern); Gang Up canvas resolution ceiling on long sheets.
+- 2026-10-22: § 1 books counted in spreads price in system pages; `px_rates` mode `area` with generic `px_` size codes and counter-only products. § 2 and § 7 Custom Sized Prints moved to in build, priced by `px_rates` (CORRECTED: rate per square inch was on variants). § 3 upload dialog CORRECTED to mandatory for every tool taking a customer file, a tool opens calm, `sources` required, no button look of its own, classes read once at connect, canonical Shopper class set and repo check, `SUPPORTED_FILE_TYPES` and no `accept`, print wording for the five photo-worded attributes, `url` same-host and untainted, feeding files in a test, studio install upload dialog check; new § attaching a file (`file-url` is content addressed, edit-from-cart restore); defend against site `custom.css` (link overrides, generic classes, `img:hover` zoom, contrast check); wording and stage standards (resolution only under 100 dpi, quiet drags, no panel scroll jump, admin terms and collapsed variant trees); page layout (CSS-only takeover with `:has()`, measure the first heading inside the tool); new § the product form refuses silently (`step="any"`, `checkValidity`, retired multiple choice options), § tools that show a design gallery (`preview.webp` tiles, `layouts.json`, `template` nil in the mount), § drawing a design in the browser, § design first from the live tool, § testing a tool (host CSS), § generated template art. § 4 `template` is nil in the mount scope; a tool on a Pages page takes a `page_content` JSON block (parent-only asset resolves from a child). § 5 TemplateOptionType definitions check, price gate covers tool prices, `hidden` is not `hide_from_cart`. § 8 dpi from XML by hand, upload dialog check.
+- 2026-10-29: § 2 registry rows for Greeting Card Studio, Photo Book Studio, Wall Design Studio. § 3 upload: `Filedata` field and copy-by-URL on `/upload/image` (also `data`), PDF raster, upload size limits (150 MB and 300 MP server, `px-image-upload` 50 MB default, `max-size`), slow storefront upload throughput and tool-side waits; strings for upload pool ids, shared logo objects; frame with `.container-fluid` and header padding; sticky under `overflow-x: hidden` (use `clip`), `#kiosk-sticky-bar`, takeover flag standard; platform `popstate` morph and `data-px-no-rerender`; muted ink guard and contrast sweep; pdf.js 6.2.108 for customer PDFs and loading it from a style-onload boot. Generated template art: owner decision allows it (A5). § 7 Publication Upload `pu_max_file_mb` default above the server limit; Business Cards 3.0.0 corners label, sides publishing, `update_flags` 500; new Greeting Card Studio, Photo Book Studio and Wall Design Studio entries.
+- 2026-11-03: § 4 pointer to the new 28_TOOL_SETTINGS_REFERENCE.md (customer-facing settings per tool).
+- 2026-11-09: CORRECTED § 3 tool assets: one fixed-name asset per tool, replaced in place (was a versioned asset per release). § 3: upload the new asset before a snippet change that drops an element; designs file format change installs the tool first; fulfillment contract item 8, a tool on a design product hands off through the project (pending confirmation); upload dialog re-opens itself for progress, `gallery-id` read only on connect, create the project before the first upload, button contrast on the site button tokens; local previews off the main thread (benchmark); scope every part of a selector list to the option; calm studios still name the size range and from-price, one-photo minimum, designed loader; booting class from the first paint, show the page's own size first, two page console errors that are not tool errors; round products turn like a turntable; Safari ignores `ctx.filter`, SVG in canvas never loads external URLs, die-cut previews follow the cut. § 1 `pricing-area.js` engine 2 metric cards. § 4 per-size defaults on the variant value Default flag; asset URLs in a mount via capture; widen an existing mount argument; theme filter `<main>` swap re-init; size-picker swap clears the photo option. § 5 twin template for upload and design products, tool products by Import Template, no tool version in names. § 6 calendar project PUT changes nothing, add to cart with `redirect: 'manual'`. § 2 / § 7 Photo Book Studio `#pbs-config` from 3.4.0 and the 3D-only hero from 4.0.1; Flyer / Brochure 1.0.x pointer. Also: filter swap fade and keep-visible pattern; provider mount reads store facts from the rendering site; rotated art needs its own `_preview`, books PUT echoes missing options; skip the definition preview page in a hand-off; `px-file-upload` 150m default, `px-upload-dialog` `max-size` in bytes (unit suffix pending), admin 50 MB is a browser check (`large_format`); `preview.webp` with `height` for non-photo designs; fonts from the products parent; missing `unit` means mm; SVG `@font-face` and canvas taint; action toasts ignore `ttl`; Wall Designer `<ipage>` zoom 0 crop resolved.
+- 2026-11-13: § 7 cross-tool rules: WebGL context loss, create the upload project when a design opens, project-edit has no size heading, #product-schema sku, upload tools offer only priced sizes (support ticket), Collage Studio first page and flat mount variants, Greeting Card Studio envelope looks and the none code.
 - 2026-11-20: Registry row and new § 7 entry: Upsell Studio 0.1.0 (switch and rules snippets, category trigger, first rule wins, discount only displayed and needs an Automatic Discount with Combines, what can be offered, side effects). Source: pixfizz-design-tools repo docs.
-- 2026-11-21: § 2 checking which tool version a live site runs. § 3 the `px-image-upload` thumbnail is uncropped (shaped products draw their own); shrink-to-fit loops count overlays as overflow; load fonts by name per site from `/v1/fonts.json`. § 4 a tool on a Pages page borrows the product page form (`theme=`); never match the tool root in a `closest()` action selector; size-picker swap clearing the photo now verified, with cause and keep-the-photo fix. § 6 `/v1/books` with `editor=add-to-cart` creates no cart line from `fetch()`. § 7 Greeting Card Studio: full mount from 0.6.41, `gcs_env_print`-only variant import, gallery width on other frames, landing price elements, live-front store designs (0.7.2), localization (hand-off defaults, font names and glyph coverage, baked-text designs, wrapped text box height); Photo Book Studio: `"layflat":"false"` for own page books (4.0.4) and Linked Layouts, singular layflat layout library names, stale parent mount and the heroPlate console line; Upsell Studio hooks. Cross-tool rules: no live price bar rebuilds, core helpers outside optional layers, Android touch adjustment on nested buttons, shared block CSS under an `all:revert` reset, shared block translation hook, canvas studio layers and handles, money formats without decimals, no `calendar_transformations` in the themes API, Calendar Studio spread against sheet and fonts, Sticker Studio `loadFile`, customer product names. § 8 client-site language, currency, type and flow check. Source: claude-chat.
+- 2026-11-21: § 2 checking which tool version a live site runs. § 3 the `px-image-upload` thumbnail is uncropped (shaped products draw their own); shrink-to-fit loops count overlays as overflow; load fonts by name per site from `/v1/fonts.json`. § 4 a tool on a Pages page borrows the product page form (`theme=`); never match the tool root in a `closest()` action selector; size-picker swap clearing the photo now verified, with cause and keep-the-photo fix. § 6 `/v1/books` with `editor=add-to-cart` creates no cart line from `fetch()`. § 7 Greeting Card Studio: full mount from 0.6.41, `gcs_env_print`-only variant import, gallery width on other frames, landing price elements, live-front store designs (0.7.2), localization (hand-off defaults, font names and glyph coverage, baked-text designs, wrapped text box height); Photo Book Studio: `"layflat":"false"` for own page books (4.0.4) and Linked Layouts, singular layflat layout library names, stale parent mount and the heroPlate console line; Upsell Studio hooks. Cross-tool rules: no live price bar rebuilds, core helpers outside optional layers, Android touch adjustment on nested buttons, shared block CSS under an `all:revert` reset, shared block translation hook, canvas studio layers and handles, money formats without decimals, no `calendar_transformations` in the themes API, Calendar Studio spread against sheet and fonts, Sticker Studio `loadFile`, customer product names. § 8 client-site language, currency, type and flow check.

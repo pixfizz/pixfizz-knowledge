@@ -171,7 +171,7 @@ From 24 Nov 2026 each tool has its own page in the folder `tool-settings/`, with
 ## 6.1 Studios and design tools
 
 ### Business Cards
-3.7.2 is the newest release (Playpoint name cards, Nov 2026). Which version each site runs is not checked here: the console start-up line shows it.
+3.7.2 is the newest release (name cards, Nov 2026). Which version each site runs is not checked here: the console start-up line shows it.
 Settings: `tool-settings/business-cards.md`.
 
 ### Greeting Card Studio
@@ -223,7 +223,7 @@ Settings: `tool-settings/tilepix-wall-studio.md`.
 Settings: `tool-settings/wall-design-studio.md`.
 
 ### Fan Face (face fan designer)
-1.3.1 live on Hite Photo only (23 Nov 2026). Older versions on other installs. 2.0.0 built and tested, not released.
+1.3.1 live on one pilot site (23 Nov 2026). Older versions on other installs. 2.0.0 built and tested, not released.
 Settings: `tool-settings/fan-face.md`.
 
 ### Custom Framing
@@ -342,7 +342,7 @@ Settings: `tool-settings/ai-switches.md`.
 
 ## Changelog
 
-- 2026-11-03: File created. Customer-facing settings reference for every studio, custom design tool, order builder and product preview: where the mount lives, how to change it safely, the Yes / With care / No rating, and the full settings list per tool. Settings, accepted values and defaults verified by reading the tool source in the design tools repo, 3 Nov 2026; items not confirmed are marked per tool. Source: claude-chat, tool source.
-- 2026-11-09: Business Cards designs file per trim size. Collage Studio known issues (frame wider than header on Bootstrap-breakpoint themes, hide the new design collection). Photo Book Studio collections settings only in `#pbs-config` from 3.4.0, 3D-only landing hero from 4.0.1 (CORRECTED: `hero3d` block no longer needed). Uploader 2.0 reads product `px_rates` before the mount card. Flyer / Brochure 1.0.x limits (no child variant trees, carriers not hidden, `ff_original_code` optional). Keepsake notes on `ks_photo_option` as a design option and `ks_front` reading variants only. Round 2: CORRECTED Keepsake `ks_sample_page` (a missing page name falls back to `ks_page` with the sample photo); placeholder grey differs per site. Source: claude-chat.
-- 2026-11-21: Greeting Card Studio full mount required from 0.6.41 (`gcs_diy`, `gcs_env_logo_ink`). Photo Book Studio `"layflat":"false"` for own page books (4.0.4), Linked Layouts, and the `no 3D hero images (heroPlate)` console line. Uploader 2.0 `?size=` link to a size (2.6.6). § 6.6 Upsell Studio switch and rules snippets. Source: claude-chat.
-- 2026-11-24: Section 6 split into one page per tool under `tool-settings/` (index: `tool-settings/README.md`). Each page adds the current version and the settings changed since 3 Nov 2026, checked against the tool source: Greeting Card Studio `gcs_editor` and quantity and proof settings, Calendar Studio design tool link off by default, Fan Face 1.3 and 2.0 (AI cut as a switch), Gang Up `gu_cut_shape`, Sticker Studio 6.4 bleed default, Live Finish framed ornament keys, 3D Preview inside color keys. New pages: Golf Ball Studio, Mug Studio, T-shirt Studio, Jewelry Box, Starring You, AI switches. Per-tool facts now go in the tool page, not here. Source: claude-chat, tool source.
+- 2026-11-03: File created. Customer-facing settings reference for every studio, custom design tool, order builder and product preview: where the mount lives, how to change it safely, the Yes / With care / No rating, and the full settings list per tool. Settings, accepted values and defaults verified by reading the tool source in the design tools repo, 3 Nov 2026; items not confirmed are marked per tool.
+- 2026-11-09: Business Cards designs file per trim size. Collage Studio known issues (frame wider than header on Bootstrap-breakpoint themes, hide the new design collection). Photo Book Studio collections settings only in `#pbs-config` from 3.4.0, 3D-only landing hero from 4.0.1 (CORRECTED: `hero3d` block no longer needed). Uploader 2.0 reads product `px_rates` before the mount card. Flyer / Brochure 1.0.x limits (no child variant trees, carriers not hidden, `ff_original_code` optional). Keepsake notes on `ks_photo_option` as a design option and `ks_front` reading variants only. Round 2: CORRECTED Keepsake `ks_sample_page` (a missing page name falls back to `ks_page` with the sample photo); placeholder grey differs per site.
+- 2026-11-21: Greeting Card Studio full mount required from 0.6.41 (`gcs_diy`, `gcs_env_logo_ink`). Photo Book Studio `"layflat":"false"` for own page books (4.0.4), Linked Layouts, and the `no 3D hero images (heroPlate)` console line. Uploader 2.0 `?size=` link to a size (2.6.6). § 6.6 Upsell Studio switch and rules snippets.
+- 2026-11-24: Section 6 split into one page per tool under `tool-settings/` (index: `tool-settings/README.md`). Each page adds the current version and the settings changed since 3 Nov 2026, checked against the tool source: Greeting Card Studio `gcs_editor` and quantity and proof settings, Calendar Studio design tool link off by default, Fan Face 1.3 and 2.0 (AI cut as a switch), Gang Up `gu_cut_shape`, Sticker Studio 6.4 bleed default, Live Finish framed ornament keys, 3D Preview inside color keys. New pages: Golf Ball Studio, Mug Studio, T-shirt Studio, Jewelry Box, Starring You, AI switches. Per-tool facts now go in the tool page, not here.

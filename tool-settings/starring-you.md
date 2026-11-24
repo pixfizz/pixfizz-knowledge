@@ -21,4 +21,4 @@ Starring You has **no mount settings**. The mount is only the snippet call: `{% 
 
 ## Changelog
 
-- 2026-11-24: Page created. Source: claude-chat, tool source.
+- 2026-11-24: Page created.
