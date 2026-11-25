@@ -2067,7 +2067,7 @@ Template-level, read from source and installs unless marked.
   on a client site, 2026-11-19.*
 - **Store designs with a live front (0.7.2, not live on 2026-11-20).** Store designs can have
   photo windows and words on the front, not only a fixed front. Builder: pixfizz-design-tools
-  `greeting-card-studio/designs/store/gen_store_live.py`, also in the Pixfizz Storefront plugin
+  `greeting-card-studio/designs/store/gen_store_live.py`, also in the Pixfizz Skills plugin
   skill studio-designs (`scripts/gcs_store_live.py`, `references/studios.md`), which no longer
   sends front-photo designs to the design tool. Tool-level. *Stated in the build notes,
   2026-11-20; not verified live.*

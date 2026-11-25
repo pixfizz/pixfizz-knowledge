@@ -26,7 +26,7 @@ Everything a customer sees is limited to their own organization and its storefro
 | Brand | Assets | `/assets` | Shared documents and links. |
 | Brand | Tools | `/tools` | Self-service tools (below). |
 
-Links that open in a new tab: the Claude setup guide (`aisetup.pixfizz.com`), Documentation (`help.pixfizz.com`) and OrderHub. Before kickoff, a new customer lands on `/welcome`.
+Links that open in a new tab: the Claude setup guide (`aisetup.pixfizz.com`; the same guide in reference form is `75_AI_ASSISTANT_SETUP.md`), Documentation (`help.pixfizz.com`) and OrderHub. Before kickoff, a new customer lands on `/welcome`.
 
 ---
 
@@ -111,4 +111,5 @@ myPixfizz accounts are one per email address across Pixfizz. From the Pixfizz ad
 ---
 
 ## Changelog
+- 2026-11-25: Portal Map now points to `75_AI_ASSISTANT_SETUP.md` for the AI setup guide.
 - 2026-11-24: Rewritten as a customer-facing overview. The internal system reference that was here, and files 71 and 72, are no longer part of this repository.

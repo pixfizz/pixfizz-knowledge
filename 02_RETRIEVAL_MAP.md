@@ -32,6 +32,9 @@ _Last updated: 2026-11-09_
 ### "Pricing formulas / price variables / tiering / cut_print_quantity rule?"
 → **30_PRICING_ENGINE.md**
 
+### "Price card / px_rates / pricing.js / booklet, document, NCR, sticker or custom size rates / will it price in OrderHub?"
+→ **33_PX_RATES_PRICE_CARDS.md**
+
 ### "Fulfillment templates / job tickets / generated_files / filename templates?"
 → **31_FULFILLMENT_ENGINE.md**
 
@@ -333,6 +336,9 @@ MyPixfizz is a separate product from the Pixfizz CMS platform — it is the Pixf
 
 ### "What routes/pages exist / what does a specific feature do?"
 → **70_MYPIXFIZZ_OVERVIEW.md**
+
+### "Set up Claude / AI assistant for my store, Pixfizz connector setup, Pixfizz Skills plugin (was Pixfizz Storefront), aisetup.pixfizz.com, project instructions, SITE_CONTEXT.md"
+→ **75_AI_ASSISTANT_SETUP.md**; what the connector can do in detail: **61_PIXFIZZ_API.md** § Pixfizz MCP connector
 
 > **Scope note:** The MyPixfizz file (70) is entirely separate from Pixfizz CMS files (10–61). Do not apply Shopper, Liquid, or pricing rules to MyPixfizz questions.
 
@@ -674,6 +680,9 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 
 ### "Admin login / 2FA / TOTP / passkey / super admin URL / impersonation timeout?"
 → **18_ADMIN_NAVIGATION.md** § Admin Login: Two-Factor and Passkeys
+
+### "Is Pixfizz secure / security overview / firewall / session timeout / account security page / affected by a vulnerability (PHP etc.)?"
+→ **64_PLATFORM_SECURITY.md**
 
 ### "Which order notification email fires when? / BCC on confirmation / Fulfilled vs Shipped email?"
 → **32_ORDER_LIFECYCLE.md** § Which notification email fires when
@@ -2348,3 +2357,4 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 - 2026-11-20: Added 10 routes for the 2026-11-20 sync (Upsell Studio, Pixfizz Kiosk app, light cart pop-up, minimum amount, tax decimals, PayFast, sign in expired, debug checkout, cut print edit).
 - 2026-11-21: Added 51 routes for the 2026-11-21 sync (working notes 16 to 20 Nov across 26 files).
 - 2026-11-24: Tool settings route now points to the per-tool pages in `tool-settings/`; added the AI switches route.
+- 2026-11-25: Added the AI assistant setup route (`75_AI_ASSISTANT_SETUP.md`).
