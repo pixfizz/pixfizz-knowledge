@@ -2,7 +2,7 @@
 
 **Authority Scope:** Design Tool Configurations, feature toggles, and customer-facing editor behavior.
 
-_Last updated: 2026-11-09_
+_Last updated: 2026-11-25_
 
 ---
 
@@ -96,6 +96,59 @@ Vintage Film was drafted during development and is **not** in the launch set. Ge
 **Filter selection auto-applies.** Selecting a filter (Restyle preset or Image effects filter) now applies it immediately. Previously, selecting a filter only showed a preview — if the customer went straight to cart without pressing an explicit **Apply** button, the filter was silently discarded. This has been changed to auto-apply on selection so the result can no longer be lost this way. Deployed 2026-07-27.
 
 **Known issue — AI token usage counted globally, not per site (fix deploying to production the week of 2026-08-03).** Enabling AI tools on one site could show token usage that included consumption from other sites on the same account, rather than being scoped to that site alone (e.g. enabling AI on `photosynthesis.pixfizz.com` showed tokens consumed elsewhere). A fix to scope AI usage trackers by website has been verified on staging and is pending production deploy. Until then, do not treat a site's displayed AI token count as an accurate per-site figure.
+
+### AI tools outside the design tool (crop window, photo prints, auto-run)
+
+From November 2026 the AI image tools also work outside the editor, on the CMS side. All three
+are set in snippets, and all take the **same tool names and syntax as the AI tool configuration
+in the design tool settings** (for example `auto_enhance`, `watercolor`, `remove_background`).
+Platform-level. *Announced by Pixfizz, Nov 2026; not verified live.*
+
+**1. Crop window on a live preview product.** Add `image-adjust-tool-ai-tools` to
+`<px-image-upload>` (on most stores in `product/px-options`). The value is a JSON list of tool
+names. The tools show inside the crop window when the customer clicks Adjust.
+
+```html
+<px-image-upload
+  image-adjust-tool-ai-tools='["auto_enhance", "watercolor", "remove_background"]'
+  dpi="<print dpi>"
+  ...
+></px-image-upload>
+```
+
+- Add `dpi` as well (recommended). The tools use it to work out the smallest image size that
+  still prints well, which makes the result faster and uses fewer AI tokens.
+- Like every `image-adjust-tool-*` attribute, it is copied onto the crop modal when Adjust is
+  clicked (`22_OPTION_VARIANT_RENDERING.md`).
+
+**2. Photo prints.** Add `ai_tools` to the photo prints component settings.
+
+```javascript
+Px.CMS.PhotoPrintsComponent.make({
+  // ...existing settings
+  ai_tools: ['auto_enhance', 'watercolor', 'remove_background'],
+  login_modal_enabled: true,
+  login_modal_registration_url: '/register'   // optional, site-specific
+});
+```
+
+**3. Run one tool automatically.** Add `ai-tool="<tool name>"` to `<px-image-upload>`. That one
+tool runs as soon as the customer picks a photo, for example `ai-tool="remove_background"` on a
+product that always needs a cut-out.
+
+**Rules that apply to all three**
+
+- AI tools need a **signed-in customer**. Without the sign-in form an anonymous customer only
+  sees "Sign in to use AI tools". Turn the form on with the login modal settings: see "Login
+  inside the upload dialog" below (underscore form for photo prints). Which attribute form the
+  crop window reads on `<px-image-upload>` is not verified: test signed out before going live.
+- The site must have AI tokens enabled (`18_ADMIN_NAVIGATION.md`), and the design tool's AI
+  tool settings and daily limits apply here too. A tool name that is not configured for the
+  site does not work.
+- An AI result is a new image; the customer's original is not changed.
+- A snippet change is live as soon as it is saved. Test on one product first.
+- Custom design tools (studios) switch AI on in their mount instead: `tool-settings/ai-switches.md`.
+- To run an AI tool from your own custom tool or page, use the endpoint in `61_PIXFIZZ_API.md` § 13j.
 
 ### Typography & Color Defaults
 - Default Font, Font Palette, Font Size
@@ -1570,3 +1623,4 @@ Platform event. *Confirmed by Pixfizz, 2025-05; not re-tested by query.*
 - 2026-11-09: Integrations: RESOLVED the Custom JS gate (super admin `website_settings[editor_custom_js]`) and how a Shopper child loads `editor-scripts.js`. Editor Buttons and Per-Site CSS: phone mode forces injected buttons to `display: block` (scope with `.px-editor`), requestAnimationFrame panel guard. Store paths: `store.layouts.layouts` holds every theme size including covers; layflat set count vs page labels. Text, image and layout calls: adding elements by clone and `addElement`, recolored locked background prints, production file without an order (logged in Money Logs), one undo step with `beginWithUndo`, extra-pages price via `price_forecast` and the `_price_variables` mutation trap, product id vs template id, extra grid row under the canvas. Substitutions bind by element name: tag-only color targeting verified in production. Photo prints: border applied by the print driver (values with no substitutions). Text, image and layout calls: editor store element keys.
 - 2026-11-13: New sections: Where the Editor's Close Button Goes (exitTarget order, exit_target passed through /v1/books); px-design-preview notes (listens to every option selector without the attribute, self-fetched SVG loses external images, slow previews from heavy design artwork).
 - 2026-11-21: Integrations: Custom CSS field gated by `editor_custom_css` like Custom JS (both off on a fresh child). Editor CSS Customization: Shopify + Pixfizz sites use the `style/editor.css` route; Shopper 24 parent rule to copy into an override; specificity of stock button rules and the `!important` selected tab; phone cart button; Google Fonts `@import`; more theming variables; an untranslated stock string. Text, image and layout calls: `fillPlaceholder` silently skips `edit="false"` images. New § Saving, autosave and guest projects (no native autosave, Quicksave Prompt Delay, save diff and page replacement, non-idempotent page adds, keepalive on page close, header redraw, page limits, `Px.config` values, test and guest projects, `/site/login`).
+- 2026-11-25: Added "AI tools outside the design tool": `image-adjust-tool-ai-tools` and `dpi` on `<px-image-upload>` (crop window), `ai_tools` in the photo prints component settings, `ai-tool` auto-run on upload, and the sign-in and token rules.
