@@ -2,7 +2,7 @@
 
 **Authority Scope:** Pixfizz REST API (v1), JS API, user handoff, project/fulfillment endpoints, dynamic previews, and custom eCommerce integration.
 
-_Last updated: 2026-10-22. Compiled from Pixfizz platform documentation (API section)._
+_Last updated: 2026-11-25. Compiled from Pixfizz platform documentation (API section)._
 
 ---
 
@@ -1576,6 +1576,59 @@ Platform-level. *Verified by query, 2026-11-10 unless marked.*
 - **Placeholder image of a design page:** upload once with `POST /upload/resource?tag=<resources tag>&sitename=<site>` (fields `code`, `data`); the returned id works as `src="db:<id>"` on any design of that site. On a provider design this changes every consuming site.
 - **Asset URLs are signed per host.** The asset `url` the admin API returns (custom domain) carries a host-signed key; the same key on cdn.pixfizz.com answers "invalid security key". Download assets from the URL exactly as returned, or read the CDN URL from the rendered page; never rewrite the host.
 
+## 13j. AI Image Tool Endpoint (2026-11)
+
+`POST /-/images/<image-id>/ai_tool_url.json`
+
+The endpoint behind the AI image tools in the design tool and on the storefront (crop window,
+photo prints, auto-run on `<px-image-upload>`: `17_DESIGN_TOOL.md` § AI tools outside the design
+tool). A custom design tool or custom page can call it to run an AI tool on a customer's photo.
+It is called from the storefront in the customer's own session, not with an admin API key.
+Platform-level. *Documented by Pixfizz, Nov 2026; not verified by query.*
+
+**Parameters**
+
+| Parameter | Required | What it does |
+|---|---|---|
+| `tool` | Yes | ID of the tool to run on the image, for example `watercolor`. Must be a tool configured for the site |
+| `size` | No | Output size in pixels, longer side. Default is the original size. The token cost of some tools depends on output size, so pass the smallest size that still prints at enough DPI |
+| `print_theme_id` | No | The project ID, when the tool is used inside a project, for more accurate token bookkeeping |
+
+**What it does and does not do**
+
+- It checks permissions and the token balance and returns a temporary signed image URL:
+  `200` with `{"url": "https://..."}`.
+- It does **not** run the AI or spend tokens. That happens when the transformed image is
+  downloaded from the returned URL.
+- It does **not** change or replace the original image. The caller downloads the result and
+  uploads it as a new image with a new ID, which can then be used in projects and live previews.
+- To skip the download and upload round trip, use upload by URL: `POST /upload/image?url=...`.
+  The platform fetches the image from that URL and stores it as a new image.
+
+**Errors** (JSON with an `error` field, sometimes extra fields)
+
+| Status | `error` | Meaning |
+|---|---|---|
+| 401 | `login_required` | Anonymous customer. Offer a sign-in |
+| 402 | `insufficient_tokens` (+ `min_tokens`) | Not enough tokens for this tool |
+| 404 | `unknown_tool` | The tool is not configured for the site |
+| 422 | `invalid_size` | `size` is not a positive integer |
+| 429 | `insufficient_capacity` (+ `type`: `daily` or `monthly`) | The site's usage limit is reached |
+
+`403` with no JSON code: the site does not use AI tokens, there is no session user, or the
+customer has no access to the image or project.
+
+**Rules for anything built on it**
+
+- Every call that ends in a download spends the site's AI tokens. AI tokens are usage-based:
+  see commercial terms. No rates are recorded here.
+- Handle `401` by signing the customer in on the page, and `402` / `429` / `403` by hiding or
+  disabling the AI choice, never by retrying in a loop.
+- Save each result once and reuse it; do not request the same transformation again for a
+  preview, the cart and the print file.
+
+---
+
 ## 14. Retrieval Pointer
 
 | Topic | File |
@@ -1615,3 +1668,4 @@ Platform-level. *Verified by query, 2026-11-10 unless marked.*
 - 2026-11-09: § 2 CORRECTED API keys (super user keys in the super admin reach every site the super user can access; site-admin keys reach one site); service users; new Pixfizz MCP connector paragraph. § 4 change a cart line's quantity by script (`orderline_update` with `id:`/`class:`), add-to-cart at a quantity. § 6 gallery custom fields writable; a photo subset as its own gallery; copy by URL keeps PNG alpha and works from another site's CDN asset; `/upload/file` copy by URL; a third `/v1/images` observation (staff account, pending). § 9 CORRECTED placeholder grey is per site (210,208,208 is the default only); `preview.webp` with `product_id` and `height` usable on non-photo designs; new Render speed (WebP fastest, private cache, no duplicate in-flight renders). § 11 what a user calendar date holds (64-char `date_type`, year kept, PUT and DELETE via `_method`) and what prints. § 12 child `/v1/fonts.json` lists the products parent's fonts. § 13c `.html` assets refused silently, prototype page as a `.js` asset in an iframe; admin 50 MB is a browser check (150 MB with `large_format`), raise agreed but not live; custom field definitions copied per object by `export_all?type=`, a new child has 0 definitions; custom types export by `custom_type_ids[]`. § 13d `order.fulfilled` event; super account and global webhooks with the wrapped payload. § 13g `price_forecast` with `variants[...]` and `variants_applied`. § 13h child override observations (empty on 2026-10-31, parent copy with content ignored on 2026-11-06, HX headers), template provider vs same-account publish (pending), byte-exact snippet edit from `const content`, variant value image, reorder and layout substitution routes, short template option create, collection merge confirmed again, collection preview images form, `unpublished` hides the tile only, site settings `website[title]`, shipping formula 0 is free, assets have no show page, slash in Create and Tick is flattened, fonts copy. Round 2: § 4 calendar start and holidays fixed at creation; `/cart/add_print_product` fetch needs `redirect: 'manual'`; minimal `/v1/books.json` create. § 5 production file from the admin project page. § 6 guest's own upload answers 500 on `/v1/images`. § 11 admin calendar forms (create, `create_date`, copy between sites). § 13g product custom values store without a definition. § 13h template import file as JSON (pointer).
 - 2026-11-13: Pixfizz MCP connector: set up from the Claude desktop app on Windows, ChatGPT not completed. New § 13i: snippet update in place by /v1 PUT (create with an existing name is 422), child override by form, Pages entry create and update, design placeholder image via /upload/resource, asset URLs are signed per host.
 - 2026-11-21: § 2 Pixfizz MCP connector: plans expire after 15 minutes, `\uXXXX` escapes stored as characters, `snippet_write` creates site-only child snippets and large snippets go in parts, snippet tools refuse Shopify + Pixfizz sites. § 13c Assets: CORRECTED the 50 MB admin limit (Assets page 250 MB and its accepted types since 2026-11-16); copy an asset to another site. § 13a: create a code with the Liquid `promocode` tag (gift vouchers). § 13i: conflicting observation on the `/v1` snippet PUT. § 2 connector: a Ruby price via `product_update` sets `price_formula` itself.
+- 2026-11-25: New § 13j: AI image tool endpoint `POST /-/images/<image-id>/ai_tool_url.json` (parameters, signed URL behavior, upload by URL, error codes, token rules).

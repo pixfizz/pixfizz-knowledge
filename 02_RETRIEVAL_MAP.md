@@ -2,7 +2,7 @@
 
 **Authority Scope:** Navigation + retrieval guidance only. This file does not introduce new platform or template rules.
 
-_Last updated: 2026-11-09_
+_Last updated: 2026-11-25_
 
 ---
 
@@ -602,6 +602,12 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 
 ### "Can my studio use AI (cut out, cartoon, color correction)? How do I turn it on or off?"
 → **tool-settings/ai-switches.md** — every AI feature is a mount switch, off by default; needs a signed-in shopper and AI tokens.
+
+### "AI tools in the crop window / on photo prints / run an AI tool automatically on upload? `image-adjust-tool-ai-tools`, `ai_tools`, `ai-tool`?"
+→ **17_DESIGN_TOOL.md** § AI tools outside the design tool — three snippet settings, same tool names as the design tool AI configuration; needs a signed-in customer and AI tokens.
+
+### "Is there an API for the AI image tools? Run an AI tool (cartoon, background removal, enhance) from my own custom tool or page? `ai_tool_url`?"
+→ **61_PIXFIZZ_API.md** § 13j AI Image Tool Endpoint — storefront session endpoint, returns a signed URL; tokens are spent on download.
 
 ### "Cut spot color name / CutContour / CutPath / cut line prints instead of cutting?"
 → **28_TOOL_SETTINGS_REFERENCE.md** § 6.2 (`stk_cut_spot`, `gu_cut_spot`): the name must match the RIP's cut spot letter for letter.
@@ -2358,3 +2364,4 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 - 2026-11-21: Added 51 routes for the 2026-11-21 sync (working notes 16 to 20 Nov across 26 files).
 - 2026-11-24: Tool settings route now points to the per-tool pages in `tool-settings/`; added the AI switches route.
 - 2026-11-25: Added the AI assistant setup route (`75_AI_ASSISTANT_SETUP.md`).
+- 2026-11-25: Added the route for AI tools outside the design tool (crop window, photo prints, auto-run) and for the AI image tool endpoint.
