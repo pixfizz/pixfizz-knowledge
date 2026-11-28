@@ -2,7 +2,7 @@
 
 _Part of the Pixfizz Tool Settings Reference. How the mount works, what Yes / With care / No mean and how to change a setting safely: `28_TOOL_SETTINGS_REFERENCE.md` sections 1 to 5. Template-level (Shopper) unless a row says otherwise._
 
-_Last updated: 2026-11-24_
+_Last updated: 2026-11-27_
 
 ## Current version
 0.5.2 live on the Shopper parent since 20 Nov 2026.
@@ -14,6 +14,9 @@ As recorded on 3 Nov 2026: Status: live, version 0.2.2 on the platform; 0.3.0 bu
 - Design tool link: from 0.5.0 the studio offers no route into the design tool unless the studio page config `#cs-config` holds `"editor":"true"`. Default `false` (verified in the 0.5.2 script). **Yes.**
 - `cs_crop` default is `true` from 0.5.0 (Crop buttons shown, crops sent to the editor). **Yes.**
 - `cs_stands` decides which stands the desk calendar offers and names them in the spec line; with one stand the format tile does not crossfade (0.3.7).
+- **Own templates mode** (0.6.0 and later): `"mode":"own"` in the page's `#cs-config` block lets a lab sell its own calendar designs. Self-serve for labs (decided by Pixfizz, 2026-11-25). Keys (0.6.2, verified by reading source 2026-11-25): `cs_products` takes any role name, and role `X-cv` is `X` with a cover; in `#cs-config`, `themes` = `role:design id` pairs (comma separated), `families` = `family:wall` or `family:desk` (vertical bar, landing order), `names`, `lines` and `sizes` = `family:text` (vertical bar), `variant` = one variant type code, `shipNote`. Other keys seen: `lang`, `coil`, `editor`, `images`. Own mode is detected from the block text `"mode":"own"`. Which version is live on the Shopper parent: to confirm.
+- `printLang` in `#cs-config` (0.6.2): the studio writes month names and labels in that language into the saved pages at hand-off (works because saved calendar pages keep their text, `23_XML_CALENDAR_REFERENCE.md`). *Verified on a production PDF, 2026-11-25.*
+- Design codes: the `-cs-<word>` suffix rule is in `26_CUSTOM_DESIGN_TOOLS.md` (Cross-tool rules).
 
 *Checked against docs/releases/0.5.2 and src on 24 Nov 2026.*
 
@@ -68,6 +71,13 @@ Things that are not set here:
 
 Not yet confirmed: Defaults come from the tool documentation and are not confirmed against the tool script.
 
+## Known issues
+
+- **Clearing a design's Published tick does not take it out of the studio.** The studio reads every design in `cs_collection`, published or not. To hide a design on one site, remove its row from the collection; put it back with the Publish Products wizard. *Verified by reading source and live, 2026-11-25.* (all studios: `26_CUSTOM_DESIGN_TOOLS.md` § Cross-tool rules added 2026-11)
+- **Keep template codes to 30 characters or fewer.** Design codes are `<template code>-<design key>`, must stay under 50 characters, and the longest design key is 18 characters. *Verified by query, 2026-11-25.*
+- **With the site skin, the studio's primary button loses the site's font weight.** `.cs-root .btn.primary { font-weight: 500 }` in `style/calendar-studio` has the same specificity as the site-skin button rule and comes later. Until the studio CSS is fixed, add to the page content: `#cs-root[data-skin="site"] .btn{font-weight:var(--cs-btn-fw)}`. Template-level (Shopper 24 parent). *Verified live, 2026-11-22.*
+
 ## Changelog
 
 - 2026-11-24: Page created from `28_TOOL_SETTINGS_REFERENCE.md` section 6 (one page per tool). Current version and changes since 3 Nov added from the tool source and CHANGELOG.
+- 2026-11-27: Own templates mode (0.6.x, self-serve) and `printLang`. New Known issues: Published tick ignored, template code length, site skin button weight.

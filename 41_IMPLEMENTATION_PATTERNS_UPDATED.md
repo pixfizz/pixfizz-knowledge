@@ -3,7 +3,7 @@
 **Authority Scope:** Reusable architectural patterns for Pixfizz
 storefronts.
 
-*Last updated: 2026-11-09*
+*Last updated: 2026-11-27*
 
 ------------------------------------------------------------------------
 
@@ -656,6 +656,13 @@ file is ever written. This was the single cause of every missing preview in one
 custom design tool across four consumers — the saved-cover card, Saved Projects,
 the cart and the gallery — all of which looked like four separate bugs.
 
+`{{ 'name' | asset_url }}` resolves to `https://cdn.pixfizz.com/fz/...`, not the store's own
+domain, even for a child site's own uploads. The CDN sends `Access-Control-Allow-Origin: *` for
+webp and woff, so `crossOrigin` loads succeed; fonts fetch as is. A prototype served from one
+folder hides the taint: test with the assets on a second origin. *Verified by query,
+2026-11-23.* Rule for tools: `26_CUSTOM_DESIGN_TOOLS.md` § 3 (every canvas image, samples
+included).
+
 # iOS Safari Canvas Pixel Ceiling — 16,777,216
 
 iOS Safari refuses to allocate a canvas larger than **16,777,216 pixels**
@@ -1185,6 +1192,14 @@ The same trap on snippets, template options, collections and assets, and the edi
 
 A canvas styled `width:100%` with a `max-height` and `object-fit: contain` is letterboxed inside its element box. `getBoundingClientRect()` returns the box, not the drawn image, so pointer-to-canvas maths is off by the letterbox (clicks landed centimetres away from the item). Use the drawn rectangle: `scale = min(rect.width/canvas.width, rect.height/canvas.height)`, drawn left = `rect.left + (rect.width - canvas.width*scale)/2`, drawn top likewise. Use it for hit tests and for placing DOM handles over canvas items. Browser technique for custom design tools. *Observed in a tool prototype, 2026-10-26.*
 
+## Large tool pages: ship the page as a JS asset, keep the snippet small
+
+A snippet that inlines a whole tool page (one was 167 KB) is hard to write reliably in one call. Upload the page as a JS asset that sets a string (`window.X_HTML = ...`) and keep the snippet to the `asset_url` map, a `<script src>` for that asset and a few lines that build the iframe `srcdoc`. Liquid cannot run inside a JS asset, so leave placeholders for the asset URLs in the page and fill them from the snippet. A later snippet can extend an earlier one's asset map and replace an iframe's `srcdoc` while the page parses, so the first snippet never needs rewriting. Do not put `{% %}` tags inside a `{% comment %}` block in snippet text: name snippets in plain words there. Template-level (Shopper 24). *Verified live, 2026-11-24.*
+
+## The currency switcher wraps prices after insertion
+
+On a site with the currency switcher, any text node holding a price ("$12.00") is wrapped in a span after it is inserted. Translate or build strings that contain prices before inserting them; never find them by matching the DOM text afterwards. Template-level. *Seen live on a client site, 2026-11-25.*
+
 ---
 
 ## Changelog
@@ -1210,3 +1225,4 @@ A canvas styled `width:100%` with a `max-height` and `object-fit: contain` is le
 - 2026-10-22: Added Scripted Admin Writes: select an admin form by a field it must contain, require `_method` patch or put, build FormData field by field, keep a restore copy (a Pages instance deleted by an action-URL match), pointing to 18 for the per-page fields.
 - 2026-10-29: Added hit tests on a canvas with `object-fit: contain` (use the drawn rectangle, not the element box).
 - 2026-11-09: Canvas and Form Patterns: a WebGL canvas needs an explicit CSS size (measure the canvas, ResizeObserver). PhotoPrintsComponent hooks: health check (`loaded`, `state.theme_store`) and why a non-cut-print template empties the flow, `sessionStorage` state key, sub-collection grouping, per-size options only on Cropping & Options.
+- 2026-11-27: Canvas export: `asset_url` resolves to the CDN (CORS headers, test on a second origin). Added large tool pages as a JS asset with a small snippet, and the currency switcher wrapping prices after insertion.

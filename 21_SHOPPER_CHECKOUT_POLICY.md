@@ -2,7 +2,7 @@
 
 **Authority Scope:** Checkout engine logic only.
 
-_Last updated: 2026-11-09_
+_Last updated: 2026-11-27_
 
 ---
 
@@ -86,6 +86,7 @@ Template-level (Shopper 24). *Verified live on a demo site, 2026-10-28.*
 - The live reload morphs `section.checkout-page` in place (the section node survives), so do not detect new content by the section being replaced. Detect it by a marker element your script injected (one the server does not render) disappearing. An element inside a refreshed snippet that the server also renders can survive the morph, so its continued presence proves nothing. *Corrected 2026-11-09: this line said to detect new content by any injected element disappearing; the morph can keep server-rendered elements in place (verified live, 2026-11-02).*
 - `checkout/extra-checkout-code` is empty on the parent and is the clean child hook for checkout scripts, for example an instant "Loading delivery options..." line and locking payment while the switch runs.
 - **It renders once, above `section.checkout-page`, so the live reload never re-injects it.** That makes it a safe host for a checkout engine script: a `MutationObserver` on `body` that re-places the script's injected nodes survived the Rush, Delivery and Color Enhancement reloads. Data the script needs per cart line goes in a **hidden element** inside an AJAX-refreshed hook (`checkout/custom-cart-option`), never a script there. Template-level. *Verified live on a client site, 2026-11-02.*
+  - **Conflicting observation, 2026-11-22:** on another site `checkout/extra-checkout-code` was printed inside `section.checkout-page` on `pages/checkout` and re-rendered with every checkout refresh, and its parent content was two kiosk snippet calls (not empty). A child override must keep those calls. Until this is settled, write scripts in this hook so they are safe either way: bind to `px.fragmentsReloaded` and make them idempotent. *Verified by reading source, 2026-11-22; pending confirmation.*
 - **A site with one shipping method shows no shipping method picker**; the method appears as a fee line. Checkout scripts must not assume method radios exist. *Verified live on a client site, 2026-11-02.*
 - A real speed fix needs the platform (a lighter live-reload target or a faster cart PUT). Pending: core developer.
 
@@ -135,6 +136,8 @@ do not round it. Platform-level. *Confirmed by Pixfizz, 2026-11-17.*
 
 Flag this to clients during onboarding if they are European and expect tax-inclusive display prices.
 
+The Taxes screen is `admin.pixfizz.com/site/<site>/admin/taxes/index` (`/admin/taxes` is a 404); menu Shipping > Taxes. It has only an Import CSV form. *Verified live, read-only, 2026-11-24.*
+
 ## Guest checkout: configurable fields
 
 Guest checkout supports the following configuration:
@@ -147,6 +150,16 @@ These are checkout configuration options, not hardcoded behaviour.
 **Guest contact fields are checked in the browser only.** The Shopper 24 `pages/checkout` guest form (`user_registration` with `user[guest]=true`) marks Email with the HTML `required` attribute and nothing more; Phone renders only when `admin/checklist/require-telephone-registration` = `TRUE`. Template-level. *Verified by reading source (shopper24 backup), 2026-10-20.* The platform has been seen to accept a guest with no email and no phone. Platform-level. *Confirmed by Pixfizz, 2026-10-21; not verified by query.* Until the core developer confirms otherwise, treat guest contact requirements as unenforced server-side: a script or a bot that skips the browser form can create a guest with neither.
 
 **No guest checkout for film orders.** `pages/checkout` offers the guest option only when `film_order == false`, so a cart holding a film-processing line always needs a signed-in account. Template-level. *Verified by reading source (shopper24 backup), 2026-10-20.*
+
+## Captcha on registration and guest checkout (required)
+
+Account registration and guest checkout step 1 always carry a robot check. It is a platform requirement and is not switched off for one site: without it, a storefront's account creation is flooded with bot accounts straight away. *Confirmed by Pixfizz, 2026-11-27.* The in-store kiosk can hide the widget with `kiosk-remove-captcha`, but the server still checks it (see Kiosk mode, Walk-in kiosk checkout).
+
+- **Which captcha shows.** A site with reCAPTCHA keys set up shows Google reCAPTCHA. A site without them, or whose keys were cleared, falls back to the default hCaptcha (`form.recaptcha` in `50_LIQUID_REFERENCE.md`). A script that looks for `.h-captcha` finds nothing on a reCAPTCHA site. *Confirmed by Pixfizz, 2026-11-27.*
+- **reCAPTCHA keys are tied to domains.** The key pair is created in the lab's Google reCAPTCHA admin console and lists the domains it may run on. Every live domain the store answers on must be in that list: the custom domain (and each country domain, if the store has several), plus `yoursite.pixfizz.com` if shoppers can still reach it. A domain missing from the list makes the widget fail, and nobody can register or check out as a guest on that domain.
+- **Moving a store to its own domain breaks reCAPTCHA until the key is updated.** Add the new domain to the key in Google before, or on the day of, the domain switch (`80_ONBOARDING.md` pre-launch checklist). If it has already broken, the quick fix is to ask Pixfizz support to clear the reCAPTCHA keys (only Pixfizz can set or clear them) so the site falls back to hCaptcha, then put reCAPTCHA back once the domains are added. *Confirmed by Pixfizz, 2026-11-27.*
+- **Customers say the captcha is hard.** Removing it is not an option. Google reCAPTCHA offers key types that challenge less often (the invisible badge and score-based keys); whether the platform accepts those key types has not been verified.
+- **Testing.** A captcha cannot be completed by an automated test or an AI assistant. A change to registration or the guest checkout address step is verified by a person loading the page, or with a signed-in test account.
 
 ## Restricting checkout to approved users on a child site
 
@@ -161,6 +174,8 @@ To let only approved accounts check out (a trade or wholesale catalog site), ove
 
 **Which method is selected by default.** The default selected payment method is resolved in two layers:
 - A URL parameter takes priority: `request.params['payment-method']`. If present and valid, it persists the customer's selection across page reloads.
+- Each payment row's radio is `name="target"` with value `/site/<page>?payment-method=<id>`, and the selected method is read from `request.params`. A site cannot add a new server-side payment method from Liquid; one site added a client-side row that reuses the cash-on-delivery panel through `checkout/extra-checkout-code`. Template-level (Shopper 24). *Verified by query, 2026-11-26.*
+- Weight-based delivery reads the template's `<weight>` element, not the product weight field (`19_XML_TEMPLATE_REFERENCE.md`).
 - If no valid method is set via URL, the system falls back to the **first entry** in the `checkout/available-payment-methods` snippet.
 
 So the effective default is determined by the **ordering** in `checkout/available-payment-methods`. To change the default, reorder that snippet - do not modify the `site/checkout` file.
@@ -170,6 +185,10 @@ The payment-method radio selector only renders when **more than one** method is 
 **Payment heading with no methods under it** means the split of `checkout/available-payment-methods` kept a trailing carriage return on every name (CRLF snippet, LF page). Fixed on the parent 2026-10-13 by stripping each item; see `50_SHOPPER_TEMPLATE_REFERENCE.md` § 17, *Splitting snippet output on a captured newline*. *Verified by query, 2026-10-13.*
 
 **Invoice is not a general method.** `admin/checklist/confirm-with-invoice` offers Invoice only to users whose `user.category` is `invoice` (and as the only method to Pro Portal users); orders placed with it land in Pending unless Auto Confirm Orders is on. Detail: `50_SHOPPER_TEMPLATE_REFERENCE.md` § 5 (Checkout Policy). *Verified by reading source, 2026-10-14.*
+
+**A method in a child override of `checkout/available-payment-methods` is only a candidate.** `pages/checkout` still applies each method's own enable condition. A site that listed `confirm-with-invoice` as the only method for some countries ended up with no payment method at all there, because its customers are not `invoice` users. Before listing a method in that override, read its enable condition in `pages/checkout`. *Verified by reading source and read-back on a customer site, 2026-11-25; live checkout not yet tested.*
+
+**Offering bank transfer to everyone, with no platform change.** Cash on delivery (`checkout/cashondelivery`) and Invoice (`checkout/confirm_order_invoice`) use the same mechanism: a cart update form posting to `/site/payment_success?manual_order=e`, differing only in `cart[custom][pay_in_store]` (`true` or `invoice`). Only the checkout page limits Invoice to `user.category == 'invoice'`. So with cash on delivery switched on, a child override of `checkout/cashondelivery` can render one button per manual method with `name="cart[custom][pay_in_store]"` and value `true` or `invoice`, chosen by `cart.address.country.code`; rename the method row through its translation (see Renaming a payment method label). Template-level (Shopper 24). *Verified by reading source and live, 2026-11-22.* Before asking for a platform change, check whether the existing manual-order form can carry the variant.
 
 **Renaming a payment method label.** Payment method display labels (e.g. "Cash on Delivery") are set via the admin **Translations** system, not a dedicated config field. To rename a method - for example "Cash on Delivery" to "In House Billing" - edit the translation string for that label. See `18_ADMIN_NAVIGATION.md` section Built-in Translation Support.
 
@@ -299,3 +318,4 @@ On a child site, set the checklist keys with **Override Snippet** on the parent'
 - 2026-11-09: Kiosk mode: the kiosk reset leaves the prints page `sessionStorage` state behind (fix pending); Kiosk UI checkout (hidden `cart[location_id]`, single pickup option, late `kiosk-ui` class, wrong signed-out summary copy). Switching between pickup and delivery: CORRECTED reload detection (only a script-only marker is a reliable signal); `checkout/extra-checkout-code` renders once and hosts checkout engine scripts; one shipping method shows no picker. New section: New checkout UI on dark sites (`checkout/ncu-assets` hard-coded light colors, scoped override, parent follow-up).
 - 2026-11-20: Tax rates take up to 6 decimals (was rounded to 2). Payment gateway notes: PayFast now sends a signature.
 - 2026-11-21: Kiosk mode: new Walk-in kiosk checkout subsection (gates, kiosk host equals main domain, `ncu-on` on kiosk hosts, reCAPTCHA and `kiosk-remove-captcha` server check, `kiosk-pay-in-store-only` on non-kiosk hosts, walk-in order shape). Shipping unavailable: missing Product definition stores `"false"` as a blocking string. Payment Gateway Notes: gateway set in Super Admin with the full list, `payment-gateway` key lowercase and `other` redirect, old Stripe child overrides, missing payment button means check shipping first.
+- 2026-11-27: New section Captcha on registration and guest checkout (required; reCAPTCHA keys must list every live domain, hCaptcha fallback, domain switch). Payment method selection: a method in `checkout/available-payment-methods` is only a candidate, bank transfer for everyone through the cash on delivery form, payment rows come from `request.params` (no server-side method from Liquid), weight-based delivery reads the template `<weight>`. Tax CSV: Taxes screen route. `checkout/extra-checkout-code`: conflicting observation on where it renders (pending confirmation).

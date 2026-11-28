@@ -2,7 +2,7 @@
 
 **Authority Scope:** Structural anatomy of the Shopper parent template — layouts, navigation, snippets, theming, CSS delivery, and admin checklist system. Derived from a full CMS backup scan (2026-03-12).
 
-_Last updated: 2026-11-09_
+_Last updated: 2026-11-27_
 
 ---
 
@@ -163,6 +163,18 @@ Page content must use the header's frame (§ 14, *Page content uses the header's
 Color and capitalization overrides on nav links must out-specify `.navbar-light .navbar-nav .nav-link` (3 classes, wins over a 2-class selector even with `!important`; match it with `body nav.navbar.navbar-light .navbar-nav .x > a.nav-link`), and the parent capitalizes nav links (`text-transform: none !important` for sentence case). See § 18. A local render without the parent CSS does not show any of this: measure on the live URL. Template-level (Shopper 24). *Verified by query on a child catalog site at 1024 and 375 px, 2026-10-11.*
 
 ---
+
+### Stage a new header on a live child behind a switch (2026-11-24)
+
+A child site can put a whole new header on the live site without customers seeing it. Template-level (Shopper 24). *Verified live on a customer site, 2026-11-24.*
+
+1. Override a parent nav snippet the layout does not wire (for example `navigation/style5`) on the child with the new header.
+2. At the top of the active nav snippet (`navigation/style3` for CENTER) add a switch, for example `{%- assign new_header = 'PREVIEW' -%}`: `LIVE` renders the new snippet only; `PREVIEW` renders the old header plus the new one inside a `<template>` element; `OFF` renders the old header only.
+3. In PREVIEW, a small inline script reads `?<param>=1` / `?<param>=0`, keeps the flag in `localStorage`, and when it is set clones the template content in place, recreates its `<script>` tags (guard the header script with a window flag so it runs once) and adds a class to `<html>` that hides `body>nav.navbar`.
+
+- Why a `<template>`: its content is inert (no image loads, no script runs, no layout), and the gate is client-side, so the CMS page cache cannot serve the wrong header to customers. Cost: the hidden header HTML ships with every page while in PREVIEW.
+- `{% dynamic %}` blocks inside the `<template>` render normally (cart count and login link were correct).
+- Never name the parameter `preview` (reserved by the platform, `50_LIQUID_REFERENCE.md` § Request).
 
 ## 3. Megamenu System
 
@@ -345,6 +357,20 @@ The CSS variable `--primary` on `:root` is the Bootstrap default and does not fo
 - `scroll-to-top-color-background` — scroll-to-top button background
 
 ---
+
+### Read the brand color from `.btn-primary`, not `--primary` (2026-11-25)
+
+**`--primary` is often not the brand color on a child site.** On Shopper 24 children the CSS variable `--primary` is frequently a leftover `#ff6f61` (coral) from the parent that no longer matches the branding; the real brand color is whatever the site gives Bootstrap's `.btn-primary`. A shared component that should pick up the brand color appends a hidden probe element with class `btn btn-primary`, reads its computed `background-color`, removes it straight away, and falls back to `--primary` only when that color is transparent or near white. Template-level (Shopper 24). *Verified by query on three client sites, 2026-11-25.*
+
+### One radius across a site, studios and Live Finish included (2026-11-25)
+
+**Corner radius comes from five places.** The four `style/*-radius` snippets, the site's `style/custom.css`, the shared `px-tool-theme` tokens (studios, Live Finish, 3D previews), and hardcoded parent CSS (delivery box 12/16 px, option images 6/5 px, account pages 14/18 px). Changing the snippets alone leaves studios and Live Finish on 8/10/999/20 px.
+
+- Studios, Live Finish (`.lf-stage` carries `.pxt`) and shadow-root tools such as Custom Sized Prints follow one override in `style/custom.css`: `.pxt { --pxt-radius: X; --pxt-radius-sm: X; --pxt-radius-btn: X; --pxt-radius-pill: X; --pxt-radius-modal: X; }`. The theme declares its tokens in `:where(.pxt)`, so plain `.pxt` wins, and custom properties inherit into shadow roots. A shadow-root tool takes radius and color from tokens, but its `text-transform` and `font-weight` cannot be set from the page.
+- Do not round `.lf-print` / `.lf-face`: that is the product face rendering.
+- **No visible hover on buttons:** check `style/color-button-bkg-hover`; when it equals `style/color-button-bkg` there is no hover.
+
+Template-level (Shopper 24) plus platform (`px-tool-theme`). *Verified live on a client site, 2026-11-25.*
 
 ## 5. Admin Checklist System
 
@@ -588,7 +614,7 @@ Enlargements/large format: `product-enlargements-bleed-1-8`, `product-enlargemen
 | `activate-free-shipping-progress-bar` | `TRUE` = enable free shipping progress bar |
 | `pixfizz-ai-chatbot` | `TRUE` = enable Pixfizz AI chatbot |
 | `pixfizz-ai-chatbot-admin-only` | `TRUE` = show chatbot to admins only |
-| `activate-vat-rate` | `TRUE` = enable VAT rate display |
+| `activate-vat-rate` | `TRUE` = show a VAT line at checkout (needs `vat-rate`; see § 17 VAT line) |
 
 #### SEO & Metadata
 | Key | Values / Notes |
@@ -616,7 +642,7 @@ Enlargements/large format: `product-enlargements-bleed-1-8`, `product-enlargemen
 | `hide-contact-business-page` | `TRUE` = hide contact on business pages |
 | `hide-contact-service-page` | `TRUE` = hide contact on service pages |
 | `date-format` | Date display format: `MM` (month first) or `DD` |
-| `country-filter` | Country filter for shipping |
+| `country-filter` | Country filter for the address form: newline-separated country names exactly as the platform names them, blank = every country. Filters only (see § 17 One address form) |
 | `filters-sticky` | `TRUE` = sticky collection filters |
 
 ---
@@ -760,9 +786,13 @@ The account gallery page is `/site/account-galleries/gallery?gallery=<id>` (it r
 
 **Auth:** `login`, `login-checkout`, `login/email-sent`, `password-reset`, `reset`
 
+The parent page `password-reset` (`/site/password-reset`, the page the reset email links to) is a parent Page, not a snippet, so a child cannot override it. Until 2026-11-24 it had hardcoded English placeholders and button and no heading; since then the parent carries a heading, one help line, and `t: ns: 'account'` on both placeholders and the button, so translated sites show their language. English output is unchanged. *Verified live, 2026-11-24.*
+
 **Content:** `__home` (home page), `blog`, `blog/<post>`, `contact-us`, `contact-thankyou`, `faq`, `shipping-and-returns`, `terms-conditions-privacy`, `our-work`, `sections-gallery`, `services`, `services/<path>`, `business`, `business/<path>`, `gallery-shop`, `gallery-shop/<gallery>`, `sitemap`, `404`
 
 **Special:** `custom.css` (CSS delivery), `editor-scripts.js`, `editor.css`, `robots.txt`, `feed/products.xml`, `feed/products-custom.xml`, `search/index.json`, `search/worker.js`, `order-management`, `setup/*` (admin setup wizard). *Updated 2026-11-21:* the parent page `search/index.json` was renamed `search/index-unused.json` (it still renders on children), `/site/search/index.json` now returns 404, and `search/worker.js` reads the platform route `/feed/products.json` instead (§ 17, *Site search reads the product feed*). *Verified by query, 2026-11-17.*
+
+On a Shopper 24 child, `/site/editor-scripts.js` serves the parent's `editor/scripts.js` (a cart-click analytics block of about 72 lines) followed by the child's override, with CRLF line endings. To compare a release with its build, strip `\r`, start at the child's first line, then compare. *Verified by query, 2026-11-24.*
 
 **Not routes:** `/site/register` and `/site/search` return 404 (also on the demo site). Registration is part of `/site/login`; search is the `#modalSearch` fly-out. *Verified by query, 2026-11-18.*
 
@@ -841,7 +871,8 @@ with Pixfizz support.
 
 ## 13. Practical Notes for Development
 
-- **Editing nav links:** Always check which nav style is active before editing. `admin/checklist/header-logo-position` value `LEFT` renders `navigation/style1`; `CENTER` (default) renders `navigation/style3`. Edit the `{% capture navigation_links %}` block at the top of the **active** snippet only — editing the wrong one has no effect. Do not edit the HTML structure below the capture block.- **Adding a megamenu panel:** Create or edit `navigation/megamenu/<name>`. Use the patterns in section 3 above. Register the nav item in the `navigation_links` capture block.
+- **Editing nav links:** Always check which nav style is active before editing. `admin/checklist/header-logo-position` value `LEFT` renders `navigation/style1`; `CENTER` (default) renders `navigation/style3`. Edit the `{% capture navigation_links %}` block at the top of the **active** snippet only — editing the wrong one has no effect. Do not edit the HTML structure below the capture block. Confirm on the live page first: read which navigation snippet's markup is in the HTML; an edit to `navigation/style3` on a site whose header is `navigation/style1` changed nothing (*verified by query, 2026-11-24*).
+- **Adding a megamenu panel:** Create or edit `navigation/megamenu/<name>`. Use the patterns in section 3 above. Register the nav item in the `navigation_links` capture block.
 - **CSS changes:** child site → `style/custom.css` snippet override; shopper24 parent → the `custom.css` page. Never inline in Liquid/HTML.
 - **Theme color changes:** Edit the relevant `style/<token>` snippet. The CSS page picks them up automatically.
 - **Checklist changes:** Edit the `admin/checklist/<key>` snippet value. Boolean flags expect exactly `TRUE` or blank.
@@ -1082,6 +1113,26 @@ tag.
 - A Website Redirect rule on `/site/shop/<collection path>` overrides the live collection page. Product URLs `/site/product/c/<collection path>?...` are not caught by a `^/site/shop/...` rule. Platform-level. *Verified by query, 2026-10-26.*
 - **Gap:** this file does not yet document the `product-landing/config` schema (its block types, the rule that a site adds its own key and never replaces other keys, and the Pages instance that renders a landing page). Pending: a schema reference from the Holiday Page Kit source.
 
+### `navigation/breadcrumbs` on a Pages entry prints "Wildcard Page" (2026-11-23)
+
+`{% snippet 'navigation/breadcrumbs' %}` at the top of a Pages entry's `page_content` renders "Home > Wildcard Page": the snippet does not know the entry's title. Write the breadcrumb out on Pages entries instead (Bootstrap 4.6 markup):
+
+```html
+<nav class="py-5" aria-label="Breadcrumb"><div class="container"><div class="row"><div class="col-12"><ol class="breadcrumb mb-0 font-size-xs text-gray-400"><li class="breadcrumb-item"><a class="text-gray-400" href="/">Home</a></li><li class="breadcrumb-item active" aria-current="page">Page name</li></ol></div></div></div></nav>
+```
+
+Check older Pages entries that use the snippet for the same label. Template-level (Shopper 24). *Verified live, 2026-11-23.*
+
+### The FAQ page: how entries render (2026-11-23)
+
+- The parent `/site/faq` page lists the FAQ custom type (code `faq`): `faq_order` (number), `faq_header` (the question), `faq_content` (snippet, the answer). See `51_CUSTOM_FIELDS_REFERENCE.md` (FAQ Posts).
+- `faq_content` is rendered as Liquid, so `{% snippet 'website/contact/...' %}` works inside an answer: use it for address, phone, hours and email so answers stay in sync with the site.
+- The parent wraps each answer in `<p class="mb-0 text-gray-500">`. A `<p>` or `<ul>` inside `faq_content` closes that wrapper early and the rest of the answer loses the gray style. Write answers as inline HTML with `<br><br>` between paragraphs.
+- The page outputs FAQPage JSON-LD from the entries automatically.
+- An empty FAQ type leaves `/site/faq` with only its H1: write entries from facts already on the site rather than hiding the link.
+
+Template-level (Shopper 24). *Verified live on a customer site, 2026-11-23.*
+
 ## 15. Custom Admin — Shopper v2 (`/site/manage/`)
 
 The Shopper v2 custom admin is a replacement for the legacy `setup/` wizard pages. It uses the `shopper-admin` layout and provides a sidebar navigation to all configuration pages.
@@ -1287,6 +1338,15 @@ Template-level (Shopper 24 parent `kiosk/login`). Affects every site in kiosk to
 
 ---
 
+### Photo prints: Shrink to fit and Crop icons need hover (2026-11-26)
+
+**On a touchscreen kiosk running the desktop layout, shoppers never see Shrink to fit or Crop on photo print tiles.** Platform-level (photo prints component). *Verified by reading the component source, 2026-11-26; not checked on a kiosk screen.*
+
+- Every tile on the cropping and options step has a Shrink to fit button next to Crop. Shrink to fit is shown only when Crop preview size is set to single (`admin/checklist/prints-thumbnails-crop`) on the desktop layout.
+- All tile icons (shrink, crop, delete) are invisible and not clickable until the tile is hovered. A touchscreen has no hover.
+- On the mobile layout the tile icon is hidden instead: tapping the photo opens the crop window, whose adjust tool has its own Shrink to fit button whenever the size has a crop ratio.
+- Fix per site: CSS on the kiosk host that makes `.px-img-wrapper .px-icon` visible (`opacity:1; pointer-events:auto`) and touch-sized.
+
 ## 17. Known Gotchas
 
 These are recurring issues worth warning yourself about. Not fix recipes — the fix
@@ -1439,6 +1499,24 @@ Template-level (Shopper 24 parent `search/worker.js`) on a platform route. Admin
 - The product page `.nav-tabs` has 1px `padding-bottom` from the parent. A custom 3px active-tab underline over a custom 2px tabs border needs `margin-bottom: -3px` on `.nav-link` (border plus padding), not `-2px`, or a 1px line shows under the active color. Give inactive links `border-bottom: 3px solid transparent` so heights match.
 
 Template-level (Shopper 24). *Verified live at 1280 and 375 px on a client site, 2026-11-18.*
+
+### One address form for checkout and My account; country filter limits (2026-11-22)
+
+- **Checkout and My account render the same snippet, `account/address-form`** (`checkout/checkout-standard-addressform` and `checkout/ncu-addresses` both call it). Change country lists there.
+- **`admin/checklist/country-filter`** is a newline-separated list of country names, exactly as the platform names them. Blank means every country. It only filters: it cannot set the order, and the default selection is fixed to `US`. To change the order or the default, override `account/address-form` on the child.
+- The State field shows a free-text region input for countries other than US, Canada and India, and it is not required.
+
+Template-level (Shopper 24). *Verified by reading source and live, 2026-11-22.*
+
+### VAT line: keys, where it shows, what it computes (2026-11-25)
+
+**`admin/checklist/activate-vat-rate` and `admin/vat-rate`.** `vat-rate` is 1 plus the rate (`1.20` for 20%; parent default blank); the switch is `TRUE`/`FALSE` (parent default `FALSE`). Set `vat-rate` first, then the switch, so the switch is never on with a blank divisor.
+
+- The line is the VAT share of a VAT-inclusive price: the total does not change (subtotal 5.00, tax 0.83, total 5.00 at 1.20). *Verified live at checkout, 2026-11-25.*
+- It shows at checkout only, never on the cart page, signed in or out. Checkout totals render only after sign-in, so it cannot be read from a signed-out cart. *Verified live, 2026-11-25.*
+- From the checkout source (not verified live): line = (orderlines total + extra fees) minus that divided by the rate; shipping is left out and promo and automatic discounts are not deducted. The label is the `Tax` translation in namespace `cart`, so a non-English site needs that translation.
+
+Template-level (Shopper 24). See also `21_SHOPPER_CHECKOUT_POLICY.md` § Tax model.
 
 ## The Add to Cart control
 
@@ -1885,6 +1963,14 @@ fixes them. Whether they can be retargeted through the translations mechanism ra
 overriding the parent snippets is **UNCONFIRMED** — do not promise it.
 
 ---
+
+### Saved project cards: show the front of a book cover (2026-11-23)
+
+**A photo book on Saved Projects can show mostly white with a sliver of photo.** The project preview renders page 0, which on a book is the whole cover spread, and the account CSS crops it to the card (`object-fit: cover`), so the card shows the back cover and spine. *Seen live, 2026-11-23.* The parent snippet `account/v2/book-cover` (switched on with `admin/checklist/account-v2-book-covers`) draws the front half of the platform render with a hinge shade and drop shadow; it falls back to the platform preview for mapped previews, preview sets and timeouts. Cut prints and flat-preview tools are left out; `template.max_page_count > 2` marks books and calendars. Detecting a spread: `61_PIXFIZZ_API.md` (px-project-preview). Template-level.
+
+### Show-more lists in account pages: use a plain `<button>` (2026-11-26)
+
+A `<details>`/`<summary>` toggle inside the account v2 Orders page (summary styled as `.btn`) did not open on the live page; a `<button>` with an inline `onclick` that shows a `display:none` block works. Template-level (Shopper 24 account v2). *Verified live on a client site, 2026-11-26.*
 
 ## 20. Analytics — GA4 Tagging Defects on the Parent
 
@@ -2449,6 +2535,13 @@ Template-level (Shopper 24). *Verified by query on a consumer site, 2026-10-26.*
 
 Template-level (Shopper 24 parent), so it reaches every child. A crop-screen polish block appended to the parent `custom.css` page used the bare selector `.px-image-adjust-tool` with `!important`. That class is a platform component used in several places: the `px-image-upload` Adjust modal (`.px-image-upload-crop-modal-wrapper .px-image-adjust-tool`), every print tile in the Photo Prints tool (`.px-photo-prints .px-print .px-image-adjust-tool`, sidebar hidden, crop padding 0) and the Photo Prints cropping overlay (`.px-photo-prints .px-cropping-overlay .px-image-adjust-tool`). Tested only in the Adjust modal, it forced the sidebar visible inside every print tile, shrank the crop area from 180 px to 115 px and broke cropping on every child, web and kiosk. Fix: scope every selector to `.px-image-upload-crop-modal-wrapper`. *Reported and fixed, 2026-11-03.* The rules that follow (scope every `px-*` selector, no unscoped `!important`, list every context a class is used in, the parent regression set, one child first) are in `01_CODE_GOVERNANCE_UPDATED.md` § Parent CSS Must Scope Platform Components.
 
+### A child asset with the parent's name overrides it for that site (2026-11-23)
+
+- **Uploading an asset with the same name as a parent asset on a Shopper 24 child overrides it for that site only**, served from the child's own path (for example a tool's `.js` file). A safe way to ship a tool version to one customer before promoting it to the parent. After every upload, check the served file: fetch the script `src` from the page and hash the bytes against the build. *Verified live, 2026-11-22 and 2026-11-23.*
+- Before writing a child override of a parent snippet, read the live parent snippet and apply the change to that text: a repository copy can differ from what the parent actually serves. *Verified live, 2026-11-23.*
+
+Template-level (Shopper 24).
+
 ## 22. SEO Defects Found and Fixed at Parent Level (2026-09)
 
 Recorded as a list because every one of them is **generic** — they were parent-level, so they
@@ -2484,13 +2577,15 @@ Admin > Website Crawls. Template-level, likely on the parent; seen on two child 
 
 ---
 
+**Missing H1s on parent pages, fixed 2026-11-26.** `pages/business` (title was an H2), `pages/terms-conditions-privacy` (H3) and `pages/prints` (no heading; the prints component mounts into an empty div) now carry an H1 on shopper24. Pattern that keeps the look: `<h1 class="h3 ...">` (Bootstrap 4.6 heading classes), or an `sr-only` H1 where the page has no visible title area. Still open on the parent: `website/terms_page` (H3), `collection/shop-all` ("Shop All" is an H3), and the `pages/business` list loop iterates a misspelled variable (`businesss`) so it never lists anything. Template-level. *Read from the parent backup and verified live, 2026-11-26.*
+
 ## 23. Static Product Collections — Filtering and Aggregation
 
 - **A parent collection does not aggregate its subcollections' products.** It lists its own static products plus subcollection cards; every product must sit directly in the collection meant to list it.
 - **`collection/collection-filters` can filter on `category` with no custom field.** Its three-field syntax maps `filter_attribute` over `collection.static_products`, and `category` is a Product property the Static Product Importer already writes.
 - **The collection still needs a `collection_filters` custom field definition (snippet type)** on the site before any collection there can be given a filter.
 - **Collection paths are `/`-separated** (`film/processing`); `collection.path | split: '/' | first` gives the top-level parent.
-- **Deep links that preselect every choice** on a collection rendered as a single product with filters (PDP layout): `<url_name>%5B%5D=<value>` per filter, for example `size%5B%5D=` and `orientation%5B%5D=`, with the filter value exactly as stored (including any stray text or trailing spaces, URL-encoded), plus `variants%5B<variant type>%5D%5Bvalue%5D=<variant value>` once per variant type. Portrait sizes resolved without the orientation parameter; landscape and square sizes needed it. Landing pages, emails and ads can link straight to a configured product. Platform-level. *Verified live on a child site, 2026-09-24.* Still not verified: the same shape on a three-field `collection/collection-filters` listing page.
+- **Deep links that preselect every choice** on a collection rendered as a single product with filters (PDP layout): `<url_name>%5B%5D=<value>` per filter, for example `size%5B%5D=` and `orientation%5B%5D=`, with the filter value exactly as stored (including any stray text or trailing spaces, URL-encoded), plus `variants%5B<variant type>%5D%5Bvalue%5D=<variant value>` once per variant type. Portrait sizes resolved without the orientation parameter; landscape and square sizes needed it. Landing pages, emails and ads can link straight to a configured product. Platform-level. *Verified live on a child site, 2026-09-24.* Still not verified: the same shape on a three-field `collection/collection-filters` listing page. The array form is required: a plain `orientation=Portrait` is ignored (the Liquid reads `request.params['orientation'][0]`) and the page falls back to the default orientation. *Verified live, 2026-11-26.*
 
 *Verified by reading source (shopper24, 2026-09-18 backup) and a live catalogue build, 2026-09-23.*
 
@@ -2566,6 +2661,9 @@ Template-level (Shopper 24) unless marked.
 
 **Collection URLs.** A collection page is `/site/shop/<collection path>`. `/site/shop/c/<path>` does not 404: it renders the Shop All list, so a hand-coded menu using `/c/` makes every category look empty. Design product pages are `/site/product/c/<collection>?product=<id-slug>&theme=<id-slug>`. *Verified live, 2026-11-10.*
 
+- **Why `/c/` showed Shop All, and what the parent does now.** `/site/shop/c/<path>` is a platform route that renders the CMS page `shop` with `collection` assigned (the page's `meta_title` `{{ collection.name }}` picks up the collection name); an unknown path is a real 404. Shopper 24's `shop` page only calls `collection/shop-all`, so every `/c/` URL showed the full Shop All grid with a self-referencing canonical: duplicate pages. `/site/shop` itself has no `collection`, so `request.path contains '/shop/c/' and collection` separates the two. Platform-level route, template-level consequence. *Verified by query, 2026-11-26.*
+- Since 2026-11-26 the shopper24 parent's `collection/shop-all` starts with a `redirect_to` to the collection's `url_path`, or `/site/shop/<collection.path>`, under that guard. `/site/shop/c/photo-prints` now lands on the collection page, an unknown path still 404s, `/site/shop` is unchanged. The redirect is a 302 (`50_LIQUID_REFERENCE.md` § redirect_to). A child that overrides `collection/shop-all` does not get the fix until it copies the guard. *Verified live, 2026-11-26.*
+
 **Shop All (`/site/shop`, `collection/shop-all`)** shows one card per top-level collection; the card links to the collection's `url_path` when set, otherwise `/site/shop/<path>`; collections with `unpublished` true are left out. *Verified by reading source, 2026-11-11.* The kiosk "Browse all products" button lands here. **Every studio install:** give the studio's main collection `url_path` = the studio page (for example `/site/calendars/create`), and set `unpublished` = true on its feed collections (extra design sets, test collections). A studio still reads an unpublished collection through `/v1/theme_categories`. Also check the site's own navigation snippets for links to an old `/site/shop/<collection>` the studio replaced. *Verified live on a client site, 2026-11-11.*
 
 **Collection fields that print on the storefront.**
@@ -2587,6 +2685,19 @@ Template-level (Shopper 24) unless marked.
 
 **Product page labels in another language.** The parent prints them through `t: ns: 'product'` ("Add to cart", "Description", "Production & Shipping"). A child sets its wording at `/site/<site>/admin/translations?namespace=product&locales[]=<iso>` (key = the English string); keys show lowercased in the list and apply on the next page load. Photo prints labels are in the namespaces `photo-prints`, `upload-dialog` and `image-adjust-tool`. *Verified 2026-11-09 and 2026-11-10.*
 
+**Collection pages and filter tiles in another language.** A blank base collection description can still print the word "description" on the product page: fill the base description before launch. pdp_layout filter tiles (`product/filter-controls`) print `option | t: ns: 'product'`: translate the product custom values (Landscape, Portrait, Square) with product-namespace keys `landscape`, `portrait`, `square`. Filter labels (the first field of each `collection_filters` line) are not run through `t` in `product/details-filter-dual-mode`: write them in the site's main language. Live Finish reads the page language from `data-lf-lang` on the mount or `<html data-px-locale>`; a store can set the latter from `{{ request.locale }}`. Labels written in the mount stay as written, so write them in English on a multilingual site and let the translation table translate them. Template-level (Shopper 24). *Verified by query and live, 2026-11-23.*
+
+**Translating the photo prints flow needs more than the obvious keys.** Admin > Translations, key = the English text exactly. Template-level (Shopper 24) plus the platform photo prints component. *Verified live on a site in four languages, 2026-11-26.*
+- Namespace `photo-prints`: `{{count}} photo`, `{{count}} photos`, `{{count}} selected`, `{{count}} prints total` (counters on the size and options steps) and the loader lines `Getting your print sizes ready`, `Loading sizes, papers and prices`, `Almost there`, `Still working, thanks for waiting`.
+- Namespace `upload-dialog`: `Uploading {{count}} of {{total}}...`, `File is too large. Maximum allowed size is {{max_size}}`.
+- Namespace `cart` (print line strip and sum): `photo`, `photos`, `print`, `prints`, `each`, `See all photos`, plus `Details` and `Qty` (the parent's `checkout/cart-page-fast` and `checkout/cart-popup-light` read these keys since 2026-11-26; English sites are unchanged through the key fallback). The older cart page (cart performance off) was not checked.
+- Collection display names and product names are model translations (Product, ThemeCategory), needed for the English view when the base text is not English.
+- The `/site/prints` page title comes from the page name "Photo Prints"; a site that translates titles in `html.head` needs a `page.url == 'prints'` branch.
+- The component has only one/other plural forms. For languages with more forms (Serbian, Croatian, Bosnian and other Slavic languages) use count-neutral wording, for example "Izabrano: {{count}}".
+- To check: upload a photo on `/site/prints?collection=<path>` in each language through the site's own language switcher (a bare `POST /session/set_locale` can be overridden by a domain default), read the step texts, add to cart, read the cart line and the pop-up.
+
+**Checking a translation per locale from outside.** `POST /session/set_locale` works with only the session cookie from that response, so a script can read a page in each language. A locale the site does not support falls back to the site default: compare against the default before calling a translation present. Children inherit the parent's translation rows for keys they lack (seen for older keys on every Shopper 24 child); whether a child with its own rows still falls back for a missing key was not tested. *Verified by query, 2026-11-25.*
+
 **Where checklist values and labels come from.** The shopper24 parent keeps the old custom admins as pages (`pages/manage__*`, `pages/setup__*`); each `admin/checklist/*` key is rendered there through `admin/forms/*` with its label, hint and accepted values. Examples: `payment-gateway`: stripe, square, authorizedotnet, braintree, bridgepay, paypal, Other. `prints-thumbnails-photo` and `prints-thumbnails-crop`: small, large, single (Full Page). `pricing-tab-position`: Header or Footer. *Verified by reading source, 2026-11-09.* `header-logo-position` defaults to CENTER on shopper24 (`navigation/style3`); overriding `navigation/style1` does nothing until the child sets it to LEFT. *Verified by live DOM measurement, 2026-11-11.*
 
 **The page frame.** Header, breadcrumbs, product, cart and checkout use Bootstrap `.container` (540/720/960 px, then 1400 px from 1200 px wide, 16 px padding). Page CSS must mirror those breakpoints exactly; a custom container width matches at no width. Traps that offset the logo:
@@ -2595,6 +2706,7 @@ Template-level (Shopper 24) unless marked.
 - Fix: `.navbar-expand-lg{padding-left:0;padding-right:0}` and `.navbar-expand-lg>.container{padding-left:16px;padding-right:16px}`.
 - Never put `padding:` shorthand on a section that also carries `.container`: it wipes the side padding.
 - The account dropdown can cause sideways scroll near 1200 px; `right:0; left:auto` fixes it. When the theme centres the menu with `left:50%` plus `translateX(-50%)`, overriding left and right alone moves it 50% sideways: use `right:0` plus `translate: 50% 0`. Check a dropdown fix with the menu open, not by measuring the hidden element.
+- A footer `.row` that is not inside a `.container` gives about 16 px of sideways scroll on every page. Check the home page for `scrollWidth > innerWidth` before blaming a tool on that site. *Seen 2026-11-24.*
 - `film/roll-builder` renders outside `.container` with its own max-width; wrap its markup in `.container` and keep only vertical padding.
 - A custom nav built as `<nav class="navbar navbar-expand-lg ..."><div class="container">` hits the same two traps (logo about 16 px inside the content edge at 1200 to 1399 px, about 16 px outside it at 768 px) and lines up above about 1400 px, so a desktop-only check misses it. Same fix, scoped under `body` and the site's own nav class so it beats the parent. *Verified live on another client site, 2026-11-18.*
 - Long URLs in legal text (privacy policies) push a phone page sideways; `overflow-wrap: anywhere` on static-page paragraphs stops it. *Verified live, 2026-11-18.*
@@ -2631,3 +2743,4 @@ Template-level (Shopper 24) unless marked.
 - 2026-11-09: §4 button tokens also color the upload window button (contrast check). §5 account v2 checklist rows. §7 Terms and Shipping company name is `website.title`. §10 account gallery URL. §12 collection `unpublished` hides the Shop All tile only. §14 test pages belong on the parent. §17 a snippet served as a page can lag about two minutes. §24 a shared design `url_path` needs the size picker. §25 the prints page takes one `gallery_id`. §9 every child needs its own `og-preview-image.jpg`; `og:title` on Pages is the site title. §14 what the `/site/photo-prints` landing reads; services index cards need `service_thumbnail`. §16 Kiosk UI skin: `#checkoutBtn` specificity, remove link, late `kiosk-ui` class. §17 reading the `px-design-preview` image and logged-out 403s; new *Styling the checkout Order Summary rows and thumbnails*; gallery `data-selected-idx` set by an IntersectionObserver. §18.2 new checkout UI (`ncu-assets`) row. New §19 *Switching a site to account v2* (sub-flags, v1 redirects, v1 overrides ignored, dashboard defects). §21.1 second child-override case (diff filter overrides first); the filter swap fades the product area and how a tool stays visible; `collection_pdp_filters` drives product page rows without `pdp_layout` (Liquid, dependent rows, fallback); collection description and features on a `pdp_layout` page. New §21.8 parent CSS must never target a platform component bare. §24 the `product/c` redirect drops query parameters; breadcrumbs honor collection `url_path` on every crumb, `product/custom-breadcrumb` not called on product pages, breadcrumb standard; store name appended to `meta_title`. New §25 photo prints flow (link with `collection`, cut print templates only, sub-collection groups, options per size on Cropping & Options, `sessionStorage` state, prints only through the flow).
 - 2026-11-13: § 25 CORRECTED sub-collection groups sort by display name, not path; bare /site/prints loads no sizes (link with ?collection= or redirect); size label is the design name (-1 duplicates); size panel overflow at 992 to 1100 px; empty published variant heading. New § 26: collection URLs (/site/shop/c/ is not a collection page), Shop All and studio collections (url_path, unpublished), collection fields that print, a wall art range is one pdp_layout page, size filter $0 prices, a filter swap morphs main and blanks the uploaded photo, parent fixes (delivery box collection param, design-now exit_target, Pro Portal link), design meta_title, product labels via translations, checklist values from the manage/setup pages, header-logo-position default, the page frame and navbar traps, .card-img stretch, collection lightbox error, data shapes that fool store checks. Importer hang: the add_products pointer now names the picker or POST (GET is 404).
 - 2026-11-21: § 2 style1: check 992 px after adding a top menu item (sideways scroll, lg-only padding fix). § 4 new: sites meant to be cloned read colors from tokens. § 5 `payment-gateway` row: `other` uses the `cart_payment` redirect, real gateway set in Super Admin. § 10 `search/index.json` renamed `index-unused`, worker reads `/feed/products.json`; `/site/register` and `/site/search` are not routes. § 14 built-in content pages (faq, shipping-and-returns and others) shadow Pages instances, parent hooks to replace each, launch check; parent page titles and `lang` only changeable by script (contact excepted). § 16 new: `kiosk/login` hides registration errors and wipes fields (open defect). § 17 new: site search reads the product feed (fields, empty feed check, blob-worker child fix, lunr word split); inline-flex Add to Cart gap and tab underline offset. § 20.1 Klaviyo custom catalog from `/feed/products.xml` (namespace stripping, duplicate `$id`, text price, design item ids do not match events). § 21.1 a product with no value for a filter field drops out (launch check); Width and Height dropdowns cascade and read as fake sizes; `help_video` slot on every `pdp_layout` size page; scripted collection saves resend `collection_filters` as CRLF. § 24 shop tile front and hover images. § 25 custom size products only in their own collection. § 26 custom navbar frame traps, `overflow-wrap` for legal text. New: `delivery-box-style` and `new-checkout-ui` per-child keys.
+- 2026-11-27: § 2 stage a new header on a live child behind a switch (`<template>` plus client-side flag). § 4 read the brand color from `.btn-primary` (`--primary` is often the parent coral); one radius across site, studios and Live Finish (`.pxt` radius tokens). § 5 `activate-vat-rate` and `country-filter` rows. § 10 `password-reset` parent page now translated; served `/site/editor-scripts.js` is parent plus child with CRLF. § 13 confirm the live nav snippet before editing. § 14 `navigation/breadcrumbs` prints "Wildcard Page" on Pages entries; how FAQ entries render. § 16 photo print tile icons need hover (kiosk fix). § 17 one address form for checkout and My account; VAT line keys and maths. § 19 book cover on saved project cards (`account/v2/book-cover`); use a button for show-more toggles. § 21 a child asset with the parent's name overrides it for that site. § 22 parent H1s fixed and still open. § 23 deep links need the array form. § 26 `/site/shop/c/<path>` renders the `shop` page and the parent now redirects it; translating collection pages, filter tiles, Live Finish labels and the photo prints flow; checking a translation per locale; footer row without a container scrolls sideways.

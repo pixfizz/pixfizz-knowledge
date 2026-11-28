@@ -2,7 +2,7 @@
 
 **Authority Scope:** Cart behavior only.
 
-_Last updated: 2026-11-09_
+_Last updated: 2026-11-27_
 
 ---
 
@@ -26,6 +26,10 @@ Two limitations apply, and both fail silently:
 **Text-type variants never show on the Shopper 24 cart line**, even with `hide_from_cart` false: the cart rendering skips `text` variants. The admin order page does show them. A value the customer must see in the cart needs another option type or a custom cart row. Template-level. *Verified by query (cart line empty), 2026-10-13; cause verified by reading source, 2026-09-09.*
 
 **The cart's Edit link** (to `/site/project-edit?cart=t&project_id=`) is removed per product by the product custom field `hide_edit_in_cart`. Set it on any custom tool product with no edit path. Template-level. *Verified by query, 2026-10-13.*
+
+**Studio lines can keep Edit.** A studio that hands its work to a real project (`/cart/add_print_product` with `print_book_id`, as the calendar and collage studios do) gives an ordinary project line; the fast cart (`checkout/cart-page-fast`) hides Edit and links the picture to `#` only because of `hide_edit_in_cart`. With `hide_edit_in_cart` false, Edit opens `/v1/editor?book=<id>&cart=t`: the design tool's cart button saves the project and returns to `/site/cart`, the same orderline stays (no duplicate) and the price is unchanged; with no change it returns without rewriting the project. A tool that needs to know whether the design tool changed the project compares page write times (`61_PIXFIZZ_API.md` § books). Platform-level plus template-level (Shopper fast cart). *Verified live as a guest, 2026-11-26.*
+
+**Chosen options run together on one row in the cart (open defect).** `checkout/cart-page-fast` and `pages/cart` print chosen variants and template options as loose text with `<br>` inside a flex row (`div.d-flex.align-items-center` with `font-size:0.8em`), so they run into each other. Site fix: in a child override of `checkout/extra-cart-code` (keep the parent's content), set that div to `display:block`. Template-level (Shopper 24), parent fix pending. *Verified live, 2026-11-23.*
 
 **Set-selling tools: hide Edit per line, not per product (2026-11-02).** A tool that puts several cart lines in for one piece (a multi-panel wall set: "Wall <id> part <n> of <total>, ...") must not offer the per-line Edit link, which opens one line in the design tool and breaks the set. `hide_edit_in_cart` is a product field, so it would also hide Edit on the same product sold alone. The Shopper 24 parent cart page therefore sets `px_wall_line` from `orderline.project.name` (first word `Wall`, third word `part`), and every Edit link checks `hide_edit_in_cart or px_wall_line`. A new set-selling tool should name its lines the same way or extend that flag. Template-level (Shopper 24 `pages/cart`). *Verified by query on a client site, 2026-11-02.*
 
@@ -73,6 +77,8 @@ Edit on a cut print cart line opens that one cart item: the photos in it, at its
 
 **A saved project can be added without opening the editor** (platform-level). The editor's own Add to Cart saves the project, then submits a plain form: `POST /cart/add_print_product` with `print_book_id`, `quantity`, `sum_quantities=false` and `target=/site/cart` (plus `parent_orderline_id` when the URL carries `parent_orderline`). No CSRF token. The same POST from a custom tool on the same origin added a saved, already-filled project that no shopper had opened in the editor; the response redirects to the cart. The project must already be saved and filled. A custom cart page or `cart_target` in the editor config changes where the editor goes afterwards; the POST does not depend on it. Concurrent posts race on the cart (`22_OPTION_VARIANT_RENDERING.md`). *Verified by reading the editor bundle and by query, bundle 20261002143509, 2026-10-04. Internal endpoint: re-check after platform updates.*
 
+**Adding a project that is already in the cart adds to that line.** `POST /cart/add_print_product` with the same `print_book_id` updates the existing orderline and sums the quantities even with `sum_quantities=false`; the line's options follow the project. A tool that sends an edited project back to the cart reads the cart first and, if the line existed, sets the quantity back (`61_PIXFIZZ_API.md`). Platform-level. *Verified by query, 2026-11-27.*
+
 **On the cart page the header mini-cart repeats each line's remove form with the same action.** A script that picks remove buttons by page order hits the mini-cart copy first. Scope cart scripts to the main cart list, never `document`. Template-level (Shopper 24). *Verified by query, 2026-10-13.*
 
 ## Removing a cart line asks for confirmation (parent, 2026-10-22)
@@ -82,6 +88,8 @@ Template-level (Shopper 24 parent). Two parent snippets, `checkout/remove-line-c
 - **Opt-in by class.** The script acts only on `orderline_delete` forms that carry the class `px-rm-line`. On the parent, `pages/cart` (both of its `orderline_delete` forms) and `modals/shopping-cart` carry the class and include `{% snippet 'checkout/remove-line-confirm' %}`.
 - **Child overrides keep the old instant remove.** A child site that overrides `pages/cart` or `modals/shopping-cart` gets no confirm until its override adds `px-rm-line` to the remove forms and the include.
 - **Fails open.** If the script fails, the form is a plain post and remove works as before.
+- **Translations.** The confirm box text runs through `t: ns: 'cart'` with four keys: `remove this item?`, `it will be taken out of your cart.`, `keep it`, `removing...` (`remove` was already a key). A site in another language shows these four in English until its translations have them: add them under `cart` in the site's translation import. Children inherit translations from the parent for keys they do not have. *Verified by reading source and on live sites, 2026-11-25.*
+- **Removing a line from script.** Clicking the `px-rm-line` remove button from page script does not remove the line (the confirm box intercepts it). Post the button's own form instead: `POST /v1/orderlines/<id>` with `_method=delete` (form `orderline_delete`) and its `FormData`. It works from a same-site fetch without `_cms_form`. *Verified on a live cart, 2026-11-24 and 2026-11-26.*
 
 *Verified live on experience.pixfizz.com, 2026-10-22* (confirm box, Keep it cancels, Remove removed a line, Removing state, stacked over the fly-out). Admin editing note: a Pages page body is the textarea `page[body]`, a snippet's is `snippet[content]`; both are Ace editors (`61_PIXFIZZ_API.md`).
 
@@ -321,3 +329,4 @@ A parent snippet `checkout/cut-print-upright` was delivered as paste blocks on 2
 - 2026-11-09: Cart links: the first view of a new cart reloads once (order source and UTM sync), `/v1/carts/_mine.json` is fast enough for a pop-up. Hiding options and variants from the cart line: set-selling tool lines hide Edit through `px_wall_line` (project name), and a tool's shown discount must round the saving like the Automatic Discount formula. The Cart Fly-Out Preview Block (The method lesson): a tool that rotates its art needs its own `_preview` picture and `hide_edit_in_cart`; the books PUT echoes options the design lacks.
 - 2026-11-20: New sections: editing a photo prints cart line opens only that line; the light cart pop-up (`cart-performance`): minimum order bypass via its Proceed to Checkout (fixed) and the hidden checkout link behind the "1 uncacheable page" crawler warning.
 - 2026-11-21: Light cart pop-up: general rule against per-shopper URLs in static markup, pop-up line markup. Pricing display: platform tier strike markup on cart and checkout, checkout summary preview elements, Automatic Discounts never show on line prices. Reorder, order details and emails for a custom tool line: how the Add to cart workflow saves the project (`book[saved]`, `do_not_save` product only).
+- 2026-11-27: Studio project lines can keep the cart Edit link (design tool updates the same line); chosen options run together on the cart line (site fix in `checkout/extra-cart-code`); re-adding a project already in the cart sums the quantity; remove-line confirm: four `cart` translation keys, removing a line from script by posting the form.

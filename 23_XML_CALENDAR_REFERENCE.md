@@ -2,7 +2,7 @@
 
 **Authority Scope:** XML definition structure for calendar and planner products — date sequence vocabulary, set parameters, and annotated real-world examples. Platform-level — not Shopper-specific.
 
-_Last updated: 2026-11-09_
+_Last updated: 2026-11-27_
 
 ---
 
@@ -78,6 +78,8 @@ Two `<page>` attributes are specific to calendar/planner products:
 ```
 
 ---
+
+**The page that prints is the template page whose name matches a `<page type>` in the definition**, not the one called `calendar-month`. A definition that names only `calendar-month3` prints that page; an older `calendar-month` page on the same design is unused. Read the definition's page types before judging a calendar design. Platform-level. *Verified by reading source, 2026-11-23.*
 
 ## 4. Dates Vocabulary
 
@@ -541,6 +543,8 @@ Swapping a background image, a text color or a line color month by month is done
 **calendar transformations** in the admin, not in the template definition. The XML declares the
 elements; the transformations decide what each element carries in each month.
 
+Example from a pre-made spiral calendar: monthly artwork changes with `set-image-src` on the elements named `month` (dates page) and `image` (photo page), one per month. The date grid is one shared bitmap (`pdf_layer="grid"`) with the weekday words in its first row of cells; a sixth week shares the last-row cell through two "split" images. *Verified by reading the export, 2026-11-25.*
+
 ### The four steps
 
 1. **Name every element that changes.** Give each one an element name, in the Design Tool
@@ -588,6 +592,15 @@ transformations at that page's own series.
 - **Asset format.** Use WebP at quality 90 for swapped backgrounds. A full-page calendar
   background typically drops from 2 to 3 MB as PNG to under 1 MB with no visible loss, and there
   are twelve of them.
+- **Check a calendar product's pages without placing an order.** POST `/v1/books.json` on the
+  storefront with the product page form's hidden fields plus `book[start_year]`,
+  `book[start_month]`, `book[start_day]` (and `book[calendars][]`), then GET
+  `/v1/books/<id>/pages.json`. The pages come back with month names, dates and holidays already
+  resolved in the template's language, and only the page types the definition uses for that
+  product (unused old page types in the design do not appear). Render a page as production will
+  with `/v1/pages/<page id>.jpg?fulfillment=true&sitename=<site>`. `variants[<code>]` sent on that
+  create is stored on the project and `price_forecast` honors it. Platform-level. *Verified by
+  query, 2026-11-23.*
 
 *From a 2026-09-14 walkthrough; not independently verified in admin.*
 
@@ -615,6 +628,12 @@ Platform-level (Pixfizz CMS).
 - **When a calendar transformation and a design-option element substitution hit the same element, the transformation wins.**
 - **Holiday captions (`fill:website-calendar`) and website-calendar conditions only apply when the project is created with `book[calendars][]=<site calendar id>`.** In Shopper the snippet `product/select-website-calendars` renders those checkboxes when `website.calendars` is not empty. Recurring calendar dates apply every year.
 
+**Site holiday calendars (admin Calendars).** Platform-level (Pixfizz CMS).
+- Route: `/site/<site>/admin/calendars`. **New Calendar** takes Name and Code only; dates then come from **Import Dates CSV** on the calendar's edit page (field `file[csv]`). Header `date,caption,recurring`; ISO dates; `recurring` 1 shows as "1 Jan" (every year), 0 keeps the year. Captions in quotes may contain commas. *Verified by reading the edit table back, 2026-11-22.*
+- **Check the dates after every CSV import, not only the captions.** On a site set to UTC-5 the import stored every date one day early (2027-01-11 became 2027-01-10, a recurring 1 January became 31 December), so every holiday printed a day early and a 1 January holiday appeared on the December page as next year's date. Open `edit_date` for a few dates, compare the stored year, month and day with the CSV, and make one test project. Cause not confirmed (the site timezone is the likely factor). *Verified by query, 2026-11-23.*
+- **Editing one date by hand stores it exactly as given.** The date form (`/site/<site>/admin/calendars/<id>/edit_date?calendar_date_id=<n>`, saved by `update_date`, fields `calendar_date[start(1i)]`, `start(2i)`, `start(3i)`) is the reliable fix for a wrong date. *Verified by query, 2026-11-23.*
+- **`fill:website-calendar` writes one line per ticked calendar**, joined with a newline, duplicates kept: two national calendars that both mark 1 January give the caption twice on two lines. Size the box for the number of calendars a shopper can tick, or de-duplicate in the tool. *Verified by query, 2026-11-26.*
+
 **Cover year without `set-text`.** A page that fills from a series needs that `<dates name="...">` declared in the template definition (one export used `selected-year` on a cover without declaring it). Working pattern: `<dates name="selected-year"><date day="1"/></dates>`, `<set foreachdate="selected-year">`, page `dates="selected-year"`, text tags `cal:selected-year:idx:1,cal:selected-year:fill:year`.
 
 *Export fields read from three calendar template exports, 2026-10-13. Index base, fills, transformation reach and the cover-year pattern verified by render on a test site, production PDFs read back, 2026-10-14.*
@@ -639,6 +658,23 @@ a Pixfizz test site, 2026-10-20.*
   Elements that arrive through a layout keep raw `cal:` tags and are **not resolved at render**:
   date fills print their placeholder text ("Month", "1"). Never put date-filled or date-tagged
   elements in a calendar layout.
+- **Calendar transformations are also written into the project.** When the project is created
+  (a new book with `start_date` and calendars), the platform writes the template's `set-text` per
+  month, date fills and holidays into the project's own page XML as plain text
+  (`GET /v1/books/<id>.json` → `layout.pages.set[].print_page[].data` shows for example
+  `<text name="mname">Januar</text>`, with no date tag and no pending `set-text`). *Verified by
+  query, 2026-11-25.*
+- **So text changed afterwards and saved is what prints.** The template's `set-text` does not
+  re-apply to saved pages: the platform page render and the production PDF follow the saved text.
+  A tool can therefore translate month names, weekday headers or fixed labels at hand-off without
+  renaming elements and without one template per language. *Verified on a production PDF,
+  2026-11-25.* Not verified: whether changing the start month inside the design tool rebuilds the
+  pages from the template.
+- **Editor autofill fills only placeholder image frames, in page order.** Other images on the page
+  (for example decorative grid-cell images) keep their source. With fewer photos than placeholder
+  frames the last frames stay placeholders: a calendar with a front and back cover given a cover
+  photo and 12 month photos leaves the back cover as the placeholder, which prints white.
+  *Verified by query, 2026-11-24.*
 - Applying a layout (`page.setLayout` in the editor, the layout picker) removes only the page's
   elements marked `layout="true"` and inserts the layout's elements; everything else on the
   design page stays (`17_DESIGN_TOOL.md` § Text, image and layout calls).
@@ -718,3 +754,4 @@ their print files (`pdfinfo -box`). Read the boxes of a real file rather than th
 - 2026-10-22: § 6 Named Date Sequence Patterns: week start is in the date rule, a twin template per week start (twin rendering not verified). § Calendar Element Tags, Fills and Transformations: order of operations at render (date fill, Colors design option, transformations) and Colors options on calendar pages. New § Per-Page Photo Layouts on Calendar Templates (`cal:` tags in layouts are not resolved, `setLayout` replaces only `layout="true"` elements, the photo-frames-only pattern, blank layout ids on import).
 - 2026-11-09: Per-Page Photo Layouts: adding an image to a calendar grid page by editor script (prints, transparency kept); no platform fill for a per-day user image.
 - 2026-11-21: Calendar Element Tags, Fills and Transformations: `month-name` language not verified, use `set-text` for non-English months. New § Read the Lab's Production File Before Building a Calendar (spread vs sheet vs joined file layout, spec-sheet bleed may be the safe zone, read the TrimBox).
+- 2026-11-27: The printed page is the one named in the definition's page types. Example of per-month artwork in a pre-made spiral calendar. Site holiday calendars: admin route, CSV import format, check stored dates after import (one-day-early dates seen, cause not confirmed), hand edit of one date, one caption line per ticked calendar. Calendar transformations are written into the project as plain text, so saved text is what prints; editor autofill fills placeholder frames only. Check a calendar product's pages without an order.

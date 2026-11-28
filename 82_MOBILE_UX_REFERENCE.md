@@ -189,6 +189,12 @@ A Unicode glyph used as an icon (braille dots as a drag handle, a multiplication
 
 ---
 
+### On-photo gestures in custom tools
+
+- **Pinch only zooms.** Turning a photo belongs on a slider or 90 degree buttons, never a two-finger twist: customers cannot zoom without the photo spinning.
+- **Position controls (turn, zoom, fit, start again) sit directly under the photo on phones**, not in a later step.
+- **Test with real touch at 320 x 568 too.** Synthetic pointer-event tests passed at 360 to 768 px, but a run with phone device profiles and real two-finger touch found the controls hidden under the sticky price bar on the 320 x 568 phone. Test pinch with a twist, one-finger drag, slider and reset taps, and that the page does not scroll. *Verified in testing, 2026-11-27.*
+
 ## 4b. Verifying on iPhone
 
 - **A headless Chromium pass at a phone viewport is not evidence a page works on an iPhone.** iOS Safari differs on `100vh` versus `dvh`, `position: sticky` inside an overflow container, overscroll, keyboard resize and horizontal pan. Verify with Playwright WebKit and a device descriptor, and still ask for a real-device test before calling a mobile fix done.
@@ -305,3 +311,4 @@ Honest list, so the next person does not assume coverage that is not here.
 - 2026-10-17: § 4a draw small icons in fixed-size buttons as inline SVG, not text glyphs (off center on iPhone).
 - 2026-10-22: § 4b iPad QR code known issue marked fixed (real-iPad test 21 Oct; CORRECTED), shapes, flip, filters and image controls still open; phones have no add-QR control.
 - 2026-11-09: § 4a a preview over the product gallery can drop the thumbnail column on a phone.
+- 2026-11-27: § 4a on-photo gestures in custom tools (pinch only zooms, position controls under the photo, real-touch test at 320 x 568).

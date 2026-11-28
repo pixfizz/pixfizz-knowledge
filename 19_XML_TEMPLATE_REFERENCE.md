@@ -2,7 +2,7 @@
 
 **Authority Scope:** XML template page parameters, filters, and production output behaviour. Platform-level — not Shopper-specific.
 
-_Last updated: 2026-11-09_
+_Last updated: 2026-11-27_
 
 ---
 
@@ -43,6 +43,8 @@ The root element of every XML template definition.
 | `background-transparent` | Seen as `output="png" background-transparent="true"` on a live clear-crystal product. With it, the design previews in WebP and PNG return alpha 0 outside the design; JPEG previews fill white (`61_PIXFIZZ_API.md` § 9). *Verified by query, 2026-09-29; the production file's alpha was not checked.* |
 | `output-perfectly-clear-upscale` | `true` or `false`. Switches Perfectly Clear AI upscaling at fulfillment on or off for this template, overriding the fulfillment setting. Perfectly Clear must still be enabled in the fulfillment settings. See `31_FULFILLMENT_ENGINE.md` § AI Upscaling at Fulfillment (Perfectly Clear). *Confirmed by Pixfizz, October 2026.* |
 | `output-perfectly-clear-upscale-dpi` | Target DPI for that upscaling on this template, for example `300`. Without it the fulfillment setting, then the template's `dpi`, applies. *Confirmed by Pixfizz, October 2026.* |
+
+**Shipping weight for weight-based delivery is the `<weight base="kg" page="kg" />` element directly inside `<definition>`**, not the product weight field (which was null on every product of the site checked). For cut prints use `base` 0 and `page` = the weight of one print. Not verified: whether `cut_print_quantity` copies multiply the page weight. Platform-level. *Verified by query, 2026-11-26.*
 
 ---
 
@@ -203,6 +205,10 @@ before the print set. Code that takes the first `<page>` of the definition (`que
 gets the preview page (10 x 10 above), not the print size. Read the first page inside a `<set>`
 that is not `preview="true"`. *Verified by reading several site exports, 2026-11-01.*
 
+**Commented-out sets are ignored.** A definition can keep sets (for example a cover and back
+cover) inside XML comments; only uncommented sets reach the project. Read a definition with
+comments stripped before judging what it prints. *Verified by query, 2026-11-23.*
+
 Adding a preview set to a template that already has projects shifts those projects' pages: see
 § Template Changes Do Not Reach Existing Projects.
 
@@ -304,6 +310,8 @@ A layer does one of three jobs depending on its attributes. Pick the job first, 
 
 ---
 
+**PNG output with `separate-file` layers.** A definition with `output="png" background-transparent="true"` and layers `separate-file="true"` produced, per order line, the main PNG plus one PNG per layer (`..._pages1_Back.png`, `..._pages1_Face.png`) at page size x dpi. A layer file holding only text was transparent outside the text; a layer whose elements were at opacity 0 came out fully transparent. The layer `filename` attribute did not change the orderline file names (the name at the destination is not verified). Platform-level. *Verified by test order, files read by pixel, 2026-11-24.*
+
 ## Set Captions
 
 A `<captions>` element can be nested inside a `<set>` to display label text in the Design Tool for the pages in that set. Useful for orienting users in multi-page products.
@@ -340,6 +348,12 @@ When a `<page>` inside a `grow="true"` set has a comma-separated `type` value, t
 - The cycle then repeats.
 - This allows different layout types to alternate in a predictable order without requiring separate set definitions.
 - Only relevant when the page is in a set with `grow="true"`.
+- **The same lists build a new book.** When a book is created, each page slot takes the design page whose name equals its `type`; in a `grow="true"` set each `<page>` walks its own comma list, one step per repeat of the set. Adding pages in the editor follows the same lists. Platform-level. *Verified by test books, 2026-11-26.*
+- **Names the design does not have are skipped.** The list is filtered to the design's page names before cycling, so one template can serve a 5-page design and a 28-page design: `page02,page04,...,page28` / `page03,...,page27` gives a 5-page design exactly the `page02,page04` / `page03,page05` cycle and a 28-page design pages 1 to 28 in order, with no blank pages. *Verified by test books, 2026-11-26.*
+- **Duplicate names in a list are dropped**, so a list cannot be padded to equal length with a repeat. Two slot lists of different lengths drift apart after the first round (14 left and 13 right gives pages 29 onward as 03, 02, 05, 04, ...); equal-length alternating lists restart cleanly but reorder shorter designs. Pick per catalog.
+- **Filling page types a design lacks.** Where a design only has page02 to page05 and the definition names more, make pageN a copy of page0(2 + (N - 2) % 4): the customer's book stays the same up to the end of the longest list. *Verified by query, 2026-11-26.*
+- An XML change affects new books only. Page count and therefore `price_forecast` are unchanged.
+- Saving through the admin template form converts LF to CRLF in the definition: compare definitions after normalizing line endings.
 
 ---
 
@@ -390,6 +404,7 @@ Common product types with annotated XML definitions.
 - `scale`, `grid`, `shadows` layers are design aids with `visibility="off"` or `"on"` — used for visual reference in the editor without being visible to the end user in fulfillment.
 - `cutmarks` layer uses `visibility="fulfillment"` — hidden in the editor, present in production output.
 - Hidden preview set is the standard pattern for a custom project thumbnail.
+- **Canvas templates output PDF.** Set `output="pdf"` on every canvas definition; never ship a canvas template with `output="jpeg"`. A range derived from a seed inherits the seed's `output`, so read it on the seed and set it on purpose for every derived range. Changing a live template's output changes what production receives: agree it with the lab first. Pixfizz convention. *Confirmed by Pixfizz, 2026-11-25.*
 
 ---
 
@@ -504,6 +519,8 @@ Use the relative form (`originals/`) for the standard pattern of keeping origina
 Original customer-uploaded files are **not** copied to FTP by default — only the generated production PDFs/JPEGs are sent. To include the original uploads in the fulfillment output, a fulfillment template named `_additional_files.json` is required.
 
 This template must be named exactly `_additional_files.json` (including the leading underscore). It is configured in the same fulfillment template area as the main job ticket template. Contact Pixfizz support for the template body format, as the exact payload schema is environment-specific.
+
+**Guard every `uploaded_file` read with the option type.** A template that reads `item.uploaded_file.url` on every chosen variant and template option before checking the type fails on Shopify + Pixfizz orders: Shopify line item properties (`shopify_product_id`, `shopify_variant_id`, `shopify_line_id`, display labels) arrive as options with nothing behind them, and the order stops in status E with "Failed generating files: undefined method `type' for nil:NilClass". Read `uploaded_file` only inside the file-upload branch (`if af_type == 'file_upload'`), then refulfill. Template-level (fulfillment template). *Seen on a live order, 2026-11-24; fixed together with a missing pickup address, so which change cleared the error is not isolated.*
 
 ### JSON Job Tickets: `escape_json` Filter
 
@@ -880,6 +897,15 @@ Applying a different layout (the layout picker, or a variant element substitutio
 A template can hold several named layouts (for example `full` and `matted` for the same frame), and a variant with an element substitution of type layout switches between them. That is the right shape when two sellable versions share one physical product: one product with a variant, not two products that double-count stock.
 
 *Verified live in the design tool (2026-09-21) and stated on a client call (2026-09-22).*
+## Every Definition Page Type Needs a Design Page of the Same Name
+
+Platform-level (Pixfizz CMS).
+
+**A definition page type with no matching design page imports cleanly and then breaks project creation.** A template whose definition says `<page type="canvas" .../>` while its only design page is named `print` imports with no error ("Template successfully imported", template, product and design all created). Creating a project on it then fails: `POST /v1/books.json` (product_id, theme_id) answers **500 `{"error":"Application error"}`**, and a custom tool built on it shows its own "Something went wrong" message at the upload step. Changing only the definition page type to `print` (Admin > Templates > the template, Definition, Save) fixed it at once: the same POST answered 200 with a project id. Working templates all follow the rule (type `canvas` with page `canvas`, type `print` with page `print`, type `front` with page `front`). *Verified by query on 19 templates, 2026-11-25.*
+
+- Rule: in any generated template export, every `<page type="X">` in the definition needs a design page named X, and the reverse.
+- After importing a generated set, create one project by API (`POST /v1/books.json`) before building anything on it.
+
 ## Element Rotation in Page XML: `rotate`
 
 **Platform-level (Pixfizz CMS).** `rotate="90"` on an element turns it a quarter turn **clockwise about its own center**. Write the box at its unrotated size, positioned as if unrotated, and add the attribute. Typical use: a landscape layout on a portrait print page. A 254 x 203.2 mm image at x -25.4, y 25.4 on a 203.2 x 254 mm page renders turned and filling the page.
@@ -951,6 +977,15 @@ these.
   page XML, 2026-10-20.*
 - **`<g>` groups:** children are offset by the group's `x` and `y`. *Verified by reading XML,
   2026-10-20.*
+- **Group a frame graphic with its photo to keep them together** (editor **Group**, or in XML):
+  `<g edit="true" unit="true" x y width height>` with the frame and the placeholder inside, their
+  `x`/`y` relative to the group. The group's width and height are the frame's visual box (a
+  90-degree rotation swaps them). Give the frame `move`/`resize` false and `replace="false"` so
+  customers cannot swap the art. Anything that reads page XML outside the platform must walk into
+  `<g>` to find the photo. *Verified by query, 2026-11-26.*
+- **Page background:** `<page ... src="db:<image id>">` (fitted inside the page) and
+  `bgfill="true"` (cover-cropped to the page). A renderer outside the platform must read the page
+  `src`, not only image elements. *Verified by query and render, 2026-11-26.*
 - **An element's position is `x`/`y`; on an `<image>`, `left` and `top` are the photo's crop offset
   inside its box** (`17_DESIGN_TOOL.md` § Image crop state), not its position. When `x` or `y` is
   missing it is 0: an `<image>` with no `x`/`y` is placed at 0,0 of the page whatever its `left`/`top`
@@ -1009,6 +1044,21 @@ these.
   long job titles dropped to about 6 pt. Size the box and the option's `max_length` together
   so the longest accepted text still prints at a readable size (9 pt or more is the working
   floor). *Verified by server render on a Pixfizz test site, 2026-10-05.*
+- **In the storefront editor renderer, `shrink` did not reduce the type at all (conflicting
+  result, pending confirmation).** Through the editor's text endpoint
+  (`PUT /v1/books/<id>/texts.json`, editor bundle 20261124140047), `overflow: "shrink"` left the
+  size unchanged in more than 1,000 test renders (point size 3 to 12): the text wraps at the given
+  size, lines that do not fit are dropped and the result is flagged `overflown`. The editor then
+  draws a yellow warning triangle on the element ("Text is too large to fit in the box.") and shows
+  no text. Until the two paths are reconciled, size every non-editable text box for its longest
+  real content and do not rely on shrink. Platform-level. *Verified by query, 2026-11-26.* (The
+  2026-10-05 result above came from a server render and was not re-checked.)
+- The editor sends `pointsize` rounded to a whole number (`fontsize` mm x 2.8346, 4.197 becomes 4)
+  and the box height rounded too (1.9247 becomes 2): test at both the rounded and the real size.
+- **Quick fit test:** `PUT /v1/books/<own book>/texts.json` with
+  `texts={"<json_query>":<json_query>}` (keys `align`, `font`, `height`, `overflow`, `pointsize`,
+  `text`, `valign`, `width`, sorted) returns `{data:{<key>:{overflown, text_chunks, font}}}`.
+  *Verified by query, 2026-11-26.*
 - **`valign="top|center|bottom"`** sets vertical alignment in the box; the default is `top`.
   With `valign="center"` and `shrink="true"`, one line and two wrapped lines both sit
   centered. *Verified by reading source (editor bundle 20261002143509) and by server render
@@ -1171,6 +1221,25 @@ re-importing the design:
 
 *Verified by query, 2026-10-03 and 2026-10-04.*
 
+**Decorating design pages with theme art.** Platform-level.
+- Theme art can be added to an existing design page without touching its frames: insert locked
+  image elements right after the `<page>` tag, for example
+  `<image edit="false" move="false" resize="false" layout="false" src="db:<id>" name="dekor" .../>`.
+  Document order is drawing order, so they render behind the photo frames and text. *Verified by
+  query and page render on 280 pages, 2026-11-26.*
+- **Choosing `layout`:** `setLayout` removes only `layout="true"` elements (`17_DESIGN_TOOL.md`).
+  Mark page-wide art (backgrounds, bands, margin and corner pieces) `layout="false"` so it survives
+  a layout change, and art tied to one frame (a mat, a wash behind that photo) `layout="true"` so
+  it leaves with the frame. *Not verified:* whether frames from a newly chosen layout draw above
+  the remaining art.
+- An image used on a design page can come from another design's gallery: `src="db:<id>"` resolved
+  in the page render. *Not verified in the customer editor or the production PDF.*
+- A non-placeholder `<image>` cover-crops its source into its box: a square texture stretched into
+  a wide strip is enlarged, not tiled. To keep a pattern's scale (grid paper), tile it into a strip
+  of the right aspect before upload.
+- Before writing, check that removing the added elements gives back the original page XML byte for
+  byte. Naming every added element (`name="dekor"`) makes that a one-line strip and a one-call undo.
+
 ## Design Import (`__print_theme.yml`)
 
 **Platform-level (Pixfizz CMS).** A design is imported from the template page's **Import
@@ -1243,6 +1312,14 @@ pxtemplates, 2026-11-18.*
   name is 32 characters or fewer before packing. *Verified by query (import error and the site
   Fonts list read back), 2026-11-03.*
 
+- The import remaps font ids in page and layout XML to the site's own font records and rewrites
+  empty text elements as self-closing: when comparing a build with what was imported, normalize
+  image ids and font ids first.
+- A layout whose page name matches no page in the definition (`name="cs-art" pages="cs-art"`)
+  imports and is returned by `/v1/themes/<id>/layouts.json` with its XML and image URLs
+  (`images[]` lists distinct images only). *Not verified:* whether the design tool offers it.
+  *Verified by query, 2026-11-25.*
+
 ### Workflow for a generated batch of designs
 
 1. Import one design first, carrying every new font. Read the new font ids from
@@ -1295,6 +1372,10 @@ documented above. There is no layer-level `fulfillment` attribute. Do not docume
 - **A preview page on the template needs a matching preview page on every design.** A template with a preview page whose designs lacked it stopped its options from working. *From a support ticket, 2026-11; not verified by query.*
 - **The other orientation of a single-photo template is a transpose.** For templates whose pages are single image frames (prints, fine art), swap width and height, x and y, left and top on every `<page>`, `<image>` and `<ipage>` line of the export, swap the photo page size in the definition and the design option `crop_aspect_ratio`, and rename the name and code lines (template, product, design). The same-site import creates a new template, design and product. Not for multi-frame layouts: transposing a grid changes the design. **Never trust a product's orientation field or name for geometry:** read the photo page in the template XML (a product named "8x10" was 10 wide x 8 high). *Verified by import of 40 templates, 2026-11-10.*
 
+- **The project page size comes from the design page XML, not from the definition.** Under a definition `<page type="print" width="360" height="360" bleed="30"/>` (mm, output pdf): a design page written at 300 x 300 gives a 300 x 300 mm production PDF (nothing outside 0..300 prints); a design page written at the full 360 x 360 (background at 0,0, artwork offset by 30) gives a 360 x 360 mm PDF with the artwork placed from the trim. Media, trim and bleed boxes are equal (no separate trim box). *Verified by query, 2026-11-25.*
+- **Bleed is the outer band of the page size, never extra area outside it.** The platform's own bleed score zones sit inside the page (for example 0..30 and 270..300 on a 300 mm page). On a template with bleed, a design page (and any tool that writes page XML) uses the full page size from the definition and offsets its artwork by the bleed. Never write the page at trim size with negative coordinates. A tool that only edits the elements of the blank design page and never sets the page size needs both the full-size blank page and the bleed offset.
+- A production file can be made without confirming the order: Admin > Projects > the project > Production Files > Generate new file. *Verified by query, 2026-11-25.*
+
 ## Changelog
 - 2026-04-03: Created from platform documentation provided by Pixfizz. Covers page parameters, safe area, growing spine, and layflat spread.
 - 2026-04-03: Added PDF Layers section — layer attributes, separate-file, separate-page, per-page layer control, filename placeholders.
@@ -1315,3 +1396,4 @@ documented above. There is no layer-level `fulfillment` attribute. Do not docume
 - 2026-11-09: `<definition>` Attributes: a definition with no `unit` reads as mm; `unit="mm"` works for cut prints. Set Parameters: read the print size from the first non-preview set. Canvas Wrap Geometry: panels cut from one wall page verified (zoom 0 on a non-square wall, `left` with zoom, face-only zoom, set order). Element Rotation: fractional angles. Drawing Order: overlay-style card designs; page without `bgcolor` is white (not verified). Text Elements: CORRECTED `kerning` to points (measured in the PDF); shrink headroom; baseline position; uppercase via a remapped font. Template Changes Do Not Reach Existing Projects: adding a preview set later makes old projects lose page 1 (diagnosis and fix). Design Import: font names over 32 characters fail an import; page XML edited in place exports as a quoted scalar.
 - 2026-11-13: Definition unit: when absent, read it from the /v1/themes JSON. New section Output DPI, Bleed and the First page: DPI and bleed live on the definition; a different DPI for one lab means a copied set; tools may read the first page as the print page; a template preview page needs a matching page on every design (support ticket, not verified); orientation twins by transpose.
 - 2026-11-21: Page Parameters: every page needs a `type` (template create form error). Greeting Card: clip the grown cut-out ring to the trim on full-bleed photos; generated art layers drawn through the bleed; bleed-sized art on a no-bleed page needs `x`/`y` = minus the bleed; card exports carry `preview-*` and `backup` pages. Drawing Order: position is `x`/`y` (missing = 0), `left`/`top` on an image are the crop offset. Page Count and `minimum-dpi`: generated backgrounds must meet the floor. Design Import: scripted imports from an admin page and the success signal; export file name; design options and values created new on import (batch from one seed); check new codes against the target template. Canvas Wrap Geometry: canvas print file for a lab that prints the full wrap (page = print area + 2 x wrap, mirror and full-image layouts, no marks or masks, seed range white band, `stretched` prints white sides).
+- 2026-11-27: Shipping weight is the `<weight>` element in the definition. Commented-out sets are ignored. PNG output with separate-file layers (transparent layer PNGs). Grow sets: page type lists also build new books, names the design lacks are skipped, duplicates dropped, filling missing page types. Canvas templates output PDF. `_additional_files.json`: guard `uploaded_file` reads with the option type (Shopify line item properties). New § Every Definition Page Type Needs a Design Page of the Same Name (500 on project create). Groups tying a frame to its photo, page background `src` and `bgfill`. `shrink` did not shrink in the storefront editor renderer (conflicts with the earlier server render, pending confirmation), rounded pointsize, quick fit test. Decorating design pages with theme art. Design import remaps font ids; a layout for a page name the definition lacks. Project page size comes from the design page; bleed is the outer band of the page.

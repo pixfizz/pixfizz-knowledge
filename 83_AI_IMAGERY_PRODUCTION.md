@@ -2,7 +2,7 @@
 
 **Authority Scope:** Guidance for producing AI-generated marketing imagery and video to support a Pixfizz storefront, using Higgsfield AI. This file documents a third-party tool and general production practice. Nothing in it changes Pixfizz CMS, Shopper, or Shopify integration behavior. Vendor capabilities change frequently and are tagged as such.
 
-_Last updated: 2026-10-22_
+_Last updated: 2026-11-27_
 
 ---
 
@@ -375,6 +375,11 @@ print, coaster, mouse pad), generate a top-down photo with a plain matte white f
 the frame, so no perspective warp is needed. The compositing (white-face mask, multiply) is in
 `27_LIVE_FINISH_AND_3D_PREVIEWS.md` § 2.10. *2026-10-26, headless render only.*
 
+**Tall product art (growth charts, banners, bookmarks).**
+- Nano Banana 2 takes `aspect_ratio` 1:4 and at 4k returns 2048 x 8256 px; Pro does not offer 1:4. Prompt for no text, no numbers and no ruler, a calm top area for the photo and name, and a plain lighter strip along one edge for the scale; give a few drawings in the house style as input images to hold the style. Then lay the name, photo and scale on top in real units (SVG viewBox in mm) so the marks are print-accurate and the art carries no type. Print quality at 40 cm wide is about 130 dpi before upscaling. *Verified by rendering 8 designs, 2026-11-23.*
+- A growth chart never measures from the floor: its bottom edge hangs above the baseboard and the scale starts there (for example 30 cm, scale 30 to 190 cm; US 12 in, 1 ft to 6 ft).
+- A tall product on a wall needs a room with a clear wall and the floor in view, the product centered and cropped close; furniture in the middle of the room pushed the chart to the side. When height is what the product is about, calibrate vertically from a standard door (2032 mm / 80 in).
+
 ---
 
 ## Part C — Pixfizz Product Type Routing
@@ -599,3 +604,4 @@ Suggested delivery: a short setup walkthrough on `help.pixfizz.com` covering sub
 - 2026-11-09: B12 input count decides edit or generate mode (pass one reference twice for 2K), paper goods register and hero space, library art generated on flat magenta and keyed.
 - 2026-11-13: Part F: start generated product imagery from the real product preview, state real scale, nb2 with an input image defaults to edit mode.
 - 2026-11-21: B12 explicit generate mode with one or two references returns native 4K (corrects the edit-mode size as a general limit), remaster and style-family prompts; transparent print art by matting a white and black pair, white-only matte for colored flowers; recolor plates from one blank; wall art library pieces edge to edge (per-side trim, edge check, sets as separate full-bleed panels, ellipse check, geometry drawn in code, gallery wrap for light art).
+- 2026-11-27: B12 tall product art (Nano Banana 2 at 1:4, art without type and the scale laid on in mm, growth chart scale starts above the floor, tall wall scenes calibrated from a door).

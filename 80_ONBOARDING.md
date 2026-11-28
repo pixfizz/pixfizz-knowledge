@@ -2,7 +2,7 @@
 
 **Authority Scope:** Onboarding process, deployment path phase sequences, pre-onboarding preparation, launch readiness, and email notification templates.
 
-_Last updated: 2026-10-22_
+_Last updated: 2026-11-27_
 
 ---
 
@@ -185,6 +185,8 @@ _Longest phase. Can run in parallel with Phase 1 if assets are ready._
 **Email delivery:** Shopper email notifications are sent via SendGrid. Deliverability problems are almost always caused by missing or misconfigured SPF/DKIM DNS records on the customer's sending domain. Verify email authentication DNS records during this phase and send test notifications before launch.
 
 Each lab domain is authenticated in the Pixfizz SendGrid account as `pxemail.<lab domain>` (Domain Authentication status Verified, Pending or Failed). The site's Default Email (From) must be on a domain with a Verified entry, or mail shows as unverified and risks spam. Free mailboxes (Gmail and the like) cannot be authenticated, so a lab sending from one needs its own domain first. *From a SendGrid account screenshot, 2026-10-03.*
+
+The admin shows a warning badge on a site whose sending email domain is not verified (the `pxemail.<lab domain>` DNS records missing or failing). The status is refreshed periodically, so the badge clears on its own a while after the DNS records are added. Treat the badge as a launch blocker for email. The CNAME records the sending domain needs are listed in the admin at `/site/<site>/admin/site/email_advanced` (host, data and a Valid column): read them there, then check those hosts in DNS. *Confirmed by Pixfizz, 2026-11-24.*
 
 **Blockers:** Payment gateway credentials, shipping rate structure, tax registration info.
 
@@ -537,6 +539,7 @@ Use this checklist before declaring a site ready for launch.
 - [ ] Production files generated and approved for each product type
 - [ ] All email notification templates reviewed — active ones customized for customer brand
 - [ ] Email delivery verified — SPF/DKIM DNS records confirmed for SendGrid deliverability, and the Default Email (From) domain shows Verified as `pxemail.<lab domain>` in SendGrid
+- [ ] Captcha works on the live domain: if the site uses reCAPTCHA, every live domain (custom domain, any country domains, and the pixfizz.com subdomain if still reachable) is listed on the lab's reCAPTCHA key in Google. Register a test account and start a guest checkout on the live domain after the DNS switch. A missing domain blocks every registration and guest checkout (`21_SHOPPER_CHECKOUT_POLICY.md` § Captcha on registration and guest checkout).
 - [ ] Custom domain live with SSL confirmed
 - [ ] Navigation and homepage signed off by customer
 - [ ] Pricing confirmed and validated against customer's agreed rate card
@@ -600,7 +603,15 @@ tree, and the failures are silent — the site looks imported and behaves like t
 seed. Check these by hand after every import, on the live site:
 
 1. **`admin/checklist/no-index` ships `TRUE` on the parent.** Any live storefront
-   needs it set to `FALSE`. Nothing on the page shows it.
+   needs it set to `FALSE`. Nothing on the page shows it. This also applies when an
+   existing custom CMS site is re-pointed to Shopper 24 as its design parent: it
+   inherits `no-index` TRUE at once. Create the child override with `FALSE` straight
+   after the switch (Snippets > Add Snippet, parent `admin/checklist/no-index`).
+   *Verified on a customer site, 2026-11-24.*
+   After the same switch, the Pixfizz connector can still refuse snippet tools ("This
+   store doesn't use Shopper snippets") because it keeps the store type it saw when the
+   site was verified. Ask Pixfizz support to re-verify the site in the connector.
+   *Observed 2026-11-24.*
 2. **The custom home page.** Load the site root and confirm the custom homepage
    renders rather than the seed one, by asserting the wrapper class the homepage
    emits is in the DOM. See 50_SHOPPER_TEMPLATE_REFERENCE.md § 14 and § 17.
@@ -841,3 +852,4 @@ After any domain change, repoint payment-provider webhooks that carry the old do
 - 2026-11-09: Marketplace Phase 3: Etsy variations mapped to template options passed a later test (mapping by name, the rest as orderline options); new `create_order` endpoint payload and numeric-type rule. Post-Import Checks: Website title feeds the legal pages' company name; shipping formula 0 is free. Round 2: Pre-Launch Handoff Checklist: social sharing image, photo prints setup, child moved onto another admin. Marketplace: Etsy orders store the variation value name, not the code.
 - 2026-11-13: New section New Shopper Children: shared catalog data with the old site, custom_script definition missing prints mounts as text, admin slug can differ, clear To on customer emails, test the FTP login, missing languages and currencies.
 - 2026-11-21: Email Notification Templates: check DMARC and SendGrid DKIM before using a client domain as From. Kiosk Storefront Prerequisites: `kiosk-remove-captcha` can hide the robot check while the server still validates it, test one real walk-in order.
+- 2026-11-27: Post-Import Checks: a custom CMS site re-pointed to Shopper 24 inherits `no-index` TRUE at once; the Pixfizz connector needs the site re-verified after the switch. Phase 3: unverified email domain warning badge and where the sending domain's CNAME records are listed. Pre-launch checklist: every live domain on the reCAPTCHA key.

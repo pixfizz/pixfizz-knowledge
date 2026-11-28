@@ -2,7 +2,7 @@
 
 **Authority Scope:** Customer-facing Q&A grounded in platform truth (files 10–32, 60). Covers Full Pixfizz / Shopper and Shopify + Pixfizz deployments. Not a developer reference — answers are written for store owners and operators.
 
-_Last updated: 2026-09-09_
+_Last updated: 2026-11-27_
 
 ---
 
@@ -401,6 +401,11 @@ _Applies to: All_
 
 Yes. Pixfizz has built-in translation support for core objects including products, designs, collections, templates, variant types/values, and template option types/values. Enable multi-language support in the Super Admin, select your languages, and then use the "Translate" link that appears on supported objects in admin. Translations are applied automatically across the storefront and design tool — Liquid properties like `{{ design.name }}` resolve to the correct language automatically. Bulk translation management is also available via export/import. See `18_ADMIN_NAVIGATION.md` for the full setup guide.
 
+**Q: A customer wants their Life Event List (saved reminders) on a different account. How?**
+_Applies to: Shopper_
+
+Change the email address on the account that holds the list; the list stays with the account. Sharing a project with the other account does not move the list. Yearly events carry over automatically each year; one-off events do not repeat. *Confirmed by Pixfizz, 2026-11-24.*
+
 ---
 
 ## Section 9 — Common Troubleshooting
@@ -529,3 +534,4 @@ Not by a setting. It may be possible with inline pages but there is no confirmed
 - 2026-09-29: Two kiosk FAQs: no order because Confirm Order was never pressed; next customer inherits the session.
 - 2026-10-06: Section 5: tax cannot be set per product. Section 11: five silent failures (imported option hidden by string "false", non-atomic template import, folded scalar in a generated archive, blank empty top-level collection page, Shopify My Projects loader hang). Section 7: CORRECTED the Fulfilled status meaning (internal production status, not delivered).
 - 2026-10-09: Section 3: iPhone and iPad uploads show no progress indicator.
+- 2026-11-27: Section 8: moving a Life Event List to another account (change the account email; sharing a project does not move it).

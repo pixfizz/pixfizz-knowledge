@@ -2,7 +2,7 @@
 
 **Authority Scope:** How AI-powered search works, Generative Engine Optimization (GEO) practice, and what the Pixfizz platform and Shopper template currently do for AI search visibility. Industry concepts are general knowledge. Platform and template capabilities are tagged explicitly.
 
-_Last updated: 2026-11-09_
+_Last updated: 2026-11-27_
 
 ---
 
@@ -154,6 +154,7 @@ This is the platform-truth section. Map each signal to what the platform and tem
 - `[SHOPPER]` **Key-name mismatch in the v2 manage admin.** The manage SEO page writes the hide-from-search toggle to `admin/checklist/launch-no-index`, but `html.head` reads `admin/checklist/no-index`. The toggle therefore appears to work in admin and silently does nothing on the storefront, so a pre-launch site can be indexed while the operator believes it is hidden. Until the template is corrected, verify the noindex is actually present in the rendered page source rather than trusting the admin toggle, or set `admin/checklist/no-index` directly.
 - `[SHOPPER]` **Staging / pre-launch pages can get indexed by Google.** If a site was live on a staging URL before launch, those staging pages may already be in Google's index and compete with production. Fix by redirecting the old staging URLs to their production equivalents. The Shopper redirect config file is a JSON **array of `[regex, destination]` pairs** (each entry is a two-element array: a path-matching regex and the destination URL); anchor patterns as `^/site/<path>/?$` to tolerate a trailing slash. **The regex is matched against the path including the query string**, so end each rule in `/?(\?.*)?$` (JSON: `/?(\\?.*)?$`) or a URL carrying `?fbclid=` or `?utm_` misses the rule and gets a 302 to `/site/404` (Corrected 2026-10-17; verified live, 2026-10-11; `50_LIQUID_REFERENCE.md` § Website Redirects). See `80_ONBOARDING.md` § SEO Migration for where this file lives and how it is applied.
 - `[PLATFORM]` **The sitemap and product feed responses are cached (from 2026-10-22).** The sitemap and product feed endpoints are served from a server-side cache for about one minute, then revalidated (the cache time went from 5 minutes to 1 minute on the same day). Consequence: after a crawl or a product change, the sitemap or feed (including what Merchant Center fetches) can take up to a minute to show it. Re-fetch after a minute before treating a stale sitemap or feed as a fault. *Observed in release commits 2026-10-22; behavior not verified.*
+- `[PLATFORM]` **A design without a `url_path` is marked noindex and left out of the sitemap.** Only designs with a clean URL (`url_path`) are offered to search engines. Designs shared from a design catalog (graduation announcements and the like) are the exception: they are indexable on the site's standard product URLs without a `url_path`. To get a design indexed, give it a `url_path`. *Confirmed by Pixfizz, 2026-11-24.*
 - For sitemap submission to Google Search Console and 301 redirect configuration during migration, see `80_ONBOARDING.md` § SEO Migration.
 
 ### Structured data
@@ -218,7 +219,7 @@ This is the platform-truth section. Map each signal to what the platform and tem
 The auto-generated product JSON-LD already covers the Google-required trio and a good recommended set:
 
 - `@type` Product with `name`, `description`, `sku`, `mpn` (falls back to `sku`), and a conditional `gtin` (emitted only when present).
-- `image` array: live-preview WebP plus a fallback image.
+- `image` array: the design preview, then design, product and collection preview images, then (since 2026-11-24) the design image and finally the product's main Image field. Before that fix a static product with only a main image rendered `"image": []` and Google flagged the required `image` as missing. `sku` and `mpn` are also stripped of a stray line break since the same fix. Template-level (Shopper 24 parent `product/schema`). *Verified live, 2026-11-24.* Rule for any schema or feed work: fall back to the product's main image last.
 - `brand` (Brand), `category` (from `google_category`), and `product_type` (from a custom field).
 - `offers` (Offer) with `price` (or `from_pricing`), `priceCurrency`, `url`, `itemCondition` (`NewCondition`), `priceValidUntil`, and an `availability` mapping (`InStock` / `OutOfStock` / `InStoreOnly` when shipping is unavailable / `OnlineOnly` when pickup is unavailable).
 
@@ -333,7 +334,7 @@ reading source and by crawler output** unless stated otherwise.
 **Found 2026-10-13, open (fix not applied):**
 
 - **Product x theme URLs are self-canonical duplicates.** `sitemap.xml` lists one product URL
-  per theme (`&theme=<id>-<slug>`). Each renders a canonical that keeps the theme parameter,
+  per theme (`&theme=<id>-<slug>`) (before 2026-11-24; since then designs without a `url_path` are noindex and out of the sitemap, § Part D, so re-check which theme URLs a site's sitemap still lists). Each renders a canonical that keeps the theme parameter,
   with the same `<title>`, H1, meta description and body as the base product; only `og:title`,
   `og:image` and the breadcrumb change. Third-party audits then report very high
   duplicate-title and duplicate-meta rates and thin / soft-404 flags. Cause: `pages/product`
@@ -398,6 +399,8 @@ For the storefront tagging standard itself and the server-side revenue path, see
 - The product page JSON-LD (`#product-schema`) `sku` and `mpn` are `<design code>:<product code>`. *Verified by query, 2026-11-11.*
 - An empty design `meta_title` can give a doubled page title (`50_SHOPPER_TEMPLATE_REFERENCE.md` § 26).
 
+- **Third-party SEO plugins can rewrite page titles.** SEO plugins loaded through Google Tag Manager can rewrite `document.title` per URL from their own stored data. After a site rebuild they can push stale or English titles over the new ones. When a page title looks wrong in the browser but right in the page source, check the network log for the plugin's data request and update or remove the plugin's stored titles. *Observed on a customer site, 2026-11-24.*
+
 ## Pending Confirmation
 
 - Shopper LocalBusiness JSON-LD: are the placeholders populated and emitted by default, and do they include geo-coordinates and `sameAs`? What configuration is required?
@@ -431,3 +434,4 @@ For the storefront tagging standard itself and the server-side revenue path, see
 - 2026-11-09: Part D Structured data: Shopper appends the store name to the page title (keep it out of `meta_title`). Part G: every child needs its own `og-preview-image.jpg`; `og:title` on Pages is the site title.
 - 2026-11-13: Part H: empty /llms.txt answers 200 with no body; product schema sku format; empty design meta_title doubles the title.
 - 2026-11-21: Launch: turn noindex off with the child override, then schedule a crawl.
+- 2026-11-27: Part F: product JSON-LD `image` falls back to the design image and then the product's main image (static products no longer emit an empty array). Part D Crawlable: designs without a `url_path` are noindex and left out of the sitemap. Part H: third-party SEO plugins loaded through GTM can rewrite page titles.

@@ -2,7 +2,7 @@
 
 **Authority Scope:** Operational reasoning and troubleshooting guidance.
 
-*Last updated: 2026-10-22*
+*Last updated: 2026-11-27*
 
 ------------------------------------------------------------------------
 
@@ -132,6 +132,19 @@ Fix: use the `style onload` pattern (see `01_CODE_GOVERNANCE`) with a
 direct init call at the end of the IIFE. Do not rely on
 `DOMContentLoaded` or `px.fragmentsReloaded` event listeners alone —
 they are insufficient for this case.
+
+## Page Shows Only Header and Footer: An Inline Script Closed With `<\/script>`
+
+**Symptom:** After adding an inline script to a snippet or a Pages entry (often the homepage), the page shows the header and footer and nothing in between. The console shows "Uncaught SyntaxError: Unexpected token '<'". A check that fetches the HTML and looks for the content still passes.
+
+**Cause:** The script was saved ending in `<\/script>` instead of `</script>`. Snippet and page content is HTML, and `<\/script>` is the JavaScript-string escape: it does not close a script element in HTML, so the browser reads everything up to the next real `</script>` as script text and the page sections end up inside one script element. It usually comes from content built as a JavaScript or JSON string and pasted into admin without unescaping. Platform-level. *Verified on live pages, 2026-11-25.*
+
+**Rule:**
+- `<\/script>` is only valid inside a JavaScript string that is itself inside a script block. Never use it to close an inline script in Liquid or HTML.
+- Before saving a snippet that contains inline script, search it for `<\/script>`. (When the admin edit page shows `<\/script>` inside its `const content = "..."` source, that is the page's own escaping: see `61_PIXFIZZ_API.md`.)
+- After the save, load the live page and assert in the rendered DOM (not the HTML string) that the expected content exists, for example the H1 and `document.querySelectorAll('<section selector>').length`.
+
+---
 
 ## `style onload` Firing Once Then Stopping — `onload = null` Anti-Pattern
 
@@ -341,17 +354,22 @@ This applies to **all** Bootstrap 4.6 utility classes. When debugging a CSS over
 
 ---
 
-## iOS Older iPad: HEIC Upload Appears Frozen
+## iOS: Nothing Happens After Picking Many Photos
 
-**Symptom:** On older iPads, uploading a HEIC image makes the upload appear frozen.
-The customer sees no spinner or progress, may assume it failed, and retries or
-abandons.
+*Replaces the earlier entry "iOS Older iPad: HEIC Upload Appears Frozen" (2026-11-27).*
 
-**Cause:** A HEIC to JPEG conversion runs on upload with no visual feedback on
-these devices. The upload is working; only the feedback is missing.
+**Symptom:** On iPhone and iPad, after the customer picks many photos (for example 200 to 300) and taps Add, nothing happens on screen for seconds to minutes. Customers think the site froze and tap Back. Seen on current iPhones as well as older iPads, not only with HEIC files.
 
-**Status:** A progress indicator / spinner is a pending UX improvement, not yet
-shipped. Until then, flag this to clients whose customers use older iPads.
+**Cause:** iOS prepares the picked photos (iCloud download, HEIC to JPEG) inside the system photo picker and hands nothing to the page until it is done. No page event fires during that wait, so the page cannot draw a loader. There is no known workaround for the wait itself (confirmed by Pixfizz, 2026-10-07).
+
+**What exists:**
+- `px-upload-dialog` shows a notice before the iOS picker opens. Its text and button are set by `ios-picker-notice-title`, `ios-picker-notice-text`, `ios-picker-notice-button-text` and `ios-picker-notice-button-class` (see `26_CUSTOM_DESIGN_TOOLS.md`). Translations live in the editor namespace.
+- Once iOS hands over the files, the dialog shows "Uploading n of m".
+- Studios built on the shared photo pick show local previews at once.
+
+**Advice for labs:** set the notice text in the store's language, suggest smaller batches, and offer My Galleries or the phone QR upload for very large sets. Local previews and background upload on the photo prints page are not shipped yet; they would shorten the wait after the hand-over, not the picker wait.
+
+*Not verified:* whether the notice shows in a Shopify + Pixfizz photo prints flow.
 
 ---
 
@@ -987,6 +1005,23 @@ A collection-filter size swap blanks `px-image-upload` (`50_SHOPPER_TEMPLATE_REF
 
 A product (or design, for a `design.custom` filter) with no value for the filtered field drops out as soon as any value is ticked, and its values never show as choices. Imported products can carry values for a field the site never defined; new values need the definition, so filter on a defined field. Before launch, check every product in the collection has a value and the field is defined (`50_SHOPPER_TEMPLATE_REFERENCE.md` § 21.1). Platform-level. *Verified by query, 2026-11-17.*
 
+## A Link Crawl Logs Itself Out: Skip Logout Links
+
+A script that fetches every same-origin `a[href]` on a storefront must skip `/site?logout=t` and any logout or delete link: fetching it logs the browser session out, and every later check runs as a guest. *Verified on a customer site, 2026-11-24.*
+
+## Links to an Empty Filter After Unpublishing a Product Family
+
+After unpublishing a product family (for example coasters inside a Gifts collection), links such as `/site/shop/gifts?type=Coaster` still answer 200 with 0 products, while the landing page and homepage cards still link to and name them. A link crawl sees 200 and passes. After unpublishing design rows or products, search the Pages content, `website/homepage` and the navigation snippets for the collection path with `?type=<value>` and for the family name, and fix those links in the same change. Unpublishing a design row is reversible (`16_PRODUCT_HIERARCHY.md` § Unpublishing). Template-level (Shopper landing pages). *Seen on a customer site, 2026-11-23.*
+
+## Nobody Can Register or Check Out as a Guest After a Domain Change: Check the reCAPTCHA Domains
+
+Since the store moved to its own domain, registration and guest checkout fail at the robot check; signed-in customers can still order. Cause: the site's reCAPTCHA key in Google lists only the old domain. Fix: add every live domain to the key in the lab's Google reCAPTCHA console. Quick workaround: Pixfizz support clears the site's reCAPTCHA keys (labs cannot set or clear them) so the site falls back to hCaptcha, then restore reCAPTCHA once the domains are added. The captcha itself cannot be removed (`21_SHOPPER_CHECKOUT_POLICY.md`). A customer who still sees the error right after the fix may have the old page cached: ask them to reload or try a private window. *Confirmed by Pixfizz, 2026-11-27.*
+
+## An Order Fails Production With "Unsupported Characters": Look for Hidden Emoji or Stacked Hairline Images
+
+The render reports "Detected text with unsupported characters on pages: ...". Besides a character missing from the font (`19_XML_TEMPLATE_REFERENCE.md`), two causes seen in customer projects: an emoji or other invisible character pasted into a text element (it shows as nothing in the editor), and the same image placed several times on top of itself at near-zero width. Fix: open the project, clear and retype the affected text, delete the stacked hairline images, save, then refulfill the order. *Confirmed by Pixfizz, 2026-11-24.*
+
+
 ## Changelog
 - 2026-03-21: Initial content from platform documentation export.
 - 2026-04-23: Added CSS snippet logs diagnostic note, password reset Liquid deprecation pattern, fulfillment template DPI failure, URL reserved parameter 404 gotcha, Stripe pending-without-payment issue, FTP original files intermittent failure.
@@ -1011,3 +1046,4 @@ A product (or design, for a `design.custom` filter) with no value for the filter
 - 2026-11-13: Five symptom pointers: design tool Add to Cart redirected, blank images from missing assets, cart error from a shipping formula, slow first preview slide, uploaded photo lost on a size swap.
 - 2026-11-20: Guest Checkout: closing self-registration means closing the checkout create-account form too. New section: debug output on the live checkout shows only for debug-tagged accounts.
 - 2026-11-21: Symptom pointer: products vanish when a collection filter is ticked (field empty or undefined).
+- 2026-11-27: REPLACED the iOS HEIC entry with "iOS: Nothing Happens After Picking Many Photos" (picker wait on every iPhone and iPad, upload dialog notice, advice). New: page shows only header and footer from an inline script closed with `<\/script>`; a link crawl logs itself out; empty filter links after unpublishing a product family; registration and guest checkout broken after a domain change (reCAPTCHA domains); "unsupported characters" from hidden emoji or stacked hairline images.

@@ -2,7 +2,7 @@
 
 **Authority Scope:** How a `px_rates` price card is built, where it goes and how to check it prices the same on the website and in OrderHub. Tool-level (Uploader 2, Custom Sized Prints, Sticker Studio) on a platform product custom field. Formulas, variants and price variables stay in `30_PRICING_ENGINE.md`.
 
-_Last updated: 2026-11-24_
+_Last updated: 2026-11-27_
 
 ---
 
@@ -26,12 +26,14 @@ One file, `pricing.js`, does the arithmetic. The storefront tool bundles it, Ord
 | 3 | simple booklets (per page rates, bindings) | live |
 | 4 | `area` (custom sizes: prints, metal, acrylic, canvas, banners, counter jobs) | live in OrderHub and the POS from 5 Nov 2026 |
 | 5 | `prints` (Flat Prints), `forms` (NCR), `sheet` (stickers) | built 20 Nov 2026, flat, booklet and area prices identical to v4. **Not installed in OrderHub yet** (OrderHub runs v4, confirmed 24 Nov 2026): Flat Prints, NCR forms and sticker products sell on the website but cannot be priced at the till until it is |
+| 5.1 | folded brochures: a new `px_fold` field with fold codes `half-letter`, `half-tabloid`, `tri-letter`, `tri-legal`, `z-letter`, `quarter-tabloid` | built 24 Nov 2026. The version inside the file still reads 5; that is expected. Install status in OrderHub and the POS: to confirm |
 
 **The `"engine"` number on a card** is the lowest version that can price it. Rules:
 1. A card is refused by any engine older than its `"engine"`. On the storefront the page then shows "This product is not set up yet" and Add to cart is off. *Verified live, 2026-11-10.*
 2. Keep `"engine"` at the lowest number that has the mode: flat 1, booklet 2, simple booklet 3, area 1 (metric units 2), prints, forms and sheet as their starter card says. Do not raise it "to be current".
 3. The storefront must never be older than any card on the site, and OrderHub must run a version that has the card's mode. A mode the website prices but OrderHub's `pricing.js` lacks works for web orders and fails at the till.
 4. OrderHub refuses a card with no `"engine"` (from 9 Nov 2026). Always include it.
+5. **Swap `pricing.js` in OrderHub and the POS at the same time.** Both run the same file; a card priced by one version at the till and another at the POS gives two prices. *Confirmed by Pixfizz, 2026-11-24.*
 
 ## 3. Modes at a glance
 
@@ -45,6 +47,10 @@ One file, `pricing.js`, does the arithmetic. The storefront tool bundles it, Ord
 | `sheet` | Sticker Studio | pieces per press sheet, setup plus per sheet ladder, minimum | `sheet`, `setup`, `min`, `tiers`, `size` |
 
 Start every new card from a starter card or from the product's current card, never from a blank page. Pixfizz has starters for documents, letter booklets, simple booklets, NCR forms, Flat Prints, custom sizes and stickers.
+
+**`area` has no fixed-size table and no quantity tiers.** It prices every size from its area tiers, `base`, `min` and `extras`; the line is unit price x quantity. A card that says `"mode": "area"` but carries keys such as `standard_sizes`, `tier_prices` or `quantity_tiers` is not priced by those keys: the engine ignores them. Check every card a lab sends against the real keys of its mode before promising it prices "as written". *Verified by reading the engine source, 2026-11-24.* A product that needs fixed sizes plus quantity tiers plus custom sizes needs its own mode, and a new mode only counts once it is in the `pricing.js` version OrderHub runs (§ 2). Priced variants cover fixed sizes only; quantity tiers on top would need a Ruby pricing formula, which OrderHub cannot evaluate.
+
+**When a lab gives a price for every size, use a priced size variant, not a card.** `area` cannot reproduce a lab's own per-size list (rounding up to x.50, one size raised to match a competitor). Put the sizes on one variant (code = short x long, for example `8x10`) with each value priced natively and the product base price 0; orientation is a separate unpriced choice. OrderHub and the POS then see an ordinary priced variant and need nothing new. Generate the variant import from the lab's CSV by script, never by hand. *Decided by Pixfizz, 2026-11-24.*
 
 ## 4. Booklet cards in detail
 
@@ -109,3 +115,4 @@ Whole cents inside the engine. Booklets: the per-booklet price is rounded half u
 - 2026-11-24: OrderHub runs v4 (v5 not installed); area band `to` is exclusive (90 sq in on a `to: 90` band prices at the next band, tested).
 - 2026-11-24: Editing rules 7 and 8: area extras need labels matching the variant value names, and the order-line round-trip check.
 - 2026-11-24: Page created. Price card location and fallback, engine versions 1 to 5 and the compatibility rules, the six modes, booklet cards (simple and saddle stitch with covers) with a worked check, editing rules and the check list.
+- 2026-11-27: § 2 version 5.1 (folded brochures, `px_fold`) and rule 5, swap `pricing.js` in OrderHub and the POS together. § 3 `area` has no fixed-size table or quantity tiers; a lab's per-size price list is a priced size variant.

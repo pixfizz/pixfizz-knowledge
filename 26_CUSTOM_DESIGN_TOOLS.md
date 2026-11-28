@@ -9,7 +9,7 @@ and current status.
 `17_DESIGN_TOOL.md` § Custom Design Tools — Browser-Side Rules; this file points at
 them rather than repeating them.
 
-_Last updated: 2026-11-03_
+_Last updated: 2026-11-27_
 
 ---
 
@@ -150,6 +150,7 @@ selection must match to the cent. Tool-level. *Verified by test, 5 Oct 2026.*
 - Why: Ruby `Array#sum` uses compensated (Kahan-Babuska) summation and JS `+` does not. Without
   the 9-decimal step, 218 of 97,200 booklet cases differed by one cent on half-cent sums such
   as 12.495.
+- **A tool's price call sends every variant the tool sets on the project, and caches by all of them.** `price_forecast` prices a left-out variant at its default value (`30_PRICING_ENGINE.md`), so a tool that sets a placement variant but sends only size and sides shows the default placement price while the cart charges the chosen one: invisible on a site where placement is unpriced, wrong where it is priced. When sizes carry different prices (2XL, 3XL), total per size, never from the first size of a group. Platform-level. *Verified by query, 2026-11-23.*
 - How the platform itself rounds a Ruby pricing field is **not verified**.
 
 ---
@@ -312,8 +313,12 @@ same sources as the store's own upload buttons (This Device, My Galleries, phone
 whatever else the site enables). (Corrected 2026-10-22: previously "should open".) A plain
 `<input type=file>` is only the fallback when `customElements.get('px-upload-dialog')` is
 undefined on the page (a test harness), and it logs a `console.error`. Dropping a file on the
-tool is a shortcut beside the dialog, not a replacement. Sources `local galleries`, plus `qr`
-when `(min-width:768px) and (pointer:fine)`; `multiple` for several files;
+tool is a shortcut beside the dialog, not a replacement. Sources `local galleries qr`: pass `qr` always. `px-upload-dialog` drops `qr` itself only on
+phones (when `(max-device-width: 599px), (max-device-height: 599px)` matches); it does not look
+at the pointer. A tool-side `pointer:fine` gate hid the phone QR on store kiosks (touch screens,
+`pointer:coarse`), exactly where a customer with photos on a phone needs it; tools that still
+carry that gate should drop it. *Verified by reading the platform bundle and live on a kiosk
+host, 2026-11-23.* `multiple` for several files;
 `login-modal-enabled`. A local file is read from the capture-phase `change` and used at once;
 a gallery or phone pick is fetched from `result.url` on `upload-success`, never from
 `preview`. *Decided by Pixfizz, 2026-10-04, restated 2026-10-19 after two tools shipped their
@@ -503,7 +508,10 @@ customer's first file. *Decided by Pixfizz, 2026-10-19.*
 defaults to `150m` (`DEFAULT_MAX_SIZE`). *Verified by reading source, 2026-11-04.* On a
 standalone `px-upload-dialog`, `max-size` was read in bytes (`52428800` = 50 MB):
 `max-size="50"` rejected every file with "File is too large. Maximum allowed size is 50".
-*Verified on a live tool test, 2026-11-01.* Whether the dialog also accepts a unit suffix
+*Verified on a live tool test, 2026-11-01.* The same byte value is passed to the
+phone QR upload (`/upload/qr_code.json?max_file_size=`): write it as bytes
+(`String(25 * 1024 * 1024)`), and give any tool that opens its own `px-upload-dialog` a flow
+test that asserts `max-size` is at least 10 MB. *Verified live, 2026-11-24.* Whether the dialog also accepts a unit suffix
 (`150mb`), as `px-image-upload` passes it on, is pending confirmation. A tool's own size
 setting only governs its storefront check, so it must not exceed the 150 MB server limit, or a
 file passes the tool and then fails the upload. The admin upload is a separate ceiling of
@@ -576,6 +584,14 @@ Platform-level. *Verified by query on experience.pixfizz.com, 2026-10-22.*
   `.save-to-cart-button`. *Confirmed in a tool build, 2026-10-22; not verified on a live
   order.*
 
+**Reference images that must travel as file options.** `px-multi-image-upload` groups
+`px-image-upload` (image_upload) options only. When the images must travel as file_upload
+options (so fulfillment sends them, like a print file), open the platform window through the
+shared photo pick and put each photo on its file option with `POST /upload/file` and
+`url=<upload url>` (a server-side copy); the value posts as `db:<id>` and lands on the cart
+line. The tool shows its own thumbnail row. Decide the option type before prototyping.
+Template-level (Shopper 24). *Verified by query, 2026-11-26.*
+
 ### Using the platform crop tool standalone
 
 The photo prints crop is the platform custom element `<px-image-adjust-tool>` in
@@ -603,6 +619,30 @@ reading source, cms_bundle 20261007100426.*
   `letter-spacing` and `font-family` on its own buttons and inputs. Platform-level
   (`px-image-upload`), tool-level (`px-photo-slot`). *Verified by reading source and a
   screenshot of a live tool, 2026-11-18.*
+- **The crop works on an image that was never uploaded.** `<px-image-upload>` Adjust (the
+  Shopper crop modal) reads only `value` (for the crop keys), `img-src`, `img-width` and
+  `img-height`. It opens on a local image: a blob URL with value `db:pxu-p1` opens the modal,
+  and Submit writes `db:pxu-p1@{l,t,z}` with no network request. Platform-level. *Verified by
+  reading the bundle source and in Chromium, 2026-11-26.*
+- `PxPhotoSlot.set()` with the crop in the value restores a crop; `setResult()` always writes a
+  bare `db:<id>` and loses it, so never use it to restore. *Verified by reading source,
+  2026-11-26.*
+- **Choosing which part of a PDF page goes on the piece** (whole artwork, "Crop to fill"):
+  render the page to a bitmap, give it one `<px-image-upload>` with `crop-aspect-ratio` = the
+  print area (bleed size on full bleed, trim minus border on a bordered piece) and open it with
+  `adjust()`. The print file places the vector page with the affine matrix of the same draw
+  transform, clipped to the print area. Print file and preview matched within about 1 to 1.4
+  of 255 mean difference, including a quarter turn. Template-level (uploader). *Verified by
+  render comparison, 2026-11-24 and 2026-11-26.*
+- `product/uploader` does not load `product/px-photo-slot-boot`. A tool that needs the crop
+  loads it itself and hides the crop control until `window.PxPhotoSlot` exists. Template-level
+  (Shopper 24). *Verified by reading source, 2026-11-26.*
+- **The upload words are English by default.** `px-photo-slot`'s standard attributes (Upload
+  Photos, This Device, Rotate, Reset, Submit, Cancel) are English. On a non-English site pass
+  the translated words in the mount's `attrs` (or merge them into the attribute object). When
+  building `<px-image-upload ...>` as an HTML string, never append the translated attributes
+  after the defaults: in HTML the **first** copy of a repeated attribute wins, so the English
+  stays. Tool-level. *Seen 2026-11-24.*
 
 ### The fulfillment contract: one set of `px_` codes (decided 4 Oct 2026)
 
@@ -678,7 +718,9 @@ numbered circle) and `.pxt-shell` (the modal shell, with radius and shadow) on `
 A tool that uses either name for its own layout inherits those rules and its panel collapses.
 Use the tool prefix for layout classes (`fan-step`, `fan-shell`); use `.pxt-*` only for the
 contract components as the contract defines them. A local harness must load the real
-`style/px-tool-theme`, not a stub. *Found 2026-10-06 and 2026-10-08.* The other DOM rules a
+`style/px-tool-theme`, not a stub. *Found 2026-10-06 and 2026-10-08.* Seen again 2026-11-24: a
+studio that used `.pxt-step` for its panel sections had every section squashed into an 18 px
+circle; reset it under the studio root or use the tool prefix. The other DOM rules a
 mounted tool lives under are in `17_DESIGN_TOOL.md` § A tool mounted by `custom_script` lives
 inside the variant selector.
 
@@ -778,6 +820,12 @@ color **and** background of every button and link on the live page and fail any 
   capture-phase `click` listener, find it again after the render and scroll the panel
   (desktop) or the page (phone) by the difference; repeat once in `requestAnimationFrame`.
   Tool-level. *Seen in a studio prototype on a client call, 2026-10-21.*
+- **Prices that disappear while a new combination loads make the panel jump.** A tool that
+  caches `price_forecast` per combination blanks its price texts while the new answer loads; a
+  "+$5.00" line that vanishes changes the panel height, and the panel jumps twice per click.
+  Keep showing the last known price for the same combination without the option that changed
+  until the new answer arrives, and reserve height for chips that come and go. Test with
+  prices delayed (for example 400 ms). Tool-level. *Found and fixed, 2026-11-23.*
 - **Use the Pixfizz admin terms** in every tool interface a lab or staff member sees, including
   myPixfizz tools: product, variant, variant value, child variant, template option. Never
   rename them for "friendlier" words ("Choice prices" for "Variant prices" was rejected).
@@ -786,6 +834,14 @@ color **and** background of every button and link on the live page and fail any 
   child variants sit indented under the value that triggers them, with a connector line, a
   different tint and a "Shown when <variant> is <value>" line. Never show a whole product's
   variants as one flat list. *Decided by Pixfizz, 2026-10-18.*
+
+- **Two theme pairs can collide.** On some sites the theme contract resolves
+  `--pxt-on-primary` to the same color as `--pxt-primary-strong`, and `--pxt-secondary` to the
+  same color as `--pxt-on-secondary`. A rule that pairs background `primary-strong` with color
+  `on-primary` (a hover), or background `secondary` with color `on-secondary`, is then dark on
+  dark. Never pair `primary-strong` with `on-primary`; a hover sets its own text color
+  (`--pxt-surface`), and a filled secondary surface needs a site brand override. *Verified by
+  query on a customer site, 2026-11-23.*
 
 ### Page layout: an inline tool owns its page
 
@@ -803,6 +859,11 @@ Standing rules for every tool, confirmed by Pixfizz, 3 and 6 Oct 2026.
   below the tool, if kept. Live structure verified by query, 2026-10-14: `.product-details`
   children are `.product-category`, `.d-flex`, `.product-description`, `.product-form`,
   scripts, style, `.dbx-wrap`, `.product-footer`.
+  Why the move is needed: Shopper puts `.product-description` (id `pricing-scroll`, the
+  description tab) as a sibling **before** `.product-form`. Left there on a tool page it pushes
+  the tool down: on a live uploader page at 1440 x 900 the drop zone center sat at 907 px and
+  its first-load animation ran below the fold. Move the node once at init to the end of the
+  same column (before `.product-footer`). Template-level. *Verified live, 2026-11-24.*
   The gallery column is hidden and the tool runs full width. Reference implementation:
   flyer-fold 0.5.1 (`ff-owns-page`): the JS moves `h1.product-name` into the tool head; the
   CSS sets `.product-details.sticky` to `display:flex;flex-direction:column`, `.product-form`
@@ -914,6 +975,13 @@ option validation both apply to everything it renders or leaves behind there.
   hang. Browser behavior plus Shopper 24 structure. *Verified by query on
   experience.pixfizz.com, 2026-10-19.* For the general Add to Cart diagnostic see
   `20_SHOPPER_CART_RULES.md`.
+- **A tool draws no `<form>` of its own.** The mount sits inside `form#project_create`, so a
+  `<form>` written with `innerHTML` is a nested form: the HTML parser drops the tag,
+  `host.querySelector('form')` returns null and the code throws, and a submit button there
+  would submit the product form (add to cart). Use a `div` with `role="form"`, buttons with
+  `type="button"`, and handle Enter on the inputs with `preventDefault()` and
+  `stopPropagation()`. Browser behavior plus Shopper 24 placement. *Verified by test with the
+  tool mounted inside the product form, 2026-11-23.*
 - **A retired multiple choice option that posts empty is rejected.** When a tool version
   stops writing an option that is still published on the template (hidden, read only,
   multiple choice), it posts empty and `/v1/books` answers with the plain text "Template
@@ -1019,6 +1087,13 @@ option validation both apply to everything it renders or leaves behind there.
   Chromium, 2026-11-02; Safari not verified.* Asset URLs themselves are signed per file and per
   host, so pass a name-to-URL map resolved with `asset_url` in the snippet (`16_PRODUCT_HIERARCHY.md`,
   `27_LIVE_FINISH_AND_3D_PREVIEWS.md` § 4).
+- **Set `img.crossOrigin = 'anonymous'` on every image a tool paints on a canvas**, bundled
+  sample and demo images from `asset_url` included. A canvas drawn from a non-CORS image
+  rendered blank in one embedded browser while the same image as an `<img>` showed; with CORS
+  the canvas rendered. `cdn.pixfizz.com` sends `access-control-allow-origin: *`. *Verified by
+  query, 2026-11-24; customer browsers not verified, the fix is harmless either way.*
+- **Site chat widgets** (fixed, bottom right) can cover a tool's fixed phone price bar. Lift
+  them while the tool is mounted (a rule scoped to the phone breakpoint). Tool-level.
 - **A finished or 3D preview of a die-cut product follows the cut.** Draw shadow, edge and light
   from the cut outline, not the bounding rectangle, or the cut corners show as dark squares;
   leaf corners mirror on the back side. Tool-level. *Fixed in a tool release, 2026-11-02.*
@@ -1074,6 +1149,32 @@ left as an icon, upload chip only where the chosen design needs a photo. Tool co
   uploaded as logo or artwork and never let them join the photo pool. When two features share
   one object (a card logo and an envelope logo), every field either one reads (aspect ratio,
   size) must be set by every path that creates it. Tool-level. *2026-10-26.*
+- **Test photos must differ.** Studios that sort photos set near-identical images aside as
+  "Similar" and place nothing, so the cart button stays disabled. Test with photos that differ
+  in content and carry an EXIF date. *Verified live, 2026-11-25.*
+
+### AI image tools in a studio
+
+Endpoint rules: `61_PIXFIZZ_API.md` § 13j. Practical findings from studio builds:
+
+- **Finding faces in a group photo.** A browser face detector run on the whole image misses
+  small faces. Running it on overlapping tiles (the whole image, 50% tiles at 25% steps, 34%
+  tiles at 17% steps, each scaled to 640 px, merged by overlap) found all four faces of a
+  family photo in under 0.5 s. The same detector also found a dog's frontal face, so pets can
+  go through the same picker with tap as the fallback. *Verified by query, 2026-11-23.*
+- **One person from a group photo.** Send a head-and-shoulders crop around the chosen face: a
+  custom prompt then draws that one person. `remove_background` on such a crop returns every
+  person in it, cut out; take the neighbors away in the browser (split between the chosen face
+  and each neighbor's face, keep the shape that holds the chosen face), with no second call.
+  *Verified by query, 2026-11-23.*
+- **Cartoon results on white:** thicken dark outlines by about 3 px and flood the background
+  from the top, left and right only, or the fill can enter a white shirt.
+- Ten AI calls in parallel each took 8.8 to 13.1 s, with no queueing seen. *Verified by query,
+  2026-11-23.*
+- **Hide the AI choice after the first refusal.** A tool cannot ask in advance whether the site
+  has AI. Offer the choice only where the mount switches it on; on the first `403` or
+  `404 unknown_tool` take it away, fall back to the non-AI path, and remember that per site in
+  the browser.
 
 ### Generated template art
 
@@ -1092,6 +1193,22 @@ Template-level, not platform rules. *Verified by reading source and by review, 2
 - **Overlapping photos:** the photo meant to sit on top owns its frame in `artwork_top` (its
   frame with a hole for its window and a soft shadow), and so does any ornament that must sit
   over a photo.
+- **Art over photo N must not cover any later photo.** The generator flattens a design as
+  `artwork_base`, every photo placeholder, `artwork_top`, then text. Art that overlaps an
+  earlier photo goes into `artwork_top`; if the same art also covers a later photo (a second
+  tilted frame laid over the first photo), it lands above that later photo in the page XML and
+  hides it in print, while the studio preview still looks right. Lay out multi-photo designs so
+  nothing that overlaps photo N overlaps a photo after N (by rotated bounding box), and check
+  with an XML render, not the preview. *Verified by rendering the design files, 2026-11-24.*
+- **A top layer must stop at the trim.** A full-page `artwork_top` PNG with opaque pixels just
+  outside the trim prints as a line at the cut, over a photo that runs into the bleed (a
+  dilated photo-window mask is the usual cause). Clip the top layer's mask to the trim
+  rectangle; nothing from a top layer sits in the bleed unless it is art that deliberately runs
+  off the edge. A thin opaque band within about 0.02 in of the trim, transparent on both sides,
+  is this defect; bands 0.1 in or more inside the trim were designed frames in every case
+  checked. A copied design keeps the old image ids, so a fix by image swap must also cover
+  copies. Check every card or overlay import before it goes live. *Verified in a production PDF
+  and a library sweep, 2026-11-23 and 2026-11-24.*
 - **Motif art is illustrated, not vector shapes:** generated images placed as image elements,
   sized for print at 320 dpi of the box they fill, then WebP. Key by subject: dark or colored
   art on pure white (unmultiply against white); light or glowing art on pure black (alpha
@@ -1500,6 +1617,19 @@ Two live defects to know about: `modals/shopping-cart` assigns the list with an
 underscore and tests it with a hyphen, so the fly-out preview has never rendered for
 any custom tool; and the confirmation email excluded `image_upload` and not
 `file_upload`, which is what every tool artwork option actually is.
+
+### A studio in an iframe lines up with the store and takes its brand
+
+A studio rendered in an iframe (`srcdoc`) cannot see the store's container. Measure the
+content box of the store's header container on the parent page (`header .container` /
+`.container-fluid`; some sites use their own footer container class), subtract the host
+element's left and right, and pass them as the studio's side padding inside the frame, with no
+max-width of its own. Re-run on load and resize. Shopper headers center the logo from 1200 px,
+so the logo's left edge only lines up on phones and tablets. For the brand, pass the store's
+colors as `--pxt-*` tokens in the studio config and write them as `:root,.pxt{...}` inside the
+frame; the kit's defaults are `:where(.pxt)` (no specificity), so the theme rule wins
+regardless of order. Template-level. *Verified at 375, 768, 1200, 1600 and 2560 px on two
+sites, 2026-11-24.*
 
 ### The tool chooses its own cart image
 
@@ -1943,6 +2073,13 @@ formulas (97,200 combinations, 0 differences) and the documents engine against 1
 (32,256 combinations, 0 differences) [test]. Nothing built on the platform. A lab-reachable
 rate card editor that covers the new fields is still a gap.
 
+**Double-sided flat pieces: default the flip edge from the page shape**, never from the card
+alone. A landscape postcard set to flip on the long edge prints its back upside down for a
+book turn. Default from the page shape: portrait = long edge, landscape = short edge (both
+pages then print as laid out), and read the text direction of the back page (pdf.js text
+transforms, minus the page's `/Rotate`) to warn when it is upside down in the file. Tool-level
+(uploader 2.6.12). *Seen twice in testing, 2026-11-26.*
+
 ### Flyer / Brochure (flyer-fold): live on one site
 
 Takes a PDF, PNG or JPG for a flat or folded piece, reads the fold and size from the
@@ -1974,6 +2111,18 @@ Not yet proven on any other site. In the order they close:
 On a store that prices with template options rather than variants, the tool must read
 choices from `template_options[code]` too (§4), and can point at an existing file upload
 option that fulfillment already reads (`flyer_file_code`) instead of adding its own.
+
+**Fold products** (tool-level):
+- **A folded piece turns over on the edge parallel to its folds** (left to right for every
+  vertical-fold brochure). On a landscape flat sheet that is the SHORT edge. Taking a card's
+  default "long edge" flip for a folded brochure rotated the inside 180 degrees in the print
+  file: the inside would have printed upside down. Any fold product derives the duplex turn
+  from the fold geometry, never from a card default or a customer choice. *Found in test and
+  fixed in Uploader 2.6.9, 2026-11-24.*
+- **Never rebuild a fold preview: port the existing one** (Outside / Inside / Folded / Watch it
+  fold, fold lines, zoom, the flat-to-folded slider, drag to turn; models for tri-fold, Z-fold
+  and half fold). Right-angle (quarter or French) folds have no folded model yet and show
+  flat, both sides.
 
 ### Fan Face: not ready
 
@@ -2065,7 +2214,13 @@ Template-level, read from source and installs unless marked.
   them): "From $x a card" is `.gcs-type-price`, the price-per-card tables are
   `.gcs-prices .gcs-table td`, the envelope note is `.gcs-note`. Template-level. *Verified live
   on a client site, 2026-11-19.*
-- **Store designs with a live front (0.7.2, not live on 2026-11-20).** Store designs can have
+- **Store designs with a live front (site-specific builds only; CORRECTED 2026-11-25).** Store
+  designs with a live front are in some site-specific Greeting Card Studio builds only. The
+  versions on the Shopper parent line (0.7.9 to 0.7.12, 0.7.16 and 0.7.17 as of 2026-11-25; the version number alone does not tell you, because site-specific builds reuse numbers) were built without
+  that layer, so "0.7.2 or later" is not a valid check: a store on 0.7.17 has no live front.
+  Per-design occasions for store libraries are in the same site-specific builds. A store files
+  index must use absolute URLs (relative `/fz` paths answer 403). *Verified by reading source,
+  2026-11-25; the live asset itself not checked.* Store designs can have
   photo windows and words on the front, not only a fixed front. Builder: pixfizz-design-tools
   `greeting-card-studio/designs/store/gen_store_live.py`, also in the Pixfizz Skills plugin
   skill studio-designs (`scripts/gcs_store_live.py`, `references/studios.md`), which no longer
@@ -2327,6 +2482,11 @@ rules reference). *Verified by reading the repo docs, 2026-11-20.*
 - **Canvas studios edit like the design tool.** For studios with direct canvas editing (Creative Studio, Mug Studio and later studios on the same code): layer buttons are "Move to front" / "Move to back", all the way in one click (one-step moves look broken in a list that also holds words and labels); never send an item under fixed items (a full-wrap photo) or pattern tiles, and dim a button that would do nothing. Any relayout that rebuilds the item list (size change, pattern scale or shuffle, new picks) keeps the customer's z-order (rank by item key from the old list). A paint loads images for, and draws, the same item list (snapshot it before the async load); index-matched image arrays break when the list changes mid-load. Selection handles: eight like the editor (corners and edge midpoints) plus a grab strip along each edge, each handle's resize cursor set from its direction plus the item rotation, the cursor held on `html` during the drag; drop edge strips under about 56 px so a finger can still move small items. Icons: copy the editor's SVGs from the live editor DOM (`data-px-tooltip` "Move to front", "Move to back", "Delete"); do not draw new ones. Tool-level. *Decided by Pixfizz, 2026-11-19.*
 - **A site's money format can have no decimals.** On one client site `{{ 1234.5 | currency }}` renders `1.235 rsd` (rounded, lower-case code, in every site language), and a tool parser expecting `1,234.50` silently fell back to `$`. Every tool money parser accepts a format without decimals. Platform-level (site currency). *Verified by query and in the tool source, 2026-11-19.*
 - **`/v1/themes/<id>.json` returns no `calendar_transformations`.** A calendar template whose month names are set-text per month (non-English Calendar Studio templates) shows the placeholder "Month" in any preview drawn from the theme API unless the tool rebuilds the set-text itself. Platform-level. *Verified by query, 2026-11-19.*
+- **Studios that read a design collection ignore the Published tick.** `/v1/theme_categories/<name>.json` returns unpublished designs too, each with `published: false`, and a studio that takes every design in the collection without checking that flag keeps showing a design after its Published tick is cleared (seen on Calendar Studio). To hide a design from a studio on one site today, remove its row from the studio's collection; put it back with the Publish Products wizard. *Verified by query and by reading source, 2026-11-25.*
+- **Greeting Card Studio and Photo Book Studio do not read a design's preview image for their tiles**; they draw them from the design itself (page XML, or the studio's built-in, MSP or store library). Calendar Studio draws its tiles from page XML; `preview_img` occurs once in its source and that use was not checked. Changing a design's preview image (`print_theme[preview_img]`) changes shop pages and the Publish Products picker only. There is no per-store way yet to change how a standard card tile or book cover tile is drawn (for example a white border for labs that cannot print full bleed, or the lab's own sample photos). *Verified by reading source, 2026-11-25.*
+- **Calendar Studio finds a design by its code suffix** `-cs-<word>` or `-cs-<word>-<word>` (lower-case letters only), then only admits designs whose key its built-in generator knows. A design built outside the generator needs a studio change before it shows. *Verified by reading source, 2026-11-25.*
+- **MSP spiral calendars use the same page names as Calendar Studio wall templates** (`cover`, `image`, `calendar-month`, `back-cover`). Their coil is an image with `placeholder="true"`, `pdf_layer="coil"` and `show_on_preview="true"`: shown in previews, not printed. A studio hand-off that autofills placeholders must remove it, or a photo can land in the coil. Monthly artwork changes through calendar transformations (`set-image-src` on the elements named `month` and `image`). Some MSP designs carry the month name inside the artwork bitmap; others use a text tagged `cal:calendar-month:fill:month-name`. *Verified by reading the template export, 2026-11-25.*
+- **`setImage` takes a photo from another of the customer's projects.** On a design product page, `px-image-upload` `setImage({image_id, src, width, height})` accepts an image from another of the customer's projects: the value becomes `db:<image id>` and Live Finish redraws with it. Template-level (Shopper 24). *Verified live, 2026-11-23.* Adding to the cart with such a value: not verified.
 - **Calendar Studio: read the lab's real production file first.** Count pages and page size before building any calendar for a lab. A spread calendar (the Calendar Studio wall kind) has separate photo and date pages, cover + 12 x 2 + back (26 pages); a sheet calendar has photo and dates on one page per month, cover + 12 (13 pages). A file page with the photo on top and the dates below (for example 235 x 470 mm) can be the file layout of a normal middle-coil wall calendar as well as a one-sheet product: check the lab's product photos for the coil position before deciding. "Bleed" in a lab spec sheet may be the safe zone; the real bleed shows in the TrimBox of the lab's print files (`pdfinfo -box`). The calendar generator's font instances are basic Latin only: for languages with accents beyond Latin-1 (Serbian, Croatian, Polish, Czech) use the full fonts (exported as `<name> Ext`). Tool-level. *Found on a client onboarding, 2026-11-17.*
 - **Sticker Studio takes artwork from any source** through `root.__sts.loadFile(File, opts)` (6.4.0): a generated transparent PNG goes through the same path as an upload (size suggestions, cut line, print files, `px_original` zip). `opts.state = {shape: null, rot, bg: false, tol}` with `quiet: true` reloads without resetting the size or running the shape check. A first load runs the shape check, so drawn artwork can be read as a round label; until a proper option exists, the `[data-unshape]` button puts it back on its outline. Tool-level. *Found in a tool build, 2026-11-16.*
 - **Studio products on a client site carry customer names.** The cart shows the product name, so Pixfizz Templates names (`Calendar Studio 31 x 23.5 cm Wall Calendar SR`) are renamed to customer names at install. Set `hide_edit_in_cart` (`20_SHOPPER_CART_RULES.md`) when a studio product must not route into the design tool from the cart. *Found on a client install, 2026-11-19.*
@@ -2391,3 +2551,4 @@ once.
 - 2026-11-13: § 7 cross-tool rules: WebGL context loss, create the upload project when a design opens, project-edit has no size heading, #product-schema sku, upload tools offer only priced sizes (support ticket), Collage Studio first page and flat mount variants, Greeting Card Studio envelope looks and the none code.
 - 2026-11-20: Registry row and new § 7 entry: Upsell Studio 0.1.0 (switch and rules snippets, category trigger, first rule wins, discount only displayed and needs an Automatic Discount with Combines, what can be offered, side effects). Source: pixfizz-design-tools repo docs.
 - 2026-11-21: § 2 checking which tool version a live site runs. § 3 the `px-image-upload` thumbnail is uncropped (shaped products draw their own); shrink-to-fit loops count overlays as overflow; load fonts by name per site from `/v1/fonts.json`. § 4 a tool on a Pages page borrows the product page form (`theme=`); never match the tool root in a `closest()` action selector; size-picker swap clearing the photo now verified, with cause and keep-the-photo fix. § 6 `/v1/books` with `editor=add-to-cart` creates no cart line from `fetch()`. § 7 Greeting Card Studio: full mount from 0.6.41, `gcs_env_print`-only variant import, gallery width on other frames, landing price elements, live-front store designs (0.7.2), localization (hand-off defaults, font names and glyph coverage, baked-text designs, wrapped text box height); Photo Book Studio: `"layflat":"false"` for own page books (4.0.4) and Linked Layouts, singular layflat layout library names, stale parent mount and the heroPlate console line; Upsell Studio hooks. Cross-tool rules: no live price bar rebuilds, core helpers outside optional layers, Android touch adjustment on nested buttons, shared block CSS under an `all:revert` reset, shared block translation hook, canvas studio layers and handles, money formats without decimals, no `calendar_transformations` in the themes API, Calendar Studio spread against sheet and fonts, Sticker Studio `loadFile`, customer product names. § 8 client-site language, currency, type and flow check.
+- 2026-11-27: § 1 a tool price call sends every variant it sets. § 3 phone QR source passed always (CORRECTED, no `pointer:fine` gate), upload `max-size` also feeds the QR upload, reference images as file options, the crop on a never-uploaded image, PDF crop to fill, `px-photo-slot-boot` not loaded by the uploader, translated upload words (first attribute wins), `.pxt-step` seen again, price forecast without a panel jump, two theme pairs that collide, why the description moves, a tool draws no `<form>`, `crossOrigin` on every canvas image and chat widgets over the price bar, test photos must differ, new AI image tools in a studio subsection, generated art over a later photo and top layer stops at the trim. § 6 a studio in an iframe lines up with the store. § 7 uploader flip edge from the page shape, fold turn edge and fold preview, Greeting Card Studio live fronts are site-specific builds only (CORRECTED). Cross-tool rules: studios ignore the Published tick, studio tiles drawn from the design, Calendar Studio code suffix and MSP spiral calendars, `setImage` from another project.

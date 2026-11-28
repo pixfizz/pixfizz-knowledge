@@ -2,7 +2,7 @@
 
 **Authority Scope:** Shopify + Pixfizz integration architecture, snippets, metafields, cart page, and order sync.
 
-_Last updated: 2026-10-22_
+_Last updated: 2026-11-27_
 
 ---
 
@@ -819,6 +819,8 @@ When a Shopify order is placed using a local pickup option, Shopify sends no shi
 - The match is case-sensitive — `MyStore` and `mystore` are treated as different values
 - If you have multiple pickup locations, create a separate public address in Pixfizz for each one
 - Cart-page snippets are unaffected — this is purely webhook ingestion behaviour
+- **Read the pickup name from a real order before creating the public address.** The value Pixfizz stores in the order custom field `shopify_shipping_service` is the pickup location name it matches against the **Company** field of a public address. A store whose Shopify location is named after its street ("455 Main Street") needs a public address whose Company is exactly that string. Set it from the `shopify_shipping_service` value on a real pickup order rather than guessing from Shopify Locations. An order that already came in without an address is fixed with **Assign** on the order page, then **Refulfill**. Platform-level. *Verified on a live order, 2026-11-24.*
+- The same order also failed generating files because the site's `_additional_files.json` read `uploaded_file` on Shopify line item properties: `19_XML_TEMPLATE_REFERENCE.md` § `_additional_files.json`.
 
 ---
 
@@ -1042,6 +1044,8 @@ Not verified in a controlled test; recorded as the current recommendation.
 
 Variant-value image swatches in the Shopify modal take the image's natural width: `.pill-wrapper { flex: 0 0 auto; width: auto; max-width: none }` combined with the swatch image's inline `width: 100%` means a 600px source renders about 600px wide. Fix: `.variant-selector img.label-img { width: 104px !important; height: 104px; object-fit: cover; display: block; }` (`!important` is needed to beat the inline style). Serve swatch images at about twice display size (240 × 240), not at full source size. Candidate for the shared Shopify `product.css`. *Verified live, 2026-09-21.*
 
+**Images inside the Personalize window are capped.** The window's product CSS caps `.card img` with `max-height: calc(100vh - 170px) !important`. A preview or tool that sizes images in percent inside `.card` (Live Finish does) is cut short on wide, short windows. Reset it scoped to the tool, for example `.card .lf-stage img { max-width: none !important; max-height: none !important; }` (the Shopify master's Live Finish snippet carries this since 2026-11-25). See `27_LIVE_FINISH_AND_3D_PREVIEWS.md` § 2.9.
+
 ## Changelog
 - 2026-03-13: Initial version. Compiled from public docs + working cart page (Dawn, inline_asset_content variant).
 - 2026-03-21: Added Dawn button innerHTML overwrite troubleshooting entry (§11).
@@ -1067,3 +1071,4 @@ Variant-value image swatches in the Shopify modal take the image's natural width
 - 2026-11-09: § 2 metafield definitions default to `custom.<name>`; edit to `pixfizz.<key>`. § 5 launch product handler: photo-prints branch, older installs may lack it (ticket); new Installing the snippets as a Shopify collaborator (asset PUT 403, write through the code editor and read back, new product template starts as a copy). § 6 new A custom design tool inside the Personalize window (no `api.js` change, `shopify/px-option` override for `custom_script`, `openModal` full screen needs a `close` message). § 10 publish an imported design to a collection before testing on the Shopify path; a product code alone does not resolve.
 - 2026-11-13: Cart handling: addon lines are separate per unit quantity; cleanup must remove every addon line for a project (double billing fixed 2026-11-09); a child page cannot override a master page at the same URL.
 - 2026-11-21: § 6 new subsection: Editor CSS on a Shopify + Pixfizz site (`style/editor.css` route works, edited in admin).
+- 2026-11-27: § 13 read the pickup name from `shopify_shipping_service` on a real order, Assign then Refulfill. § 19 the Personalize window caps `.card img` height; reset it scoped to the tool.

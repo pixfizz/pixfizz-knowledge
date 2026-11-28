@@ -2,7 +2,7 @@
 
 **Authority Scope:** How a Pixfizz customer sets up their own AI assistant (Claude) to work on their store: the Pixfizz connector, this knowledge base and the Pixfizz Skills plugin. Customer-facing. Applies to every deployment (Full Pixfizz on Shopper, Full Pixfizz custom, Shopify + Pixfizz, API integration).
 
-_Last updated: 2026-11-25._
+_Last updated: 2026-11-27._
 
 The step-by-step version with copy buttons, the project instructions generator and ready-made prompt packs is **aisetup.pixfizz.com**. This file is the same guide in reference form, so an assistant can answer setup questions from it.
 
@@ -41,6 +41,8 @@ Each part works on its own. Together: the connector does the work, the knowledge
 **Test it.** Start a new chat, switch **Pixfizz** on in the chat's tools menu, and ask it to list the stores you can access, give an overview and a health check of your store and show the 5 most recent orders, without changing anything.
 
 **What it does.** Reads and changes store data such as prices, stock, product details, orders, promo codes and snippets, and reports store health. It shows a plan first and changes something only after you say yes. Every change is logged and can be reverted. What the connector can and cannot do in detail: `61_PIXFIZZ_API.md` § Pixfizz MCP connector.
+
+**Undo works on changes, not on creations.** Reverting a change that created a new snippet (for example a child override) answers "Nothing to change: every value already matches the store", and the connector has no snippet delete. To back out a test override, write the parent's value back into it, or delete the override by hand in the admin. *Verified by query, 2026-11-25.*
 
 **No stores listed.** The store has to be switched on for the connector in myPixfizz. If myPixfizz shows a banner asking for your Pixfizz API key, follow it first. If that does not help, open a ticket under Support in myPixfizz.
 
@@ -140,3 +142,4 @@ In a new conversation inside the project, run the store discovery prompt from ai
 
 ## Changelog
 - 2026-11-25: New file. Plugin renamed from Pixfizz Storefront to Pixfizz Skills.
+- 2026-11-27: Connector: undo does not remove a snippet the connector created.

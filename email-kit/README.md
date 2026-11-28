@@ -33,7 +33,7 @@ Because your templates only call the snippets, an improvement to the kit on the 
 In admin, Settings > Email Notifications:
 
 - **Default Email (From):** an address on your own domain, for example `orders@yourdomain.com`. Not a Gmail or other free address, and not the placeholder `info@yoursite.com`. Your domain needs sending authentication or mail lands in spam: ask Pixfizz support (my.pixfizz.com) to set it up, then add the DNS records they send you.
-- **Orders Email:** your order inbox. Team emails go here.
+- **Orders Email:** your order inbox. Team emails go here, and order emails to customers (Order Pending, Order Confirmed and the other order emails) are sent **from** this address. Default Email is the sender of signup and password reset emails. Use an address on your own domain for both. (`32_ORDER_LIFECYCLE.md` § How notification email templates behave)
 - **HTML Format:** on.
 
 ### 2. Store details and logo
@@ -102,6 +102,17 @@ Override any of these on your site with your own plain text:
 
 - `email-kit/messages/<email>`: the main message of each email. Tokens `{first_name}`, `{order_code}`, `{store_name}`; cart reminders also `{discount}`. A customer with no first name gets "Hi there".
 - `email-kit/cart/subject-N`, `heading-N`, `preheader-N` (N = 1, 2 or 3): subject, heading and inbox preview line of each cart reminder.
+
+### Another language
+
+- A child site translates the kit by overriding the kit snippets it uses and wrapping every customer-facing string in `| t: ns: 'email'`. Keys are the English text in lower case. *Verified by admin Preview on a site whose default language is not English, 2026-11-23.*
+- A string with a value inside (order code, store name, shipping method) uses a square-bracket placeholder that is translated first and replaced after: `{{ 'Order [code] confirmed' | t: ns: 'email' | replace: '[code]', order.code }}`. Braces cannot be used inside a Liquid string literal; square brackets can.
+- The kit messages (`email-kit/messages/*`) need no override: the template already runs `ek_msg | strip | t: ns: 'email'`, and translations keep the `{first_name}` tokens. `parts/message` also translates "Hi {first_name}" and "Hi there".
+- `email-kit/layout` has hardcoded English footer lines and `lang="en"`, so override it too. `lang` can be `{{ 'en' | t: ns: 'email' }}` with the key `en` translated to the site's language code.
+- Extra fee names are stored on the order in the language it was placed in; `ek_fee.name | t: ns: 'email'` with a translation on that key shows another language.
+- `order.address.country.code` returns the ISO code (for example `RS`) in email Liquid.
+- Gift-voucher-only orders: detect them when every `orderline.product.category == 'Gift Vouchers'`, and show digital delivery instead of a pickup or shipping block.
+- Preview any order directly: `/site/<site>/admin/site/email/email_template/<template>/preview?order_code=<ORDER-CODE>`.
 
 ### Design and layout (Liquid)
 

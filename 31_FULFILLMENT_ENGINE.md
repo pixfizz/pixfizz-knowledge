@@ -2,7 +2,7 @@
 
 **Authority Scope:** Job ticket schema and generated file logic only.
 
-_Last updated: 2026-10-22_
+_Last updated: 2026-11-27_
 
 ---
 
@@ -69,6 +69,8 @@ A fulfillment code routes an orderline to the correct fulfillment destination. T
 - **Location-based fulfillment code.** Applied when no template-level code is set.
 - **Product-level fulfillment code.** The base `fulfillment_code` product attribute (see `50_SHOPPER_TEMPLATE_REFERENCE.md`) used where not overridden above. In the admin product form this is **Fulfillment Code** (`product[fulfillment]`), default "Website default".
 - **Site default.** "Website default" resolves to the site setting `website[default_fulfillment]` (Settings → General). *Verified by query, 2026-10-14.*
+- **A fulfillment destination is not enough: the site default must name it.** A site can have a working destination and still fail every order. When Settings > General > Default Fulfillment Code (`website[default_fulfillment]`, a plain text field) is blank and products sit on "Website default", confirming an order sets it to status E with the note "Error: No fulfillment code on product: <product name> / ERROR: Failed generating files". Fix: type the destination code into Default Fulfillment Code, then Force Refulfill the errored orders (the refulfill generated and delivered the files in seconds). Launch check: confirm one test order and read its status and notes. The order history page (`/admin/orders/<code>/history`) shows the Fulfillment log with the FTP host and folder, which proves the files reached the FTP account (see "A Destination Record Does Not Prove the FTP Account Exists"). *Verified live on a customer site, 2026-11-24.*
+- **A fulfillment code is matched exactly, case included, and is typed by hand.** One wrong character raises no error: the order goes to whatever the code resolves to, or nowhere. After setting a code on a product (for example the OrderHub code), check that one test order arrives where expected. *Confirmed by Pixfizz, 2026-11-26.*
 
 Practical effect: if a template carries its own fulfillment code, that code wins regardless of location or product configuration. Set a template-level code only when you intend to override location/product routing.
 
@@ -281,6 +283,9 @@ Filename Templates control how output files are named (and optionally which fold
 
 ### Option choices in the file name (filename tags)
 A filename template can run Liquid before the name (`assign` and `for` with whitespace-trimming tags `{%- -%}`), so the customer's option choices can be added to the file name. Pattern: a boolean custom field `filename_tag` on the variant type and on the template option type marks which choices to add; an optional text field `filename_code` on the variant value and template option value gives a short code. Loop `orderline.chosen_variants` and `orderline.chosen_template_options` (each item exposes `option_type` and `option_value`), and for every tagged type append `-<filename_code, or the value code when empty>`. Both custom fields need a definition per object on each site (`51_CUSTOM_FIELDS_REFERENCE.md`). A job JSON that writes `file.filename` follows any filename template change automatically. Template-level pattern on platform objects. *Tested in a python-liquid harness, 2026-10-27; not yet verified on a live order.*
+
+- **Logic in an FTP destination's filename template is applied only when Pixfizz writes the file.** Filename tags built from option custom fields (`filename_tag`, `filename_code`) or prefixes from order flags are lost when the lab moves to the OrderHub HTTP destination: it sends the options as key and value pairs and uses its own file names (`45_ORDERHUB.md`).
+- **Option-type and option-value custom fields never travel with the order line.** If a downstream system needs them, compute the result in the destination's Liquid and send it as a field of the job. Order custom flags (such as `option1`) do reach OrderHub. *Verified by reading both live destination templates, 2026-11-26.*
 
 A fulfillment destination and its templates are edited under superadmin: `/site/<site>/superadmin/fulfillment_settings/<id>` and `.../templates/<template id>`; the `/edit` suffix answers 500. On 2026-10-27 the `/site/-/superadmin/...` form of the path returned an application error, while on 2026-10-14 and 2026-11-04 it worked (`18_ADMIN_NAVIGATION.md`). *Verified by query, 2026-10-27 and 2026-11-04.* **Prefer the global path `/site/-/superadmin/fulfillment_settings/<id>`:** only it shows the destination's staff-only *Danger Area* (HTTP Headers, token authentication, FTP SSL and callback flags, Perfectly Clear settings, Split By Orderline; § 2 *Transport + auth*). The site-key path shows the basic form only. Fall back to the site's own key when the global path errors, for anything outside the Danger Area. *Corrected 2026-11-09: this line previously said to use the site's own key in the path, which hides the Danger Area fields.*
 
@@ -588,6 +593,7 @@ This pattern generates a PDF invoice/job ticket by POSTing order data to a Craft
 - Preview image URLs can be constructed from `line.preview_url` with modified height parameters and a `share` query parameter using `line.project.share_code`.
 - Label strings (e.g. `order_label`, `customer_details_label`) are site-specific and should be customized per deployment. For multilingual sites, translate these values.
 - The `show_payment_status` field should be set to `"false"` for Shopify sites (payment is handled externally).
+- The order summary PDF template with images and additional fees expects `customer_name` (underscore; the sample above writes `customer name`), `payment_status_label`, `show_payment_status`, `order_additional_fees` and `order_additional_fees_label`, `rush`, and per line `code`, `image`, `imageshow`, `pages`. Match the template's names exactly. When you change a PDF template that other sites use, clone it and change the clone. *Verified by reading the template, 2026-11-26.*
 
 ---
 
@@ -1044,6 +1050,12 @@ Fulfillment Output".
 
 _Verified by reading source, 2026-09-09._
 
+**The global OrderHub HTTP destination sends both.** For each line it sends the platform's renders
+(`generated_files`) and the uploaded print files. A custom tool template whose XML still has a set
+with `fulfillment="true"` therefore delivers a blank render beside the real print file. Keep every
+set of a custom tool template at `fulfillment="false"`. Platform-level. *Verified by reading source,
+2026-11-24.*
+
 ---
 
 ## AI Upscaling at Fulfillment (Perfectly Clear)
@@ -1166,3 +1178,4 @@ Print-on-demand partner integration (Advertek, Phoenix API v2), the global Adver
 - 2026-11-09: § 2 Transport + auth: where a destination's auth settings live (Danger Area with HTTP Headers, token auth, Split By Orderline only on the global super admin path; new destination takes Code and Account). § Fulfillment Code Resolution: inherited products without a child product routed to the site default (fix per product, Force Refulfill old orders). § Filename Templates CORRECTED destination path advice (prefer the global path). § One file set per route: Description in Dir hidden-input trap, list label check, reading a template body from `const content` (never `ace.edit`), CRLF, FTP credentials on the destination page. Round 2: § The tool side: a tool on a design product hands off through the project, not `px_print_file` (proposed, not verified).
 - 2026-11-13: A destination record does not prove the FTP account exists: log in with the stored credentials and run a test order.
 - 2026-11-21: New sections: Server-Side PDF Color Conversion (Ghostscript pdfwrite keeps spot plates when converting to CMYK, Gray strategy works for 1C, check with tiffsep not inkcov, ICC in .csf files, use a preflight engine for spot-to-process) and Advertek Phoenix API (v2) field limits (customer_item_number 20 chars, product_code per environment, null company, asset types, endpoints, page ranges).
+- 2026-11-27: Fulfillment Code Resolution: a blank Default Fulfillment Code errors every order (fix and refulfill), codes are case-sensitive and a typo misroutes silently. Filename tags: FTP filename logic does not survive OrderHub HTTP; option custom fields never travel with the line. CraftMyPDF pattern: the order summary template's field names. Where No Production File Is Rendered: the global OrderHub HTTP destination sends renders and uploaded files, so custom tool sets stay `fulfillment="false"`.

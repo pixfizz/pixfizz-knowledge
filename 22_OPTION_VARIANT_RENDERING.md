@@ -2,7 +2,7 @@
 
 **Authority Scope:** Variant rendering behavior only.
 
-_Last updated: 2026-11-09_
+_Last updated: 2026-11-27_
 
 ---
 
@@ -86,6 +86,17 @@ Shopper renders children recursively, e.g.:
 	parameter_name: parameter_name,
 	design: design %}
 ```
+
+**What the server renders.** A child variant triggered by a parent value is rendered as
+`<px-option code="CHILD" trigger="PARENT_VALUE_CODE">` nested inside the parent's
+`<px-option>`, after the parent's own controls. Every branch is in the HTML, each with its own
+default radio checked (`checked` = default value). A tool finds the tree with
+`host.querySelectorAll('px-option[trigger]')` filtered to direct children
+(`o.parentElement.closest('px-option') === host`). When pricing alternatives through
+`price_forecast`, drop every child of the tree from the query and add only the chosen parent's
+own child, or the platform prices a mixed selection. Platform-level (Shopper product page).
+*Verified by reading server HTML, 2026-11-22.* Not verified: whether inactive branches' inputs
+are disabled at runtime or only hidden.
 
 ---
 
@@ -715,6 +726,10 @@ Platform-level (Pixfizz CMS). Applies to template options and design options ali
 - **Copy design options between sites with their values:** `GET /site/<a>/admin/templates/<t>/options/export_all?print_theme_id=<design>`, then POST the tar as `exported_file` to `/site/<b>/admin/templates/<t2>/options/import?print_theme_id=<design2>`. Values, value custom fields and element substitutions travel; the custom field definitions must already exist on the target site. *Verified by query on 60 designs, 2026-10-08.*
 - **Element substitution types offered by the admin form:** `image`, `image_mask`, `image_color`, `image_effect`, `image_crop_flag`, `image_border_width`, `image_border_color`, `image_border_radius`, `text`, `text_color`, `text_font`, `text_font_size`, `qrcode_content`, `shape_color`, `shape_border_width`, `shape_border_color`, `shape_border_radius`, `inline_page_mask`, `inline_page_border_radius`, `element_opacity`, `element_blend_mode`, `background_color`, `layout`, `page_mask`.
 - **A `color` option applies the customer's color to every substitution it carries**; the substitution's own content is not used (read from the editor bundle). Color substitutions on a color option import with their color intact, not reset to black. *Verified by query, 2026-10-05.*
+- **An element's own `opacity` attribute beats an `element_opacity` substitution.** A shape with `opacity="0"` in the page XML stayed invisible when the chosen value set 1. Leave the attribute off and let the option's default value set it. `element_opacity` content is 0 to 1 (step 0.01), and value-level substitutions on a multiple choice option apply in the server preview by value code. Platform-level. *Verified by preview render, 2026-11-24.*
+- **A text template option fills an element only through a `text` substitution on the option** (owner the option, element name, content `{{ value }}`). Its edit form has no target element field, and an import with `target_element_name` sets nothing. *Verified by query, 2026-11-24.*
+- **`text_font` content is the site font id** (a number); a font name as content made the text element disappear from the render. *Verified by query, 2026-11-24.*
+- A template options import sets `control_type: dropdown` on multiple choice options; Shopper 24 still renders them as tiles. *Seen 2026-11-24.*
 
 ---
 
@@ -728,6 +743,19 @@ template's options alone, not the whole `__print_product.yml` — accepts a blan
 `id:` and creates new records. The two traps in reusing an options export taken from
 another site, and the still-untested duplicate question, are in
 `51_CUSTOM_FIELDS_REFERENCE.md`.
+
+**Write `description: ''` in every options import, never leave it empty.** A template option
+whose description is null (not an empty string) comes back as the literal string
+`description` from the admin options JSON (`/site/<site>/admin/templates/<id>/options`) and
+from `option.description` in Liquid. Shopper 24's `product/px-option` (which shows the info
+popup whenever `option.description != blank`) then shows an info button whose popup says
+"description", in every language, and sets `title="description"` on text inputs, while the
+admin edit form shows the field empty. Cause: a `__template_options.yml` with `description:`
+left blank. Check by fetching the options JSON and looking for `description == "description"`.
+Fix: save the option's admin edit form with the description left empty; it then stores `""`
+and the popup goes away (every other field read back unchanged). Deleting the option's model
+translation for the description attribute does not fix it. Platform-level. *Verified by query,
+2026-11-24 and 2026-11-25.*
 **Option trees with layout substitutions import in one go.** A `__template_options.yml` archive imported at the template's options import can hold a parent option with `children` (each with `trigger_value_code`) and values carrying `element_substitutions` of type layout; the whole tree is created. The option value edit page in admin has no element substitution UI, so import is the route for adding layout substitutions to template option values. The import answered with a 500 error but created everything: check the result with the option's own export, not the response. *Verified by use and by export, 2026-09-29.*
 
 ---
@@ -781,6 +809,7 @@ In a template export (`__print_product.yml`), each product's variant types carry
 - **Imports append.** Importing template options or variant types adds to what is there; it does not replace an option with the same code. *Verified 2026-11-12.*
 - **An unpublished variant is not rendered on the product page**, so page script cannot read it. *Verified by query, 2026-11-11.*
 - **An empty published multiple-choice variant** (no values) renders an empty heading. Unpublish it. *Verified live, 2026-11-11.*
+- **A required multiple-choice variant with `custom.read_only = true` renders as one hidden input with an empty value.** The default value is not filled in. Add to cart then posts `variants[<code>]=` and `/v1/books` answers 422 "Variant '<code>' trying to be set with invalid value". A custom tool that drives that variant (for example a sticker shape) finds no radios or select to read, skips it and never writes a value. Fix: untick Read only on the variant; Hidden can stay on (the tool hides the control itself). Never set Read only on a variant that a custom tool drives; use Hidden. Variant flags are not writable through the Pixfizz connector: change them on the variant type in the admin. Platform-level. *Verified live, 2026-11-27.*
 
 ## Pricing and POS-Relevant Choices Belong on Variants, Not Template Options
 
@@ -813,3 +842,4 @@ A variant price formula cannot read another variant's value, so when the price d
 - 2026-11-09: § 5.1 restoring a photo on `px-image-upload` by script (`thumbnail` attribute needed; guest image JSON 500); `image_upload` and text design option values at project create. Variant Type Exports: hidden, read_only and hide_from_cart survive a template import; variant value edit forms have no reorder control (use the table's reorder route). § 5.2 filling a file option the way the component does, `px-file-upload` default max size. § 2.1 options in the photo prints flow (Cropping & Options only, multiple_choice only, control order, `custom.hidden` ignored).
 - 2026-11-13: Variant Type Exports: value custom fields travel in export_all; imports append; an unpublished variant is not rendered on the PDP; an empty published variant renders an empty heading.
 - 2026-11-21: § 2.1 cut print products never use a Layout template option or element substitution; finish and border are Product Attribute variants with production codes, correct child structure, list every existing product before copying a set. § 5.1 a pdp_layout size or orientation switch clears the uploaded photo. Variant import reuses an existing asset; a new image_upload option gets its target element after the first save.
+- 2026-11-27: § 3.2 what the server renders for triggered child variants and pricing them. Substitutions: element `opacity` beats `element_opacity`, text options fill only through a `text` substitution, `text_font` takes the font id, imports set `control_type: dropdown`. Template-options import: a null description shows the word "description" (write `description: ''`). A read-only variant posts empty and blocks Add to cart (use Hidden).

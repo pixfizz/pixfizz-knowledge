@@ -2,7 +2,7 @@
 
 **Authority Scope:** Ruby pricing formulas and price variables only.
 
-_Last updated: 2026-10-22_
+_Last updated: 2026-11-27_
 
 ---
 
@@ -466,6 +466,13 @@ canonical formula has not yet been locked in to this reference.
 **Platform rule, since 2026-03-24.** Orders paid with a 100% voucher report at **$0** in
 billing reports.
 
+**Gift voucher amount: use the face value, issue at fulfillment.** Issue voucher codes from the
+Orderline Fulfilled email with the `promocode` tag (after payment, `18_ADMIN_NAVIGATION.md` §
+Marketing, Gift Vouchers) rather than from a script that runs at order time (before cash on
+delivery or bank transfer is paid). Set the amount from the voucher's face value variant (for
+example `orderline.chosen_variants['value'].value | plus: 0`), not `orderline.unit_price`, so a
+voucher sold at a discount still carries its full value. *Confirmed by Pixfizz, 2026-11-23.*
+
 ---
 
 ## Automatic Discounts (Liquid-Based Cart Discounts)
@@ -558,6 +565,8 @@ Whether an orderline exposes `price` and `quantity` under exactly these names, a
 - Admin location: **Marketing → Automatic Discounts** in Main Admin. Not Promotions, which is the wrong guess people reach for first. Confirmed by Pixfizz staff, 2026-09-19. Admin routes (list, new, edit) and the Promocodes route are in `18_ADMIN_NAVIGATION.md` § Marketing. *Verified by reading source (live admin navigation), 2026-11-03.*
 - **A percentage Automatic Discount rounds the saving, half up.** A formula of the form `sum | times: pct | divided_by: 100.0 | round: 2` rounds the **saving**, not the discounted total. A custom tool or page that displays the discounted price must do the same, or it shows a saving one cent low on some carts while the cart charges one cent more. In JavaScript work in whole cents: `save = Math.round(cents * pct / 100)`, `net = cents - save`. *Verified by query on a client site, 2026-11-02.* See `20_SHOPPER_CART_RULES.md` § Hiding options and variants from the cart line.
 - **An Automatic Discount acts on the cart total only.** It shows as one summary row; product pages (`px-product-price`, Pricing tab), collection "As low as" (`from_pricing`), studio prices and cart line prices keep the full price. Platform-level. *Verified live on a client site, 2026-11-18.*
+- **Inside an Automatic Discount formula, `line.price` is the line total (unit price x quantity), not the unit price.** Looping `cart.orderlines | page_size: 1000` works and `line.product.category` resolves. A formula that subtracted the voucher lines' `line.price` from the cart total gave the same discount after the voucher quantity went from 1 to 2, so `line.price` had doubled with the quantity. Platform-level. *Verified live, 2026-11-23.*
+- **Gift vouchers are promo codes (`reuse_credit`).** A `cart.promocode_code == blank` guard on an automatic discount therefore also switches the discount off for anyone redeeming a gift voucher. On a site that sells vouchers, do not guard on the promo code; exclude voucher lines by category instead. *Reasoned from the voucher mechanism, not tested with a redemption.*
 - **`/v1/carts/_mine.json` returns `auto_discounts`** as `[{code, name, amount, combines, formula}]`, the full formula included, but only for discounts that apply to the current cart (empty array otherwise). A product page therefore cannot read a running discount for a visitor with no qualifying cart line. Platform-level. *Verified by query, 2026-11-18.*
 - **The admin edit page keeps the formula history.** `/site/<slug>/admin/auto_discounts/<id>/edit` holds the formula in an Ace editor plus a History table of past formulas with the editing user. *Verified by reading source, 2026-11-18.*
 - **`product.custom.regular_pricing` does not cover a cart-level discount.** It assumes the product price is already the sale price and cannot follow a tiered formula or a dated rate. Template-level (Shopper 24).
@@ -1024,3 +1033,4 @@ Template-level (Shopper uploader asset) with a product custom field.
 - 2026-11-13: Pack prices are entered per unit (min_units and intervals). Shipping formulas render on the cart page, so a Liquid error breaks every add to cart. Uploader px_rates cards: upgrade uploader.js before raising a card's engine; Flat Prints (mode prints) is priced in uploader.js, not pricing.js.
 - 2026-11-20: Extra Fees, minimum order: the amount lives in the fee formula (twice), not the checklist snippet; pointer to the light cart pop-up bypass.
 - 2026-11-21: Automatic Discounts, Key rules: acts on the cart total only (line and page prices keep the full price), `auto_discounts` in `/v1/carts/_mine.json` only for applying discounts, formula history on the admin edit page, `regular_pricing` does not cover it, the Sale Prices extension (`px-sale`) and its one-cent rounding difference. Uploader Price Cards: every pricing mode ships in `pricing.js` the same release, with the three-step check including a till test.
+- 2026-11-27: Automatic Discounts, Key rules: `line.price` is the line total; a promo code guard also blocks gift voucher redemptions. Test Orders: gift voucher amount from the face value variant, issued at fulfillment.

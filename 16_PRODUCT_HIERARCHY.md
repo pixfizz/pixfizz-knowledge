@@ -2,7 +2,7 @@
 
 **Authority Scope:** Product object relationships and catalog structure only.
 
-_Last updated: 2026-11-09_
+_Last updated: 2026-11-27_
 
 ---
 
@@ -58,14 +58,28 @@ A Template can have one Design (e.g. single full-bleed metal print) or hundreds 
 **Design galleries (Resources, Backgrounds, Clipart, Masks) have Upload and Link.** Platform-level (Pixfizz CMS).
 - **Upload** posts to `/upload/resource?tag=<gallery tag id>&sitename=<site>` (FormData `code`, `data`).
 - **Link** opens "Link tagged images to <gallery>" with one free-text Tag field (no suggestions) and posts
-  `admin/print_theme/link_tag?name=<gallery>&theme=<design id>` with `tag`. Images are shared across designs by
-  **tag name**, not by linking a source design (unlike Linked Layouts).
+  `admin/print_theme/link_tag?name=<gallery>&theme=<design id>` with `tag`. The Link stores **one** tag per
+  gallery: posting again replaces it, and an empty tag clears it.
 - A brand-new design with empty galleries shows Upload only, no Link button.
 - Named tags are set per image on the design page: forms POST `admin/print_theme/add_image_tag/<design id>` and
   `remove_image_tag/<design id>`.
+- **Link did not bring in images that live on another design.** Images on a master design were each given a shared tag, and other designs had Link set to that tag on backgrounds, clipart and masks. The linked designs' gallery endpoints (`/v1/themes/<design id>/<backgrounds|clipart|masks>.json`) still returned 0 images, with every tag value tried (the shared tag, the folder tags, the gallery tag id, the design code and id), while the master returned its own. Designs that do show masks own their own copies (different image ids). So do not plan a shared artwork library on "tag the images on one design, Link the tag on the others": test one design and read its gallery endpoint before linking in bulk. What Link matches against is an open question. *Verified by query, 2026-11-23 to 2026-11-26. Not verified in the customer editor on a real project.*
+- **What works today to give a design another design's whole library: admin Copy.** Copy of a design (`POST admin/print_theme/copy/<design id>` with `print_product_id=<target template id>`) copies its Resources, Backgrounds, Clipart and Masks galleries with every image's tags (the images are duplicated with new ids; in the editor the tags show as folders). `print_product_id` is required: the same POST with it left empty answered 200 and created no design. To put a library onto an existing design, copy the library design onto the target template, then rebuild its pages and link its layouts (`18_ADMIN_NAVIGATION.md`, design page and layout routes). *Verified by query and in the customer editor, 2026-11-25.*
+- **Admin Copy of a design fails when several copies run at once.** Four parallel copies: 5 of 20 answered 500 and created nothing. One at a time: 0 failures in 207 copies. After a 500, check the template's designs for a new copy before retrying. A copy of a library design that has no layouts of its own needs its layouts linked afterwards: **Link layouts** only accepts the layout library designs offered in its picker (posting another design answered 200 and linked nothing), so read `layouts.json` after linking. *Verified by query, 2026-11-26.*
+- **Image tags keep their case** (an accented tag stays as typed).
+- **Gallery upload accepts WebP** although the upload window's file picker offers only JPG and PNG. The upload answers JSON with `id`, `width`, `height`, `filename`. *Verified by query, 2026-11-23 and 2026-11-25.*
+- **Check what a design will show without opening the editor:** the editor loads galleries from `/v1/themes/<design id>/{backgrounds,clipart,masks,resources}.json?sitename=<site>` (public, storefront origin).
+- **The backgrounds panel hides backgrounds whose shape does not match the page.** On a square page, portrait and landscape background images are not listed, so a background folder whose images are all non-square disappears on square sizes. *Observed on one square size, 2026-11-25; not verified on other sizes.* Rule from source (5% ratio match, or Full-Page Background): `17_DESIGN_TOOL.md` § Design Pages, Backgrounds and Layouts (2026-11).
 
 *Verified by reading source (design admin page and admin bundle 20261118165408), 2026-11-19; the tag forms
 verified by query. Not verified: how a linked tag shows in the editor.*
+
+**Checking a design's content without the editor.** Platform-level.
+- **A design existing is not proof of its content.** `/v1/themes/<design id>.json?sitename=<site>` (signed-in admin tab) returns the design's pages under `templates[].print_page` with the full page XML in `data`: one fetch per design shows what it holds. Check every design in a batch before publishing it to a collection (in one case 77 cover designs had the right names and codes but all still held the copied cover). `/v1/themes/<id>/preview.webp` is not proof: with the preview image cleared it returned the same placeholder for every design. *Verified by query, 2026-11-25.*
+- A design's own pages render at `https://<site>.pixfizz.com/v1/pages/<print_page id>.jpg?width=<px>&hide_placeholders=false` (storefront origin; size limits in `61_PIXFIZZ_API.md` § 9). Page ids for a published design come from the storefront `/v1/themes/<design id>.json` (`templates[].print_page.id`), no admin session needed.
+- **Batch proof:** when many designs should end up with the same page as a reference design (for example a text fix copied from a proven design), render each at the same width and compare SHA-256 hashes. Matching pages give identical bytes; different bytes mean look at that one. 133 designs x 3 pages checked in about 2 minutes. *Verified by query, 2026-11-26.*
+- `/v1/theme_categories.json` on the storefront lists what is actually published per collection (code, id, product_code): the quick check for "is it in the gallery".
+- **The template page's design list (`print_theme/product/<template id>`) leaves out unpublished designs,** and the export modal's design list is empty for them too. A design imported with `publish: false` is created but the template page shows "Designs 0". Check by code (`/v1/themes/<id>.json`, `export_print_theme/<id>`, or the product's design list) before concluding the import failed: importing again creates a duplicate with -1 on the name and the code. *Verified by query, 2026-11-25.*
 
 ### Collections
 Grouping mechanism for publishing products to the storefront.
@@ -138,6 +152,10 @@ With `print_theme_ids[]` and no `product_ids[]` the export carries only the chos
 products: the quick way to pull a few designs out of a very large template. Such a template-level
 tar (template header plus `print_themes`, `products: []`) imports as a new template with its own
 category and all its designs, and no product attribute. *Verified by import, 2026-10-20.*
+Such a template has no product for a search to find, and no studio can add it to the cart. Create its
+product with the Publish Products wizard (`product_id=new`, `18_ADMIN_NAVIGATION.md`), which publishes
+the designs at the same time; the wizard needs at least one collection, or no product is created.
+*Verified by query on two sites, 2026-11-23.*
 
 **A template import is not atomic.** The full import creates the template and its options
 first, then the designs and products. When a later record fails, everything created before it
@@ -265,6 +283,12 @@ The admin import routes, including design-only and product-only imports, are in
 `18_ADMIN_NAVIGATION.md`.
 
 ---
+
+**More import facts (November 2026).** Platform-level.
+- **A template import gives every image a new id per site.** A placeholder `db:<id>` in the tar becomes a different `db:<id>` on each site it is imported to. When you patch imported pages in place afterwards, replace the tar's ids with the site's own (read them from an untouched page of the same import) before writing; a page written with the tar's ids reads back fine but points at another site's image. *Verified by query, 2026-11-25.*
+- **Design codes are limited to 50 characters.** A generator that builds design code = template code + "-" + design key must keep the template code short enough for the longest key. *Verified by query, 2026-11-25.*
+- **Layout names: letters, digits, spaces, dots and hyphens only.** A template export whose layout design carried generated names such as `page01 | page01 #5` failed on Templates > Import with "Sorry, Application error" and created nothing (no template, no product: rolled back). The same export with plain names, the layout's `<page name="...">` equal to the layout name, and no blank lines inside the layout XML imported cleanly. Not isolated further between "|", "#" and the blank lines: avoid all three in any generator. Failed imports still consume template ids and leave name suffixes on the next successful import of the same names (`... 22x22 cm-3`); rename after import. *Verified by bisecting imports, 2026-11-25.*
+- **One template export can create a whole size range.** Rewrite `__print_product.yml` per size and import each copy: one import creates the template, design and product with its variants and custom values. Set new template, design and product codes and names; blank every id except the gallery ids under `print_themes[].galleries`, which point at images in the tar. The page `layout` is a folded double-quoted YAML scalar: unfold it (join continuation lines with a space; a line ending in `\` joins without one), change the page width and height, write it back on one line; page XML under `data: |` is literal, so replace its lines. *Verified by query (22 banner and 14 acrylic sizes), 2026-11-24.*
 
 ## Template Export and Import Format
 
@@ -561,3 +585,4 @@ Beyond the core hierarchy:
 - 2026-10-22: Import Behavior: designs-only template export and template-level tars; two more partial-import failures (variant type without the three empty lists, `image: null` on a product or design `preview_img`); the name suffix also hits product names and survives renames; check the target for an older copy first; a design import carries `url_path` (move the old one aside, check unpublished designs in the admin editor). New Template Export and Import Format (Psych folding and TimeWithZone blocks, top-level maps, YAML anchors and `Psych::BadAlias`, ids ignored, design gallery images in the export). Unpublishing: `publish_theme` with `published=1` republishes. New Publishing Another Site's Template (supplier template id travels, no variants or custom fields copied with the export/import and by-hand routes, price prefill, fulfillment locked or pre-filled from the supplier product, `-2` code clashes and the rename rule, swapping old copies).
 - 2026-11-09: Import Behavior: product fulfillment code is not in a template export (set it after import); product custom values travel, stale ones included; design custom values kept only where the target has a definition; partial design custom field post. Template Export and Import Format: `BigDecimal` min/max must stay numeric on a YAML rewrite; template category vs product category in `__print_product.yml`. Cloning a Product: same-site Copy button pointer. Variants vs Options: the template options list shows design options too; design option codes can differ per template.
 - 2026-11-21: Designs: gallery Upload and Link (images shared by tag name, link_tag and image tag routes). Import Behavior: product attribute `-1` rename route and design rename form fields; long template/product names fail with "Application error" (keep to 59 characters); imports that hang or silently do not land; product `meta_title` carries the source store name (never put the store name in it), product values travel with definitions present.
+- 2026-11-27: Designs: gallery Link stores one tag and did not bring in another design's images; admin Copy carries a design's whole library and must run one at a time; Link layouts accepts only the layout library designs; image tag case, WebP gallery upload, gallery endpoints, square-page backgrounds; new block on checking a design's content without the editor (theme JSON, page render, hash batch proof, published list, unpublished designs hidden from the template page). Import Behavior: a template-level tar needs its product created with the publish wizard; image ids remapped per site, 50-character design codes, layout name characters, one export as a size generator.

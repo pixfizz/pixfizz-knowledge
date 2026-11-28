@@ -12,7 +12,7 @@ setup tool that writes Live Finish mounts is described in the myPixfizz files
 (`70_MYPIXFIZZ_OVERVIEW.md`); this file only says what
 it produces.
 
-_Last updated: 2026-10-22_
+_Last updated: 2026-11-27_
 
 ---
 
@@ -288,6 +288,10 @@ html body .pxt { --pxt-ink: #191c1d; --pxt-ink-muted: #667085; }
 
 The wider dark-child token list is in `50_SHOPPER_TEMPLATE_REFERENCE.md` § 4.
 
+**Corner radius: leave the face square.** Live Finish follows a site's `.pxt { --pxt-radius...: X }`
+override for its controls (`50_SHOPPER_TEMPLATE_REFERENCE.md` § 4). Do not round `.lf-print` /
+`.lf-face` (0.3%): that is the product face. *Verified live, 2026-11-25.*
+
 ### 2.8 Query parameters
 
 - `?lf_debug=1` shows the tilt state on the page.
@@ -307,6 +311,17 @@ by query on one client's WordPress domain, 4 Oct 2026.* Anything that samples th
 proxy. Site assets served from `cdn.pixfizz.com` do answer CORS (a WebGL texture from an
 `asset_url` works). A standalone embed mode (one script tag, config in data attributes,
 watching a given `<img>`) is not built.
+
+**Inside a Shopify + Pixfizz Personalize window: the image max-height cap.** The Personalize
+window's product CSS caps `.card img` with `max-height: calc(100vh - 170px) !important`. Live
+Finish sits inside `.card` and sizes its art image in percent to cover the face, so on wide, short
+windows the photo stopped short of the canvas and bare linen showed. Fix:
+`.card .lf-stage img { max-width: none !important; max-height: none !important; }`. Since
+2026-11-25 this reset is in the Shopify master's `product/live-finish` snippet, so sites
+inheriting it are covered; a site with its own copy needs the same rule, and the engine CSS gets
+the reset in its next release. Any image-rendering tool mounted inside a Shopify `.card` meets the
+same cap (`60_SHOPIFY_INTEGRATION.md`). *Verified live at several sizes and window shapes,
+2026-11-25.*
 
 ### 2.10 Photo plates (Live Finish Plates)
 
@@ -410,6 +425,31 @@ the photo). Tool-level technique, platform-independent. *From prototype and plat
   Standard view bottom right. Before changing any on-stage control in one preview tool, copy
   the behavior from the Live Finish source rather than inventing a variant. *Decided by
   Pixfizz, 2026-10-17.*
+
+**Picture frame faces need proper plates, not catalog photos.**
+- **A front-on catalog photo of a frame with the opening cut out gives a flat, paper-thin frame:**
+  no molding profile, no inner lip shadow, no miters, no light. Use real frame plates: molding
+  with profile and light, rectified to an exact grid (opening = trim less 2 x lip, molding = the
+  `lf_frame` width, uniform on all sides), so the face opening matches the geometry Live Finish
+  draws. A face opening even 1% off shows a thin line at the inner edge.
+- **Full vs matted and portrait vs landscape belong on one product as template options**, never
+  separate products: customers expect to switch on the page. Frame color as a variant should
+  render as swatches, not text buttons.
+- **Rectifying a generated plate:** find each inner edge as the largest luminance step next to the
+  lip (molding to opening), per side, as a median over many rows, not "where the pixels turn
+  white": the rail's soft shadow on the opening otherwise lands inside the molding strip and
+  shows as a pale band. Keep that shadow ramp as a soft black alpha (max about 0.38) inside the
+  transparent opening; it reads as the lip shadow on the photo. Find outer edges that carry a drop
+  shadow by the strongest gradient too, then pull in 2 px. Rails of a generated frame are not
+  symmetric: rectify each side on its own.
+- **Swatch images from a plate:** take a piece of the right rail, not the top-left corner (with
+  light from the top left that corner reads lighter than the true color).
+- **Product and landing images for a frame product:** screenshot the Live Finish stage with its
+  controls hidden, never a new scene.
+- Review the live page visually (desktop and phone, every color, matted and full, rotated) before
+  calling a frame install done: a state read-back is not a visual check.
+
+*Verified by measurement and review on a customer install, 2026-11-23 and 2026-11-24.*
 
 ### 2.11 Room scenes at true scale
 
@@ -666,6 +706,15 @@ Level: **platform (Pixfizz CMS)**.
   recorded. Do not build a preview or a tool on it until the developer marks it stable.
   *Observed in release commits 2026-10-16 to 2026-10-20; behavior not verified.*
 
+- **three.js: update the camera matrix before unproject.** In three.js (r128, used by the 3D
+  previews), `Vector3.unproject(camera)` uses `camera.matrixWorld`, which only a render updates; a
+  camera that is not in the scene still has an identity matrix before the first render, so an
+  object placed at a screen point before the first render lands in the wrong place. Call
+  `camera.updateMatrixWorld()` after `lookAt` / `updateProjectionMatrix` and before any
+  unproject. A resize handler that places the object again can hide the bug in a prototype and
+  not in the build (an object sat 185 px too high). Tool-level. *Verified by reading source and in
+  headless Chrome, 2026-11-23.*
+
 ---
 
 ## 5. Status by product family
@@ -680,7 +729,7 @@ a row, read the version from the live console (§ 3.5).
 | Metal prints | **Live** on client sites | Finishes, corners, mountings, standoffs, holes, float frame, curved. 0.8.3 verified live on the parent, 27 Sep 2026. |
 | Paper and fine art prints | Built (0.9.0), not verified live at the time | `loose`, `board`, `standout` mountings; `textured`, `etching` bases. |
 | Canvas | Built (0.10.0); **needs fixes** | Reported still needing fixes for finishes, stretched edges and frames (§ 6). |
-| Picture frames | Built (0.13.0, `picture` mounting), not installed on 29 Sep | Moulding-corner color selector, mat, sideboard room. Landscape needs template work first (§ 6). |
+| Picture frames | Built (0.13.0, `picture` mounting), not installed on 29 Sep | Molding-corner color selector, mat, sideboard room. Landscape needs template work first (§ 6). |
 | Ornaments | **Reported ready** in metal, glass, ceramic, acrylic and wood | Preset-based setup; drilled crystal round first. Needs a parent version with ornament support (0.15.0 or later). Not verified live by this file. |
 | Folded cards | In the setup tool | The setup tool generates folded card mounts; no live verification recorded here. |
 | Glass cutting boards, puzzles, acrylic blocks, slate and hardboard panels, coasters | Planned | Gift-season order (27 Sep): cutting boards, ornaments, puzzles, acrylic, panels, coasters. |
@@ -830,6 +879,32 @@ a row, read the version from the live console (§ 3.5).
 
 ---
 
+- **three.js transmission only shows what is drawn inside the WebGL scene.** Where the room photo
+  is a CSS background behind a transparent canvas (the Live Finish room pattern), a
+  `MeshPhysicalMaterial` with transmission renders opaque white, not clear. In such scenes make
+  clear parts a plain transparent material (transmission 0, `transparent: true`, low opacity,
+  `depthWrite: false`); keep transmission only for scenes with a real scene background. Check every
+  new 3D preview in each room scene with a design that has clear areas. Tool-level. *Verified by
+  reading source and live, 2026-11-25.*
+- **A child with `mix-blend-mode` flattens its `preserve-3d` parent in Chrome.** In Live Finish
+  0.13.0 to 0.29.0 the picture frame sheen (screen blend) flattened the frame group, so the
+  frame's sides never drew and frames looked paper thin as they turned. Fixed in 0.30.0 (normal
+  blend). Rule for every 3D preview: no `mix-blend-mode`, `filter`, `mask` or opacity below 1 on a
+  child of a `preserve-3d` group that must keep depth; put the blended layer outside the group or
+  use normal blending. How to find it: color each 3D face with injected CSS; a face rotated 90
+  degrees that is invisible while the same face with `transform:none` shows means the parent is
+  flattened. *Verified in a Chromium test harness, 2026-11-24.*
+- **gltfpack quantizes UVs to 12 bits and stores the scale on each material texture's
+  transform.** A model with no textures (the tool paints its own canvas) loses that scale, so every
+  UV lands in the top-left 1/16 of the texture. Use `-vtf` (float texcoords) and `-kv` (keep UV
+  sets no texture uses); `-ke` keeps scene extras.
+- **three.js r128 does not denormalize normalized integer attributes** in
+  `BufferAttribute.getX`, so a raycaster hit's `uv` comes back as raw integers. Convert normalized
+  UV attributes to Float32 after load.
+- Meshopt compression (`-cc`) needs the decoder: `GLTFLoader.setMeshoptDecoder(MeshoptDecoder)`
+  (supported in r128; the decoder from the `meshoptimizer` npm package, about 29 KB). *Found and
+  fixed on a garment preview, 2026-11-23.*
+
 ### Findings 2026-11
 
 - **Variant codes in a mount must match the live product exactly.** `lf_finish_variant`, `lf_looks` keys and `lf_curve 'variant:<code>'` were written for a code (`finish`) that differed from the product's (`finish-options`). Live Finish gave no error and silently stayed on the default look. Check on the product page: pick each finish and read `LiveFinish.state().look`. *Verified live, 2026-11-09.*
@@ -838,6 +913,10 @@ a row, read the version from the live console (§ 3.5).
 - **View labels are English only (known defect, 0.23.0 and later).** The chip and view labels are hard-set in the config reader, so `lf_closeup_label`, `lf_wall_label` and similar mount keys are read and then overwritten; `lf_room_label` is still honored. A non-English site shows English labels until the tool honors the mount labels. *Verified by reading the live script, 2026-11-11.*
 - **Declare `lf_standoff` and `lf_standoff_color`** even with no standoff mounting: leaving them out logs a console error. *Verified 2026-11-11.*
 - **Live Finish on a Pages page (no product).** Give it a `.px-product-gallery > .px-display-wrapper > .px-display > .px-item` stage and a `form#project_create` with a `theme_id`, render `{% snippet 'product/live-finish', ... %}`, and drive it with `LiveFinish.face({url, theme, values})`. For a canvas face, the template page size includes the bleed (trim = page − 2 × bleed). cdn.pixfizz.com assets send `Access-Control-Allow-Origin: *`, so they draw into a canvas without tainting it. *Verified live, 2026-11-10.*
+- **Live Finish face on a Pages-hosted tool.** A tool on a Pages instance can build the Live Finish root in JS from a JSON config (`data-lf-*` attributes), call `LiveFinish.face({url, sample, theme, product, host, upload})` with the whole page image (face plus bleed), then `LiveFinish.init(root)`. The theme gives the geometry. Template-level. *Verified live, 2026-11-25.*
+- **Live Finish ornaments ignore `LiveFinish.face()`.** With `lf_mounting: ornament` (0.29.0) the engine loads the platform render URL as an image and paints that URL on the ornament layers. A tool that wants the customer's photo on an ornament sets the photo on the ornament's own template option and lets the platform render it. *Verified by reading source, 2026-11-23.*
+- **Live Finish's upload check ignores `px-image-upload` elements inside `[hidden]`.** A tool that mounts Live Finish over its own hidden product form must move the form off screen, not hide it with the `hidden` attribute. *Verified by reading source and in a prototype, 2026-11-23.*
+- **A tool can feed Live Finish a picture frame of any size.** `lf_frame_faces` / `data-lf-frame-images` accept a blob URL made by a tool. Generate the frame face for the exact outside size (cropped to the outside edge, transparent sight opening, one molding width all round) and set `data-lf-frame` to that molding's width and depth. Live Finish re-reads the mount when those attributes change, so a size or molding change needs no page load. What sits inside the frame comes from `LiveFinish.face({ url, theme, product, host, sample, upload })`; the theme it measures must have a print page equal to the trim (sight opening + 2 x lip), or the photo and mats misalign. Without a frame variant on the page Live Finish warns once and uses the first face. The All colors view captions each face by its value, so make the value the readable name (no `:` `,` `#`). Limits: one `lf_frame` width for every face (the compare view shows all moldings at one width); no double mat in the engine (draw it into the face). *Verified in a test harness, 2026-11-24; not live.*
 - **Name on a tag in an existing product photo.** When a lab's photos already show the product with a sample name, match the blank artwork to the photo with a feature-matched homography, warp it in, and replace only the name area, carrying the photo's shading with a smooth gain map; fit a global affine color transform rather than a per-channel ratio (which gave color casts). Draw the live name with an HTML element and CSS `matrix3d`. Skip photos where ribbon or packaging crosses the name. Site fonts are public at `/v1/fonts.json`; check every customer font draws the language's letters (some map ñ but draw n). *Verified by local render, 2026-11-10; not yet live.*
 - **A clean scene from an existing plate.** To show a product at several sizes in a photo that already contains one, an image model can remove the product and its hardware; the result came back pixel-aligned but smaller, so scale the calibration by the width ratio. Calibrate from the removed object: its known size gives pixels per inch at that depth, and its contact point gives the ground line. *Verified by local render, 2026-11-13; not yet live.*
 - **Card replacement on flat art (few feature points).** When SIFT finds under about 80 inliers,
@@ -925,6 +1004,49 @@ page (one holiday card template already carried `lf_mount` on 23 sites). Enumera
 before adding any mount to an MSP template. *Verified by query, 2026-10-06.* So the fix for
 an MSP product's preview goes on the msphub template's own option: the lab site has no
 template of its own to edit. *Verified live, 2026-10-22.*
+
+**Any shared template works the same way.** Fixed-size products on several labs can use
+templates owned by one products site (the lab's product page shows the template as
+`print_theme/product/<id>` on that site, and the template page lists "Product Attributes on Other
+Sites"). One option import on one of those templates, then one Template Options Copy (Bulk Update
+Tools, many target templates in one post, code `lf_mount`, without destroying existing options)
+covers every size: 36 targets in one post, verified by reading back all 37 options. Every lab that
+shares those templates gets the mount too. *Verified by query and live product page check,
+2026-11-24.*
+- **Check first whether a product's template is shared.** Open the template under the product's
+  own site (`/site/<site>/admin/print_theme/product/<id>`): a 404 means the template belongs to
+  another site (for pre-made marketing designs, a shared template provider site). Read **Product
+  Attributes on Other Sites** on the owner's template page and treat any mount as a change to all
+  of them (one template carried attributes on 16 sites). *Verified by reading the admin,
+  2026-11-25.*
+- **Read the Name and Code columns, not only Website.** One shared template can carry different
+  items per site: a "round wood ornament" template was ceramic on one site, metal on two others and
+  a 3-inch round magnet on another. Choose `lf_look` per site from the product names. Design codes
+  are shared, so `lf_design_looks` cannot split them.
+- **The list includes sites that are no longer in use.** Confirm a listed site is a live customer
+  site before treating it as affected.
+- **Every consuming site must be a Shopper 24 child.** "Shopper" in a site list does not prove it:
+  read the parent named on each site's admin Snippets page. A site with its own older snippet set
+  rendered the hidden Text option (`lf_mount`) as a visible empty text field, because its
+  `px-option` snippet does not check `option.custom.hidden`. Fix on such a site: wrap its own
+  `product/px-option` in `{% unless option.code == 'lf_mount' %} ... {% endunless %}`. *Verified
+  live, 2026-11-25.*
+- **Shopify + Pixfizz children:** the Shopify master `px-option` hides options with
+  `option.custom.hidden` and does not render `custom_script`, so a hidden `lf_mount` is inert
+  there. *Verified by reading source, 2026-11-25.* Do not open `/site/shopify/product` directly as
+  a check: it auto-submits and creates a guest project.
+- The site that owns the template may have no `hide_from_cart` custom field definition for
+  template options (only `hidden` and `custom_script` were stored on one). Check the definitions on
+  the site that owns the template.
+- A lab product with no template link has no `theme_id` on its product page, so Live Finish cannot
+  attach until the product is linked to its template.
+- On canvas, the bleed is not the stretcher bar depth (for example 2 in bleed on 1.5 in bars): take
+  the bar depth from the product, not from the bleed.
+- **Rollback:** untick Published on the template option form. That removes it from every site at
+  once and keeps the mount for later; never delete it. *Verified, 2026-11-25.*
+- **Test without saving:** on the live product page, copy the attributes of an existing
+  `#lf-root`, change the `data-lf-*` values, append it to `px-option-selector` and call
+  `LiveFinish.init(el)`.
 
 **A mount copied from another site carries that site's ids.** `lf_backdrop:
 'page:preview-2@<theme_id>/<product_id>'` and the `lf_material_filter` links
@@ -1023,3 +1145,4 @@ A preview is not finished until all of this is true.
 - 2026-11-09: New § 3.6 round products (orthographic print projection, object-space dimple normal map, canvas equirect environment, turntable rotation). § 3.3 a tool's own 3D mug takes the preview-3d look. § 2.10 white fleece mask refined at full resolution, lighter smooth maps. § 6 tool face covered by the page render (fixed in 0.26.1), `px-project-preview` `loading="lazy"`, three.js canvas needs an explicit CSS size on Retina. § 7 gate a mount by design code on a shared template; `lf_finish_variant` `none` false error.
 - 2026-11-13: § 6 findings: mount variant codes must match the live product (silent fallback), ornament ribbons need a page backdrop, view labels English only (known defect), declare lf_standoff keys, Live Finish on a Pages page (stage markup, canvas page includes bleed, CDN CORS), name on a tag in an existing photo, a clean scene from an existing plate.
 - 2026-11-21: § 2.2 a color wrap with a fixed hex (`color:color@#ffffff`) and wrap color variant `none` never follows the customer color, with the check and the admin location of `custom_script`. § 2.3 surface rooms show no top face for lying-flat products. § 2.10 photo slates use material `coated`, faux leather reads the design alpha (png or webp render, never jpg), `LiveFinishPlate.face()` before `init()`. § 6 stretched edge prints white sides while Live Finish shows them; findings: card replacement on flat art and print tiles from imposition PDFs, name patch on box shots and its ceiling, landing pages and prototypes use the released engines, several engines on one page, engines inside `.pl` product-landing pages. § 7 CORRECTED Template Options Copy (many targets per post), changing a mount through the custom fields form, corner variant on a template shared by two families, `LiveFinish.init(root)` needs the root. Borrow another product's page backdrop and ribbon photos.
+- 2026-11-27: § 2.7 leave the product face square under a site radius override. § 2.9 Shopify Personalize window `.card img` max-height cap and the reset. § 2.10 picture frame faces need rectified plates (geometry, options on one product, rectifying, swatches, visual review). § 4 three.js camera matrix before unproject. § 6 engineering lessons: transmission needs an in-scene backdrop, a blended child flattens a `preserve-3d` group, gltfpack UV quantization, r128 normalized UVs, Meshopt decoder; findings: Live Finish face on a Pages-hosted tool, ornaments ignore `face()`, hidden forms hide uploads, a tool-made frame face of any size. § 7 any shared template: check sharing first, read Name and Code per site, unused sites, consuming sites must be Shopper 24 children, Shopify children, owner-site field definitions, unlinked products, canvas bar depth, rollback by unpublishing, test without saving.

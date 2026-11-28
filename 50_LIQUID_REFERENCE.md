@@ -3,6 +3,7 @@
 **Authority Scope:** Pixfizz Liquid objects, filters, and tags.
 **Source:** Compiled from https://pixfizz.notion.site/Liquid-Documentation
 **Last compiled:** 2026-04-10
+_Last updated: 2026-11-27_
 
 ---
 
@@ -386,7 +387,7 @@ Available as `form` inside a `{% form %}` block.
 | `form.values` | `FormValues` object from previous submission (`nil` if no prior submission) |
 | `form.captcha` | Renders default captcha (currently hCaptcha) |
 | `form.hcaptcha` | Renders hCaptcha widget |
-| `form.recaptcha` | Renders reCaptcha widget (requires superadmin setup) |
+| `form.recaptcha` | Renders reCaptcha widget (requires superadmin setup; the key must list every live domain, or registration and guest checkout fail on the missing domain; with the keys cleared the site falls back to hCaptcha; see `21_SHOPPER_CHECKOUT_POLICY.md` § Captcha on registration and guest checkout) |
 
 ---
 
@@ -1376,6 +1377,12 @@ Redirects to another URL.
   body, and both return a **real server redirect** (a `fetch` with `redirect: 'manual'` gets an
   `opaqueredirect`). A query string in the target is kept. Platform-level.
   *Verified live on a client site, 2026-10-29.*
+- **The redirect is a 302 (temporary).** `curl -I` on a page using the tag returned `HTTP/2 302`.
+  No permanent (301) option is known for the tag, so do not promise a 301 from Liquid.
+  Platform-level. *Verified by query, 2026-11-26.*
+- **It also works inside a snippet**, not only in a page body: a child override of
+  `collection/shop-all` that starts with a guarded `redirect_to` redirected the page that
+  renders it. *Verified by query, 2026-11-26.*
 - Put it inside a condition at the very top of the page. A Liquid parse error in any branch
   breaks the page for every visitor, so try the tag on a gated test page before a live one.
 
@@ -1779,6 +1786,13 @@ Platform-level unless marked. *Verified on two client sites, 2026-11-17 and 2026
   parameter does **not** change it; the session changes only through
   `POST /session/set_locale` with `locale=xx`. When the language comes from data (a URL
   parameter, an order line), pass it explicitly: `| t: ns: '<ns>', locale: page_locale`.
+  - **Pattern for "domain X forwards to the main domain but must keep its language":** forward
+    to the main domain with your own query parameter (for example `?lang=fr`). A body script
+    reads it, stores the pick (localStorage) so client-side defaults do not undo it, POSTs
+    `/session/set_locale` with that locale, then `location.replace()`s the same URL without the
+    parameter. Skip the round trip when the locale already matches, and keep other query
+    parameters. At the registrar, turn path forwarding off when the target URL carries a query
+    string. *Verified live on a customer site, 2026-11-26.*
 - **Storefront language switcher** (template-level, Shopper 24): render the active locale into
   JS with `"{{ request.locale | default: website.locale | escape_json }}"`, and switch with
   `POST /session/set_locale` then `location.reload()`.
@@ -2021,3 +2035,4 @@ tool never saw the product" in one paste, and nothing else does.
 - 2026-11-09: Pitfalls table: `asset_url` inside a quoted snippet argument (capture first). Website Redirects: rules apply to `/site/` paths, one rule for a collection and its sub-collections, create the target first, rules work within seconds, per-product query-string redirect pending confirmation (retire with `sold_out` and `hide_from_search`). redirect_to: literal and variable targets, real server redirect keeping the query string, top-of-page and parse-error caution.
 - 2026-11-13: Website Redirects: never let a rule catch a platform route (/cart, /checkout, /v1/ ...), anchor root rules, test a real design tool Add to Cart after saving. New section Two Silent Liquid Failures: no filters inside a for tag (broke a cart page via a shipping formula); asset_url on a missing asset renders an empty src.
 - 2026-11-21: asset_url: never paste a rendered `/fz/` URL into source (reasons, responsive example, exceptions, delivery check). currency: rendered unit text varies between renders, never gate UI on it. Request: `request.params` works in snippets and page Liquid with no query-string cache; `slice` on arrays; an empty trimmed snippet adds nothing. Translation Keys: CORRECTED item 6 (PyYAML `safe_dump` writes keys over 128 characters as complex keys and the import loads nothing); new item 10 (accepted locales list, default and enabled languages, import, export and per-key routes, textarea check, `t` follows the session not `?locale=`, `POST /session/set_locale`, switcher pattern). Display Currency Switching: new 2b (`px-product-price` renders in a shadow root; walk and observe every open root), case-insensitive skip list, probe variants.
+- 2026-11-27: Form object: `form.recaptcha` needs every live domain on the key and falls back to hCaptcha with the keys cleared. redirect_to: answers 302 (no 301 known) and works inside a snippet. Translations: keeping a language when another domain forwards to the store (own query parameter, then `/session/set_locale`).

@@ -2,7 +2,7 @@
 
 **Authority Scope:** Design Tool Configurations, feature toggles, and customer-facing editor behavior.
 
-_Last updated: 2026-11-25_
+_Last updated: 2026-11-27_
 
 ---
 
@@ -135,6 +135,20 @@ Px.CMS.PhotoPrintsComponent.make({
 **3. Run one tool automatically.** Add `ai-tool="<tool name>"` to `<px-image-upload>`. That one
 tool runs as soon as the customer picks a photo, for example `ai-tool="remove_background"` on a
 product that always needs a cut-out.
+
+How `ai-tool` behaves on `<px-image-upload>` (*verified by reading the CMS bundle source and by test calls, 2026-11-23*):
+
+- While the tool runs the element shows the original photo with a status line, and its `value` stays empty until the result is saved, so Add to Cart validation sees no image yet.
+- The result is saved with `POST /upload/image?gallery_id=<gallery-id>` as `ai_<tool>.webp`. Without `gallery-id` it goes to the default upload location; pass a customer gallery to make the result reusable on other products.
+- The output size comes from `crop-aspect-ratio` and `dpi` (or `minimum-dpi`). Set `dpi` so the call is no bigger than the print needs.
+- The value becomes the AI image id only; the original image id is not exposed.
+- No prompt is sent, so `ai-tool="custom"` cannot be used through the attribute.
+- `login-modal`: a guest gets the login window and the tool runs again after sign-in. Without it a guest gets the login-required text.
+- Any error clears the image; the shopper uploads again.
+- Texts that can be overridden: `ai-tool-in-progress-text`, `ai-tool-error-text`, `ai-tool-insufficient-capacity-text`, `ai-tool-insufficient-tokens-text`, `ai-tool-login-required-text`, `ai-tool-login-text`.
+- Use the attribute for simple one-photo products where any face in the photo is fine; for choosing the subject or switching looks, a tool calls the AI endpoint itself.
+- `remove_background` ignores the requested size (the result is the source size, so crop before upload), keeps transparency (RGBA WebP) and takes about 7 to 13 seconds. On a photo with no person or animal it keeps random objects: offer it after a subject is picked.
+- The `cartoon` preset keeps the photo background. For an isolated character use `custom` with a prompt that asks for a plain white background, and tell the prompt to add glasses, a beard, jewelry or a hat only if the person clearly has them (without that line it invented them on a small face).
 
 **Rules that apply to all three**
 
@@ -410,6 +424,7 @@ unless marked.*
   selected state `data-selected`.
 - **Page chrome:** page shadow on `.px-page-display-page > svg.px-page`, nav arrows
   `.px-page-prev button` / `.px-page-next button`, bleed guide `svg.px-page rect.px-bleed`.
+- **Page shadow drawn twice:** a `box-shadow` on `svg.px-page` matches both stacked layers (`.px-current-set` and `.px-current-set-controls`) and draws twice. Put one shadow on the first layer's `.px-pages-scrollable-area` instead. *Seen in a site's editor CSS, 2026-11-23.*
 - **Warnings today:** low resolution is a `g.px-element-icon` on the element plus a
   notification when selected; bleed and safe-area are a timed notification only; text
   overflow is a notification when selected. No badge carries a number, so a DPI figure or
@@ -417,6 +432,21 @@ unless marked.*
   translatable through `Px.t` keys.
 - **`editor_bundle.css` is cross-origin:** `document.styleSheets[].cssRules` throws on it;
   `fetch()` the file to read its rules.
+
+### Masks in the design tool: where customers find them
+
+Platform-level (Pixfizz CMS); the styling recipe is site-level CSS. *Verified by reading the editor bundle and by query, 2026-11-26; styling verified live at 1440 and 390 px.*
+
+- **There is no customer tab for masks.** The rail has a `mask` tab, but it is hidden unless the design tool runs in advanced edit mode.
+- **Desktop:** select an image element that holds a photo, open Image edit in the Images panel: the mask control (`.px-edit-control.px-mask-control`) has a "Select..." button (`button.px-select-mask`) and, once a mask is set, "Remove" (`button.px-remove-mask`). It is the last control in `.px-image-edit-panel .px-edit-controls`.
+- **Phone:** the photo toolbar item `.px-mobile-toolbar button.px-tab[data-id="image->mask"]`.
+- **Both appear only when the image element allows masks (`emask`) and the design has masks.** A design with no masks in its Masks gallery shows no mask option at all. Check a design's masks with `GET /v1/themes/<design id>/masks.json` (public, storefront origin).
+- The picker heading "Image Mask:" is a translation key and easy to miss; set it in the editor namespace.
+- **Styling recipe (site editor CSS, for example a Shopper child override of `style/editor.css`):**
+  - Move the mask control to the top: `html body .px-editor .px-image-edit-panel .px-edit-controls { display:flex; flex-direction:column }` and `html body .px-editor .px-image-edit-panel .px-edit-controls > .px-edit-control.px-mask-control { order:-1 }`. The other controls keep zero margins, so spacing does not change.
+  - To restyle the Select button, include `.px-controls` in the selector so it beats the stock rule: `html body .px-editor .px-image-edit-panel .px-mask-control .px-controls button.px-select-mask`.
+  - A hint can be added with `.px-mask-control h2::after { content: "..." }` (not translatable, so one language per site).
+  - `.px-image-edit-panel` is also used by the admin inline page edit panel; the rules are harmless there.
 
 ### The "unedited placeholders" gate is a configuration switch
 
@@ -533,6 +563,8 @@ a shopper24 child, bundle 20261002143509, 2026-10-03, unless marked.*
   `unedited_elements` and `fillable_placeholders`. An image element's
   `dpi_resolutions` is its effective `[x, y]` dpi; `store.project.minimum_dpi` is the
   floor from the definition. *Verified by query, bundle 20261001104917, 2026-10-02.*
+- **In a page set with two pages (not `double_page`), each page's `image_elements` also holds the other page's elements**, with `x` shifted by one page width (a page held its own frame at x 62 plus the facing page's frames at x 224 and 317 on a 210 mm page; the facing page held the first page's frame at x -148). A script that counts or fills `page.image_elements` keeps only elements whose center lies on the page: `c = e.x + e.width / 2; 0 <= c <= page.width`. Filling an off-page element puts the photo on the neighbor page and leaves the visible frame empty. Layflat books (`double_page` sets, one page per set) do not show this, so test editor scripts on a two-page-spread book too. *Verified by query, 2026-11-24.*
+- **Every image element reports `replace: true`**, artwork included, so `replace` cannot find a photo frame. Use `placeholder`: true only on an unfilled photo frame, false once filled. *Verified by query in the editor, 2026-11-25.*
 - The editor store's page list includes sets marked `editor="false"`: a layflat book lists
   preview, cover, endsheet-front, first, the grow spreads, last and endsheet-back. A tool that
   maps its own pages to editor pages by index must skip the preview and endsheet pages.
@@ -572,7 +604,7 @@ The editor's own autofill can be driven with any photo order; gallery order does
   or use `fillPlaceholder` below. *Verified by query, 2026-10-20.*
 - Calendar projects fill the same way: 13 photos were placed cover first, then month by month.
   *Verified by query, 2026-10-19.*
-- Text: `textElement.update({text})` persists on save.
+- Text: `textElement.update({text})` persists on save, but it keeps a `placeholder` flag (see Text elements below).
 
 Not verified: layout of pages added by `_autofillWithNewPages`, and logged-in projects.
 
@@ -601,6 +633,7 @@ Further detail, *verified by query, bundle 20261002143509, 2026-10-04*:
 **Text elements.**
 - `el.update({text})`, `el.update({font: <site font id>})`, `el.update({color: '#RRGGBB'})` and
   `el.update({kerning: 0})` all persist on save.
+- **Clear `placeholder` when a tool writes the words.** Design text elements can carry `placeholder="true"` (common on pre-made designs: "Your Sentiment Here", "enter your text here"). The preview button and the fulfillment render leave placeholder text out; the design tool canvas still shows it. `element.update({text})` does **not** clear the flag, so the customer's words do not print: send `{text, placeholder: false}` (typing in the design tool clears it). Check after any hand-off: fetch `/v1/books/<id>/pages` and assert no edited text still has `placeholder="true"`; the fulfillment render (`/v1/pages/<id>.jpg?fulfillment=true`) shows the words only once the attribute is gone. *Verified by query and render, 2026-11-25.*
 - **Size is `pointsize` (points).** `fontsize` is computed from it (millimetres,
   `pointsize x 25.4 / 72`) and writing `fontsize` throws a MobX invariant error. Keys written
   before the failing key in the same update object still land, so update one key per call.
@@ -624,6 +657,8 @@ Further detail, *verified by query, bundle 20261002143509, 2026-10-04*:
   `edit="true"`, locked with the other flags. Prove the fill by reading `/v1/books/<id>/pages` (`src`
   no longer the sample, no `placeholder` attribute), not the tool's own report. Platform-level.
   *Verified by query on experience.pixfizz.com, 2026-11-19.*
+- **Do not set `placeholder: true` on an image that already holds artwork:** the platform page render leaves that element white (and can cut elements above it), while the design tool still shows the artwork, so it looks fine on screen. *Verified by render, 2026-11-25.*
+- **`border` on an image element is in mm** (not points) and is drawn centered on the frame edge, half inside and half outside: `border="3"` measured 2.8 mm on a 1200 px render. *Verified by measurement, 2026-11-25.*
 - `el.update({zoom, left, top})` (crop, § Image crop state) and `el.update({grayscale: true})`
   persist; the saved XML carries `grayscale="true"`.
 - `el.update({x, y, width, height})` moves and resizes an element and saves. *Verified by query,
@@ -983,6 +1018,20 @@ inside CSS text is replaced (the only evidenced use is a font). Until checked: u
 `asset_url` in the Liquid-rendered locations and never mix the two syntaxes in one
 block.
 
+## Design Pages, Backgrounds and Layouts (2026-11)
+
+Platform-level (Pixfizz CMS).
+
+- **A design can hold more pages than its template defines, but a customer's book only takes the template's page types.** With a definition of page01 plus a grow set of page02 to page05, book page 6 is design page02 again; design pages beyond the defined types never reach a book. To give customers more arrangements, add layouts, not design pages. *Verified by test on guest books, 2026-11-26.*
+- **"Add Missing" on the admin design page creates blank pages.** It adds every page type named in the template definition that the design lacks, each as an empty page (`<page width height version="2"/>`), and blank pages reach customers' books as empty pages. A page type the design does not have is otherwise skipped by the book builder with no error, so the "Missing page" warning on its own is harmless. Only press Add Missing when you fill the new pages straight after. *Verified by query, 2026-11-26.*
+- **A design can own layouts** (admin design page, Layouts). The Layout picker shows the design's own layouts first in each tag group, before linked library layouts. Applying a layout replaces every `layout="true"` element (frames, art, text) with the layout's elements, so theme art that should change with the layout must be `layout="true"`. Admin routes for layouts: `18_ADMIN_NAVIGATION.md` § More Admin Screens. *Verified by test, 2026-11-26.*
+- **Layout tags are shown to customers exactly as typed** (they are not translated). Keep the existing tag strings, or the picker splits into new groups. *Verified live, 2026-11-26.*
+- **A page background is a page attribute** (`src="db:<image id>"` on `<page>`), written by the Backgrounds panel. On its own the image is fitted inside the page; where the ratio differs, the page's background color shows at the edges. **Full-Page Background** in the page settings (`bgfill="true"`) cover-crops it to the page, the same as a full-page image element. *Verified by query and render, 2026-11-26.*
+- **The Backgrounds panel only offers a gallery background for a page when the ratios match within 5%, or when the page has Full-Page Background on.** Turn Full-Page Background on for every inside page whose backgrounds come from a shared set. *Verified by reading source, 2026-11-26.*
+- **A design's Backgrounds gallery is its own.** The Backgrounds **Link** button (link by tag) answered 200 but did not link images with that tag from another design's galleries. Upload backgrounds per design. *Verified by query, 2026-11-26.* (all galleries: `16_PRODUCT_HIERARCHY.md` § Designs)
+- **In the editor the cover page is wider than the design XML cover by the real spine.** Front-cover elements keep their distance from the right edge: an element at x 326 on a 604-wide XML cover sat at x 334.35 on the 612-wide editor cover. To match front-cover elements between the design and a project, compare `W - x`, not `x` or `x - W/2`. See `19_XML_TEMPLATE_REFERENCE.md` (growing spine). *Verified by query, 2026-11-26.*
+
+
 ## Design Theme Layouts — Export Format
 
 Verified 2026-08-26 against two real design-theme exports.
@@ -1176,6 +1225,11 @@ They can be forced visible with `opacity`, `z-index` and `!important` — the
   the first and last page too.
 
 Do not propose them as a navigation fix. They are a swipe hint at best.
+
+### The phone header grows when a page is open
+
+With a page open on a phone, the editor adds `.px-subheader` (the Project back pill, about x 16, y 70 to 102) inside `.px-mobile-header`, and the header grows from 60 to 102 px. On a site whose mobile header is white with `z-index: 3`, it paints over anything placed in the next grid row. A custom row has to sit above it (`position: relative; z-index: 4`, transparent background, pointer events only on its own controls) and start to the right of the pill. Platform-level (editor, phone mode). *Verified by query, 2026-11-24.*
+
 
 ### Recommended platform changes
 
@@ -1624,3 +1678,4 @@ Platform event. *Confirmed by Pixfizz, 2025-05; not re-tested by query.*
 - 2026-11-13: New sections: Where the Editor's Close Button Goes (exitTarget order, exit_target passed through /v1/books); px-design-preview notes (listens to every option selector without the attribute, self-fetched SVG loses external images, slow previews from heavy design artwork).
 - 2026-11-21: Integrations: Custom CSS field gated by `editor_custom_css` like Custom JS (both off on a fresh child). Editor CSS Customization: Shopify + Pixfizz sites use the `style/editor.css` route; Shopper 24 parent rule to copy into an override; specificity of stock button rules and the `!important` selected tab; phone cart button; Google Fonts `@import`; more theming variables; an untranslated stock string. Text, image and layout calls: `fillPlaceholder` silently skips `edit="false"` images. New § Saving, autosave and guest projects (no native autosave, Quicksave Prompt Delay, save diff and page replacement, non-idempotent page adds, keepalive on page close, header redraw, page limits, `Px.config` values, test and guest projects, `/site/login`).
 - 2026-11-25: Added "AI tools outside the design tool": `image-adjust-tool-ai-tools` and `dpi` on `<px-image-upload>` (crop window), `ai_tools` in the photo prints component settings, `ai-tool` auto-run on upload, and the sign-in and token rules.
+- 2026-11-27: AI tools: how the `ai-tool` attribute behaves (value, gallery, size, guests, error texts, remove_background and cartoon results). Editor CSS: page shadow drawn twice; new subsection on masks (where customers find them, emask, styling recipe). Driving the editor: two-page spreads list the neighbor page's elements, `replace` is true on every image (use `placeholder`), clear `placeholder` when writing text, never set `placeholder` on artwork, image `border` is in mm. New section Design Pages, Backgrounds and Layouts (book page types cycle, Add Missing makes blank pages, design-owned layouts and tags, page background attribute, Full-Page Background, Backgrounds Link, editor cover wider by the spine). Mobile Editor CSS: phone header grows when a page is open.

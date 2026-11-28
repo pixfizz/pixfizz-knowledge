@@ -2,7 +2,7 @@
 
 **Authority Scope:** Navigation + retrieval guidance only. This file does not introduce new platform or template rules.
 
-_Last updated: 2026-11-25_
+_Last updated: 2026-11-27_
 
 ---
 
@@ -2323,6 +2323,367 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 
 ---
 
+## Routes added 2026-11-27
+
+### "captcha required, cannot turn off captcha, reCAPTCHA domains, hCaptcha fallback, nobody can register or check out as guest after domain change"
+→ **21_SHOPPER_CHECKOUT_POLICY.md** § Captcha on registration and guest checkout (required); **40_PLAYBOOK_UPDATED.md** § Nobody Can Register or Check Out as a Guest After a Domain Change: Check the reCAPTCHA Domains; **80_ONBOARDING.md** § Pre-Launch Handoff Checklist; **50_LIQUID_REFERENCE.md** § Form (`form.recaptcha`)
+
+### "kiosk hard drive, kiosk PC folder, Photo sources, folder PIN, kiosk 1.0.7"
+→ **18_ADMIN_NAVIGATION.md** § Pixfizz Kiosk app 1.x: what staff need to know; **70_MYPIXFIZZ_OVERVIEW.md** § Support
+
+### "guest user by API, create user without email, convert guest user"
+→ **61_PIXFIZZ_API.md** § Create a guest user (no email)
+
+### "multitext number boolean user custom field by API, bulk user create network failure"
+→ **61_PIXFIZZ_API.md** § Create users in bulk (no CSV import)
+
+### "open the design tool by POST, POST /v1/books, no GET link to the editor, fixed page count"
+→ **61_PIXFIZZ_API.md** § Create a project
+
+### "tool state on a project without a custom field, page data attribute"
+→ **61_PIXFIZZ_API.md** § Update a project
+
+### "cover spread vs single cover, px-project-preview attributes, guest calendar dates"
+→ **61_PIXFIZZ_API.md** § Read a project's pages
+
+### "re-add project already in cart sums quantity, orderline quantity"
+→ **61_PIXFIZZ_API.md** § A cart line from template options only (no editor); **20_SHOPPER_CART_RULES.md** § Cart links and adding to the cart from outside the product page
+
+### "upload image field file 400, Filedata field name"
+→ **61_PIXFIZZ_API.md** § Add an image
+
+### "plain page render size cap hide_placeholders trim, theme preview 150 px"
+→ **61_PIXFIZZ_API.md** § Preview resolution and production-quality output
+
+### "theme JSON calendar transformations missing, layouts.json images"
+→ **61_PIXFIZZ_API.md** § Reading a design and a font
+
+### "AI tool timing, AI result cache, AI token use, AI tool ids auto_enhance oil_painting, no AI availability probe"
+→ **61_PIXFIZZ_API.md** § 13j; **26_CUSTOM_DESIGN_TOOLS.md** § AI image tools in a studio; **17_DESIGN_TOOL.md** § AI tools outside the design tool (crop window, photo prints, auto-run)
+
+### "AI faces group photo, one person from a group, cartoon cleanup, hide AI after refusal"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § AI image tools in a studio
+
+### "admin script policy, do not reuse the admin nonce, scripts outside the admin page"
+→ **61_PIXFIZZ_API.md** § 13h
+
+### "super account webhook form, webhook secret and events"
+→ **61_PIXFIZZ_API.md** § 13d. Order Webhook — Registration and Payload
+
+### "gallery Link one tag per gallery, Link did not bring another design's images, admin Copy carries the library"
+→ **16_PRODUCT_HIERARCHY.md** § Designs; **17_DESIGN_TOOL.md** § Design Pages, Backgrounds and Layouts (2026-11)
+
+### "check design content before publish, design page render, SHA-256 batch proof, unpublished designs hidden"
+→ **16_PRODUCT_HIERARCHY.md** § Designs (Checking a design's content without the editor)
+
+### "layout names break import, 50 character design code, image ids remapped, one export as a size range"
+→ **16_PRODUCT_HIERARCHY.md** § Import Behavior: Ids in an Import Tar Are Not Honored (More import facts)
+
+### "blank default fulfillment code errors every order, fulfillment code typo misroutes, codes case sensitive"
+→ **31_FULFILLMENT_ENGINE.md** § Fulfillment Code Resolution and Precedence
+
+### "filename tags lost on OrderHub HTTP, option custom fields in file name"
+→ **31_FULFILLMENT_ENGINE.md** § Option choices in the file name (filename tags)
+
+### "blank render beside print file, OrderHub HTTP sends renders and uploads, fulfillment false"
+→ **31_FULFILLMENT_ENGINE.md** § Where No Production File Is Rendered At All
+
+### "CraftMyPDF order summary field names, clone template before changing"
+→ **31_FULFILLMENT_ENGINE.md** § Pattern 1: PDF Job Ticket via CraftMyPDF
+
+### "OrderHub HTTP artwork delivery, partner labs, order JSON before image in hot folder"
+→ **45_ORDERHUB.md** § HTTP Artwork Delivery and Partner Labs; **45_ORDERHUB.md** § OrderHub Downloader (OHD)
+
+### "Shopify pickup address not assigned, shopify_shipping_service, assign and refulfill"
+→ **60_SHOPIFY_INTEGRATION.md** § 13. Pickup Orders — Webhook Address Handling
+
+### "Live Finish cut short in Shopify Personalize window, card img max-height"
+→ **60_SHOPIFY_INTEGRATION.md** § 19. Image Swatches in the Personalization Modal Render at Source Size; **27_LIVE_FINISH_AND_3D_PREVIEWS.md** § 2.9 Live Finish outside Shopper
+
+### "move Life Event List to another account, life event transfer"
+→ **90_FAQ.md** § Section 8 — Storefront & Site Management (Full Pixfizz / Shopper)
+
+### "tall product art, growth chart art, outpaint taller"
+→ **83_AI_IMAGERY_PRODUCTION.md** § B12. Product plates and preview scenes with the Nano Banana family
+
+### "phone gestures pinch zoom, real touch test on a phone"
+→ **82_MOBILE_UX_REFERENCE.md** § 4a. Touch and form implementation rules
+
+### "product JSON-LD image empty, schema image fallback, static product image"
+→ **81_SEO_AND_GEO_REFERENCE.md** § Part F — Product Schema: High-Fidelity Attributes (Reference)
+
+### "design not indexed, design without url_path noindex, not in sitemap"
+→ **81_SEO_AND_GEO_REFERENCE.md** § Part D — Pixfizz and Shopper: What's Provided Today
+
+### "wrong page title in browser, GTM SEO plugin rewrites title"
+→ **81_SEO_AND_GEO_REFERENCE.md** § Part H — Findings 2026-11
+
+### "site moved to Shopper inherits no-index, connector refuses snippets after switch"
+→ **80_ONBOARDING.md** § Post-Import Checks a Tar Cannot Cover
+
+### "unverified email domain badge, sending domain CNAME records"
+→ **80_ONBOARDING.md** § Phase 3: Checkout Configuration; **18_ADMIN_NAVIGATION.md** § More Admin Screens and Form Routes (2026-11)
+
+### "redirect_to 302 not 301, redirect_to inside a snippet"
+→ **50_LIQUID_REFERENCE.md** § redirect_to
+
+### "forwarded domain keeps language, set_locale"
+→ **50_LIQUID_REFERENCE.md** § Translation Keys — How the `t` Filter Actually Behaves
+
+### "cart Edit on studio line, options run together on cart line"
+→ **20_SHOPPER_CART_RULES.md** § Hiding options and variants from the cart line
+
+### "remove confirm translation keys, remove cart line by script"
+→ **20_SHOPPER_CART_RULES.md** § Removing a cart line asks for confirmation (parent, 2026-10-22)
+
+### "no Order Confirmed email after manual confirm, status email ticks"
+→ **32_ORDER_LIFECYCLE.md** § Which notification email fires when; **18_ADMIN_NAVIGATION.md** § Orders
+
+### "order email sender address, Orders Email, Order Pending for every order, pay in store email"
+→ **32_ORDER_LIFECYCLE.md** § How notification email templates behave; **email-kit/README.md**
+
+### "production PDF on pending order, kiosk pay in store order has no files"
+→ **32_ORDER_LIFECYCLE.md** § Other Admin Order Sections
+
+### "translate the email kit, email in another language"
+→ **email-kit/README.md** § Another language
+
+### "add a payment method row, bank transfer for every customer"
+→ **21_SHOPPER_CHECKOUT_POLICY.md** § Payment method selection and labels
+
+### "Taxes admin screen, tax CSV import"
+→ **21_SHOPPER_CHECKOUT_POLICY.md** § Tax CSV format; **18_ADMIN_NAVIGATION.md** § Shipping
+
+### "preview a new header on the live site behind a switch"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 2. Navigation System
+
+### "brand color in JS from btn-primary, one corner radius across site studios Live Finish"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 4. Theming System
+
+### "password reset page language, served editor-scripts.js"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 10. Key Page Inventory
+
+### "breadcrumbs Wildcard Page, FAQ page entries"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 14. Creating Pages on Child Sites
+
+### "Shrink to fit icon missing on kiosk, photo print tile hover icons"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 16. Kiosk Touchscreen Mode
+
+### "country list order and default, address form country filter, VAT line in checkout"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 17. Known Gotchas
+
+### "saved project card shows back cover, book cover on project cards"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 19. Account v2 (`acv2`) Theming
+
+### "ship a tool version to one child, child asset with parent name overrides"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 21. Parent-Safe Changes to Shopper 24
+
+### "/site/shop/c/ shows Shop All, translate photo prints flow, collection page translations"
+→ **50_SHOPPER_TEMPLATE_REFERENCE.md** § 26. Collection Pages, Product Pages and the Page Frame (2026-11)
+
+### "tool price call sends every variant it sets"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § When the tool computes the price
+
+### "reference image as file option, POST /upload/file url"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § Attaching a file to an option: `file-url` is content addressed
+
+### "crop on a local image, PDF page crop to fill, PxPhotoSlot set restores crop"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § Using the platform crop tool standalone
+
+### "phone QR upload source always, upload max-size also feeds QR"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § Open the platform upload dialog standalone
+
+### "price forecast panel jump, two theme pairs collide"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § The shared look: `style/px-tool-theme`
+
+### "nested form in a tool dropped, tool draws no form"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § The product form refuses silently
+
+### "crossOrigin on every canvas image, CDN CORS, test on a second origin, chat widget over phone price bar"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § Drawing a design in the browser; **41_IMPLEMENTATION_PATTERNS_UPDATED.md** § Canvas Export Requires `crossOrigin = 'anonymous'`
+
+### "test photos must differ, Similar photos warning"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § Testing a tool before the live check
+
+### "generated art over a later photo, top layer stops at trim"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § Generated template art
+
+### "studio in an iframe alignment, iframe takes brand"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § A studio in an iframe lines up with the store and takes its brand
+
+### "uploader flip edge from page shape, fold duplex turn edge, fold preview"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § Uploader 2.0 (documents, booklets, forms): prototype; **26_CUSTOM_DESIGN_TOOLS.md** § Flyer / Brochure (flyer-fold): live on one site
+
+### "studios ignore Published tick, studio tiles from design, Calendar Studio code suffix, MSP spiral calendar coil"
+→ **26_CUSTOM_DESIGN_TOOLS.md** § Cross-tool rules added 2026-11; **tool-settings/calendar-studio.md**
+
+### "own calendar designs self-serve, own photo book designs self-serve, include allow-list"
+→ **tool-settings/calendar-studio.md**; **tool-settings/photo-book-studio.md**
+
+### "vertical business cards, size switch"
+→ **tool-settings/business-cards.md**
+
+### "jewelry box print file, jewelry box sets"
+→ **tool-settings/jewelry-box.md**
+
+### "triggered child variant server render"
+→ **22_OPTION_VARIANT_RENDERING.md** § 3.2 Triggered / child options (conditional logic)
+
+### "substitution opacity attribute, text font substitution, control_type dropdown"
+→ **22_OPTION_VARIANT_RENDERING.md** § Template Option Substitutions: Target Elements, Types and Limits
+
+### "option shows description popup, null option description"
+→ **22_OPTION_VARIANT_RENDERING.md** § Template-Options Import: Blank Ids Create New Records
+
+### "read-only variant blocks Add to cart, use Hidden instead"
+→ **22_OPTION_VARIANT_RENDERING.md** § More export and rendering behavior (2026-11)
+
+### "line.price is the line total in automatic discount, promo code guard blocks voucher"
+→ **30_PRICING_ENGINE.md** § Automatic Discounts (Liquid-Based Cart Discounts)
+
+### "gift voucher amount from face value, issue voucher at fulfillment"
+→ **30_PRICING_ENGINE.md** § Test Orders with 100% Voucher
+
+### "pricing.js 5.1, px_fold folded brochure codes, swap pricing.js in OrderHub and POS together"
+→ **33_PX_RATES_PRICE_CARDS.md** § 2. One engine, three places
+
+### "per-size lab price list vs area card, area has no quantity tiers"
+→ **33_PX_RATES_PRICE_CARDS.md** § 3. Modes at a glance
+
+### "big tool page as JS asset, small snippet"
+→ **41_IMPLEMENTATION_PATTERNS_UPDATED.md** § Large tool pages: ship the page as a JS asset, keep the snippet small
+
+### "currency switcher wraps prices after insertion"
+→ **41_IMPLEMENTATION_PATTERNS_UPDATED.md** § The currency switcher wraps prices after insertion
+
+### "user category field, admin-created account blank password"
+→ **18_ADMIN_NAVIGATION.md** § Users
+
+### "Automatic Discount form fields"
+→ **18_ADMIN_NAVIGATION.md** § Marketing
+
+### "editor translation keys, missing editor strings, translations import confirm"
+→ **18_ADMIN_NAVIGATION.md** § Editor translations are a separate namespace, and enabling a language does not create them
+
+### "collection name and description per language, locale ids"
+→ **18_ADMIN_NAVIGATION.md** § Translation forms by route
+
+### "template option Import button"
+→ **18_ADMIN_NAVIGATION.md** § Bulk Update Tools: Rolling a Change Across Live Templates
+
+### "template import onto inheriting child, publish by plain fetch, design list shows names not codes, positions per template"
+→ **18_ADMIN_NAVIGATION.md** § Import and publish routes (admin tab, logged in)
+
+### "Show other sites' collections"
+→ **18_ADMIN_NAVIGATION.md** § Template Provider and Template Consumers
+
+### "design layout routes, Backgrounds upload, font upload, full CMS backup link, site holiday calendars admin, promo code delete"
+→ **18_ADMIN_NAVIGATION.md** § More Admin Screens and Form Routes (2026-11)
+
+### "masks where customers find them, mask styling"
+→ **17_DESIGN_TOOL.md** § Masks in the design tool: where customers find them
+
+### "two-page spread neighbor elements, replace true on every image"
+→ **17_DESIGN_TOOL.md** § Store paths
+
+### "text placeholder flag does not print, image border in mm"
+→ **17_DESIGN_TOOL.md** § Text, image and layout calls
+
+### "book page types cycle, Add Missing blank pages, design-owned layouts, Full-Page Background, editor cover wider by spine"
+→ **17_DESIGN_TOOL.md** § Design Pages, Backgrounds and Layouts (2026-11)
+
+### "phone editor header height when a page is open"
+→ **17_DESIGN_TOOL.md** § Mobile Editor CSS
+
+### "myPixfizz Health tab, store health grades"
+→ **70_MYPIXFIZZ_OVERVIEW.md** § Health
+
+### "myPixfizz support ticket form, urgency"
+→ **70_MYPIXFIZZ_OVERVIEW.md** § Support
+
+### "custom field type change, custom type code underscores"
+→ **51_CUSTOM_FIELDS_REFERENCE.md** § Key Notes
+
+### "connector undo does not remove a created snippet"
+→ **75_AI_ASSISTANT_SETUP.md** § 1. Connect Claude to your store (Pixfizz connector)
+
+### "iOS nothing happens after picking many photos"
+→ **40_PLAYBOOK_UPDATED.md** § iOS: Nothing Happens After Picking Many Photos
+
+### "page blank only header and footer, escaped script close tag"
+→ **40_PLAYBOOK_UPDATED.md** § Page Shows Only Header and Footer: An Inline Script Closed With `<\/script>`
+
+### "link crawl logs itself out, empty filter links after unpublishing"
+→ **40_PLAYBOOK_UPDATED.md** § A Link Crawl Logs Itself Out: Skip Logout Links; **40_PLAYBOOK_UPDATED.md** § Links to an Empty Filter After Unpublishing a Product Family
+
+### "unsupported characters fulfillment error, hidden emoji, stacked duplicate images"
+→ **40_PLAYBOOK_UPDATED.md** § An Order Fails Production With "Unsupported Characters": Look for Hidden Emoji or Stacked Hairline Images
+
+### "calendar printed page type, check calendar pages without an order"
+→ **23_XML_CALENDAR_REFERENCE.md** § 3. Page Attributes Specific to Calendars; **23_XML_CALENDAR_REFERENCE.md** § Two working tips
+
+### "site holiday calendars CSV, dates one day early, website-calendar caption duplicates"
+→ **23_XML_CALENDAR_REFERENCE.md** § Calendar Element Tags, Fills and Transformations
+
+### "calendar project saved text is what prints, calendar autofill placeholder frames"
+→ **23_XML_CALENDAR_REFERENCE.md** § Per-Page Photo Layouts on Calendar Templates
+
+### "shipping weight element in definition"
+→ **19_XML_TEMPLATE_REFERENCE.md** § `<definition>` Attributes
+
+### "commented-out sets ignored"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Set Parameters
+
+### "PNG output separate-file layers"
+→ **19_XML_TEMPLATE_REFERENCE.md** § PDF Layers in Practice — What Each Setting Does to the Customer and to Production
+
+### "grow set page lists build new books, skipped page names"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Sequential Page Types in Grow Sets
+
+### "canvas template outputs PDF"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Canvas
+
+### "_additional_files.json nil type error, Shopify line item properties"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Sending Original Customer Files to FTP (`_additional_files.json`)
+
+### "500 error on project create, definition page type without design page"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Every Definition Page Type Needs a Design Page of the Same Name
+
+### "frame group with photo, page background bgfill"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Drawing Order, Groups and Other Elements Seen in Design Exports
+
+### "shrink not shrinking in editor, text fit test"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Text Elements: `shrink`, `valign` and Font Size
+
+### "decorate design pages with theme art"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Editing Design Pages and Layouts in Place
+
+### "design import font id remap, orphan layout"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Design Import (`__print_theme.yml`)
+
+### "design page size vs definition, bleed is the outer band"
+→ **19_XML_TEMPLATE_REFERENCE.md** § Output DPI, Bleed and the First `<page>`
+
+### "Live Finish leave face square under radius override"
+→ **27_LIVE_FINISH_AND_3D_PREVIEWS.md** § 2.7 Dark child sites
+
+### "picture frame plates rectify, tool-made frame face"
+→ **27_LIVE_FINISH_AND_3D_PREVIEWS.md** § 2.10 Photo plates (Live Finish Plates); **27_LIVE_FINISH_AND_3D_PREVIEWS.md** § Findings 2026-11
+
+### "three.js unproject camera matrix"
+→ **27_LIVE_FINISH_AND_3D_PREVIEWS.md** § 4. Platform facts both engines rely on
+
+### "three.js transmission white, preserve-3d flattened, gltfpack UVs, Meshopt decoder"
+→ **27_LIVE_FINISH_AND_3D_PREVIEWS.md** § Engineering lessons (CSS 3D and three.js)
+
+### "Live Finish ornament face, hidden form hides uploads"
+→ **27_LIVE_FINISH_AND_3D_PREVIEWS.md** § Findings 2026-11
+
+### "Live Finish on shared templates, rollback, test without saving"
+→ **27_LIVE_FINISH_AND_3D_PREVIEWS.md** § 7. Installing on a site
+
+---
+
 ## Changelog
 - 2026-03-13: Added Shopify Integration section and Shopify scope warning.
 - 2026-03-26: Added MyPixfizz section pointing to 70/71/72 files.
@@ -2365,3 +2726,4 @@ If a site is using a **custom eCommerce integration** (external storefront, not 
 - 2026-11-24: Tool settings route now points to the per-tool pages in `tool-settings/`; added the AI switches route.
 - 2026-11-25: Added the AI assistant setup route (`75_AI_ASSISTANT_SETUP.md`).
 - 2026-11-25: Added the route for AI tools outside the design tool (crop window, photo prints, auto-run) and for the AI image tool endpoint.
+- 2026-11-27: Added 119 routes for the 2026-11-27 sync (working notes 21 to 27 Nov, Phase 1 scan, captcha, Kiosk 1.0.7).

@@ -2,7 +2,7 @@
 
 **Authority Scope:** OrderHub operational configuration, Jobs, Production Board, Processes, Locations, integrations, and notifications. For the core Pixfizz order lifecycle see `32_ORDER_LIFECYCLE.md`.
 
-_Last updated: 2026-10-22_
+_Last updated: 2026-11-27_
 
 **The OrderHub help articles are mirrored in `orderhub/`** (one file per article, index in `orderhub/README.md`), regenerated every night from OrderHub. OrderHub is the source of truth for them: never edit `orderhub/` by hand. This file is the curated overview plus the rules that only come from calls, Slack and tickets. Sections that only repeated an article were cut to a pointer on 2026-10-09. Where this file and an article disagree, both are kept and the point is listed for the OrderHub owner to confirm.
 
@@ -199,6 +199,8 @@ OHD auto-update notifications are delivered via OrderHub. Labs always run the la
 ### Print controller hot folder on a NAS: files picked up late
 
 OrderHub Desktop hands a job to a hot-folder print controller (for example Darkroom) by writing the job's files and a text file into the folder the controller watches. When that output folder is on a NAS, the controller may not pick the files up promptly. The workaround used: add a second output folder on the local PC and have the controller monitor both. *Confirmed by Pixfizz, 2026-10-22.* Folder and file naming come from tokens (`orderhub/orderhub-desktop/setting-up-a-darkroom-pro-print-controller.md`).
+
+When OrderHub Desktop output is synced to the print controller's folder by a file sync tool, the order's JSON can land before its image file. The controller then waits briefly for the image and routing still works: expected, not an error. *Seen on a 4x6 print route, 2026-11-24.*
 
 **Order status when a job reaches the controller.** On the same call the order was described as moving to **In Production** when its first job reaches the print controller. The OrderHub article says In Production is "typically set manually" (`orderhub/orders/order-status-s.md`). Both kept; listed for the OrderHub owner to confirm.
 
@@ -397,6 +399,12 @@ unless the old values are mapped across.
 
 ---
 
+## HTTP Artwork Delivery and Partner Labs
+
+**HTTP artwork delivery.** Orders reach OrderHub by webhook through the global OrderHub HTTP fulfillment; job ids and the order id never change, so refulfillment is reliable. In OrderHub, Settings > General > Artwork delivery: HTTP switches OrderHub Desktop from FTP to HTTP (Desktop 1.29 or later). On the Pixfizz site, the site default fulfillment and every product's fulfillment code must be the OrderHub code (case-sensitive; `31_FULFILLMENT_ENGINE.md` § Fulfillment Code Resolution), except products routed elsewhere on purpose (for example a book printer). File-naming logic in an FTP destination's filename template and option custom fields do not carry over to HTTP (`31_FULFILLMENT_ENGINE.md` § Option choices in the file name); that logic belongs in OrderHub Desktop. *Confirmed by Pixfizz, 2026-11-26; not verified by query.*
+
+**Partner labs** (one OrderHub lab outsourcing to another). Both labs must receive artwork by HTTP first. Products reach the supplier lab only when the Pixfizz category maps to a process that maps to that supplier (`orderhub/general/assigning-pixfizz-categories-to-production-processes.md`) and the product code exists in the supplier's OrderHub product list. The supplier invoices at its own price list when it ships, and outsourced lines stay on the production board until completed (`orderhub/general/production-board.md`). Works only between labs on OrderHub, not for print-on-demand suppliers. Setup steps are not yet an OrderHub article. *Confirmed by Pixfizz, 2026-11-26; not verified by query.*
+
 ## Print-on-Demand Routing to a Parent Lab's OrderHub
 
 When a child site outsources part of an order to a parent lab, the split is not what most
@@ -506,3 +514,4 @@ Tools priced by a `px_rates` card (the third pricing type, `30_PRICING_ENGINE.md
 - 2026-10-22: Added Repricing Custom Tool Lines from Generic `px_` Variant Values (generic variant codes, OrderHub reprices from them, a counter-only product can carry a `px_rates` card; OrderHub side stated, not verified). OHD: print controller hot folder on a NAS picked up late (local second folder), In Production on first job at the controller vs the article (to confirm). EasyPost: tracking every six hours for 21 days.
 - 2026-11-09: Website Chat: the chat bubble (closed shadow root, fixed bottom left) can cover a tool's sticky bottom bar on phones; fix in the tool or the widget offset.
 - 2026-11-21: Repricing Custom Tool Lines: a mode missing from `pricing.js` cannot be priced at the till (the `px_price` fallback covers website orders only), till test pointer.
+- 2026-11-27: OHD: order JSON can land before the image in a synced hot folder. New HTTP Artwork Delivery and Partner Labs (switch to HTTP, codes must be the OrderHub code, FTP filename logic does not carry over, partner lab prerequisites; setup steps pending an OrderHub article).
